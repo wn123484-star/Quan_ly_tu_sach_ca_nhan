@@ -1,0 +1,23 @@
+# Git & IDE
+.git
+.gitignore
+.vs
+.vscode
+.idea
+
+# Environment & Secrets
+.env
+.env.local
+.env.*.local
+
+# Build outputs
+**/bin
+**/obj
+**/out
+**/publish
+
+# Reference & Documentation (not needed inside runtime image)
+_reference
+docs
+README.md
+*.md

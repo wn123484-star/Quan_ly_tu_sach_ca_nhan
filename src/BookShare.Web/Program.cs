@@ -6,6 +6,7 @@ using BookShare.Web.Services.Implementations;
 using BookShare.Web.Services.Interfaces;
 using Hangfire;
 using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.EntityFrameworkCore;
 
 // 1. Tự động nạp biến môi trường từ file .env ở thư mục gốc Solution
@@ -137,7 +138,17 @@ builder.Services.AddHangfireServer();
 
 builder.Services.AddControllersWithViews();
 
+// 7. Cấu hình ForwardedHeaders cho Nginx Reverse Proxy (Nhận diện đúng https:// cho Google OAuth /signin-google)
+builder.Services.Configure<ForwardedHeadersOptions>(options =>
+{
+    options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+    options.KnownIPNetworks.Clear();
+    options.KnownProxies.Clear();
+});
+
 var app = builder.Build();
+
+app.UseForwardedHeaders();
 
 if (!app.Environment.IsDevelopment())
 {

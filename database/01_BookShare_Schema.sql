@@ -9,14 +9,10 @@
 USE master;
 GO
 
-IF EXISTS (SELECT name FROM sys.databases WHERE name = N'BookShareDb')
+IF NOT EXISTS (SELECT name FROM sys.databases WHERE name = N'BookShareDb')
 BEGIN
-    ALTER DATABASE [BookShareDb] SET SINGLE_USER WITH ROLLBACK IMMEDIATE;
-    DROP DATABASE [BookShareDb];
+    CREATE DATABASE [BookShareDb];
 END
-GO
-
-CREATE DATABASE [BookShareDb];
 GO
 
 USE [BookShareDb];
