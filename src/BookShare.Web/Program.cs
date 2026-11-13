@@ -68,6 +68,11 @@ builder.Services.AddScoped<IS04BookNotesService, S04BookNotesService>();
 builder.Services.AddScoped<IS05IsbnCatalogService, S05IsbnCatalogService>();
 builder.Services.AddScoped<IS06SearchDiscoveryService, S06SearchDiscoveryService>();
 builder.Services.AddScoped<IS07LibraryCatalogService, S07LibraryCatalogService>();
+builder.Services.AddScoped<IS08LibraryLoanService, S08LibraryLoanService>();
+builder.Services.AddScoped<IS09P2PLoanService, S09P2PLoanService>();
+builder.Services.AddScoped<IS10ConditionReportService, S10ConditionReportService>();
+builder.Services.AddScoped<IS11HotBookQueueService, S11HotBookQueueService>();
+builder.Services.AddScoped<IS12LoanRenewalFineService, S12LoanRenewalFineService>();
 builder.Services.AddScoped<IPortalDiscoveryService, PortalDiscoveryService>();
 
 // 6. Cấu hình Hangfire Background Jobs

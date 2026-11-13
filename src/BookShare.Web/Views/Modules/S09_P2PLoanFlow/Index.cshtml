@@ -1,0 +1,192 @@
+@model BookShare.Web.Models.ViewModels.S09P2PLoanPageViewModel
+@{
+    ViewData["Title"] = "S09. Luồng Mượn – Trả P2P Giữa Các Cá Nhân & Thưởng Hạn Mức";
+}
+
+@section Styles {
+    <link rel="stylesheet" href="~/modules/s09-p2p-loan-flow/s09-p2p-loan-flow.css" asp-append-version="true" />
+}
+
+<!-- 1. THÔNG TIN ĐIỂM UY TÍN (TRUSTSCORE), THƯỞNG QUOTA P2P & ĐẶT MƯỢN P2P MỚI -->
+<section class="card border-0 shadow-sm rounded-4 p-4 mb-4 bg-white">
+    <div class="row g-4 align-items-center">
+        <div class="col-lg-6">
+            <span class="badge bg-primary mb-1">Dịch vụ S09 • P2PLoanFlow</span>
+            <h4 class="fw-bold mb-1">Giao Dịch Mượn Sách P2P Cộng Đồng & Điểm Hẹn An Toàn</h4>
+            <p class="text-muted small mb-3">
+                Chủ sách xét duyệt dựa trên <strong>Điểm uy tín (<code>TrustScore</code>)</strong> của người mượn &rarr; Hẹn giao nhận tại <strong>Trạm Sách CLB / Hub</strong> &rarr; Xác nhận ký gửi (<code>InTransit</code>) &rarr; Bàn giao (<code>Borrowed</code>) và tự động cộng thưởng <strong><code>+1 LendQuotaBonus</code></strong> cho chủ sách.
+            </p>
+            <div class="d-flex flex-wrap gap-2">
+                <div class="s09-badge-pill">
+                    <i class="bi bi-shield-fill-check text-success me-1"></i>
+                    Điểm uy tín của bạn: <strong class="text-success">@Model.CurrentUserTrustScore điểm</strong>
+                </div>
+                <div class="s09-badge-pill">
+                    <i class="bi bi-gift-fill text-warning me-1"></i>
+                    Thưởng hạn mức cho mượn P2P (<code>LendQuotaBonus</code>): <strong class="text-primary">+@Model.CurrentUserLendQuotaBonus cuốn</strong>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-6">
+            <div class="s09-create-box p-3 rounded-4">
+                <h6 class="fw-bold small text-primary mb-2">
+                    <i class="bi bi-people-fill me-1"></i>Gửi Yêu Cầu Mượn Sách P2P Từ Chủ Tủ Sách Cá Nhân
+                </h6>
+                <form id="s09CreateP2PForm" class="row g-2 align-items-end">
+                    <div class="col-md-6">
+                        <label class="form-label small text-muted mb-1">Bản sao P2P đang mở cho mượn</label>
+                        <select id="s09BookCopyId" class="form-select form-select-sm" required>
+                            @foreach (var c in Model.AvailableP2PCopies)
+                            {
+                                <option value="@c.BookCopyId">[@c.Barcode] @c.Title — Chủ sách: @c.OwnerName (Trust: @c.OwnerTrustScore)</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label small text-muted mb-1">Điểm hẹn giao nhận (Hub/CLB)</label>
+                        <select id="s09PickupHubId" class="form-select form-select-sm">
+                            @foreach (var h in Model.PickupHubs)
+                            {
+                                <option value="@h.Id">@h.Name</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <button type="submit" class="btn btn-primary btn-sm w-100 fw-bold py-2">
+                            <i class="bi bi-send-check me-1"></i>Mượn P2P
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- 2. DANH SÁCH GIAO DỊCH MƯỢN P2P & CÁC BƯỚC ĐIỀU PHỐI -->
+<section class="card border-0 shadow-sm rounded-4 p-4 bg-white">
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+        <h6 class="fw-bold mb-0">
+            <i class="bi bi-arrow-left-right text-primary me-2"></i>Danh Sách Giao Dịch Mượn Sách P2P Giữa Các Độc Giả (@Model.P2PItems.Count phiếu)
+        </h6>
+        <span class="small text-muted">
+            Mỗi lần xác nhận bàn giao P2P thành công, Chủ sách được cộng <code>+1 LendQuotaBonus</code> và <code>+3 TrustScore</code>
+        </span>
+    </div>
+
+    <div class="d-flex flex-column gap-3">
+        @foreach (var item in Model.P2PItems)
+        {
+            <div class="s09-p2p-card p-3 rounded-4">
+                <div class="row g-3 align-items-center">
+                    <div class="col-lg-4">
+                        <div class="d-flex gap-3 align-items-center">
+                            <img src="@(string.IsNullOrEmpty(item.CoverImageUrl) ? "https://images.unsplash.com/photo-1544947950-fa07a98d237f?w=200" : item.CoverImageUrl)"
+                                 class="s09-cover-thumb shadow-sm" alt="@item.BookTitle"
+                                 onerror="this.src='https://images.unsplash.com/photo-1544947950-fa07a98d237f?w=200'" />
+                            <div>
+                                <div class="d-flex align-items-center gap-2 mb-1">
+                                    <span class="badge bg-info text-dark">P2P #@item.LoanRequestId</span>
+                                    <code class="fw-bold">@item.Barcode</code>
+                                    <span class="badge bg-light text-dark border">@item.CopyStatus</span>
+                                </div>
+                                <h6 class="fw-bold text-dark mb-1">@item.BookTitle</h6>
+                                <div class="small text-muted">
+                                    <i class="bi bi-geo-alt-fill text-danger me-1"></i>Điểm hẹn: <strong>@item.PickupHubName</strong>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-lg-4">
+                        <div class="p-2 rounded-3 bg-light border small">
+                            <div class="d-flex justify-content-between mb-1">
+                                <span class="text-muted">Chủ tủ sách (Lender):</span>
+                                <span>
+                                    <strong>@item.OwnerName</strong>
+                                    <span class="badge bg-warning text-dark">Bonus +@item.OwnerQuotaBonus</span>
+                                </span>
+                            </div>
+                            <div class="d-flex justify-content-between mb-1">
+                                <span class="text-muted">Người mượn & Điểm uy tín:</span>
+                                <span>
+                                    <strong>@item.BorrowerName</strong>
+                                    <span class="badge bg-success"><i class="bi bi-shield-check me-1"></i>@item.BorrowerTrustScore đ</span>
+                                </span>
+                            </div>
+                            <div class="d-flex justify-content-between">
+                                <span class="text-muted">Thời hạn mượn:</span>
+                                <span>
+                                    @item.DesiredDays ngày
+                                    @if (item.DueDate.HasValue)
+                                    {
+                                        <strong class="text-primary">(Hạn: @item.DueDate.Value.ToString("dd/MM/yyyy"))</strong>
+                                    }
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-lg-4">
+                        <div class="d-flex flex-wrap justify-content-end gap-2">
+                            @if (item.RequestStatus == "Pending")
+                            {
+                                <button type="button" class="btn btn-sm btn-success fw-bold js-s09-approve"
+                                        data-req-id="@item.LoanRequestId" data-approve="true">
+                                    <i class="bi bi-check2-circle me-1"></i>Chủ Sách Duyệt P2P
+                                </button>
+                                <button type="button" class="btn btn-sm btn-outline-danger js-s09-approve"
+                                        data-req-id="@item.LoanRequestId" data-approve="false">
+                                    Từ chối
+                                </button>
+                            }
+                            else if (item.RequestStatus == "Approved" && item.LoanId == null && item.CopyStatus != "InTransit")
+                            {
+                                <button type="button" class="btn btn-sm btn-info fw-bold text-dark js-s09-stage"
+                                        data-req-id="@item.LoanRequestId" data-stage="InTransit">
+                                    <i class="bi bi-truck me-1"></i>Mang Ra Trạm Hub (InTransit)
+                                </button>
+                                <button type="button" class="btn btn-sm btn-primary fw-bold js-s09-stage"
+                                        data-req-id="@item.LoanRequestId" data-stage="HandoverBorrowed">
+                                    <i class="bi bi-handshake me-1"></i>Giao Nhận Ngay (+1 Quota)
+                                </button>
+                            }
+                            else if (item.CopyStatus == "InTransit" && item.LoanId == null)
+                            {
+                                <button type="button" class="btn btn-sm btn-primary fw-bold js-s09-stage"
+                                        data-req-id="@item.LoanRequestId" data-stage="HandoverBorrowed">
+                                    <i class="bi bi-box2-heart-fill me-1"></i>Xác Nhận Nhận Sách (+1 LendQuotaBonus)
+                                </button>
+                            }
+                            else if (item.LoanId != null && item.LoanStatus != "Returned")
+                            {
+                                <button type="button" class="btn btn-sm btn-warning fw-bold text-dark js-s09-stage"
+                                        data-req-id="@item.LoanRequestId" data-stage="Returned">
+                                    <i class="bi bi-arrow-return-left me-1"></i>Xác Nhận Hoàn Trả P2P (+2 TrustScore)
+                                </button>
+                            }
+                            else if (item.LoanStatus == "Returned")
+                            {
+                                <span class="badge bg-success py-2 px-3">
+                                    <i class="bi bi-check2-all me-1"></i>Hoàn tất P2P (@(item.ReturnDate?.ToString("dd/MM/yyyy") ?? "Đã trả"))
+                                </span>
+                                <a asp-controller="S10ConditionReport" asp-action="Index" asp-route-loanId="@item.LoanId"
+                                   class="btn btn-sm btn-outline-primary">
+                                    <i class="bi bi-images me-1"></i>Ảnh S10
+                                </a>
+                            }
+                            else
+                            {
+                                <span class="badge bg-secondary py-2 px-3">@item.RequestStatus</span>
+                            }
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+</section>
+
+@section Scripts {
+    <script type="module" src="~/modules/s09-p2p-loan-flow/s09-p2p-loan-flow.js" asp-append-version="true"></script>
+}

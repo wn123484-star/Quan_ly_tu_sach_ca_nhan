@@ -1,0 +1,194 @@
+@model BookShare.Web.Models.ViewModels.S08LibraryLoanPageViewModel
+@{
+    ViewData["Title"] = "S08. Luồng Mượn – Trả Sách Kho Chung Thư Viện";
+}
+
+@section Styles {
+    <link rel="stylesheet" href="~/modules/s08-library-loan-flow/s08-library-loan-flow.css" asp-append-version="true" />
+}
+
+<!-- 1. THÔNG TIN HẠN MỨC MƯỢN & KHỞI TẠO PHIẾU MƯỢN KHO CHUNG MỚI -->
+<section class="card border-0 shadow-sm rounded-4 p-4 mb-4 bg-white">
+    <div class="row g-4 align-items-center">
+        <div class="col-lg-6">
+            <span class="badge bg-primary mb-1">Dịch vụ S08 • LibraryLoanFlow</span>
+            <h4 class="fw-bold mb-1">Luồng Mượn – Trả Sách Kho Chung Thư Viện</h4>
+            <p class="text-muted small mb-3">
+                Quy trình khép kín 4 bước: <strong>(1) Độc giả gửi yêu cầu</strong> &rarr; <strong>(2) Thủ thư kiểm tra hạn mức gói & Duyệt</strong> &rarr; <strong>(3) Bàn giao tại quầy (Sinh hợp đồng <code>Loans</code>)</strong> &rarr; <strong>(4) Thu hồi & Kiểm định sách trả</strong>.
+            </p>
+            <div class="d-flex flex-wrap gap-2">
+                <div class="s08-quota-badge">
+                    <i class="bi bi-person-vcard text-primary me-1"></i>
+                    Độc giả: <strong>@Model.CurrentUserName</strong> (<span class="text-primary fw-bold">Gói @Model.MembershipTier</span>)
+                </div>
+                <div class="s08-quota-badge">
+                    <i class="bi bi-journal-check text-success me-1"></i>
+                    Đang mượn: <strong>@Model.CurrentActiveLoansCount / @Model.EffectiveMaxLoans cuốn</strong>
+                    <span class="text-muted">(Gốc @Model.MaxConcurrentLoans + Thưởng P2P @Model.LendQuotaBonus)</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-6">
+            <div class="s08-request-box p-3 rounded-4">
+                <h6 class="fw-bold small text-primary mb-2">
+                    <i class="bi bi-plus-circle-fill me-1"></i>Bước 1: Tạo Nhanh Phiếu Yêu Cầu Mượn Kho Chung (<code>LoanRequests</code>)
+                </h6>
+                <form id="s08CreateRequestForm" class="row g-2 align-items-end">
+                    <div class="col-md-7">
+                        <label class="form-label small text-muted mb-1">Chọn bản sao sách Kho chung đang sẵn có (<code>Available</code>)</label>
+                        <select id="s08BookCopyId" class="form-select form-select-sm" required>
+                            @foreach (var copy in Model.AvailableLibraryCopies)
+                            {
+                                <option value="@copy.BookCopyId">[@copy.Barcode] @copy.Title — @copy.LibraryName (@copy.ShelfLocation)</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label small text-muted mb-1">Số ngày</label>
+                        <select id="s08DesiredDays" class="form-select form-select-sm">
+                            <option value="7">7 ngày</option>
+                            <option value="14" selected>14 ngày</option>
+                            <option value="21">21 ngày</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <button type="submit" class="btn btn-primary btn-sm w-100 fw-bold py-2">
+                            <i class="bi bi-send-plus me-1"></i>Gửi Phiếu
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- 2. BẢNG ĐIỀU PHỐI LUỒNG MƯỢN - DUYỆT - GIAO - TRẢ SÁCH KHO CHUNG -->
+<section class="card border-0 shadow-sm rounded-4 p-4 bg-white">
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+        <h6 class="fw-bold mb-0">
+            <i class="bi bi-diagram-3-fill text-primary me-2"></i>Danh Sách Phiếu Yêu Cầu & Hợp Đồng Mượn Kho Chung (@Model.LoanItems.Count phiếu)
+        </h6>
+        <span class="small text-muted">
+            Bấm trực tiếp các nút thao tác từng bước ở cột phải để kiểm thử luồng Thủ thư duyệt, giao sách và thu hồi sách
+        </span>
+    </div>
+
+    <div class="d-flex flex-column gap-3">
+        @foreach (var item in Model.LoanItems)
+        {
+            int stepIndex = item.LoanStatus == "Returned" ? 4
+                : (item.LoanId != null ? 3
+                : (item.RequestStatus == "Approved" ? 2 : 1));
+
+            <div class="s08-flow-card p-3 rounded-4">
+                <div class="row g-3 align-items-center">
+                    <div class="col-lg-4">
+                        <div class="d-flex gap-3 align-items-center">
+                            <img src="@(string.IsNullOrEmpty(item.CoverImageUrl) ? "https://images.unsplash.com/photo-1544947950-fa07a98d237f?w=200" : item.CoverImageUrl)"
+                                 class="s08-cover-thumb shadow-sm" alt="@item.BookTitle"
+                                 onerror="this.src='https://images.unsplash.com/photo-1544947950-fa07a98d237f?w=200'" />
+                            <div>
+                                <div class="d-flex align-items-center gap-2 mb-1">
+                                    <span class="badge bg-dark">Phiếu #@item.LoanRequestId</span>
+                                    <code class="fw-bold text-primary">@item.Barcode</code>
+                                    <span class="badge bg-light text-dark border">@item.CopyStatus</span>
+                                </div>
+                                <h6 class="fw-bold text-dark mb-1">@item.BookTitle</h6>
+                                <div class="small text-muted">@item.LibraryName • @item.ShelfLocation</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-lg-4">
+                        <div class="p-2 rounded-3 bg-light border small">
+                            <div class="d-flex justify-content-between mb-1">
+                                <span class="text-muted">Người mượn:</span>
+                                <strong>@item.BorrowerName <span class="badge bg-primary bg-opacity-10 text-primary">@item.BorrowerTier</span></strong>
+                            </div>
+                            <div class="d-flex justify-content-between mb-1">
+                                <span class="text-muted">Kiểm tra hạn mức gói:</span>
+                                <span class="fw-bold @(item.BorrowerActiveLoans < item.BorrowerMaxQuota ? "text-success" : "text-danger")">
+                                    Đang mượn @item.BorrowerActiveLoans / @item.BorrowerMaxQuota cuốn
+                                </span>
+                            </div>
+                            <div class="d-flex justify-content-between">
+                                <span class="text-muted">Thời hạn đăng ký:</span>
+                                <span>
+                                    @item.DesiredDays ngày
+                                    @if (item.DueDate.HasValue)
+                                    {
+                                        <strong class="text-primary">(Hạn trả: @item.DueDate.Value.ToString("dd/MM/yyyy"))</strong>
+                                    }
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-lg-4">
+                        <!-- Thanh tiến trình 4 bước -->
+                        <div class="d-flex justify-content-between small mb-2 px-1">
+                            <span class="@(stepIndex >= 1 ? "text-primary fw-bold" : "text-muted")">1. Yêu cầu</span>
+                            <span class="@(stepIndex >= 2 ? "text-primary fw-bold" : "text-muted")">2. Duyệt</span>
+                            <span class="@(stepIndex >= 3 ? "text-primary fw-bold" : "text-muted")">3. Nhận sách</span>
+                            <span class="@(stepIndex >= 4 ? "text-success fw-bold" : "text-muted")">4. Đã trả</span>
+                        </div>
+
+                        <div class="d-flex flex-wrap justify-content-end gap-2">
+                            @if (item.RequestStatus == "Pending")
+                            {
+                                <button type="button" class="btn btn-sm btn-success fw-bold js-s08-approve"
+                                        data-req-id="@item.LoanRequestId" data-approve="true">
+                                    <i class="bi bi-check2-circle me-1"></i>Bước 2: Thủ thư Duyệt
+                                </button>
+                                <button type="button" class="btn btn-sm btn-outline-danger js-s08-approve"
+                                        data-req-id="@item.LoanRequestId" data-approve="false">
+                                    Từ chối
+                                </button>
+                            }
+                            else if (item.RequestStatus == "Approved" && item.LoanId == null)
+                            {
+                                <button type="button" class="btn btn-sm btn-primary fw-bold js-s08-handover"
+                                        data-req-id="@item.LoanRequestId">
+                                    <i class="bi bi-box-arrow-right me-1"></i>Bước 3: Xác Nhận Giao Sách (Tạo Loan)
+                                </button>
+                            }
+                            else if (item.LoanId != null && item.LoanStatus != "Returned")
+                            {
+                                <div class="input-group input-group-sm">
+                                    <select class="form-select" id="returnCond-@item.LoanRequestId">
+                                        <option value="Good" selected>Trả nguyên vẹn (Good)</option>
+                                        <option value="Fair">Hao mòn nhẹ (Fair)</option>
+                                        <option value="Damaged">Hư hỏng / Rách (Damaged)</option>
+                                    </select>
+                                    <button type="button" class="btn btn-warning fw-bold text-dark js-s08-return"
+                                            data-req-id="@item.LoanRequestId">
+                                        <i class="bi bi-box-arrow-in-left me-1"></i>Bước 4: Nhận Trả
+                                    </button>
+                                </div>
+                            }
+                            else if (item.LoanStatus == "Returned")
+                            {
+                                <span class="badge bg-success py-2 px-3">
+                                    <i class="bi bi-check-all me-1"></i>Đã hoàn trả (@(item.ReturnDate?.ToString("dd/MM/yyyy") ?? "Hoàn tất"))
+                                </span>
+                                <a asp-controller="S10ConditionReport" asp-action="Index" asp-route-loanId="@item.LoanId"
+                                   class="btn btn-sm btn-outline-primary">
+                                    <i class="bi bi-camera me-1"></i>Ảnh S10
+                                </a>
+                            }
+                            else
+                            {
+                                <span class="badge bg-secondary py-2 px-3">@item.RequestStatus</span>
+                            }
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+</section>
+
+@section Scripts {
+    <script type="module" src="~/modules/s08-library-loan-flow/s08-library-loan-flow.js" asp-append-version="true"></script>
+}

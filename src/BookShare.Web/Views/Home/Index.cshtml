@@ -37,7 +37,22 @@
                         <i class="bi bi-search-heart me-1"></i>S06. Tìm kiếm đa tiêu chí
                     </a>
                     <a asp-controller="S07LibraryCatalog" asp-action="Index" class="btn btn-outline-light btn-sm fw-semibold px-3">
-                        <i class="bi bi-buildings-fill me-1"></i>S07. Kho Thư viện Đối tác
+                        <i class="bi bi-buildings-fill me-1"></i>S07. Kho Thư viện
+                    </a>
+                    <a asp-controller="S08LibraryLoanFlow" asp-action="Index" class="btn btn-warning btn-sm fw-bold text-dark px-3">
+                        <i class="bi bi-journal-arrow-down me-1"></i>S08. Mượn Kho chung
+                    </a>
+                    <a asp-controller="S09P2PLoanFlow" asp-action="Index" class="btn btn-light btn-sm fw-bold text-dark px-3">
+                        <i class="bi bi-people-fill text-primary me-1"></i>S09. Mượn P2P (+Quota)
+                    </a>
+                    <a asp-controller="S10ConditionReport" asp-action="Index" class="btn btn-light btn-sm fw-semibold text-dark px-3">
+                        <i class="bi bi-camera-fill text-danger me-1"></i>S10. Đối chiếu ảnh
+                    </a>
+                    <a asp-controller="S11HotBookQueue" asp-action="Index" class="btn btn-outline-light btn-sm fw-semibold px-3">
+                        <i class="bi bi-fire me-1"></i>S11. Hàng chờ Sách Hot
+                    </a>
+                    <a asp-controller="S12LoanRenewalFine" asp-action="Index" class="btn btn-outline-light btn-sm fw-semibold px-3">
+                        <i class="bi bi-calendar2-plus me-1"></i>S12. Gia hạn & Phí trễ
                     </a>
                 </div>
             </div>
@@ -49,8 +64,8 @@
                 <p class="small opacity-85 mb-0">Trạm kiểm định CLB Cầu Giấy & Thư viện ĐH CMC</p>
             </div>
             <div class="p-3 rounded-4 text-white flex-fill d-flex flex-column justify-content-center" style="background: linear-gradient(135deg, #0f766e, #0ea5e9);">
-                <span class="badge bg-warning text-dark align-self-start mb-1" style="font-size:0.7rem;">7 Dịch vụ (Giai đoạn 2 + 3) đã hoàn thiện 100%</span>
-                <h6 class="fw-bold mb-1">S01 • S02 • S03 • S04 • S05 • S06 • S07</h6>
+                <span class="badge bg-warning text-dark align-self-start mb-1" style="font-size:0.7rem;">12 Dịch vụ (S01 → S12) đã hoàn thiện 100%</span>
+                <h6 class="fw-bold mb-1">S01..S07 • S08 • S09 • S10 • S11 • S12</h6>
                 <p class="small opacity-85 mb-0">Mỗi dịch vụ tách riêng 1 CSHTML + 1 CSS + 1 JS</p>
             </div>
         </div>

@@ -1,0 +1,173 @@
+@model BookShare.Web.Models.ViewModels.S11HotBookQueuePageViewModel
+@{
+    ViewData["Title"] = "S11. Đặt Trước & Xếp Hàng Chờ Tự Động Cho Đầu Sách Hot (Ưu Tiên Premium)";
+}
+
+@section Styles {
+    <link rel="stylesheet" href="~/modules/s11-hot-book-queue/s11-hot-book-queue.css" asp-append-version="true" />
+}
+
+<!-- 1. HEADER & CƠ CHẾ XẾP HÀNG CHỜ ƯU TIÊN PREMIUM -->
+<section class="card border-0 shadow-sm rounded-4 p-4 mb-4 bg-white">
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
+        <div>
+            <span class="badge bg-primary mb-1">Dịch vụ S11 • HotBookQueue</span>
+            <h4 class="fw-bold mb-1">Đặt Trước & Xếp Hàng Chờ Sách Hot Tự Động (<code>Reservations</code>)</h4>
+            <p class="text-muted small mb-0">
+                Đặt trước các đầu sách có nhu cầu cao đang được mượn hết. Hệ thống tự động cấp số thứ tự <code>QueuePosition</code> (<strong>Ưu tiên đẩy thành viên gói Premium lên đầu hàng chờ</strong>) và tự động thông báo khi có bản sao được trả về kho.
+            </p>
+        </div>
+
+        <div class="d-flex align-items-center gap-3">
+            <div class="p-3 rounded-4 bg-warning bg-opacity-15 border border-warning-subtle">
+                <div class="small text-muted">Tài khoản đang thao tác</div>
+                <div class="fw-bold text-dark">
+                    @Model.CurrentUserName
+                    <span class="badge @(Model.CurrentUserTier == "Premium" ? "bg-warning text-dark" : "bg-secondary") ms-1">
+                        Gói @Model.CurrentUserTier
+                    </span>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<div class="row g-4">
+    <!-- 2. DANH SÁCH ĐẦU SÁCH HOT ĐỂ ĐẶT TRƯỚC XẾP HÀNG (BÊN TRÁI) -->
+    <div class="col-lg-5">
+        <div class="card border-0 shadow-sm rounded-4 p-4 bg-white h-100">
+            <h6 class="fw-bold mb-3">
+                <i class="bi bi-fire text-danger me-2"></i>Danh Sách Đầu Sách Hot & Đặt Trước Hàng Chờ
+            </h6>
+
+            <div class="d-flex flex-column gap-3">
+                @foreach (var book in Model.HotBooks)
+                {
+                    <div class="s11-book-item p-3 rounded-4 d-flex justify-content-between align-items-center gap-3">
+                        <div class="d-flex align-items-center gap-3">
+                            <img src="@(string.IsNullOrEmpty(book.CoverImageUrl) ? "https://images.unsplash.com/photo-1544947950-fa07a98d237f?w=160" : book.CoverImageUrl)"
+                                 class="s11-book-thumb shadow-sm" alt="@book.Title"
+                                 onerror="this.src='https://images.unsplash.com/photo-1544947950-fa07a98d237f?w=160'" />
+                            <div>
+                                <h6 class="fw-bold text-dark mb-1">@book.Title</h6>
+                                <div class="small text-muted mb-1">@book.Author • ISBN: @book.ISBN</div>
+                                <div class="d-flex flex-wrap gap-1">
+                                    <span class="badge bg-light text-dark border">Đang mượn: @book.BorrowedOrReservedCopies/@book.TotalCopies</span>
+                                    <span class="badge bg-primary bg-opacity-10 text-primary">Hàng chờ: @book.WaitingCount người</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="d-flex flex-column gap-1 flex-shrink-0">
+                            <button type="button" class="btn btn-sm btn-primary fw-bold js-s11-enqueue"
+                                    data-book-id="@book.BookId">
+                                <i class="bi bi-person-plus-fill me-1"></i>Đặt Trước
+                            </button>
+                            @if (book.WaitingCount > 0)
+                            {
+                                <button type="button" class="btn btn-xs btn-outline-success fw-semibold js-s11-notify-top"
+                                        data-book-id="@book.BookId"
+                                        title="Mô phỏng có bản sao vừa trả về kho và gọi người đứng đầu hàng chờ">
+                                    <i class="bi bi-bell-fill me-1"></i>Báo Có Sách
+                                </button>
+                            }
+                        </div>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+
+    <!-- 3. BẢNG HÀNG CHỜ ĐẶT TRƯỚC THEO THỨ TỰ QUEUEPOSITION (BÊN PHẢI) -->
+    <div class="col-lg-7">
+        <div class="card border-0 shadow-sm rounded-4 p-4 bg-white h-100">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h6 class="fw-bold mb-0">
+                    <i class="bi bi-list-ol text-primary me-2"></i>Danh Sách Độc Giả Đang Xếp Hàng Chờ (<code>Reservations</code>)
+                </h6>
+                <span class="badge bg-primary rounded-pill px-3">@Model.ActiveReservations.Count lượt đang chờ</span>
+            </div>
+
+            @if (!Model.ActiveReservations.Any())
+            {
+                <div class="p-5 text-center text-muted">
+                    <i class="bi bi-people fs-1 d-block mb-2"></i>
+                    <p class="mb-0">Hiện chưa có ai trong hàng chờ. Hãy bấm nút <strong>Đặt Trước</strong> ở cột bên trái để kiểm thử!</p>
+                </div>
+            }
+            else
+            {
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="table-light small text-uppercase text-muted">
+                            <tr>
+                                <th>Vị trí</th>
+                                <th>Đầu sách đặt trước</th>
+                                <th>Độc giả & Hạng gói</th>
+                                <th>Trạng thái</th>
+                                <th class="text-end">Thao tác</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var q in Model.ActiveReservations)
+                            {
+                                <tr>
+                                    <td>
+                                        <span class="s11-pos-circle @(q.QueuePosition == 1 ? "pos-top" : "")">
+                                            #@q.QueuePosition
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <div class="fw-bold text-dark">@q.BookTitle</div>
+                                        <div class="small text-muted">Đặt lúc: @q.CreatedAt.ToString("dd/MM/yyyy HH:mm")</div>
+                                    </td>
+                                    <td>
+                                        <div class="fw-semibold text-dark">@q.UserFullName</div>
+                                        @if (q.UserTier == "Premium")
+                                        {
+                                            <span class="badge bg-warning text-dark">
+                                                <i class="bi bi-gem me-1"></i>Premium (Ưu tiên)
+                                            </span>
+                                        }
+                                        else
+                                        {
+                                            <span class="badge bg-light text-secondary border">Free</span>
+                                        }
+                                    </td>
+                                    <td>
+                                        @if (q.Status == "Notified")
+                                        {
+                                            <span class="badge bg-success">
+                                                <i class="bi bi-bell-fill me-1"></i>Đã báo có sách (Giữ 48h)
+                                            </span>
+                                            @if (q.ExpiresAt.HasValue)
+                                            {
+                                                <div class="small text-success fw-semibold mt-1">Hạn nhận: @q.ExpiresAt.Value.ToString("dd/MM HH:mm")</div>
+                                            }
+                                        }
+                                        else
+                                        {
+                                            <span class="badge bg-primary bg-opacity-10 text-primary">
+                                                <i class="bi bi-hourglass-split me-1"></i>Đang xếp hàng (Waiting)
+                                            </span>
+                                        }
+                                    </td>
+                                    <td class="text-end">
+                                        <button type="button" class="btn btn-sm btn-outline-danger js-s11-cancel"
+                                                data-res-id="@q.ReservationId" title="Hủy đặt trước & đôn hàng chờ">
+                                            <i class="bi bi-x-circle me-1"></i>Hủy
+                                        </button>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script type="module" src="~/modules/s11-hot-book-queue/s11-hot-book-queue.js" asp-append-version="true"></script>
+}

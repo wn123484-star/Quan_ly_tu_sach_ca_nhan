@@ -48,12 +48,12 @@ Dự án **BookShare (.NET 10 MVC)** được chia thành **5 Giai đoạn (Phas
 
 ---
 
-## Giai đoạn 4: Phát triển Nhóm Dịch vụ Mượn – Trả, Kiểm định Ảnh & AI Gemini (S08 $\rightarrow$ S15)
-- [ ] **S08 - `LibraryLoanFlow`**: Luồng mượn sách Kho chung (Gửi yêu cầu $\rightarrow$ Thủ thư duyệt hạn mức $\rightarrow$ Nhận sách $\rightarrow$ Trả sách & kiểm tra).
-- [ ] **S09 - `P2PLoanFlow`**: Luồng mượn P2P giữa các cá nhân (Xem điểm uy tín `TrustScore` $\rightarrow$ Chủ sách duyệt $\rightarrow$ Hẹn giao nhận tại Hub $\rightarrow$ Hoàn trả & cộng điểm).
-- [ ] **S10 - `ConditionReport`**: Biên bản điện tử chụp & tải ảnh tình trạng sách (lúc giao `Handover` & lúc trả `Return`) qua Cloudinary.
-- [ ] **S11 - `HotBookQueue`**: Đặt trước (`Reservations`) và xếp hàng chờ tự động cho các đầu sách hot đang được mượn hết (ưu tiên gói Premium).
-- [ ] **S12 - `LoanRenewalFine`**: Gia hạn thời gian mượn (`RenewCount`) và tự động tính phí phạt trả trễ hạn theo ngày (`FineAmount`).
+## Giai đoạn 4: Phát triển Nhóm Dịch vụ Mượn – Trả, Kiểm định Ảnh & AI Gemini (S08 $\rightarrow$ S15) (Đã hoàn thành Giai đoạn 4A: S08 $\rightarrow$ S12)
+- [x] **S08 - `LibraryLoanFlow`**: Luồng mượn sách Kho chung (Gửi yêu cầu `Pending` $\rightarrow$ Thủ thư kiểm tra hạn mức gói & bấm Duyệt `Approved` $\rightarrow$ Bàn giao tại quầy tạo `Loans` & đổi `BookCopies.Status = Borrowed` $\rightarrow$ Thu hồi sách trả, kiểm tra tình trạng & tự động báo hàng chờ S11).
+- [x] **S09 - `P2PLoanFlow`**: Luồng mượn P2P giữa các cá nhân (Xem điểm uy tín `TrustScore` $\rightarrow$ Chủ sách duyệt & chọn Điểm hẹn Hub/CLB $\rightarrow$ Chuyển trạng thái `InTransit` $\rightarrow$ Bàn giao `Borrowed` cộng thưởng `+1 LendQuotaBonus` và `+3 TrustScore` cho chủ sách $\rightarrow$ Hoàn trả & cộng điểm).
+- [x] **S10 - `ConditionReport`**: Biên bản điện tử chụp & tải ảnh tình trạng sách lúc giao (`Handover`) và lúc trả (`Return`) lưu vào bảng `ConditionReports` (hỗ trợ upload file ảnh vào `/uploads/conditions/` hoặc Cloudinary), đối chiếu 2 ảnh cạnh nhau (Side-by-Side Comparison) để phát hiện hư hại.
+- [x] **S11 - `HotBookQueue`**: Đặt trước (`Reservations`) và xếp hàng chờ tự động cho các đầu sách hot đang được mượn hết (ưu tiên tự động đẩy thành viên gói `Premium` lên trước thành viên `Free`), tự động gửi thông báo `Notifications` cho người đứng đầu hàng khi có sách trả về.
+- [x] **S12 - `LoanRenewalFine`**: Gia hạn thời gian mượn (`RenewCount` tối đa 2 lần, mỗi lần +7 ngày nếu sách chưa có người đặt trước S11) và tự động tính phí phạt trả trễ hạn theo ngày (`FineAmount`, 5.000đ/ngày) kèm tạo phiếu thu phạt có chữ ký HMAC trong bảng `Transactions`.
 - [ ] **S13 - `GeminiAiAssistant`**: Trợ lý Chat AI (Gemini 2.5 Flash) kèm RAG nhẹ tư vấn chọn sách theo tâm trạng/ngành học, tóm tắt sách và tra cứu nhanh hạn trả sách.
 - [ ] **S14 - `AiRecommendation`**: Gợi ý sách cá nhân hóa dựa trên lịch sử thể loại hay đọc/mượn và tủ sách hiện tại.
 - [ ] **S15 - `TrustScoreReview`**: Đánh giá chất lượng bản sao sách và chấm điểm uy tín (`TrustScore`) 2 chiều giữa người cho mượn và người mượn.

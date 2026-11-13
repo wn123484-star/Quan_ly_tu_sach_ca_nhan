@@ -1,0 +1,172 @@
+@model BookShare.Web.Models.ViewModels.S12LoanRenewalFinePageViewModel
+@{
+    ViewData["Title"] = "S12. Gia Hạn Thời Gian Mượn & Tự Động Tính Phí Phạt Trễ Hạn";
+}
+
+@section Styles {
+    <link rel="stylesheet" href="~/modules/s12-loan-renewal-fine/s12-loan-renewal-fine.css" asp-append-version="true" />
+}
+
+<!-- 1. THỐNG KÊ HỢP ĐỒNG ĐANG MƯỢN, QUÁ HẠN & TỔNG PHÍ PHẠT TRỄ HẠN -->
+<section class="card border-0 shadow-sm rounded-4 p-4 mb-4 bg-white">
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
+        <div>
+            <span class="badge bg-primary mb-1">Dịch vụ S12 • LoanRenewalFine</span>
+            <h4 class="fw-bold mb-1">Gia Hạn Thời Gian Mượn (<code>RenewCount</code>) & Tính Phí Phạt Trễ Hạn (<code>FineAmount</code>)</h4>
+            <p class="text-muted small mb-0">
+                Cho phép gia hạn tối đa <strong>2 lần (+7 ngày/lần)</strong> nếu đầu sách chưa có người xếp hàng đặt trước (S11). Tự động tính phí phạt hành chính trả trễ hạn (<strong>5.000đ/ngày</strong>) và phát hành phiếu thu phạt vào bảng <code>Transactions</code>.
+            </p>
+        </div>
+
+        <div class="d-flex flex-wrap gap-3">
+            <div class="p-3 rounded-4 bg-primary bg-opacity-10 text-center">
+                <div class="small text-muted">Hợp đồng đang mượn</div>
+                <div class="fs-4 fw-bold text-primary">@Model.ActiveLoansCount cuốn</div>
+            </div>
+            <div class="p-3 rounded-4 bg-warning bg-opacity-15 text-center">
+                <div class="small text-muted">Quá hạn trả (Overdue)</div>
+                <div class="fs-4 fw-bold text-dark">@Model.OverdueLoansCount hợp đồng</div>
+            </div>
+            <div class="p-3 rounded-4 bg-danger bg-opacity-10 text-center">
+                <div class="small text-muted">Tổng phí phạt trễ hạn</div>
+                <div class="fs-4 fw-bold text-danger">@Model.TotalOutstandingFines.ToString("N0") đ</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- 2. BẢNG QUẢN LÝ GIA HẠN MƯỢN & TÍNH PHẠT QUÁ HẠN -->
+<section class="card border-0 shadow-sm rounded-4 p-4 mb-4 bg-white">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h6 class="fw-bold mb-0">
+            <i class="bi bi-calendar2-range-fill text-primary me-2"></i>Danh Sách Hợp Đồng Mượn Sách & Kiểm Soát Gia Hạn / Phí Trễ Hạn (@Model.Loans.Count hợp đồng)
+        </h6>
+        <span class="small text-muted">Định mức phạt trễ hạn: 5.000 VNĐ / ngày (Phí hành chính thư viện, tuyệt đối không phải mua bán sách)</span>
+    </div>
+
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+            <thead class="table-light small text-uppercase text-muted">
+                <tr>
+                    <th>Mã Loan / Barcode</th>
+                    <th>Đầu sách & Người mượn</th>
+                    <th>Hạn trả (<code>DueDate</code>)</th>
+                    <th>Số lần gia hạn (<code>RenewCount</code>)</th>
+                    <th>Quá hạn & Phí phạt (<code>FineAmount</code>)</th>
+                    <th class="text-end">Thao tác Nghiệp vụ</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var loan in Model.Loans)
+                {
+                    <tr>
+                        <td>
+                            <div class="fw-bold text-dark">Loan #@loan.LoanId</div>
+                            <code class="small text-primary fw-bold">@loan.Barcode</code>
+                        </td>
+                        <td>
+                            <div class="fw-bold text-dark">@loan.BookTitle</div>
+                            <div class="small text-muted">Người mượn: <strong>@loan.BorrowerName</strong> (@loan.LoanType)</div>
+                        </td>
+                        <td>
+                            <div class="fw-bold @(loan.OverdueDays > 0 ? "text-danger" : "text-dark")">
+                                @loan.DueDate.ToString("dd/MM/yyyy")
+                            </div>
+                            <div class="small text-muted">Bắt đầu: @loan.StartDate.ToString("dd/MM/yyyy")</div>
+                        </td>
+                        <td>
+                            <div class="d-flex align-items-center gap-2">
+                                <span class="badge @(loan.RenewCount >= loan.MaxRenewals ? "bg-secondary" : "bg-info text-dark")">
+                                    @loan.RenewCount / @loan.MaxRenewals lần
+                                </span>
+                                @if (loan.HasWaitingReservations)
+                                {
+                                    <span class="badge bg-warning text-dark" title="Đầu sách đang có người đặt trước tại S11">
+                                        <i class="bi bi-people-fill me-1"></i>Có hàng chờ S11
+                                    </span>
+                                }
+                            </div>
+                        </td>
+                        <td>
+                            @if (loan.OverdueDays > 0 || loan.RecordedFineAmount > 0)
+                            {
+                                <div class="text-danger fw-bold">
+                                    <i class="bi bi-exclamation-triangle-fill me-1"></i>Trễ @loan.OverdueDays ngày — @loan.CalculatedFine.ToString("N0") đ
+                                </div>
+                            }
+                            else
+                            {
+                                <span class="badge bg-success bg-opacity-10 text-success">Đúng hạn (0 đ)</span>
+                            }
+                        </td>
+                        <td class="text-end">
+                            <div class="d-inline-flex gap-2">
+                                <button type="button"
+                                        class="btn btn-sm @(loan.CanRenew ? "btn-primary" : "btn-outline-secondary") fw-bold js-s12-renew"
+                                        data-loan-id="@loan.LoanId">
+                                    <i class="bi bi-calendar-plus me-1"></i>Gia hạn (+7 ngày)
+                                </button>
+                                <button type="button"
+                                        class="btn btn-sm btn-outline-danger fw-bold js-s12-assess-fine"
+                                        data-loan-id="@loan.LoanId"
+                                        title="Tính phí phạt quá hạn & tạo phiếu thu trong bảng Transactions">
+                                    <i class="bi bi-receipt-cutoff me-1"></i>Tính Phạt & Lập Phiếu Thu
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</section>
+
+<!-- 3. NHẬT KÝ PHIẾU THU PHẠT TRỄ HẠN TRONG BẢNG TRANSACTIONS -->
+<section class="card border-0 shadow-sm rounded-4 p-4 bg-white">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h6 class="fw-bold mb-0">
+            <i class="bi bi-receipt text-danger me-2"></i>Nhật Ký Phiếu Thu Phạt Trễ Hạn Đã Ghi Nhận (Bảng <code>Transactions</code> - Loại <code>Fine</code>)
+        </h6>
+        <span class="badge bg-light text-dark border">@Model.FineTransactions.Count giao dịch</span>
+    </div>
+
+    <div class="table-responsive">
+        <table class="table table-sm align-middle mb-0">
+            <thead class="table-light small text-muted">
+                <tr>
+                    <th>Mã GD</th>
+                    <th>Hợp đồng</th>
+                    <th>Độc giả nộp phạt</th>
+                    <th>Số tiền phạt</th>
+                    <th>Cổng Sandbox</th>
+                    <th>Trạng thái</th>
+                    <th>Chữ ký số HMAC</th>
+                    <th>Thời gian</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var tx in Model.FineTransactions)
+                {
+                    <tr>
+                        <td><strong>#@tx.TransactionId</strong></td>
+                        <td><span class="badge bg-dark">Loan #@tx.LoanId</span></td>
+                        <td>@tx.UserFullName</td>
+                        <td class="fw-bold text-danger">@tx.Amount.ToString("N0") đ</td>
+                        <td><span class="badge bg-primary bg-opacity-10 text-primary">@tx.PaymentGateway</span></td>
+                        <td>
+                            <span class="badge @(tx.PaymentStatus == "Completed" ? "bg-success" : "bg-warning text-dark")">
+                                @tx.PaymentStatus
+                            </span>
+                        </td>
+                        <td><code class="small text-muted">@(tx.HmacSignature ?? "hmac-verified")</code></td>
+                        <td class="small text-muted">@tx.CreatedAt.ToString("dd/MM/yyyy HH:mm")</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</section>
+
+@section Scripts {
+    <script type="module" src="~/modules/s12-loan-renewal-fine/s12-loan-renewal-fine.js" asp-append-version="true"></script>
+}

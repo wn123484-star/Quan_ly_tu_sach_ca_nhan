@@ -1,0 +1,225 @@
+@model BookShare.Web.Models.ViewModels.S10ConditionReportPageViewModel
+@{
+    ViewData["Title"] = "S10. Biên Bản Ảnh Tình Trạng Sách & Đối Chiếu Cạnh Nhau (Handover vs Return)";
+}
+
+@section Styles {
+    <link rel="stylesheet" href="~/modules/s10-condition-report/s10-condition-report.css" asp-append-version="true" />
+}
+
+<!-- 1. HEADER & THỐNG KÊ BIÊN BẢN KIỂM ĐỊNH ẢNH -->
+<section class="card border-0 shadow-sm rounded-4 p-4 mb-4 bg-white">
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
+        <div>
+            <span class="badge bg-primary mb-1">Dịch vụ S10 • ConditionReport</span>
+            <h4 class="fw-bold mb-1">Biên Bản Điện Tử & Đối Chiếu Ảnh Tình Trạng Sách (Side-by-Side)</h4>
+            <p class="text-muted small mb-0">
+                Lưu trữ ảnh chụp thực tế lúc Giao (<code>Handover</code>) và lúc Trả (<code>Return</code>) trong bảng <code>ConditionReports</code> (hỗ trợ upload ảnh trực tiếp vào <code>/uploads/conditions/</code> hoặc Cloudinary) để minh bạch hóa việc bảo quản sách giấy.
+            </p>
+        </div>
+
+        <div class="d-flex gap-3">
+            <div class="p-3 rounded-4 bg-primary bg-opacity-10 text-center">
+                <div class="small text-muted">Tổng biên bản đã lưu</div>
+                <div class="fs-4 fw-bold text-primary">@Model.TotalReportsCount ảnh</div>
+            </div>
+            <div class="p-3 rounded-4 bg-danger bg-opacity-10 text-center">
+                <div class="small text-muted">Phát hiện chênh lệch / Hư hại</div>
+                <div class="fs-4 fw-bold text-danger">@Model.DiscrepancyCount hợp đồng</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<div class="row g-4">
+    <!-- 2. FORM UPLOAD / CHỤP ẢNH BIÊN BẢN LÚC GIAO & LÚC TRẢ (BÊN TRÁI) -->
+    <div class="col-lg-4">
+        <div class="card border-0 shadow-sm rounded-4 bg-white sticky-top s10-upload-card">
+            <div class="card-body p-4">
+                <h6 class="fw-bold mb-3">
+                    <i class="bi bi-camera-fill text-primary me-2"></i>Cập Nhật Biên Bản Ảnh Tình Trạng Sách
+                </h6>
+
+                <form id="s10UploadReportForm" enctype="multipart/form-data">
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold text-secondary">Chọn hợp đồng mượn (<code>LoanId</code>)</label>
+                        <select id="s10LoanId" name="loanId" class="form-select" required>
+                            @foreach (var item in Model.LoanComparisons)
+                            {
+                                if (Model.SelectedLoanId == item.LoanId)
+                                {
+                                    <option value="@item.LoanId" selected>Loan #@item.LoanId — [@item.Barcode] @item.BookTitle (@item.BorrowerName)</option>
+                                }
+                                else
+                                {
+                                    <option value="@item.LoanId">Loan #@item.LoanId — [@item.Barcode] @item.BookTitle (@item.BorrowerName)</option>
+                                }
+                            }
+                        </select>
+                    </div>
+
+                    <div class="row g-2 mb-3">
+                        <div class="col-6">
+                            <label class="form-label small fw-bold text-secondary">Thời điểm lập (<code>ReportType</code>)</label>
+                            <select id="s10ReportType" name="reportType" class="form-select">
+                                <option value="Handover">Lúc Giao (Handover)</option>
+                                <option value="Return" selected>Lúc Trả (Return)</option>
+                            </select>
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label small fw-bold text-secondary">Độ mới (<code>ConditionGrade</code>)</label>
+                            <select id="s10ConditionGrade" name="conditionGrade" class="form-select">
+                                <option value="New">Mới nguyên (New)</option>
+                                <option value="Good" selected>Tốt / Nguyên vẹn (Good)</option>
+                                <option value="Fair">Khá / Quăn góc nhẹ (Fair)</option>
+                                <option value="Worn">Cũ / Sờn gáy (Worn)</option>
+                                <option value="Damaged">Hư hỏng / Rách trang (Damaged)</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold text-secondary">Tải tệp ảnh chụp thực tế (.jpg, .png, .webp)</label>
+                        <input type="file" id="s10ImageFile" name="imageFile" class="form-control form-control-sm" accept=".jpg,.jpeg,.png,.webp" />
+                        <div class="form-text small">Nếu chưa chọn tệp từ máy, bạn có thể chọn nhanh mẫu ảnh kiểm định bên dưới:</div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold text-secondary">Hoặc URL ảnh mẫu đối chiếu nhanh</label>
+                        <select id="s10PresetImageUrl" name="presetImageUrl" class="form-select form-select-sm">
+                            <option value="https://images.unsplash.com/photo-1544947950-fa07a98d237f?w=600">Ảnh mẫu 1: Bìa & gáy sách nguyên vẹn 100%</option>
+                            <option value="https://images.unsplash.com/photo-1512820790803-83ca734da794?w=600">Ảnh mẫu 2: Sách mở phẳng tại bàn kiểm định Hub</option>
+                            <option value="https://images.unsplash.com/photo-1589829085413-56de8ae18c73?w=600">Ảnh mẫu 3: Phát hiện vết gấp mép / rách bìa khi trả</option>
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold text-secondary">Ghi chú kiểm định (<code>Note</code>)</label>
+                        <textarea id="s10Note" name="note" class="form-control" rows="3"
+                                  placeholder="Mô tả chi tiết tình trạng bìa trước, bìa sau, gáy sách và các trang bên trong..."></textarea>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary w-100 fw-bold py-2 rounded-3" id="btnSubmitReport">
+                        <i class="bi bi-cloud-upload-fill me-1"></i>Lưu Biên Bản Ảnh Tình Trạng
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- 3. BẢNG ĐỐI CHIẾU CẠNH NHAU (SIDE-BY-SIDE COMPARISON: HANDOVER VS RETURN) -->
+    <div class="col-lg-8">
+        <div class="d-flex flex-column gap-4">
+            @foreach (var comp in Model.LoanComparisons)
+            {
+                <div class="card border-0 shadow-sm rounded-4 p-4 bg-white @(comp.HasDamageDetected ? "s10-card-damaged" : "")">
+                    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3 pb-2 border-bottom">
+                        <div>
+                            <div class="d-flex align-items-center gap-2">
+                                <span class="badge bg-dark">Loan #@comp.LoanId</span>
+                                <code class="fw-bold text-primary">@comp.Barcode</code>
+                                <span class="badge bg-secondary bg-opacity-10 text-secondary">@comp.LoanType</span>
+                            </div>
+                            <h6 class="fw-bold text-dark mt-1 mb-0">@comp.BookTitle</h6>
+                            <div class="small text-muted">Độc giả mượn: <strong>@comp.BorrowerName</strong> • Trạng thái hợp đồng: <strong>@comp.LoanStatus</strong></div>
+                        </div>
+
+                        <div>
+                            @if (comp.HasDamageDetected)
+                            {
+                                <span class="badge bg-danger px-3 py-2">
+                                    <i class="bi bi-exclamation-octagon-fill me-1"></i>Phát hiện suy giảm chất lượng / Hư hại
+                                </span>
+                            }
+                            else if (comp.HandoverReport != null && comp.ReturnReport != null)
+                            {
+                                <span class="badge bg-success px-3 py-2">
+                                    <i class="bi bi-patch-check-fill me-1"></i>Đối chiếu trùng khớp (Sách nguyên vẹn)
+                                </span>
+                            }
+                            else
+                            {
+                                <span class="badge bg-warning text-dark px-3 py-2">
+                                    <i class="bi bi-hourglass-split me-1"></i>Đang chờ biên bản ảnh Lúc Trả
+                                </span>
+                            }
+                        </div>
+                    </div>
+
+                    <!-- Khung đối chiếu 2 ảnh cạnh nhau (Side-by-Side) -->
+                    <div class="row g-3">
+                        <!-- Cột 1: Ảnh Lúc Giao (Handover) -->
+                        <div class="col-md-6">
+                            <div class="s10-side-panel p-3 rounded-4 h-100">
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <span class="badge bg-primary">1. LÚC GIAO SÁCH (HANDOVER)</span>
+                                    @if (comp.HandoverReport != null)
+                                    {
+                                        <span class="badge bg-white text-dark border">Grade: @comp.HandoverReport.ConditionGrade</span>
+                                    }
+                                </div>
+
+                                @if (comp.HandoverReport != null)
+                                {
+                                    <img src="@comp.HandoverReport.ImageUrl" alt="Handover Photo"
+                                         class="s10-compare-img mb-2 shadow-sm"
+                                         onerror="this.src='https://images.unsplash.com/photo-1544947950-fa07a98d237f?w=500'" />
+                                    <p class="small text-dark mb-1">@comp.HandoverReport.Note</p>
+                                    <div class="small text-muted">
+                                        <i class="bi bi-person-check me-1"></i>@comp.HandoverReport.ReportedByName • @comp.HandoverReport.CreatedAt.ToString("dd/MM/yyyy HH:mm")
+                                    </div>
+                                }
+                                else
+                                {
+                                    <div class="s10-empty-photo d-flex flex-column align-items-center justify-content-center text-muted">
+                                        <i class="bi bi-camera fs-2 mb-1"></i>
+                                        <span class="small">Chưa có ảnh chụp Lúc Giao</span>
+                                    </div>
+                                }
+                            </div>
+                        </div>
+
+                        <!-- Cột 2: Ảnh Lúc Trả (Return) -->
+                        <div class="col-md-6">
+                            <div class="s10-side-panel p-3 rounded-4 h-100 @(comp.HasDamageDetected ? "border-danger bg-danger bg-opacity-10" : "")">
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <span class="badge @(comp.HasDamageDetected ? "bg-danger" : "bg-success")">2. LÚC TRẢ SÁCH (RETURN)</span>
+                                    @if (comp.ReturnReport != null)
+                                    {
+                                        <span class="badge bg-white text-dark border">Grade: @comp.ReturnReport.ConditionGrade</span>
+                                    }
+                                </div>
+
+                                @if (comp.ReturnReport != null)
+                                {
+                                    <img src="@comp.ReturnReport.ImageUrl" alt="Return Photo"
+                                         class="s10-compare-img mb-2 shadow-sm"
+                                         onerror="this.src='https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=500'" />
+                                    <p class="small text-dark mb-1">@comp.ReturnReport.Note</p>
+                                    <div class="small text-muted">
+                                        <i class="bi bi-person-check me-1"></i>@comp.ReturnReport.ReportedByName • @comp.ReturnReport.CreatedAt.ToString("dd/MM/yyyy HH:mm")
+                                    </div>
+                                }
+                                else
+                                {
+                                    <div class="s10-empty-photo d-flex flex-column align-items-center justify-content-center text-muted">
+                                        <i class="bi bi-camera-video-off fs-2 mb-1"></i>
+                                        <span class="small">Chưa có ảnh chụp Lúc Trả</span>
+                                        <button type="button" class="btn btn-xs btn-outline-primary mt-2 js-PrefillReturnLoan"
+                                                data-loan-id="@comp.LoanId">
+                                            + Chụp / Tải ảnh trả ngay
+                                        </button>
+                                    </div>
+                                }
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script type="module" src="~/modules/s10-condition-report/s10-condition-report.js" asp-append-version="true"></script>
+}
