@@ -115,6 +115,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const bookCopyId = parseInt(btn.getAttribute('data-copy-id') || '0', 10);
             const barcode = btn.getAttribute('data-barcode') || '';
             if (!bookCopyId) return;
+            if (!confirm(`Xóa bản sao ${barcode} khỏi tủ sách cá nhân? Thao tác này không thể hoàn tác.`)) return;
 
             const res = await apiFetch('/S02PersonalShelf/DeleteCopy', {
                 method: 'POST',
@@ -131,7 +132,9 @@ document.addEventListener('DOMContentLoaded', () => {
     document.querySelectorAll('.js-delete-shelf').forEach(btn => {
         btn.addEventListener('click', async () => {
             const shelfId = parseInt(btn.getAttribute('data-shelf-id') || '0', 10);
+            const shelfName = btn.getAttribute('data-shelf-name') || '';
             if (!shelfId) return;
+            if (!confirm(`Xóa kệ sách "${shelfName}"? Các bản sao trong kệ vẫn được giữ trong tủ sách.`)) return;
 
             const res = await apiFetch('/S02PersonalShelf/DeleteShelf', {
                 method: 'POST',
