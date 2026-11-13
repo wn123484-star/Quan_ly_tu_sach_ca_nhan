@@ -45,6 +45,16 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
+        const cleanIsbn = isbnValue.replace(/[^0-9Xx]/g, '');
+        if (!/^(\d{9}[\dXx]|\d{13})$/.test(cleanIsbn)) {
+            showSystemStatus(400, 'Mã ISBN không hợp lệ (Mã 400)', 'ISBN phải gồm 10 ký tự (ISBN-10) hoặc 13 chữ số (ISBN-13).');
+            return;
+        }
+
+        // Khóa nút Lưu trong lúc tra cứu để không lưu nhầm dữ liệu cũ còn trên form
+        const btnSaveCatalog = document.querySelector('#s05SaveCatalogForm [type="submit"]');
+        if (btnSaveCatalog) btnSaveCatalog.disabled = true;
+
         if (btnLookupIsbn) {
             btnLookupIsbn.disabled = true;
             btnLookupIsbn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Đang tra cứu...';
@@ -55,6 +65,7 @@ document.addEventListener('DOMContentLoaded', () => {
             body: { isbn: isbnValue }
         });
 
+        if (btnSaveCatalog) btnSaveCatalog.disabled = false;
         if (btnLookupIsbn) {
             btnLookupIsbn.disabled = false;
             btnLookupIsbn.innerHTML = '<i class="bi bi-magic me-1"></i>Tra Cứu & Tự Điền';
