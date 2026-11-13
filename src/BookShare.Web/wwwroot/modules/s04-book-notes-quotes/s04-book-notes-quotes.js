@@ -130,6 +130,7 @@ document.addEventListener('DOMContentLoaded', () => {
         btn.addEventListener('click', async () => {
             const noteId = parseInt(btn.getAttribute('data-note-id') || '0', 10);
             if (!noteId) return;
+            if (!confirm(`Xóa ghi chú #${noteId} khỏi sổ tay? Thao tác này không thể hoàn tác.`)) return;
 
             const res = await apiFetch('/S04BookNotesQuotes/DeleteNote', {
                 method: 'POST',
