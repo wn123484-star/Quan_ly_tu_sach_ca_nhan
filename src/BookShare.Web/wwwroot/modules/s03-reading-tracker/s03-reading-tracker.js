@@ -11,8 +11,18 @@ document.addEventListener('DOMContentLoaded', () => {
     let doughnutChart = null;
     let barChart = null;
     if (chartDataEl && typeof Chart !== 'undefined') {
+        loadCharts();
+    }
+
+    async function loadCharts() {
         try {
-            payload = JSON.parse(chartDataEl.textContent || '{}');
+            // Lấy số liệu thật từ API; nếu API lỗi thì dùng dữ liệu nhúng sẵn trong trang
+            const res = await apiFetch('/S03ReadingTracker/ChartData');
+            payload = res.ok && res.data && typeof res.data === 'object'
+                ? res.data
+                : JSON.parse(chartDataEl.textContent || '{}');
+            chartDataEl.textContent = JSON.stringify(payload);
+
             const doughnutCtx = document.getElementById('s03DoughnutChart');
             if (doughnutCtx) {
                 doughnutChart = new Chart(doughnutCtx, {

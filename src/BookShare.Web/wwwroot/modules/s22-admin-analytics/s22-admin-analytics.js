@@ -4,16 +4,25 @@ document.addEventListener('DOMContentLoaded', () => {
     // 1. Khởi tạo 2 biểu đồ thống kê Chart.js
     const chartDataEl = document.getElementById('s22ChartData');
     if (chartDataEl && typeof window.Chart !== 'undefined') {
-        const libLoans = parseInt(chartDataEl.getAttribute('data-lib-loans') || '0', 10);
-        const p2pLoans = parseInt(chartDataEl.getAttribute('data-p2p-loans') || '0', 10);
-        const availCopies = parseInt(chartDataEl.getAttribute('data-avail-copies') || '0', 10);
-        const borrowedCopies = parseInt(chartDataEl.getAttribute('data-borrowed-copies') || '0', 10);
-        const reservedCopies = parseInt(chartDataEl.getAttribute('data-reserved-copies') || '0', 10);
-        const damagedCopies = parseInt(chartDataEl.getAttribute('data-damaged-copies') || '0', 10);
+        loadCharts();
+    }
 
-        const revMembership = parseFloat(chartDataEl.getAttribute('data-rev-membership') || '0');
-        const revFine = parseFloat(chartDataEl.getAttribute('data-rev-fine') || '0');
-        const revDeposit = parseFloat(chartDataEl.getAttribute('data-rev-deposit') || '0');
+    async function loadCharts() {
+        // Lấy số liệu thật từ API (chỉ Admin); nếu API lỗi thì dùng dữ liệu nhúng sẵn trong trang
+        const res = await apiFetch('/S22AdminAnalytics/ChartData');
+        const api = res.ok && res.data && typeof res.data === 'object' ? res.data : null;
+        const attr = (name, parse) => parse(chartDataEl.getAttribute(name) || '0');
+
+        const libLoans = api ? api.libraryLoans : attr('data-lib-loans', v => parseInt(v, 10));
+        const p2pLoans = api ? api.p2pLoans : attr('data-p2p-loans', v => parseInt(v, 10));
+        const availCopies = api ? api.availableCopies : attr('data-avail-copies', v => parseInt(v, 10));
+        const borrowedCopies = api ? api.borrowedCopies : attr('data-borrowed-copies', v => parseInt(v, 10));
+        const reservedCopies = api ? api.reservedCopies : attr('data-reserved-copies', v => parseInt(v, 10));
+        const damagedCopies = api ? api.damagedCopies : attr('data-damaged-copies', v => parseInt(v, 10));
+
+        const revMembership = api ? api.membershipRevenue : attr('data-rev-membership', parseFloat);
+        const revFine = api ? api.fineRevenue : attr('data-rev-fine', parseFloat);
+        const revDeposit = api ? api.simulatedDeposits : attr('data-rev-deposit', parseFloat);
 
         const ctxDist = document.getElementById('chartLoanAndCopyDistribution');
         if (ctxDist) {
