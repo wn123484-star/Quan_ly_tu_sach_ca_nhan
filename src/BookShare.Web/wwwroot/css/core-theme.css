@@ -1,0 +1,357 @@
+/* ==========================================================================
+   BOOKSHARE PORTAL CORE THEME (wwwroot/css/core-theme.css)
+   Kế thừa book-tracker-ver07 (Font Roboto, Status Banner, AI Widget)
+   Kết hợp Bố cục Cổng Dịch vụ Portal (Không Bán Sách - 100% Mượn Trả & Theo Dõi Đọc)
+   ========================================================================== */
+
+@font-face {
+    font-family: 'Roboto';
+    src: url('../fonts/Roboto-Regular.ttf') format('truetype');
+    font-weight: 400;
+    font-style: normal;
+    font-display: swap;
+}
+@font-face {
+    font-family: 'Roboto';
+    src: url('../fonts/Roboto-Bold.ttf') format('truetype');
+    font-weight: 700;
+    font-style: normal;
+    font-display: swap;
+}
+
+:root {
+    --portal-grad-start: #1e3a8a;
+    --portal-grad-end: #2563eb;
+    --portal-accent: #2563eb;
+    --portal-light-bg: #f4f6fb;
+    --bs-font-sans-serif: 'Roboto', 'Segoe UI', system-ui, -apple-system, sans-serif;
+}
+
+body[data-portal-palette="coral"] {
+    --portal-grad-start: #c2410c;
+    --portal-grad-end: #ea580c;
+    --portal-accent: #ea580c;
+}
+
+body[data-portal-palette="emerald"] {
+    --portal-grad-start: #065f46;
+    --portal-grad-end: #0d9488;
+    --portal-accent: #0d9488;
+}
+
+body {
+    font-family: var(--bs-font-sans-serif);
+    background-color: var(--portal-light-bg);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    color: #1e293b;
+}
+
+main {
+    flex: 1;
+}
+
+/* 1. PORTAL HEADER & GIANT SEARCH BAR */
+.portal-header-wrapper {
+    background: linear-gradient(180deg, var(--portal-grad-start) 0%, var(--portal-grad-end) 100%);
+    color: #ffffff;
+    position: sticky;
+    top: 0;
+    z-index: 1030;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+}
+
+.portal-utility-bar {
+    font-size: 0.78rem;
+    padding: 6px 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.16);
+}
+
+.portal-utility-bar a {
+    color: rgba(255, 255, 255, 0.92);
+    text-decoration: none;
+    transition: opacity 0.15s;
+}
+.portal-utility-bar a:hover {
+    opacity: 0.8;
+    color: #ffffff;
+}
+
+.portal-main-bar {
+    padding: 12px 0 10px;
+}
+
+.portal-logo {
+    color: #ffffff;
+    text-decoration: none;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+.portal-logo:hover {
+    color: #ffffff;
+}
+
+.portal-search-box {
+    background: #ffffff;
+    border-radius: 8px;
+    padding: 3px;
+    display: flex;
+    align-items: center;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.14);
+}
+
+.portal-search-box input {
+    border: none;
+    outline: none;
+    flex: 1;
+    padding: 8px 14px;
+    font-size: 0.92rem;
+    color: #1e293b;
+}
+
+.portal-search-box select {
+    border: none;
+    border-left: 1px solid #e2e8f0;
+    padding: 8px 12px;
+    font-size: 0.82rem;
+    color: #475569;
+    background: transparent;
+    outline: none;
+    max-width: 195px;
+}
+
+.portal-search-btn {
+    background: var(--portal-accent);
+    color: #ffffff;
+    border: none;
+    border-radius: 6px;
+    padding: 8px 20px;
+    font-weight: 600;
+    transition: opacity 0.15s;
+}
+.portal-search-btn:hover {
+    opacity: 0.92;
+}
+
+.portal-quick-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-top: 6px;
+    font-size: 0.76rem;
+}
+.portal-quick-tags a {
+    color: rgba(255, 255, 255, 0.92);
+    text-decoration: none;
+}
+.portal-quick-tags a:hover {
+    text-decoration: underline;
+    color: #ffffff;
+}
+
+/* 2. KHUNG HIỂN THỊ MÃ TRẠNG THÁI & BẮT NGOẠI LỆ (KẾ THỪA VER07: MÃ 200, 300, 400, 404, 500) */
+.status-banner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 11px 18px;
+    border-radius: 12px;
+    border-left: 6px solid #198754;
+    background-color: #e8f5e9;
+    color: #1b5e20;
+    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.05);
+    transition: all 0.25s ease;
+}
+.status-banner.hidden-banner {
+    display: none !important;
+}
+.status-banner-left {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    flex-wrap: wrap;
+}
+.status-code-pill {
+    font-weight: 800;
+    font-size: 0.78rem;
+    padding: 4px 12px;
+    border-radius: 50px;
+    background-color: #198754;
+    color: #ffffff;
+    letter-spacing: 0.5px;
+    white-space: nowrap;
+}
+.status-text-group {
+    display: flex;
+    flex-direction: column;
+}
+.status-detail-sub {
+    font-size: 0.84rem;
+    opacity: 0.9;
+}
+.status-close-btn {
+    background: transparent;
+    border: none;
+    font-size: 1.35rem;
+    line-height: 1;
+    color: inherit;
+    opacity: 0.65;
+    cursor: pointer;
+    padding: 0 6px;
+}
+.status-close-btn:hover { opacity: 1; }
+
+.status-banner.status-200 { border-left-color: #198754; background-color: #e8f5e9; color: #1b5e20; }
+.status-banner.status-200 .status-code-pill { background-color: #198754; }
+
+.status-banner.status-300 { border-left-color: #0d6efd; background-color: #e7f1ff; color: #084298; }
+.status-banner.status-300 .status-code-pill { background-color: #0d6efd; }
+
+.status-banner.status-400 { border-left-color: #fd7e14; background-color: #fff3cd; color: #664d03; }
+.status-banner.status-400 .status-code-pill { background-color: #fd7e14; }
+
+.status-banner.status-404 { border-left-color: #d97706; background-color: #fef3c7; color: #78350f; }
+.status-banner.status-404 .status-code-pill { background-color: #d97706; }
+
+.status-banner.status-500 { border-left-color: #dc3545; background-color: #f8d7da; color: #842029; }
+.status-banner.status-500 .status-code-pill { background-color: #dc3545; }
+
+/* 3. CARDS, BADGES & PORTAL COMPONENTS */
+.stat-card, .book-card {
+    transition: transform 0.22s ease, box-shadow 0.22s ease;
+    border-radius: 16px;
+}
+.stat-card:hover, .book-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 12px 24px rgba(0, 0, 0, 0.1) !important;
+}
+
+.icon-box {
+    width: 56px;
+    height: 56px;
+    border-radius: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.6rem;
+    flex-shrink: 0;
+}
+
+.book-cover {
+    height: 220px;
+    object-fit: cover;
+    background-color: #e2e8f0;
+}
+
+.owner-badge-lib {
+    background-color: #0d9488;
+    color: #ffffff;
+    font-weight: 700;
+    font-size: 0.72rem;
+    padding: 3px 9px;
+    border-radius: 6px;
+}
+
+.owner-badge-p2p {
+    background-color: #7c3aed;
+    color: #ffffff;
+    font-weight: 700;
+    font-size: 0.72rem;
+    padding: 3px 9px;
+    border-radius: 6px;
+}
+
+.trust-pill {
+    background: #fef3c7;
+    color: #92400e;
+    font-weight: 700;
+    font-size: 0.74rem;
+    padding: 3px 8px;
+    border-radius: 6px;
+}
+
+.btn-xs {
+    font-size: 0.75rem;
+    padding: 3px 9px;
+    border-radius: 20px;
+}
+
+/* 4. FLOATING GEMINI AI CHAT WIDGET (S13) */
+.ai-chat-widget {
+    position: fixed;
+    right: 22px;
+    bottom: 22px;
+    z-index: 1080;
+}
+
+.ai-chat-fab {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: linear-gradient(135deg, #1d4ed8, #7c3aed);
+    color: #ffffff;
+    border: none;
+    border-radius: 50px;
+    padding: 12px 20px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.ai-chat-fab:hover {
+    transform: scale(1.04);
+    box-shadow: 0 8px 22px rgba(29, 78, 216, 0.4) !important;
+}
+
+.ai-chat-popup {
+    position: fixed;
+    right: 22px;
+    bottom: 80px;
+    width: 365px;
+    max-width: calc(100vw - 32px);
+    height: 470px;
+    max-height: calc(100vh - 120px);
+    background-color: #ffffff;
+    color: #1e293b;
+    border: 1px solid #cbd5e1;
+    border-radius: 16px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.ai-chat-header {
+    background: linear-gradient(135deg, #1d4ed8, #7c3aed);
+}
+
+.ai-chat-messages {
+    flex: 1;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    background-color: #f8fafc;
+}
+
+.ai-msg {
+    max-width: 86%;
+    padding: 9px 13px;
+    border-radius: 14px;
+    font-size: 0.86rem;
+    line-height: 1.45;
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+.ai-msg-bot {
+    align-self: flex-start;
+    background-color: #eff6ff;
+    border: 1px solid #bfdbfe;
+    border-bottom-left-radius: 4px;
+}
+.ai-msg-user {
+    align-self: flex-end;
+    background: #2563eb;
+    color: #ffffff;
+    border-bottom-right-radius: 4px;
+}

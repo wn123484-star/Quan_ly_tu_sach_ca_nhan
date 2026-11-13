@@ -1,0 +1,150 @@
+﻿@model BookShare.Web.Models.ViewModels.PortalHomeViewModel
+@{
+    ViewData["Title"] = "Cổng Khám Phá & Mượn Sách Cộng Đồng";
+}
+
+<!-- KHỐI BANNER PORTAL & CỤM DỊCH VỤ NHANH -->
+<section class="card border-0 shadow-sm rounded-4 p-4 mb-4 bg-white">
+    <div class="row g-3">
+        <div class="col-lg-8">
+            <div class="p-4 rounded-4 text-white h-100 d-flex flex-column justify-content-between" style="background: linear-gradient(135deg, var(--portal-grad-start), var(--portal-grad-end)); min-height: 220px;">
+                <div>
+                    <span class="badge bg-warning text-dark fw-bold mb-2 px-3 py-1 rounded-pill">
+                        <i class="bi bi-stars me-1"></i>NỀN TẢNG CHIA SẺ SÁCH GIẤY HỌC THUẬT & P2P
+                    </span>
+                    <h3 class="fw-bold mb-2">Mượn Sách Kho Trường & Tủ Sách Cá Nhân (0 Đồng)</h3>
+                    <p class="small opacity-90 mb-3">
+                        Đang kết nối trực tiếp <strong>@Model.TotalBooksCount đầu sách</strong> và <strong>@Model.TotalCopiesCount bản sao vật lý</strong> từ SQL Server. Tuyệt đối không bán sách, không giỏ hàng thương mại.
+                    </p>
+                </div>
+                <div class="d-flex flex-wrap gap-2">
+                    <a asp-controller="S01AuthOtpGoogle" asp-action="Index" class="btn btn-light btn-sm fw-bold text-dark px-3">
+                        <i class="bi bi-shield-lock-fill text-primary me-1"></i>S01. Đăng nhập / Test OTP Resend
+                    </a>
+                    <a asp-controller="S02PersonalShelf" asp-action="Index" class="btn btn-warning btn-sm fw-bold text-dark px-3">
+                        <i class="bi bi-bookshelf me-1"></i>S02. Quản lý Tủ sách & IsLendable
+                    </a>
+                    <a asp-controller="S03ReadingTracker" asp-action="Index" class="btn btn-outline-light btn-sm fw-semibold px-3">
+                        <i class="bi bi-pie-chart-fill me-1"></i>S03. Tiến độ đọc (Kế thừa Ver07)
+                    </a>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-4 d-flex flex-column gap-3">
+            <div class="p-3 rounded-4 text-white flex-fill d-flex flex-column justify-content-center" style="background: linear-gradient(135deg, #7c3aed, #4f46e5);">
+                <span class="badge bg-white text-dark align-self-start mb-1" style="font-size:0.7rem;">Phân quyền 4 Vai trò</span>
+                <h6 class="fw-bold mb-1">User • Curator • Librarian • Admin</h6>
+                <p class="small opacity-85 mb-0">Trạm kiểm định CLB Cầu Giấy & Thư viện ĐH CMC</p>
+            </div>
+            <div class="p-3 rounded-4 text-white flex-fill d-flex flex-column justify-content-center" style="background: linear-gradient(135deg, #0f766e, #0ea5e9);">
+                <span class="badge bg-warning text-dark align-self-start mb-1" style="font-size:0.7rem;">3 Dịch vụ Giai đoạn 2 đã hoàn thiện 100%</span>
+                <h6 class="fw-bold mb-1">S01 (Auth/OTP) • S02 (Shelf) • S03 (Tracker)</h6>
+                <p class="small opacity-85 mb-0">Mỗi dịch vụ tách riêng 1 CSHTML + 1 CSS + 1 JS</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- LƯỚI DANH MỤC THỂ LOẠI SÁCH (CATEGORIES) -->
+<section class="card border-0 shadow-sm rounded-4 p-4 mb-4 bg-white">
+    <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+        <h6 class="fw-bold text-secondary text-uppercase mb-0">
+            <i class="bi bi-grid-3x3-gap-fill text-primary me-2"></i>Danh Mục Chuyên Ngành & Kệ Sách (@Model.Categories.Count Chuyên mục)
+        </h6>
+        <a asp-controller="Home" asp-action="Index" class="small text-decoration-none">Xem tất cả (@Model.TotalBooksCount đầu sách)</a>
+    </div>
+    <div class="row g-2">
+        @foreach (var cat in Model.Categories)
+        {
+            var isActive = Model.CategorySlug == cat.Slug;
+            <div class="col-6 col-md-3 col-lg-3">
+                <a asp-controller="Home" asp-action="Index" asp-route-category="@cat.Slug"
+                   class="d-flex align-items-center gap-3 p-3 rounded-3 border text-decoration-none @(isActive ? "border-primary bg-primary bg-opacity-10 text-primary fw-bold" : "bg-light text-dark")">
+                    <i class="bi @cat.IconClass fs-4 text-primary"></i>
+                    <div class="text-truncate">
+                        <div class="small fw-semibold text-truncate">@cat.Name</div>
+                        <small class="text-muted">@cat.BookCount đầu sách</small>
+                    </div>
+                </a>
+            </div>
+        }
+    </div>
+</section>
+
+<!-- LƯỚI KỆ SÁCH TRỰC QUAN TỪ SQL SERVER (KHÔNG CÓ GIÁ BÁN HAY NÚT MUA NGAY) -->
+<section class="card border-0 shadow-sm rounded-4 p-4 bg-white">
+    <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2 border-bottom pb-3">
+        <div>
+            <h5 class="fw-bold mb-1">
+                <i class="bi bi-journal-richtext text-primary me-2"></i>Kệ Sách Đang Mở Cho Mượn Từ CSDL BookShareDb
+                <span class="badge bg-primary ms-2">@Model.BookCards.Count bản sao</span>
+            </h5>
+            <p class="text-muted small mb-0">Hiển thị trực tiếp từ bảng <code>Books</code> & <code>BookCopies</code> (Tách biệt Kho chung Thư viện <code>System</code> và Tủ sách P2P <code>User</code>).</p>
+        </div>
+        <div class="d-flex gap-2">
+            <a asp-controller="Home" asp-action="Index" asp-route-source="all" class="btn btn-sm @(Model.SourceFilter == "all" ? "btn-primary" : "btn-outline-primary")">Tất cả</a>
+            <a asp-controller="Home" asp-action="Index" asp-route-source="System" class="btn btn-sm @(Model.SourceFilter == "System" ? "btn-success" : "btn-outline-success")">🏛️ Kho Chung ĐH CMC</a>
+            <a asp-controller="Home" asp-action="Index" asp-route-source="User" class="btn btn-sm @(Model.SourceFilter == "User" ? "btn-secondary" : "btn-outline-secondary")">🤝 Tủ Sách P2P</a>
+        </div>
+    </div>
+
+    <div class="row g-4">
+        @foreach (var b in Model.BookCards)
+        {
+            <div class="col-md-6 col-lg-4">
+                <div class="card book-card h-100 border shadow-sm overflow-hidden">
+                    <div class="position-relative">
+                        <img src="@(string.IsNullOrEmpty(b.CoverImageUrl) ? "https://images.unsplash.com/photo-1544947950-fa07a98d237f?w=400" : b.CoverImageUrl)"
+                             class="book-cover w-100" alt="@b.Title"
+                             onerror="this.src='https://images.unsplash.com/photo-1544947950-fa07a98d237f?w=400'" />
+                        <span class="position-absolute top-0 start-0 m-2 @(b.OwnerType == "System" ? "owner-badge-lib" : "owner-badge-p2p")">
+                            @(b.OwnerType == "System" ? "🏛️ Kho chung ĐH CMC" : "🤝 Tủ sách P2P")
+                        </span>
+                        <span class="position-absolute top-0 end-0 m-2 badge @(b.Status == "Available" ? "bg-success" : "bg-warning text-dark")">
+                            @(b.Status == "Available" ? "Sẵn sàng mượn" : $"Đang mượn / Hàng chờ ({b.QueueCount})")
+                        </span>
+                    </div>
+                    <div class="card-body d-flex flex-column">
+                        <div class="d-flex justify-content-between align-items-center mb-1">
+                            <span class="badge bg-secondary bg-opacity-10 text-secondary">@b.CategoryName</span>
+                            <small class="text-muted font-monospace">ISBN: @b.ISBN</small>
+                        </div>
+                        <h6 class="fw-bold mb-1">@b.Title</h6>
+                        <p class="text-muted small mb-2"><i class="bi bi-pen me-1"></i>@b.Author • @b.PageCount trang</p>
+
+                        <div class="p-2 rounded-3 bg-light small mb-3 border">
+                            <div class="d-flex justify-content-between mb-1">
+                                <span class="text-muted">Nguồn sách:</span>
+                                <strong class="text-truncate ms-2">@b.OwnerDisplayName</strong>
+                            </div>
+                            @if (b.OwnerTrustScore.HasValue)
+                            {
+                                <div class="d-flex justify-content-between mb-1">
+                                    <span class="text-muted">Điểm uy tín P2P:</span>
+                                    <span class="trust-pill"><i class="bi bi-star-fill me-1"></i>TrustScore: @b.OwnerTrustScore</span>
+                                </div>
+                            }
+                            <div class="d-flex justify-content-between mb-1">
+                                <span class="text-muted">Vị trí kệ / Hub:</span>
+                                <span class="fw-semibold">@b.LocationDisplay</span>
+                            </div>
+                            <div class="d-flex justify-content-between">
+                                <span class="text-muted">Tình trạng & Mã vạch:</span>
+                                <span>@b.Condition • <code>@b.Barcode</code></span>
+                            </div>
+                        </div>
+
+                        <div class="mt-auto d-flex gap-2">
+                            <a asp-controller="S02PersonalShelf" asp-action="Index" class="btn btn-primary btn-sm flex-grow-1 fw-semibold">
+                                <i class="bi bi-journal-arrow-down me-1"></i>@(b.OwnerType == "System" ? "Mượn Kho chung (0đ)" : "Mượn P2P (0đ)")
+                            </a>
+                            <a asp-controller="S03ReadingTracker" asp-action="Index" class="btn btn-outline-secondary btn-sm" title="Theo dõi tiến độ đọc (S03)">
+                                <i class="bi bi-graph-up-arrow"></i>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+</section>

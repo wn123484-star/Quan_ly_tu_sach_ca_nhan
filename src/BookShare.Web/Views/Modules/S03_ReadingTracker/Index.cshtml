@@ -1,0 +1,222 @@
+@model BookShare.Web.Models.ViewModels.S03ReadingTrackerPageViewModel
+@{
+    ViewData["Title"] = "S03. Theo Dõi Tiến Độ Đọc Sách & Biểu Đồ Thống Kê (Kế Thừa Ver07)";
+}
+
+@section Styles {
+    <link rel="stylesheet" href="~/modules/s03-reading-tracker/s03-reading-tracker.css" asp-append-version="true" />
+}
+
+<!-- Payload JSON dùng cho Chart.js & nút Xuất sao lưu JSON kế thừa Ver07 -->
+<script id="s03ChartPayload" type="application/json">@Html.Raw(Model.ChartJsonPayload)</script>
+
+<!-- 1. BANNER & 4 HỘP THỐNG KÊ KẾ THỪA BOOK-TRACKER-VER07 -->
+<section class="card border-0 shadow-sm rounded-4 p-4 mb-4 bg-white">
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+        <div>
+            <span class="badge bg-success mb-1">Dịch vụ S03 • ReadingTracker (Kế thừa book-tracker-ver07)</span>
+            <h4 class="fw-bold mb-1">Bảng Điều Khiển Tiến Độ Đọc Của @Model.UserFullName</h4>
+            <p class="text-muted small mb-0">
+                Theo dõi số trang đang đọc (<code>CurrentPage / TotalPages</code>), tự động tính <code>%</code> hoàn thành, đặt mục tiêu đọc sách năm và vẽ biểu đồ thống kê trực quan.
+            </p>
+        </div>
+        <div class="d-flex gap-2">
+            <button type="button" id="btnExportTrackerJson" class="btn btn-outline-primary btn-sm fw-bold">
+                <i class="bi bi-download me-1"></i>Tải tệp sao lưu JSON (Ver07)
+            </button>
+            <a asp-controller="S02PersonalShelf" asp-action="Index" class="btn btn-primary btn-sm fw-bold">
+                <i class="bi bi-bookshelf me-1"></i>Quản lý Kệ sách (S02)
+            </a>
+        </div>
+    </div>
+
+    <div class="row g-3">
+        <div class="col-6 col-lg-3">
+            <div class="card stat-card border-0 bg-primary bg-opacity-10 h-100">
+                <div class="card-body d-flex align-items-center">
+                    <div class="icon-box bg-primary text-white me-3"><i class="bi bi-collection-fill"></i></div>
+                    <div>
+                        <div class="small text-muted">Tổng sách theo dõi</div>
+                        <h3 class="fw-bold text-primary mb-0">@Model.TotalTrackedBooks</h3>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-lg-3">
+            <div class="card stat-card border-0 bg-success bg-opacity-10 h-100">
+                <div class="card-body d-flex align-items-center">
+                    <div class="icon-box bg-success text-white me-3"><i class="bi bi-check2-circle"></i></div>
+                    <div>
+                        <div class="small text-muted">Đã đọc xong</div>
+                        <h3 class="fw-bold text-success mb-0">@Model.CompletedCount</h3>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-lg-3">
+            <div class="card stat-card border-0 bg-warning bg-opacity-10 h-100">
+                <div class="card-body d-flex align-items-center">
+                    <div class="icon-box bg-warning text-dark me-3"><i class="bi bi-book-half"></i></div>
+                    <div>
+                        <div class="small text-muted">Đang đọc / Muốn đọc</div>
+                        <h3 class="fw-bold text-warning mb-0">@(Model.ReadingCount + Model.WantToReadCount)</h3>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-lg-3">
+            <div class="card stat-card border-0 bg-info bg-opacity-10 h-100">
+                <div class="card-body d-flex align-items-center">
+                    <div class="icon-box bg-info text-white me-3"><i class="bi bi-file-earmark-text-fill"></i></div>
+                    <div>
+                        <div class="small text-muted">Tổng số trang đã đọc</div>
+                        <h3 class="fw-bold text-info mb-0">@Model.TotalPagesRead.ToString("N0")</h3>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- 2. KHỐI BIỂU ĐỒ TRÒN (VER07) + BIỂU ĐỒ CỘT % TIẾN ĐỘ + MỤC TIÊU NĂM -->
+<div class="row g-4 mb-4">
+    <div class="col-lg-4">
+        <div class="card border-0 shadow-sm rounded-4 h-100 bg-white">
+            <div class="card-body p-4 text-center">
+                <h6 class="fw-bold mb-3"><i class="bi bi-pie-chart-fill text-primary me-2"></i>Tỷ Lệ Trạng Thái Đọc (Ver07)</h6>
+                <div style="max-height: 215px;" class="d-flex justify-content-center">
+                    <canvas id="s03DoughnutChart"></canvas>
+                </div>
+                <div class="mt-3 pt-3 border-top d-flex justify-content-around small text-muted">
+                    <span>Ưu tiên Cao: <strong class="text-danger">@Model.HighPriorityCount</strong></span>
+                    <span>Trung bình: <strong class="text-primary">@Model.MediumPriorityCount</strong></span>
+                    <span>Thấp: <strong class="text-secondary">@Model.LowPriorityCount</strong></span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-5">
+        <div class="card border-0 shadow-sm rounded-4 h-100 bg-white">
+            <div class="card-body p-4">
+                <h6 class="fw-bold mb-3"><i class="bi bi-bar-chart-fill text-success me-2"></i>Biểu Đồ % Hoàn Thành Theo Đầu Sách</h6>
+                <div style="height: 230px;">
+                    <canvas id="s03PagesBarChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-3">
+        <div class="s03-goal-ring h-100 d-flex flex-column justify-content-between shadow-sm">
+            <div>
+                <span class="badge bg-warning text-dark fw-bold mb-2">Mục tiêu đọc sách 2026</span>
+                <h5 class="fw-bold mb-2">Đã hoàn thành @Model.CompletedCount / @Model.YearlyGoalTarget cuốn</h5>
+                <div class="progress bg-white bg-opacity-25 mb-2" style="height: 12px; border-radius: 20px;">
+                    <div class="progress-bar bg-warning" role="progressbar" style="width: @Model.YearlyGoalPercent%"></div>
+                </div>
+                <small class="opacity-85">Đạt @Model.YearlyGoalPercent% mục tiêu năm • Tổng @Model.TotalPagesRead trang sách đã lĩnh hội.</small>
+            </div>
+
+            <!-- Form thêm sách mới vào trình theo dõi S03 -->
+            <form asp-controller="S03ReadingTracker" asp-action="AddBookToTracker" method="post" class="mt-3 pt-3 border-top border-white border-opacity-25">
+                @Html.AntiForgeryToken()
+                <label class="small fw-bold mb-1">Đặt mục tiêu đọc cuốn mới:</label>
+                <select name="BookId" class="form-select form-select-sm mb-2">
+                    @foreach (var b in Model.UntrackedBooks)
+                    {
+                        <option value="@b.Id">@b.Title</option>
+                    }
+                </select>
+                <div class="d-flex gap-2">
+                    <select name="Priority" class="form-select form-select-sm">
+                        <option value="High">Ưu tiên Cao</option>
+                        <option value="Medium" selected>Trung bình</option>
+                        <option value="Low">Thấp</option>
+                    </select>
+                    <button type="submit" class="btn btn-warning btn-sm fw-bold text-dark text-nowrap">
+                        <i class="bi bi-plus-lg"></i> Thêm
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- 3. DANH SÁCH TIẾN ĐỘ ĐỌC CHI TIẾT KÈM THANH TRƯỢT SỐ TRANG -->
+<section>
+    <h5 class="fw-bold mb-3"><i class="bi bi-sliders text-primary me-2"></i>Cập Nhật Số Trang Đang Đọc & Ghi Chú Tâm Đắc</h5>
+    <div class="row g-4">
+        @foreach (var item in Model.ProgressList)
+        {
+            <div class="col-lg-6">
+                <div class="s03-progress-card">
+                    <div class="d-flex gap-3">
+                        <img src="@(string.IsNullOrEmpty(item.CoverImageUrl) ? "https://images.unsplash.com/photo-1544947950-fa07a98d237f?w=400" : item.CoverImageUrl)"
+                             style="width:88px; height:130px; object-fit:cover;" class="rounded-3 shadow-sm flex-shrink-0" alt="@item.Title"
+                             onerror="this.src='https://images.unsplash.com/photo-1544947950-fa07a98d237f?w=400'" />
+                        <div class="flex-grow-1">
+                            <div class="d-flex justify-content-between align-items-center mb-1">
+                                <span id="statusBadge-@item.Id" class="badge @(item.Status == "Completed" ? "bg-success" : item.Status == "Reading" ? "bg-warning text-dark" : "bg-secondary")">
+                                    @(item.Status == "Completed" ? "Đã đọc xong (100%)" : item.Status == "Reading" ? $"Đang đọc ({item.PercentCompleted}%)" : "Muốn đọc (0%)")
+                                </span>
+                                <small class="text-muted">Hạn mục tiêu: @(item.TargetDeadline?.ToString("dd/MM/yyyy") ?? "Chưa đặt")</small>
+                            </div>
+                            <h6 class="fw-bold mb-1">@item.Title</h6>
+                            <p class="text-muted small mb-2">@item.Author • @item.CategoryName</p>
+
+                            <!-- Khung kéo thanh trượt cập nhật CurrentPage -->
+                            <div class="s03-slider-box mb-2">
+                                <div class="d-flex justify-content-between align-items-center small fw-bold mb-1">
+                                    <span>Trang hiện tại: <span id="curPageLabel-@item.Id" class="text-primary">@item.CurrentPage</span> / @item.TotalPages</span>
+                                    <span id="pctBadge-@item.Id" class="badge bg-primary">@item.PercentCompleted%</span>
+                                </div>
+                                <input type="range" class="form-range js-page-slider mb-2"
+                                       data-progress-id="@item.Id"
+                                       min="0" max="@item.TotalPages" value="@item.CurrentPage" />
+
+                                <div class="row g-2 align-items-center">
+                                    <div class="col-4">
+                                        <div class="input-group input-group-sm">
+                                            <span class="input-group-text">Trang</span>
+                                            <input type="number" id="numPageInput-@item.Id" class="form-control" min="0" max="@item.TotalPages" value="@item.CurrentPage" />
+                                        </div>
+                                    </div>
+                                    <div class="col-4">
+                                        <select id="prioritySelect-@item.Id" class="form-select form-select-sm">
+                                            <option value="High" selected="@(item.Priority == "High")">Ưu tiên Cao</option>
+                                            <option value="Medium" selected="@(item.Priority == "Medium")">Trung bình</option>
+                                            <option value="Low" selected="@(item.Priority == "Low")">Thấp</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-4">
+                                        <button type="button" class="btn btn-primary btn-sm w-100 fw-bold js-save-progress-btn" data-progress-id="@item.Id">
+                                            <i class="bi bi-save me-1"></i>Lưu trang
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    @if (item.Notes.Count > 0)
+                    {
+                        <div class="mt-2 pt-2 border-top">
+                            @foreach (var note in item.Notes)
+                            {
+                                <div class="s03-quote-note-box mb-1">
+                                    <div class="fw-semibold text-dark">"@note.QuoteText" <span class="badge bg-primary ms-1">Trang @note.PageNumber</span></div>
+                                    <div class="text-muted mt-1">💡 @note.NoteContent</div>
+                                </div>
+                            }
+                        </div>
+                    }
+                </div>
+            </div>
+        }
+    </div>
+</section>
+
+@section Scripts {
+    <script type="module" src="~/modules/s03-reading-tracker/s03-reading-tracker.js" asp-append-version="true"></script>
+}

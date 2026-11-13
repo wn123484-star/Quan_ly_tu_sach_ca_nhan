@@ -1,0 +1,60 @@
+/* ==========================================================================
+   MODULE S02: PERSONAL SHELF MANAGEMENT (s02-personal-shelf.css)
+   Quản lý tủ sách cá nhân, chia kệ sách, nút gạt bật/tắt IsLendable
+   ========================================================================== */
+
+.s02-shelf-tab {
+    border-radius: 50px;
+    padding: 8px 18px;
+    font-weight: 600;
+    font-size: 0.88rem;
+    border: 1px solid #cbd5e1;
+    background: #ffffff;
+    color: #334155;
+    text-decoration: none;
+    transition: all 0.2s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+.s02-shelf-tab:hover,
+.s02-shelf-tab.active {
+    background: #2563eb;
+    color: #ffffff;
+    border-color: #2563eb;
+    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.2);
+}
+
+.s02-copy-card {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 18px;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    overflow: hidden;
+    height: 100%;
+}
+.s02-copy-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 12px 24px rgba(0, 0, 0, 0.08);
+}
+
+.s02-lendable-bar {
+    background: #f0fdf4;
+    border: 1px solid #bbf7d0;
+    border-radius: 12px;
+    padding: 10px 14px;
+    transition: all 0.2s ease;
+}
+.s02-lendable-bar.is-locked {
+    background: #f8fafc;
+    border-color: #cbd5e1;
+}
+
+.s02-cover-thumb {
+    width: 92px;
+    height: 136px;
+    object-fit: cover;
+    border-radius: 10px;
+    background: #e2e8f0;
+    flex-shrink: 0;
+}

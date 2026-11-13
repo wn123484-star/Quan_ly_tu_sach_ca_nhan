@@ -1,0 +1,39 @@
+/* ==========================================================================
+   MODULE S03: READING TRACKER - KẾ THỪA VER07 (s03-reading-tracker.css)
+   Theo dõi số trang đang đọc, tính % hoàn thành, mục tiêu & biểu đồ Chart.js
+   ========================================================================== */
+
+.s03-progress-card {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 18px;
+    padding: 1.35rem;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    height: 100%;
+}
+.s03-progress-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 10px 22px rgba(0, 0, 0, 0.08);
+}
+
+.s03-slider-box {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 10px 14px;
+}
+
+.s03-goal-ring {
+    background: linear-gradient(135deg, #1e3a8a, #2563eb);
+    color: #ffffff;
+    border-radius: 18px;
+    padding: 1.5rem;
+}
+
+.s03-quote-note-box {
+    border-left: 4px solid #2563eb;
+    background: #eff6ff;
+    border-radius: 0 10px 10px 0;
+    padding: 8px 12px;
+    font-size: 0.84rem;
+}

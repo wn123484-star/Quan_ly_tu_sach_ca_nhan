@@ -1,0 +1,227 @@
+@model BookShare.Web.Models.ViewModels.S01AuthPageViewModel
+@{
+    ViewData["Title"] = "S01. Xác Thực Tài Khoản, OTP Resend & Google OAuth";
+}
+
+@section Styles {
+    <link rel="stylesheet" href="~/modules/s01-auth-otp-google/s01-auth-otp-google.css" asp-append-version="true" />
+}
+
+<div class="s01-auth-wrapper">
+    <!-- Trạng thái tài khoản đang đăng nhập (nếu có) -->
+    @if (Model.IsAuthenticated)
+    {
+        <div class="card border-0 shadow-sm rounded-4 mb-4 bg-white">
+            <div class="card-body p-4 d-flex flex-wrap justify-content-between align-items-center gap-3">
+                <div class="d-flex align-items-center gap-3">
+                    <div class="icon-box bg-success text-white"><i class="bi bi-person-check-fill"></i></div>
+                    <div>
+                        <span class="badge bg-primary mb-1">Phiên Cookie Auth Đang Hoạt Động • Vai trò: @Model.CurrentUserRole</span>
+                        <h5 class="fw-bold mb-0">@Model.CurrentUserFullName (@Model.CurrentUserEmail)</h5>
+                        <small class="text-muted">Điểm uy tín hiện tại: <strong>@Model.CurrentTrustScore điểm</strong> • Mã định danh: <code>@Model.CurrentUserId</code></small>
+                    </div>
+                </div>
+                <div class="d-flex gap-2">
+                    <a asp-controller="S02PersonalShelf" asp-action="Index" class="btn btn-primary btn-sm fw-bold">
+                        <i class="bi bi-bookshelf me-1"></i>Vào Tủ Sách Cá Nhân (S02)
+                    </a>
+                    <a asp-controller="S03ReadingTracker" asp-action="Index" class="btn btn-outline-primary btn-sm fw-bold">
+                        <i class="bi bi-pie-chart me-1"></i>Tiến Độ Đọc (S03)
+                    </a>
+                    <form asp-controller="S01AuthOtpGoogle" asp-action="Logout" method="post" class="d-inline">
+                        @Html.AntiForgeryToken()
+                        <button type="submit" class="btn btn-outline-danger btn-sm">
+                            <i class="bi bi-box-arrow-right me-1"></i>Đăng xuất
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    }
+
+    <div class="row g-4">
+        <!-- CỘT TRÁI: CHỌN NHANH TÀI KHOẢN MẪU 4 VAI TRÒ (ROLES) ĐỂ TEST NGAY -->
+        <div class="col-lg-5">
+            <div class="s01-hero-panel">
+                <div>
+                    <span class="badge bg-warning text-dark fw-bold mb-2">Dịch vụ S01 • ASP.NET Core Identity</span>
+                    <h4 class="fw-bold mb-2">Hệ Thống Phân Quyền 4 Cấp & Xác Thực Đa Kênh</h4>
+                    <p class="small opacity-90 mb-3">
+                        Bấm vào bất kỳ thẻ vai trò nào bên dưới để tự động điền Email & Mật khẩu mẫu (<code>BookShare@123</code>) vào biểu mẫu đăng nhập:
+                    </p>
+
+                    <div class="d-flex flex-column gap-2 mb-4">
+                        @foreach (var acc in Model.DemoAccounts)
+                        {
+                            <button type="button" class="s01-role-card" data-demo-email="@acc.Email" data-demo-role="@acc.Role">
+                                <div class="d-flex justify-content-between align-items-center mb-1">
+                                    <span class="badge @acc.BadgeClass">@acc.Role</span>
+                                    <span class="small opacity-85"><i class="bi bi-star-fill text-warning me-1"></i>TrustScore: @acc.TrustScore</span>
+                                </div>
+                                <div class="fw-bold small">@acc.FullName</div>
+                                <div class="small opacity-75 font-monospace">@acc.Email • MK: BookShare@123</div>
+                            </button>
+                        }
+                    </div>
+                </div>
+
+                <div class="p-3 rounded-3 bg-white bg-opacity-10 small">
+                    <div class="fw-bold mb-1"><i class="bi bi-shield-check text-warning me-1"></i>Chuẩn Bảo mật Kỹ thuật .NET 10:</div>
+                    <ul class="mb-0 ps-3">
+                        <li>Cookie Authentication (<code>HttpOnly</code>, <code>SameSite=Lax</code>).</li>
+                        <li>Google OAuth 2.0 liên kết bảng <code>AspNetUserLogins</code>.</li>
+                        <li>Mã OTP 6 chữ số sinh bằng <code>RandomNumberGenerator</code>, băm <code>SHA-256</code> lưu bảng <code>OtpVerifications</code>.</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- CỘT PHẢI: ĐĂNG NHẬP, GOOGLE OAUTH, ĐĂNG KÝ & XÁC THỰC OTP 6 SỐ QUA RESEND -->
+        <div class="col-lg-7">
+            <div class="s01-auth-card mb-4">
+                <ul class="nav nav-pills mb-4 gap-2" id="s01AuthTabs" role="tablist">
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link active fw-bold" data-bs-toggle="pill" data-bs-target="#tabLogin" type="button">
+                            <i class="bi bi-box-arrow-in-right me-1"></i>1. Đăng nhập & Google OAuth
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link fw-bold" data-bs-toggle="pill" data-bs-target="#tabOtpResend" type="button">
+                            <i class="bi bi-envelope-check me-1"></i>2. Xác thực OTP 6 Số (Resend)
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link fw-bold" data-bs-toggle="pill" data-bs-target="#tabRegister" type="button">
+                            <i class="bi bi-person-plus me-1"></i>3. Đăng ký Tài khoản Mới
+                        </button>
+                    </li>
+                </ul>
+
+                <div class="tab-content">
+                    <!-- TAB 1: ĐĂNG NHẬP & GOOGLE OAUTH -->
+                    <div class="tab-pane fade show active" id="tabLogin" role="tabpanel">
+                        <form asp-controller="S01AuthOtpGoogle" asp-action="Login" method="post" class="mb-3">
+                            @Html.AntiForgeryToken()
+                            <input type="hidden" name="ReturnUrl" value="@Model.ReturnUrl" />
+
+                            <div class="mb-3">
+                                <label class="form-label small fw-bold" for="loginEmail">Địa chỉ Email tài khoản</label>
+                                <input type="email" class="form-control" id="loginEmail" name="Email" value="nguyenhung@cmc.edu.vn" required />
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label small fw-bold" for="loginPassword">Mật khẩu</label>
+                                <input type="password" class="form-control" id="loginPassword" name="Password" value="BookShare@123" required />
+                                <div class="form-text small">Mật khẩu mặc định của tất cả tài khoản mẫu trong SeedData là <code>BookShare@123</code>.</div>
+                            </div>
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" name="RememberMe" value="true" checked id="rememberCheck" />
+                                    <label class="form-check-label small" for="rememberCheck">Duy trì đăng nhập (Persistent Cookie)</label>
+                                </div>
+                            </div>
+                            <button type="submit" class="btn btn-primary w-100 fw-bold py-2">
+                                <i class="bi bi-unlock-fill me-1"></i>Đăng Nhập Vào Hệ Thống
+                            </button>
+                        </form>
+
+                        <div class="text-center text-muted small my-3">— HOẶC ĐĂNG NHẬP BÊN THỨ 3 —</div>
+
+                        <form asp-controller="S01AuthOtpGoogle" asp-action="GoogleLogin" method="post">
+                            @Html.AntiForgeryToken()
+                            <input type="hidden" name="returnUrl" value="@Model.ReturnUrl" />
+                            <button type="submit" class="s01-google-btn">
+                                <i class="bi bi-google text-danger fs-5"></i>
+                                <span>Đăng nhập bằng Google OAuth 2.0 (AspNetUserLogins)</span>
+                            </button>
+                        </form>
+                    </div>
+
+                    <!-- TAB 2: GỬI & XÁC THỰC MÃ OTP 6 SỐ QUA RESEND -->
+                    <div class="tab-pane fade" id="tabOtpResend" role="tabpanel">
+                        <div class="mb-3">
+                            <label class="form-label small fw-bold" for="otpEmail">Địa chỉ Email nhận mã OTP 6 số</label>
+                            <div class="input-group">
+                                <input type="email" id="otpEmail" class="form-control" value="@(Model.CurrentUserEmail ?? "nguyenhung@cmc.edu.vn")" placeholder="Nhập email nhận OTP..." />
+                                <select id="otpPurpose" class="form-select" style="max-width: 195px;">
+                                    <option value="VerifyLoan">Xác nhận Mượn P2P</option>
+                                    <option value="Register">Xác minh Đăng ký</option>
+                                    <option value="ResetPassword">Khôi phục Mật khẩu</option>
+                                </select>
+                                <button type="button" id="btnSendOtp" class="btn btn-primary fw-bold">
+                                    <i class="bi bi-send-check me-1"></i>Gửi Mã OTP
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Khung hiển thị mã OTP Dev-mode nếu chưa điền Resend API Key thật -->
+                        <div id="devOtpPreviewBox" class="s01-dev-otp-alert mb-3 d-none">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span><i class="bi bi-terminal-fill me-1"></i><strong>Mã OTP 6 số vừa sinh (Dev Console):</strong></span>
+                                <span id="devOtpCodeValue" class="fs-4 fw-bold font-monospace text-primary">------</span>
+                            </div>
+                            <div class="small mt-1">Bản băm SHA-256 đã được lưu vào bảng <code>OtpVerifications</code> (Hiệu lực 5 phút). Mã đã được điền sẵn vào 6 ô bên dưới để bạn bấm kiểm nghiệm ngay!</div>
+                        </div>
+
+                        <form id="verifyOtpForm" class="text-center pt-2">
+                            <input type="hidden" id="otpCodeFull" />
+                            <label class="form-label small fw-bold d-block mb-2">Nhập 6 chữ số xác thực OTP:</label>
+                            <div class="s01-otp-box mb-3">
+                                <input type="text" class="s01-otp-digit" maxlength="1" autocomplete="off" />
+                                <input type="text" class="s01-otp-digit" maxlength="1" autocomplete="off" />
+                                <input type="text" class="s01-otp-digit" maxlength="1" autocomplete="off" />
+                                <input type="text" class="s01-otp-digit" maxlength="1" autocomplete="off" />
+                                <input type="text" class="s01-otp-digit" maxlength="1" autocomplete="off" />
+                                <input type="text" class="s01-otp-digit" maxlength="1" autocomplete="off" />
+                            </div>
+                            <button type="submit" class="btn btn-success fw-bold px-4 py-2">
+                                <i class="bi bi-shield-fill-check me-1"></i>Xác Thực Mã OTP 6 Số
+                            </button>
+                        </form>
+                    </div>
+
+                    <!-- TAB 3: ĐĂNG KÝ TÀI KHOẢN MỚI -->
+                    <div class="tab-pane fade" id="tabRegister" role="tabpanel">
+                        <form asp-controller="S01AuthOtpGoogle" asp-action="Register" method="post">
+                            @Html.AntiForgeryToken()
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label class="form-label small fw-bold">Họ và tên đầy đủ</label>
+                                    <input type="text" name="FullName" class="form-control" placeholder="VD: Nguyễn Văn A" required />
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label small fw-bold">Địa chỉ Email</label>
+                                    <input type="email" name="Email" class="form-control" placeholder="sinhvien@cmc.edu.vn" required />
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label small fw-bold">Mật khẩu</label>
+                                    <input type="password" name="Password" class="form-control" value="BookShare@123" required />
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label small fw-bold">Vai trò khởi tạo (Demo 4 Roles)</label>
+                                    <select name="SelectedRole" class="form-select">
+                                        <option value="User">User (Độc giả & Chủ tủ sách)</option>
+                                        <option value="Curator">Curator (Chủ nhiệm CLB / Hub)</option>
+                                        <option value="Librarian">Librarian (Thủ thư Kho chung)</option>
+                                    </select>
+                                </div>
+                                <div class="col-12">
+                                    <label class="form-label small fw-bold">Địa chỉ / Khu vực giao nhận sách P2P</label>
+                                    <input type="text" name="Address" class="form-control" value="Cầu Giấy, Hà Nội" />
+                                </div>
+                                <div class="col-12">
+                                    <button type="submit" class="btn btn-primary w-100 fw-bold py-2">
+                                        <i class="bi bi-person-plus-fill me-1"></i>Tạo Tài Khoản Mới (+100 TrustScore)
+                                    </button>
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script type="module" src="~/modules/s01-auth-otp-google/s01-auth-otp-google.js" asp-append-version="true"></script>
+}

@@ -1,0 +1,188 @@
+﻿@inject Microsoft.AspNetCore.Antiforgery.IAntiforgery Antiforgery
+@{
+    var antiForgeryToken = Antiforgery.GetAndStoreTokens(Context).RequestToken;
+    var isAuthenticated = User.Identity?.IsAuthenticated ?? false;
+    var currentUserName = User.Identity?.Name ?? "Nguyễn Hùng (Chế độ Xem nhanh)";
+    var currentRole = User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value ?? "User";
+    var currentTrust = User.FindFirst("TrustScore")?.Value ?? "128";
+
+    var statusCode = TempData["StatusCode"] as int? ?? 200;
+    var statusTitle = TempData["StatusTitle"] as string ?? "Hệ thống BookShare Portal (.NET 10) hoạt động ổn định";
+    var statusDetail = TempData["StatusDetail"] as string ?? "Đã kết nối CSDL SQL Server (BookShareDb - 22 bảng) và nạp cấu hình Modular UI.";
+    var statusClass = statusCode >= 500 ? "status-500" : statusCode == 404 ? "status-404" : statusCode >= 400 ? "status-400" : statusCode >= 300 ? "status-300" : "status-200";
+}
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="csrf-token" content="@antiForgeryToken" />
+    <title>@ViewData["Title"] - BookShare Portal (.NET 10 MVC)</title>
+
+    <link rel="stylesheet" href="~/vendor/bootstrap/bootstrap.min.css" />
+    <link rel="stylesheet" href="~/vendor/bootstrap-icons/font/bootstrap-icons.css" />
+    <link rel="stylesheet" href="~/css/core-theme.css" asp-append-version="true" />
+    @await RenderSectionAsync("Styles", required: false)
+</head>
+<body data-portal-palette="blue">
+
+    <!-- 1. HEADER CỔNG DỊCH VỤ BOOKSHARE PORTAL -->
+    <header class="portal-header-wrapper">
+        <div class="portal-utility-bar">
+            <div class="container d-flex flex-wrap justify-content-between align-items-center gap-2">
+                <div class="d-flex align-items-center gap-3 flex-wrap">
+                    <a asp-controller="Home" asp-action="Index"><i class="bi bi-compass me-1"></i>Cổng Portal Khám Phá</a>
+                    <span class="opacity-50">|</span>
+                    <a asp-controller="S01AuthOtpGoogle" asp-action="Index"><i class="bi bi-shield-lock me-1"></i>S01. Auth + OTP Resend + Google</a>
+                    <span class="opacity-50">|</span>
+                    <a asp-controller="S02PersonalShelf" asp-action="Index"><i class="bi bi-bookshelf me-1"></i>S02. Tủ Sách Cá Nhân (IsLendable)</a>
+                    <span class="opacity-50">|</span>
+                    <a asp-controller="S03ReadingTracker" asp-action="Index"><i class="bi bi-pie-chart-fill me-1"></i>S03. Tiến Độ Đọc (Kế thừa Ver07)</a>
+                </div>
+
+                <div class="d-flex align-items-center gap-2 flex-wrap">
+                    <div class="btn-group btn-group-sm me-2" role="group" aria-label="Palette Switcher">
+                        <button type="button" class="btn btn-xs btn-light text-primary fw-bold" data-set-palette="blue">Xanh Học Thuật</button>
+                        <button type="button" class="btn btn-xs btn-warning text-dark fw-bold" data-set-palette="coral">Cam Portal</button>
+                        <button type="button" class="btn btn-xs btn-success text-white fw-bold" data-set-palette="emerald">Xanh Thư Viện</button>
+                    </div>
+                    <span class="badge bg-warning text-dark"><i class="bi bi-award-fill me-1"></i>TrustScore: @currentTrust</span>
+                    <span class="badge bg-light text-dark">Role: @currentRole</span>
+                    @if (isAuthenticated)
+                    {
+                        <a asp-controller="S01AuthOtpGoogle" asp-action="Index" class="fw-bold text-white text-decoration-none">
+                            <i class="bi bi-person-check-fill me-1"></i>@currentUserName
+                        </a>
+                    }
+                    else
+                    {
+                        <a asp-controller="S01AuthOtpGoogle" asp-action="Index" class="fw-bold text-warning text-decoration-none">
+                            <i class="bi bi-box-arrow-in-right me-1"></i>Đăng nhập / OTP (S01)
+                        </a>
+                    }
+                </div>
+            </div>
+        </div>
+
+        <!-- Thanh Header Chính: Logo + Thanh Tìm Kiếm Lớn + Balô Phiếu Mượn (Không có Giỏ hàng mua bán!) -->
+        <div class="portal-main-bar">
+            <div class="container">
+                <div class="row align-items-center g-3">
+                    <div class="col-lg-3 col-md-4">
+                        <a asp-controller="Home" asp-action="Index" class="portal-logo">
+                            <div class="bg-white text-primary rounded-3 d-flex align-items-center justify-content-center shadow-sm" style="width:44px; height:44px;">
+                                <i class="bi bi-book-half fs-3"></i>
+                            </div>
+                            <div>
+                                <div class="fs-4 fw-bold lh-1">BookShare</div>
+                                <small class="opacity-75" style="font-size:0.72rem;">.NET 10 • 22 Dịch Vụ • Không Bán Sách</small>
+                            </div>
+                        </a>
+                    </div>
+
+                    <div class="col-lg-7 col-md-6">
+                        <form asp-controller="Home" asp-action="Index" method="get">
+                            <div class="portal-search-box">
+                                <input type="text" name="keyword" value="@Context.Request.Query["keyword"]" placeholder="Tìm sách giấy theo Tên sách, Tác giả, ISBN (Mượn miễn phí 0đ - Không bán sách)..." />
+                                <select name="source">
+                                    <option value="all">🌐 Tất cả nguồn sách</option>
+                                    <option value="System">🏛️ Kho chung Thư viện</option>
+                                    <option value="User">🤝 Tủ sách P2P Cộng đồng</option>
+                                </select>
+                                <button type="submit" class="portal-search-btn">
+                                    <i class="bi bi-search"></i>
+                                </button>
+                            </div>
+                        </form>
+                        <div class="portal-quick-tags">
+                            <a href="/?keyword=Clean+Code">Clean Code</a>
+                            <a href="/?keyword=Domain-Driven">Domain-Driven Design</a>
+                            <a href="/?keyword=ASP.NET+Core">ASP.NET Core in Action</a>
+                            <a href="/?keyword=Nguy%E1%BB%85n+Nh%E1%BA%ADt+%C3%81nh">Nguyễn Nhật Ánh</a>
+                            <a href="/?source=System">Kho ĐH CMC</a>
+                            <a href="/?source=User">Sách P2P Cầu Giấy</a>
+                        </div>
+                    </div>
+
+                    <div class="col-lg-2 col-md-2 text-end">
+                        <a asp-controller="S02PersonalShelf" asp-action="Index" class="text-white text-decoration-none d-inline-flex flex-column align-items-center">
+                            <div class="position-relative">
+                                <i class="bi bi-journal-bookmark-fill fs-3"></i>
+                                <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-warning text-dark">S02</span>
+                            </div>
+                            <span style="font-size:0.74rem;" class="fw-semibold">Tủ Sách & Phiếu Mượn</span>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- 2. KHUNG HIỂN THỊ MÃ TRẠNG THÁI KẾ THỪA BOOK-TRACKER-VER07 -->
+    <div class="container mt-3">
+        <div id="systemStatusBox" class="status-banner @statusClass">
+            <div class="status-banner-left">
+                <span id="statusCodeBadge" class="status-code-pill">MÃ @statusCode</span>
+                <div class="status-text-group">
+                    <strong id="statusTitleText">@statusTitle</strong>
+                    <span id="statusDetailText" class="status-detail-sub">@statusDetail</span>
+                </div>
+            </div>
+            <button type="button" class="status-close-btn" id="btnHideStatusBox" title="Thu gọn thông báo">×</button>
+        </div>
+    </div>
+
+    <!-- 3. NỘI DUNG CHÍNH TỪNG MODULE -->
+    <main class="container py-4">
+        @RenderBody()
+    </main>
+
+    <!-- 4. WIDGET TRỢ LÝ AI GEMINI NỔI Ở GÓC PHẢI DƯỚI (S13) -->
+    <div id="aiFloatingWidget" class="ai-chat-widget">
+        <button type="button" id="btnToggleAIChat" class="ai-chat-fab shadow">
+            <i class="bi bi-stars fs-5"></i>
+            <span>Trợ lý AI Thủ thư (S13)</span>
+        </button>
+
+        <div id="aiChatPopup" class="ai-chat-popup shadow-lg d-none">
+            <div class="ai-chat-header text-white d-flex justify-content-between align-items-center px-3 py-2">
+                <div class="d-flex align-items-center gap-2">
+                    <i class="bi bi-robot"></i>
+                    <div>
+                        <strong class="small d-block">Trợ lý AI BookShare (Gemini 2.5)</strong>
+                        <span style="font-size: 0.68rem; opacity: 0.85;">RAG: Kết nối trực tiếp SQL Server BookShareDb</span>
+                    </div>
+                </div>
+                <button type="button" id="btnCloseAIChat" class="btn btn-sm text-white p-0 px-1"><i class="bi bi-x-lg"></i></button>
+            </div>
+
+            <div class="px-2 py-2 border-bottom bg-body-tertiary d-flex gap-1 flex-wrap">
+                <button type="button" class="btn btn-outline-primary btn-xs ai-quick-prompt" data-prompt="Gợi ý sách sẵn sàng cho mượn trong kho ĐH CMC.">📚 Gợi ý sách sẵn có</button>
+                <button type="button" class="btn btn-outline-success btn-xs ai-quick-prompt" data-prompt="Kiểm tra tiến độ đọc và hạn trả sách hiện tại của mình.">⏰ Kiểm tra tiến độ & hạn trả</button>
+            </div>
+
+            <div id="aiChatWidgetMessages" class="ai-chat-messages p-3">
+                <div class="ai-msg ai-msg-bot">Xin chào! Mình là Trợ lý AI kết nối trực tiếp với CSDL BookShareDb. Bạn cần tìm sách mượn miễn phí hay kiểm tra tiến độ đọc (S03)?</div>
+            </div>
+
+            <form id="aiChatWidgetForm" class="border-top p-2 d-flex gap-2 bg-white">
+                <input type="text" id="aiChatWidgetInput" class="form-control form-control-sm" placeholder="Nhập câu hỏi cho Gemini AI..." autocomplete="off" />
+                <button type="submit" class="btn btn-primary btn-sm px-3"><i class="bi bi-send"></i></button>
+            </form>
+        </div>
+    </div>
+
+    <footer class="py-4 mt-auto border-top bg-white">
+        <div class="container text-center text-muted small">
+            <p class="mb-1 fw-bold">BookShare Portal – Nền tảng Quản lý Tủ sách Cá nhân, Theo dõi Tiến độ Đọc (Ver07) & Chia sẻ Sách Giấy Cộng đồng</p>
+            <p class="mb-0">ASP.NET Core 10 MVC • EF Core Database-First (22 Bảng) • 4 Cấp Phân Quyền & 22 Dịch Vụ Độc Lập</p>
+        </div>
+    </footer>
+
+    <script src="~/vendor/bootstrap/bootstrap.bundle.min.js"></script>
+    <script src="~/vendor/sweetalert2/sweetalert2.all.min.js"></script>
+    <script src="~/vendor/chartjs/chart.umd.js"></script>
+    <script type="module" src="~/js/core-api.js" asp-append-version="true"></script>
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

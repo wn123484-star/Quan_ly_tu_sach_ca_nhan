@@ -1,0 +1,180 @@
+@model BookShare.Web.Models.ViewModels.S02PersonalShelfPageViewModel
+@{
+    ViewData["Title"] = "S02. Quản Lý Tủ Sách Cá Nhân & Trạng Thái Cho Mượn P2P";
+}
+
+@section Styles {
+    <link rel="stylesheet" href="~/modules/s02-personal-shelf/s02-personal-shelf.css" asp-append-version="true" />
+}
+
+<!-- 1. THỐNG KÊ TỦ SÁCH CÁ NHÂN & CÁC KỆ SÁCH TÙY CHỈNH -->
+<section class="card border-0 shadow-sm rounded-4 p-4 mb-4 bg-white">
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-3">
+        <div>
+            <span class="badge bg-primary mb-1">Dịch vụ S02 • PersonalShelf</span>
+            <h4 class="fw-bold mb-1">Tủ Sách Cá Nhân Của @Model.UserFullName</h4>
+            <p class="text-muted small mb-0">
+                Quản lý các bản sao sách giấy cá nhân (<code>BookCopies</code>), phân chia kệ tùy chỉnh (<code>Shelves</code>) và bật/tắt công tắc cho phép cộng đồng mượn P2P (<code>IsLendable</code>).
+            </p>
+        </div>
+        <div class="d-flex gap-3">
+            <div class="p-3 rounded-4 bg-primary bg-opacity-10 text-center">
+                <div class="small text-muted">Tổng bản sao sở hữu</div>
+                <div class="fs-4 fw-bold text-primary">@Model.TotalCopiesCount cuốn</div>
+            </div>
+            <div class="p-3 rounded-4 bg-success bg-opacity-10 text-center">
+                <div class="small text-muted">Đang mở cho mượn P2P</div>
+                <div class="fs-4 fw-bold text-success" id="s02LendableTotal">@Model.LendableCopiesCount bản sao</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Thanh chuyển đổi Kệ sách tùy chỉnh -->
+    <div class="d-flex flex-wrap gap-2 pt-2 border-top">
+        <a asp-controller="S02PersonalShelf" asp-action="Index"
+           class="s02-shelf-tab @(Model.SelectedShelfId == null ? "active" : "")">
+            <i class="bi bi-collection-fill"></i>
+            <span>Tất cả sách trong tủ (@Model.TotalCopiesCount)</span>
+        </a>
+        @foreach (var shelf in Model.Shelves)
+        {
+            <a asp-controller="S02PersonalShelf" asp-action="Index" asp-route-shelfId="@shelf.Id"
+               class="s02-shelf-tab @(Model.SelectedShelfId == shelf.Id ? "active" : "")"
+               title="@shelf.Description">
+                <i class="bi bi-journal-bookmark"></i>
+                <span>@shelf.Name (@shelf.ItemCount)</span>
+            </a>
+        }
+    </div>
+</section>
+
+<!-- 2. KHUNG THÊM BẢN SAO SÁCH MỚI VÀO KỆ & TẠO KỆ TÙY CHỈNH -->
+<div class="row g-4 mb-4">
+    <div class="col-lg-8">
+        <div class="card border-0 shadow-sm rounded-4 bg-white h-100">
+            <div class="card-body p-4">
+                <h6 class="fw-bold mb-3"><i class="bi bi-plus-circle-fill text-primary me-2"></i>Thêm Sách Vào Tủ Cá Nhân & Gắn Kệ (Sinh mã Barcode P2P)</h6>
+                <form id="s02AddBookCopyForm" class="row g-3 align-items-end">
+                    <div class="col-md-5">
+                        <label class="form-label small text-muted">Chọn đầu sách từ Danh mục (Books)</label>
+                        <select id="selectBookId" class="form-select form-select-sm">
+                            @foreach (var b in Model.CatalogBooks)
+                            {
+                                <option value="@b.Id">@b.Title — @b.Author (ISBN: @b.ISBN)</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label small text-muted">Xếp vào kệ sách</label>
+                        <select id="selectShelfId" class="form-select form-select-sm">
+                            @foreach (var s in Model.Shelves)
+                            {
+                                <option value="@s.Id">@s.Name</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label small text-muted">Tình trạng vật lý</label>
+                        <select id="selectCondition" class="form-select form-select-sm">
+                            <option value="New">Mới (New)</option>
+                            <option value="Good" selected>Tốt (Good)</option>
+                            <option value="Fair">Khá (Fair)</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <button type="submit" class="btn btn-primary btn-sm w-100 fw-bold py-2">
+                            <i class="bi bi-plus-lg me-1"></i>Thêm Vào Tủ
+                        </button>
+                    </div>
+                    <div class="col-12 mt-2">
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" id="checkIsLendable" checked />
+                            <label class="form-check-label small" for="checkIsLendable">
+                                Bật cho phép cộng đồng mượn P2P ngay khi thêm (<code>IsLendable = true</code>)
+                            </label>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-4">
+        <div class="card border-0 shadow-sm rounded-4 bg-white h-100">
+            <div class="card-body p-4">
+                <h6 class="fw-bold mb-3"><i class="bi bi-folder-plus text-success me-2"></i>Tạo Kệ Sách Tùy Chỉnh Mới</h6>
+                <form id="s02CreateShelfForm">
+                    <div class="mb-2">
+                        <input type="text" id="newShelfName" class="form-control form-control-sm" placeholder="Tên kệ (VD: Sách Ôn Thi Cuối Kỳ)" required />
+                    </div>
+                    <div class="mb-2">
+                        <input type="text" id="newShelfDesc" class="form-control form-control-sm" placeholder="Mô tả ngắn về kệ sách..." />
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center mt-2">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="newShelfPublic" checked />
+                            <label class="form-check-label small" for="newShelfPublic">Công khai kệ</label>
+                        </div>
+                        <button type="submit" class="btn btn-success btn-sm fw-bold">
+                            <i class="bi bi-check2 me-1"></i>Tạo Kệ Mới
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 3. LƯỚI BẢN SAO SÁCH TRONG TỦ CÁ NHÂN KÈM CÔNG TẮC BẬT/TẮT ISLENDABLE -->
+<div class="row g-4">
+    @foreach (var copy in Model.Copies)
+    {
+        <div class="col-lg-6">
+            <div class="s02-copy-card p-4">
+                <div class="d-flex gap-3">
+                    <img src="@(string.IsNullOrEmpty(copy.CoverImageUrl) ? "https://images.unsplash.com/photo-1544947950-fa07a98d237f?w=400" : copy.CoverImageUrl)"
+                         class="s02-cover-thumb shadow-sm" alt="@copy.Title"
+                         onerror="this.src='https://images.unsplash.com/photo-1544947950-fa07a98d237f?w=400'" />
+                    <div class="flex-grow-1">
+                        <div class="d-flex justify-content-between align-items-center mb-1">
+                            <span class="badge bg-secondary bg-opacity-10 text-secondary">@copy.CategoryName</span>
+                            <code class="small fw-bold">@copy.Barcode</code>
+                        </div>
+                        <h6 class="fw-bold mb-1">@copy.Title</h6>
+                        <p class="text-muted small mb-2">@copy.Author • ISBN: @copy.ISBN</p>
+
+                        <div class="d-flex flex-wrap gap-1 mb-3">
+                            <span class="badge bg-light text-dark border">Tình trạng: @copy.Condition</span>
+                            <span class="badge @(copy.Status == "Available" ? "bg-success" : "bg-warning text-dark")">Trạng thái: @copy.Status</span>
+                            @foreach (var sName in copy.ShelfNames)
+                            {
+                                <span class="badge bg-primary bg-opacity-10 text-primary"><i class="bi bi-bookmark-fill me-1"></i>@sName</span>
+                            }
+                        </div>
+
+                        <!-- Công tắc bật/tắt cho phép mượn P2P (IsLendable) -->
+                        <div id="lendableBar-@copy.BookCopyId" class="s02-lendable-bar @(copy.IsLendable ? "" : "is-locked") d-flex justify-content-between align-items-center">
+                            <div>
+                                <div class="small fw-bold text-dark">
+                                    <i class="bi bi-share-fill text-primary me-1"></i>Trạng thái chia sẻ P2P (<code>IsLendable</code>):
+                                </div>
+                                <span id="lendableText-@copy.BookCopyId" class="@(copy.IsLendable ? "text-success fw-bold small" : "text-muted small")">
+                                    @(copy.IsLendable ? "Đang mở cho cộng đồng mượn P2P" : "Đang khóa (Chỉ lưu trữ cá nhân)")
+                                </span>
+                            </div>
+                            <div class="form-check form-switch mb-0">
+                                <input class="form-check-input js-toggle-lendable" type="checkbox" role="switch"
+                                       data-copy-id="@copy.BookCopyId"
+                                       @(copy.IsLendable ? "checked" : "") />
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+@section Scripts {
+    <script type="module" src="~/modules/s02-personal-shelf/s02-personal-shelf.js" asp-append-version="true"></script>
+}

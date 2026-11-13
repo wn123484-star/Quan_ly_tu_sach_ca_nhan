@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="vi" data-font="priority-regular">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>[Mẫu 03] Luồng Mượn P2P, Điểm Hẹn CLB, OTP Resend & Ảnh Tình Trạng Sách (S09 + S10 + S15 + S20)</title>
+    <link href="../../_reference/book-tracker-ver07/vendor/bootstrap/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="../../_reference/book-tracker-ver07/vendor/bootstrap-icons/font/bootstrap-icons.css">
+    <link rel="stylesheet" href="../../_reference/book-tracker-ver07/assets/css/style.css">
+    <style>
+        body { background-color: #f8fafc; }
+        .preview-switcher-bar {
+            background: #fffbeb;
+            border-bottom: 2px solid #f59e0b;
+            padding: 8px 0;
+        }
+        .step-wizard {
+            display: flex;
+            justify-content: space-between;
+            position: relative;
+            gap: 12px;
+        }
+        .step-item {
+            flex: 1;
+            background: #ffffff;
+            border: 2px solid #e2e8f0;
+            border-radius: 14px;
+            padding: 14px;
+            text-align: center;
+        }
+        .step-item.done {
+            border-color: #16a34a;
+            background: #f0fdf4;
+        }
+        .step-item.active {
+            border-color: #2563eb;
+            background: #eff6ff;
+            box-shadow: 0 6px 18px rgba(37, 99, 235, 0.14);
+        }
+        .otp-digit {
+            width: 44px;
+            height: 52px;
+            font-size: 1.35rem;
+            font-weight: 800;
+            text-align: center;
+            border: 2px solid #93c5fd;
+            border-radius: 10px;
+            background: #ffffff;
+        }
+        .evidence-img {
+            width: 100%;
+            height: 185px;
+            object-fit: cover;
+            border-radius: 12px;
+            border: 2px solid #e2e8f0;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Thanh chuyển nhanh giữa 4 Mẫu Giao diện để Duyệt -->
+    <div class="preview-switcher-bar">
+        <div class="container d-flex flex-wrap justify-content-between align-items-center gap-2">
+            <div class="small fw-bold text-dark">
+                <i class="bi bi-eye-fill text-warning me-1"></i>BỘ MẪU GIAO DIỆN DUYỆT TRƯỚC (UI PREVIEWS - CHƯA SCAFFOLD):
+            </div>
+            <div class="d-flex flex-wrap gap-1">
+                <a href="01-portal-discovery-s06.html" class="btn btn-xs btn-outline-dark">1. Cổng Portal & Tìm kiếm (S06/S13)</a>
+                <a href="02-personal-shelf-tracker-s02-s03.html" class="btn btn-xs btn-outline-dark">2. Tủ sách & Tiến độ Ver07 (S02/S03/S05)</a>
+                <a href="03-p2p-loan-condition-s09-s10.html" class="btn btn-xs btn-primary fw-bold">3. Mượn P2P & Ảnh Tình trạng (S09/S10/S20)</a>
+                <a href="04-librarian-admin-desk-s21-s22.html" class="btn btn-xs btn-outline-dark">4. Bàn Thủ thư & Admin (S19/S21/S22)</a>
+            </div>
+        </div>
+    </div>
+
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary sticky-top shadow-sm">
+        <div class="container">
+            <a class="navbar-brand fw-bold d-flex align-items-center gap-2" href="01-portal-discovery-s06.html">
+                <i class="bi bi-journal-richtext fs-4"></i>
+                <span>BookShare <span class="badge bg-light text-primary ms-1" style="font-size:0.68rem;">P2P & Cloudinary Proof</span></span>
+            </a>
+            <div class="collapse navbar-collapse show">
+                <ul class="navbar-nav me-auto">
+                    <li class="nav-item"><a class="nav-link" href="01-portal-discovery-s06.html"><i class="bi bi-compass me-1"></i>Khám phá & Mượn sách</a></li>
+                    <li class="nav-item"><a class="nav-link" href="02-personal-shelf-tracker-s02-s03.html"><i class="bi bi-bookshelf me-1"></i>Tủ sách & Tiến độ (Ver07)</a></li>
+                    <li class="nav-item"><a class="nav-link active" href="03-p2p-loan-condition-s09-s10.html"><i class="bi bi-arrow-left-right me-1"></i>Mượn trả P2P & Điểm hẹn</a></li>
+                    <li class="nav-item"><a class="nav-link" href="04-librarian-admin-desk-s21-s22.html"><i class="bi bi-pc-display-horizontal me-1"></i>Quầy Thủ thư & Admin</a></li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container mt-3">
+        <div id="systemStatusBox" class="status-banner status-200">
+            <div class="status-banner-left">
+                <span class="status-code-pill">MÃ 200</span>
+                <div class="status-text-group">
+                    <strong>Đang xử lý Hợp đồng mượn P2P #LOAN-0002 tại Trạm CLB BookShare Hub Cầu Giấy</strong>
+                    <span class="status-detail-sub">Tích hợp xác thực OTP 6 số qua Resend (S01), Biên bản ảnh Cloudinary (S10) và Chấm điểm TrustScore 2 chiều (S15).</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <main class="container py-4">
+        <!-- TIẾN TRÌNH 4 BƯỚC MƯỢN P2P (S09) -->
+        <section class="mb-4">
+            <h5 class="fw-bold mb-3"><i class="bi bi-diagram-3-fill text-primary me-2"></i>S09. Quy Trình Mượn Sách P2P An Toàn Giữa Các Cá Nhân</h5>
+            <div class="step-wizard flex-wrap">
+                <div class="step-item done">
+                    <div class="badge bg-success mb-1">Bước 1 • Đã xong</div>
+                    <div class="fw-bold small">Kiểm tra TrustScore & Đặt mượn</div>
+                    <div class="text-muted" style="font-size:0.75rem;">Minh Anh (115 đ) gửi yêu cầu</div>
+                </div>
+                <div class="step-item done">
+                    <div class="badge bg-success mb-1">Bước 2 • Đã xong</div>
+                    <div class="fw-bold small">Chủ sách Duyệt & Hẹn tại Hub</div>
+                    <div class="text-muted" style="font-size:0.75rem;">Nguyễn Hùng (128 đ) đồng ý</div>
+                </div>
+                <div class="step-item done">
+                    <div class="badge bg-success mb-1">Bước 3 • Đã xong</div>
+                    <div class="fw-bold small">Giao sách + Chụp ảnh + OTP</div>
+                    <div class="text-muted" style="font-size:0.75rem;">Tại Trạm CLB Cầu Giấy</div>
+                </div>
+                <div class="step-item active">
+                    <div class="badge bg-primary mb-1">Bước 4 • Đang thực hiện</div>
+                    <div class="fw-bold small">Hoàn trả + Đối chiếu ảnh + Cộng điểm</div>
+                    <div class="text-muted" style="font-size:0.75rem;">Kiểm tra tình trạng lúc trả</div>
+                </div>
+            </div>
+        </section>
+
+        <div class="row g-4">
+            <!-- CỘT TRÁI: THÔNG TIN ĐƠN MƯỢN P2P, ĐIỂM HẸN CLB (S20) & MÃ OTP RESEND (S01) -->
+            <div class="col-lg-5">
+                <div class="card border-0 shadow-sm rounded-4 mb-4">
+                    <div class="card-body p-4">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <span class="badge bg-primary">Hợp đồng P2P #LOAN-0002</span>
+                            <span class="badge bg-success">Còn 5 ngày hạn mượn</span>
+                        </div>
+                        <h5 class="fw-bold mb-1">Nhà Giả Kim (The Alchemist)</h5>
+                        <p class="text-muted small mb-3">Mã bản sao: <code>BS-P2P-0036</code> • Paulo Coelho</p>
+
+                        <div class="p-3 rounded-3 bg-body-tertiary small mb-3">
+                            <div class="d-flex justify-content-between mb-2">
+                                <span class="text-muted">Chủ sách cho mượn:</span>
+                                <strong>Nguyễn Hùng (TrustScore: <span class="text-success">128</span>)</strong>
+                            </div>
+                            <div class="d-flex justify-content-between mb-2">
+                                <span class="text-muted">Độc giả mượn sách:</span>
+                                <strong>Trần Minh Anh (TrustScore: <span class="text-primary">115</span>)</strong>
+                            </div>
+                            <div class="d-flex justify-content-between mb-2">
+                                <span class="text-muted">Điểm hẹn giao nhận (S20):</span>
+                                <strong class="text-end">Trạm CLB BookShare Cầu Giấy<br><span class="text-muted fw-normal">11 Duy Tân • Curator: Đỗ Quang Minh</span></strong>
+                            </div>
+                            <div class="d-flex justify-content-between">
+                                <span class="text-muted">Tiền cọc mô phỏng (S17):</span>
+                                <strong class="text-success">50.000đ (Đã khóa trên MoMo Sandbox)</strong>
+                            </div>
+                        </div>
+
+                        <!-- Khung Xác thực OTP 6 số qua Resend (S01) -->
+                        <div class="p-3 rounded-4 border border-primary border-opacity-25 bg-primary bg-opacity-10">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <strong class="small text-primary"><i class="bi bi-envelope-check-fill me-1"></i>S01. Xác thực OTP 6 Số (Resend API)</strong>
+                                <span class="badge bg-light text-dark border">Hiệu lực 5 phút</span>
+                            </div>
+                            <p class="small text-muted mb-2">Mã OTP đã gửi tới <code>nguyenhung@cmc.edu.vn</code> (Băm SHA-256 trong bảng <code>OtpVerifications</code>):</p>
+                            <div class="d-flex justify-content-center gap-2 mb-3">
+                                <input class="otp-digit" value="4" maxlength="1">
+                                <input class="otp-digit" value="8" maxlength="1">
+                                <input class="otp-digit" value="2" maxlength="1">
+                                <input class="otp-digit" value="9" maxlength="1">
+                                <input class="otp-digit" value="1" maxlength="1">
+                                <input class="otp-digit" value="6" maxlength="1">
+                            </div>
+                            <button class="btn btn-primary btn-sm w-100 fw-bold" onclick="Swal.fire('Xác thực OTP thành công (Mã 200)!', 'Mã OTP khớp với bản băm OtpCodeHash trong CSDL. Đã kích hoạt biên bản trả sách!', 'success')">
+                                <i class="bi bi-shield-check me-1"></i>Xác nhận Mã OTP Giao / Nhận Sách
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- CỘT PHẢI: BIÊN BẢN ẢNH TÌNH TRẠNG SÁCH CLOUDINARY (S10) & CHẤM ĐIỂM TRUSTSCORE (S15) -->
+            <div class="col-lg-7" id="conditionSection">
+                <div class="card border-0 shadow-sm rounded-4 mb-4">
+                    <div class="card-body p-4">
+                        <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+                            <h5 class="fw-bold mb-0"><i class="bi bi-camera2 text-danger me-2"></i>S10. Biên Bản Điện Tử Ảnh Tình Trạng Sách (Cloudinary)</h5>
+                            <span class="badge bg-secondary">Bảng: ConditionReports</span>
+                        </div>
+                        <p class="small text-muted mb-3">Bằng chứng hình ảnh đối chiếu trước và sau khi mượn giúp bảo vệ sách giấy và làm căn cứ phân xử nếu phát sinh tranh chấp (S19).</p>
+
+                        <div class="row g-3 mb-4">
+                            <!-- Ảnh lúc giao (Handover) -->
+                            <div class="col-md-6">
+                                <div class="p-3 rounded-4 border bg-body-tertiary h-100">
+                                    <div class="d-flex justify-content-between align-items-center mb-2">
+                                        <span class="badge bg-primary">1. LÚC BÀN GIAO (Handover)</span>
+                                        <small class="text-muted">08/11/2026</small>
+                                    </div>
+                                    <img src="https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=600" class="evidence-img mb-2" alt="Handover">
+                                    <div class="small fw-bold">Tình trạng: <span class="text-success">Tốt (Good - Đã bọc bìa)</span></div>
+                                    <div class="small text-muted">Ghi chú: Đã bọc plastic cẩn thận, giao trực tiếp tại Trạm CLB Cầu Giấy.</div>
+                                </div>
+                            </div>
+
+                            <!-- Ảnh lúc trả (Return) -->
+                            <div class="col-md-6">
+                                <div class="p-3 rounded-4 border border-success bg-success bg-opacity-10 h-100">
+                                    <div class="d-flex justify-content-between align-items-center mb-2">
+                                        <span class="badge bg-success">2. LÚC HOÀN TRẢ (Return)</span>
+                                        <small class="text-muted">Hôm nay</small>
+                                    </div>
+                                    <img src="https://images.unsplash.com/photo-1512820790803-83ca734da794?w=600" class="evidence-img mb-2" alt="Return">
+                                    <div class="small fw-bold">Tình trạng: <span class="text-success">Tốt (Good - Nguyên vẹn 100%)</span></div>
+                                    <div class="small text-muted">Ghi chú: Không rách trang, không viết vẽ, hoàn trả trước hạn 5 ngày.</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Chấm điểm uy tín 2 chiều (S15 TrustScoreReview) -->
+                        <div class="p-3 rounded-4 border bg-body">
+                            <h6 class="fw-bold mb-2"><i class="bi bi-award-fill text-warning me-2"></i>S15. Hoàn Tất Trả Sách & Chấm Điểm Uy Tín 2 Chiều (TrustScore)</h6>
+                            <div class="row g-2 align-items-center">
+                                <div class="col-md-8">
+                                    <input type="text" class="form-control form-control-sm" value="Người mượn giữ sách cực kỳ cẩn thận, trả đúng hẹn tại Trạm CLB!">
+                                </div>
+                                <div class="col-md-4 d-flex gap-2">
+                                    <button class="btn btn-success btn-sm w-100 fw-bold" onclick="Swal.fire('Hoàn tất trả sách P2P!', 'Đã hoàn trả cọc mô phỏng 50.000đ và cộng +2 điểm TrustScore cho cả 2 bên!', 'success')">
+                                        <i class="bi bi-check2-circle me-1"></i>Xác nhận & +2 Điểm
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script src="../../_reference/book-tracker-ver07/vendor/bootstrap/bootstrap.bundle.min.js"></script>
+    <script src="../../_reference/book-tracker-ver07/vendor/sweetalert2/sweetalert2.all.min.js"></script>
+</body>
+</html>
