@@ -210,7 +210,7 @@ public class S06SearchDiscoveryService : IS06SearchDiscoveryService
         {
             BookCopyId = copy.Id,
             BorrowerId = borrowerUserId,
-            ApproverId = copy.OwnerType == "User" ? copy.OwnerUserId : "u-lib-01",
+            ApproverId = copy.OwnerType == "User" ? copy.OwnerUserId : null, // Kho chung: gán khi Thủ thư bấm Duyệt
             LoanType = loanType,
             Status = "Pending",
             RequestedAt = DateTime.UtcNow,
