@@ -1,0 +1,220 @@
+@model BookShare.Web.Models.ViewModels.S22AdminAnalyticsPageViewModel
+@{
+    ViewData["Title"] = "S22 - Dashboard Quản Trị Admin, Phân Quyền Role & Giám Sát Hangfire Jobs";
+}
+
+@section Styles {
+    <link rel="stylesheet" href="~/modules/s22-admin-analytics/s22-admin-analytics.css" asp-append-version="true" />
+}
+
+<section class="s22-hero card border-0 shadow-sm rounded-4 p-4 mb-4">
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
+        <div>
+            <span class="badge bg-warning text-dark fw-bold mb-2 px-3 py-1 rounded-pill">DỊCH VỤ S22 • [Authorize(Roles = "Admin")] • SYSTEM GOVERNANCE</span>
+            <h2 class="fw-bold mb-1">📊 Trung Tâm Quản Trị Toàn Hệ Thống, Thống Kê & Background Jobs</h2>
+            <p class="text-muted small mb-0">
+                Tổng hợp dữ liệu trực tiếp từ 22 bảng SQL Server: Biểu đồ tỷ lệ mượn Kho chung vs P2P, doanh thu phí thành viên & phí phạt, cấp quyền Role, khóa/mở khóa tài khoản và điều khiển <code>BookShareDailyJobs</code>.
+            </p>
+        </div>
+        <div class="s22-admin-pill">
+            <div class="small opacity-75">Quyền truy cập hiện tại: <strong>@Model.CurrentUserRole</strong></div>
+            <div class="fs-5 fw-bold">@Model.TotalUsers Thành Viên • @Model.TotalCopies Bản Sao</div>
+            <small>Tổng thu Gói & Phạt: <strong>@((Model.TotalMembershipRevenue + Model.TotalFineRevenue).ToString("N0")) VNĐ</strong></small>
+        </div>
+    </div>
+</section>
+
+<!-- 4 THẺ KPI TOÀN HỆ THỐNG -->
+<div class="row g-3 mb-4">
+    <div class="col-md-3">
+        <div class="card border-0 shadow-sm rounded-4 p-3 bg-white h-100">
+            <small class="text-muted fw-semibold">Doanh thu Gói Premium (S16/S17)</small>
+            <h3 class="fw-bold text-primary mb-0">@Model.TotalMembershipRevenue.ToString("N0") đ</h3>
+            <small class="text-secondary">Ký quỹ cọc: @Model.TotalSimulatedDeposits.ToString("N0") đ</small>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-0 shadow-sm rounded-4 p-3 bg-white h-100">
+            <small class="text-muted fw-semibold">Thu phí phạt trễ hạn (S12/S19)</small>
+            <h3 class="fw-bold text-danger mb-0">@Model.TotalFineRevenue.ToString("N0") đ</h3>
+            <small class="text-secondary">Tranh chấp chờ xử lý: @Model.TotalOpenDisputes hồ sơ</small>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-0 shadow-sm rounded-4 p-3 bg-white h-100">
+            <small class="text-muted fw-semibold">Tỷ lệ mượn Kho chung vs P2P</small>
+            <h3 class="fw-bold text-success mb-0">@Model.LibraryLoansCount Kho / @Model.P2PLoansCount P2P</h3>
+            <small class="text-secondary">Tổng hợp đồng Loans: @Model.TotalLoans</small>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-0 shadow-sm rounded-4 p-3 bg-white h-100">
+            <small class="text-muted fw-semibold">Kho sách & Trợ lý AI RAG (S13)</small>
+            <h3 class="fw-bold text-dark mb-0">@Model.TotalBooks Đầu sách (@Model.TotalCopies bản)</h3>
+            <small class="text-primary fw-semibold">@Model.TotalAiMessages tin nhắn AI RAG</small>
+        </div>
+    </div>
+</div>
+
+<!-- BIỂU ĐỒ THỐNG KÊ CHART.JS (TỶ LỆ MƯỢN & DOANH THU SANDBOX) -->
+<div class="row g-4 mb-4"
+     id="s22ChartData"
+     data-lib-loans="@Model.LibraryLoansCount"
+     data-p2p-loans="@Model.P2PLoansCount"
+     data-avail-copies="@Model.AvailableCopiesCount"
+     data-borrowed-copies="@Model.BorrowedCopiesCount"
+     data-reserved-copies="@Model.ReservedCopiesCount"
+     data-damaged-copies="@Model.DamagedOrLostCopiesCount"
+     data-rev-membership="@Model.TotalMembershipRevenue"
+     data-rev-fine="@Model.TotalFineRevenue"
+     data-rev-deposit="@Model.TotalSimulatedDeposits">
+    <div class="col-lg-6">
+        <div class="card border-0 shadow-sm rounded-4 p-4 bg-white h-100">
+            <h6 class="fw-bold mb-3"><i class="bi bi-pie-chart-fill text-primary me-2"></i>Biểu Đồ Tỷ Lệ Mượn Kho Chung vs P2P & Phân Bổ Bản Sao</h6>
+            <div style="height: 250px;">
+                <canvas id="chartLoanAndCopyDistribution"></canvas>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-6">
+        <div class="card border-0 shadow-sm rounded-4 p-4 bg-white h-100">
+            <h6 class="fw-bold mb-3"><i class="bi bi-bar-chart-fill text-success me-2"></i>Biểu Đồ Tài Chính Sandbox (Gói Premium, Phí Trễ & Cọc Bảo Đảm)</h6>
+            <div style="height: 250px;">
+                <canvas id="chartRevenueBreakdown"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-4 mb-4">
+    <!-- BẢNG QUẢN LÝ TÀI KHOẢN, KHÓA/MỞ KHÓA & CẤP QUYỀN ROLE -->
+    <div class="col-lg-7">
+        <div class="card border-0 shadow-sm rounded-4 bg-white h-100">
+            <div class="card-body p-4">
+                <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+                    <div>
+                        <h5 class="fw-bold mb-0"><i class="bi bi-people-fill text-primary me-2"></i>Quản Lý Tài Khoản, Khóa/Mở Khóa & Cấp Quyền Role</h5>
+                        <small class="text-muted">Bảo vệ bởi <code>[Authorize(Roles = "Admin")]</code> ở Backend</small>
+                    </div>
+                    <span class="badge bg-primary">@Model.Users.Count tài khoản</span>
+                </div>
+
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle small mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Họ tên & Email</th>
+                                <th>Trust / Gói</th>
+                                <th>Phân quyền Role</th>
+                                <th>Trạng thái Khóa</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var u in Model.Users)
+                            {
+                                <tr>
+                                    <td>
+                                        <div class="fw-bold">@u.FullName</div>
+                                        <small class="text-muted">@u.Email</small>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-warning text-dark">Trust: @u.TrustScore</span>
+                                        <span class="badge @(u.MembershipTier == "Premium" ? "bg-primary" : "bg-secondary")">@u.MembershipTier</span>
+                                    </td>
+                                    <td>
+                                        <div class="d-flex gap-1">
+                                            <select class="form-select form-select-sm js-role-select" data-user-id="@u.UserId" style="width:115px;">
+                                                <option value="User" selected="@(u.RoleName == "User")">User</option>
+                                                <option value="Curator" selected="@(u.RoleName == "Curator")">Curator</option>
+                                                <option value="Librarian" selected="@(u.RoleName == "Librarian")">Librarian</option>
+                                                <option value="Admin" selected="@(u.RoleName == "Admin")">Admin</option>
+                                            </select>
+                                            <button type="button" class="btn btn-xs btn-primary fw-bold js-btn-save-role" data-user-id="@u.UserId">
+                                                Lưu Role
+                                            </button>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        @if (u.IsLockedOut)
+                                        {
+                                            <button type="button" class="btn btn-xs btn-success fw-bold js-btn-toggle-lock"
+                                                    data-user-id="@u.UserId" data-lock="false">
+                                                <i class="bi bi-unlock-fill me-1"></i>Mở khóa
+                                            </button>
+                                        }
+                                        else
+                                        {
+                                            <button type="button" class="btn btn-xs btn-outline-danger fw-semibold js-btn-toggle-lock"
+                                                    data-user-id="@u.UserId" data-lock="true">
+                                                <i class="bi bi-lock-fill me-1"></i>Khóa TK
+                                            </button>
+                                        }
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- BẢNG ĐIỀU KHIỂN HANGFIRE DAILY JOBS & NHẬT KÝ HỆ THỐNG -->
+    <div class="col-lg-5 d-flex flex-column gap-4">
+        <!-- BẢNG ĐIỀU KHIỂN BACKGROUND JOBS -->
+        <div class="card border-0 shadow-sm rounded-4 bg-white">
+            <div class="card-body p-4">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <div>
+                        <h5 class="fw-bold mb-0"><i class="bi bi-gear-wide-connected text-primary me-2"></i>Background Jobs (<code>BookShareDailyJobs</code>)</h5>
+                        <small class="text-muted">Hangfire Recurring Jobs & Nút kích hoạt chạy tức thì</small>
+                    </div>
+                    <button type="button" class="btn btn-xs btn-warning fw-bold text-dark js-trigger-job" data-job="AllDailyJobs">
+                        <i class="bi bi-play-circle-fill me-1"></i>Chạy Tất Cả 3 Jobs
+                    </button>
+                </div>
+
+                <div class="d-flex flex-column gap-2">
+                    @foreach (var job in Model.BackgroundJobs)
+                    {
+                        <div class="p-3 rounded-3 border bg-light small">
+                            <div class="d-flex justify-content-between align-items-center mb-1">
+                                <code class="fw-bold text-primary">@job.JobName</code>
+                                <span class="badge bg-success">@job.CronSchedule</span>
+                            </div>
+                            <p class="text-muted mb-2">@job.Description</p>
+                            <button type="button" class="btn btn-xs btn-outline-primary fw-bold js-trigger-job" data-job="@job.JobKey">
+                                <i class="bi bi-lightning-fill me-1"></i>Chạy Ngay (@job.JobKey)
+                            </button>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+
+        <!-- NHẬT KÝ THAO TÁC HỆ THỐNG (AUDIT LOGS) -->
+        <div class="card border-0 shadow-sm rounded-4 bg-white flex-fill">
+            <div class="card-body p-4">
+                <h5 class="fw-bold mb-3"><i class="bi bi-clock-history text-secondary me-2"></i>Nhật Ký Thao Tác Hệ Thống (System Audit Logs)</h5>
+                <div class="d-flex flex-column gap-2" style="max-height: 290px; overflow-y: auto;">
+                    @foreach (var log in Model.AuditLogs)
+                    {
+                        <div class="p-2 rounded-3 border-bottom small">
+                            <div class="d-flex justify-content-between">
+                                <span class="badge bg-dark">@log.Category</span>
+                                <small class="text-muted">@log.Timestamp.ToString("dd/MM HH:mm")</small>
+                            </div>
+                            <div class="mt-1">
+                                <strong>@log.ActorName:</strong> <span class="text-secondary">@log.Summary</span>
+                            </div>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script type="module" src="~/modules/s22-admin-analytics/s22-admin-analytics.js" asp-append-version="true"></script>
+}

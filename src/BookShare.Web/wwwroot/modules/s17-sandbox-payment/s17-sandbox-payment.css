@@ -1,0 +1,23 @@
+/* =========================================================================
+   S17: SANDBOX PAYMENT & HMAC-SHA512 VERIFICATION STYLES
+   ========================================================================= */
+.s17-hero {
+    background: linear-gradient(135deg, #ffffff 0%, #ecfdf5 100%);
+    border-left: 6px solid #059669 !important;
+}
+
+.s17-stat-box {
+    background: linear-gradient(135deg, #065f46, #0d9488);
+    color: #ffffff;
+    padding: 14px 22px;
+    border-radius: 16px;
+    min-width: 260px;
+}
+
+.s17-hmac-code {
+    font-size: 0.75rem;
+    background: #f1f5f9;
+    padding: 3px 7px;
+    border-radius: 6px;
+    color: #0f172a;
+}

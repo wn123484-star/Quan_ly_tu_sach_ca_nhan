@@ -86,4 +86,76 @@ public class S02PersonalShelfController : Controller
         TempData["StatusDetail"] = message;
         return Ok(new { message });
     }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> UpdateCopy([FromBody] UpdateBookCopyRequestDto request)
+    {
+        var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "u-user-01";
+        try
+        {
+            var (success, message) = await _shelfService.UpdateBookCopyAsync(currentUserId, request);
+            if (!success)
+            {
+                return BadRequest(new { message });
+            }
+
+            TempData["StatusCode"] = 200;
+            TempData["StatusTitle"] = "Đã cập nhật bản sao sách (S02 CRUD)";
+            TempData["StatusDetail"] = message;
+            return Ok(new { title = "Đã cập nhật bản sao sách (S02)", message });
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return StatusCode(403, new { message = ex.Message });
+        }
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> DeleteCopy([FromBody] DeleteBookCopyRequestDto request)
+    {
+        var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "u-user-01";
+        try
+        {
+            var (success, message) = await _shelfService.DeleteBookCopyAsync(currentUserId, request.BookCopyId);
+            if (!success)
+            {
+                return BadRequest(new { message });
+            }
+
+            TempData["StatusCode"] = 200;
+            TempData["StatusTitle"] = "Đã xóa bản sao sách khỏi tủ (S02 CRUD)";
+            TempData["StatusDetail"] = message;
+            return Ok(new { title = "Đã xóa bản sao sách (S02)", message });
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return StatusCode(403, new { message = ex.Message });
+        }
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> DeleteShelf([FromBody] DeleteShelfRequestDto request)
+    {
+        var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "u-user-01";
+        try
+        {
+            var (success, message) = await _shelfService.DeleteShelfAsync(currentUserId, request.ShelfId);
+            if (!success)
+            {
+                return BadRequest(new { message });
+            }
+
+            TempData["StatusCode"] = 200;
+            TempData["StatusTitle"] = "Đã xóa kệ sách tùy chỉnh (S02 CRUD)";
+            TempData["StatusDetail"] = message;
+            return Ok(new { title = "Đã xóa kệ sách (S02)", message });
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return StatusCode(403, new { message = ex.Message });
+        }
+    }
 }

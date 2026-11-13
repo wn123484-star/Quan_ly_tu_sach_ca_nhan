@@ -38,12 +38,21 @@
         </a>
         @foreach (var shelf in Model.Shelves)
         {
-            <a asp-controller="S02PersonalShelf" asp-action="Index" asp-route-shelfId="@shelf.Id"
-               class="s02-shelf-tab @(Model.SelectedShelfId == shelf.Id ? "active" : "")"
-               title="@shelf.Description">
-                <i class="bi bi-journal-bookmark"></i>
-                <span>@shelf.Name (@shelf.ItemCount)</span>
-            </a>
+            <div class="d-inline-flex align-items-center gap-1">
+                <a asp-controller="S02PersonalShelf" asp-action="Index" asp-route-shelfId="@shelf.Id"
+                   class="s02-shelf-tab @(Model.SelectedShelfId == shelf.Id ? "active" : "")"
+                   title="@shelf.Description">
+                    <i class="bi bi-journal-bookmark"></i>
+                    <span>@shelf.Name (@shelf.ItemCount)</span>
+                </a>
+                @if (Model.Shelves.Count > 1)
+                {
+                    <button type="button" class="btn btn-xs btn-outline-danger rounded-circle js-delete-shelf"
+                            data-shelf-id="@shelf.Id" data-shelf-name="@shelf.Name" title="Xóa kệ sách này">
+                        <i class="bi bi-x"></i>
+                    </button>
+                }
+            </div>
         }
     </div>
 </section>
@@ -153,7 +162,7 @@
                         </div>
 
                         <!-- Công tắc bật/tắt cho phép mượn P2P (IsLendable) -->
-                        <div id="lendableBar-@copy.BookCopyId" class="s02-lendable-bar @(copy.IsLendable ? "" : "is-locked") d-flex justify-content-between align-items-center">
+                        <div id="lendableBar-@copy.BookCopyId" class="s02-lendable-bar @(copy.IsLendable ? "" : "is-locked") d-flex justify-content-between align-items-center mb-2">
                             <div>
                                 <div class="small fw-bold text-dark">
                                     <i class="bi bi-share-fill text-primary me-1"></i>Trạng thái chia sẻ P2P (<code>IsLendable</code>):
@@ -167,6 +176,33 @@
                                        data-copy-id="@copy.BookCopyId"
                                        @(copy.IsLendable ? "checked" : "") />
                             </div>
+                        </div>
+
+                        <!-- Thanh CRUD Sửa Tình Trạng / Chuyển Kệ & Xóa Bản Sao (Mục 2.5 Rubric) -->
+                        <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 pt-2 border-top">
+                            <div class="d-flex align-items-center gap-1">
+                                <select class="form-select form-select-sm py-1" id="editCond-@copy.BookCopyId" style="width:auto; font-size:0.78rem;">
+                                    <option value="New" selected="@(copy.Condition == "New")">Độ mới: New</option>
+                                    <option value="Good" selected="@(copy.Condition == "Good")">Độ mới: Good</option>
+                                    <option value="Fair" selected="@(copy.Condition == "Fair")">Độ mới: Fair</option>
+                                    <option value="Worn" selected="@(copy.Condition == "Worn")">Độ mới: Worn</option>
+                                </select>
+                                <select class="form-select form-select-sm py-1" id="editShelf-@copy.BookCopyId" style="width:auto; font-size:0.78rem;">
+                                    <option value="0">-- Giữ nguyên kệ --</option>
+                                    @foreach (var s in Model.Shelves)
+                                    {
+                                        <option value="@s.Id">Chuyển sang: @s.Name</option>
+                                    }
+                                </select>
+                                <button type="button" class="btn btn-sm btn-outline-primary py-1 px-2 js-update-copy"
+                                        data-copy-id="@copy.BookCopyId" title="Lưu cập nhật bản sao (Update)">
+                                    <i class="bi bi-check2"></i> Sửa
+                                </button>
+                            </div>
+                            <button type="button" class="btn btn-sm btn-outline-danger py-1 px-2 js-delete-copy"
+                                    data-copy-id="@copy.BookCopyId" data-barcode="@copy.Barcode" title="Xóa bản sao khỏi tủ (Delete)">
+                                <i class="bi bi-trash3"></i> Xóa
+                            </button>
                         </div>
                     </div>
                 </div>

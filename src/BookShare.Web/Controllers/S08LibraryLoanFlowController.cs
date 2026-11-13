@@ -44,6 +44,15 @@ public class S08LibraryLoanFlowController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> ApproveOrReject([FromBody] ApproveRejectLibraryLoanDto request)
     {
+        var role = User.FindFirstValue(ClaimTypes.Role);
+        if (User.Identity?.IsAuthenticated == true && role != "Librarian" && role != "Admin")
+        {
+            return StatusCode(403, new
+            {
+                message = $"MÃ 403 FORBIDDEN: Tài khoản vai trò [{role}] không được phép duyệt phiếu mượn Kho chung! Vui lòng đăng nhập tài khoản Thủ thư (thuthu@cmc.edu.vn) hoặc Admin tại S01."
+            });
+        }
+
         var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "u-lib-01";
         var (success, message) = await _libraryLoanService.ApproveOrRejectLibraryLoanAsync(currentUserId, request);
         if (!success)
@@ -61,6 +70,15 @@ public class S08LibraryLoanFlowController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> ConfirmHandover([FromBody] HandoverLibraryLoanDto request)
     {
+        var role = User.FindFirstValue(ClaimTypes.Role);
+        if (User.Identity?.IsAuthenticated == true && role != "Librarian" && role != "Admin")
+        {
+            return StatusCode(403, new
+            {
+                message = $"MÃ 403 FORBIDDEN: Tài khoản vai trò [{role}] không có quyền xuất kho bàn giao sách Thư viện! Chỉ Thủ thư (Librarian) hoặc Admin mới được phép."
+            });
+        }
+
         var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "u-lib-01";
         var (success, message) = await _libraryLoanService.ConfirmHandoverLibraryLoanAsync(currentUserId, request);
         if (!success)
@@ -78,6 +96,15 @@ public class S08LibraryLoanFlowController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> ConfirmReturn([FromBody] ReturnLibraryLoanDto request)
     {
+        var role = User.FindFirstValue(ClaimTypes.Role);
+        if (User.Identity?.IsAuthenticated == true && role != "Librarian" && role != "Admin")
+        {
+            return StatusCode(403, new
+            {
+                message = $"MÃ 403 FORBIDDEN: Tài khoản vai trò [{role}] không có quyền xác nhận thu hồi sách kho Thư viện! Chỉ Thủ thư (Librarian) hoặc Admin mới được phép."
+            });
+        }
+
         var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "u-lib-01";
         var (success, message) = await _libraryLoanService.ConfirmReturnLibraryLoanAsync(currentUserId, request);
         if (!success)

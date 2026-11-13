@@ -110,7 +110,22 @@ public class S06SearchDiscoveryService : IS06SearchDiscoveryService
             .ThenByDescending(bc => bc.Id)
             .ToListAsync();
 
-        var results = matchedCopies.Select(bc => new S06DiscoveredCopyDto
+        int totalItems = matchedCopies.Count;
+        int availableCount = matchedCopies.Count(r => r.Status == "Available");
+        int systemCount = matchedCopies.Count(r => r.OwnerType == "System");
+        int p2pCount = matchedCopies.Count(r => r.OwnerType == "User");
+
+        var allowedSizes = new[] { 6, 12, 24 };
+        int pageSize = allowedSizes.Contains(filter.PageSize) ? filter.PageSize : 6;
+        int totalPages = Math.Max(1, (int)Math.Ceiling(totalItems / (double)pageSize));
+        int currentPage = Math.Clamp(filter.Page, 1, totalPages);
+
+        var pagedCopies = matchedCopies
+            .Skip((currentPage - 1) * pageSize)
+            .Take(pageSize)
+            .ToList();
+
+        var results = pagedCopies.Select(bc => new S06DiscoveredCopyDto
         {
             BookCopyId = bc.Id,
             BookId = bc.BookId,
@@ -137,15 +152,22 @@ public class S06SearchDiscoveryService : IS06SearchDiscoveryService
             QueueCount = bc.Book.Reservations.Count(r => r.Status == "Waiting")
         }).ToList();
 
+        filter.Page = currentPage;
+        filter.PageSize = pageSize;
+
         return new S06SearchDiscoveryPageViewModel
         {
             Filter = filter,
             Categories = categories,
             PickupHubs = pickupHubs,
-            TotalMatchedCopies = results.Count,
-            AvailableCopiesCount = results.Count(r => r.Status == "Available"),
-            SystemCopiesCount = results.Count(r => r.OwnerType == "System"),
-            P2PCopiesCount = results.Count(r => r.OwnerType == "User"),
+            TotalMatchedCopies = totalItems,
+            AvailableCopiesCount = availableCount,
+            SystemCopiesCount = systemCount,
+            P2PCopiesCount = p2pCount,
+            CurrentPage = currentPage,
+            PageSize = pageSize,
+            TotalPages = totalPages,
+            TotalItems = totalItems,
             Results = results
         };
     }

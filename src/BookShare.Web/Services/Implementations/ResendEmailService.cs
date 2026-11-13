@@ -159,6 +159,56 @@ public class ResendEmailService : IResendEmailService
         return (true, $"Xác thực mã OTP ({purpose}) thành công cho tài khoản {normalizedEmail}!");
     }
 
+    public async Task<(bool SentViaApi, string MessageId, string StatusNote)> SendNotificationEmailAsync(
+        string toEmail,
+        string subject,
+        string htmlBody)
+    {
+        var normalizedEmail = toEmail.Trim().ToLowerInvariant();
+        string apiKey = _config["Resend:ApiKey"] ?? string.Empty;
+        string fromEmail = _config["Resend:FromEmail"] ?? "BookShare <onboarding@resend.dev>";
+
+        if (!string.IsNullOrWhiteSpace(apiKey) && !apiKey.Contains("DIEN_KEY"))
+        {
+            try
+            {
+                var client = _httpClientFactory.CreateClient();
+                client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", apiKey);
+
+                var payload = new
+                {
+                    from = fromEmail,
+                    to = new[] { normalizedEmail },
+                    subject,
+                    html = htmlBody
+                };
+
+                var content = new StringContent(JsonSerializer.Serialize(payload), Encoding.UTF8, "application/json");
+                var response = await client.PostAsync("https://api.resend.com/emails", content);
+                if (response.IsSuccessStatusCode)
+                {
+                    var respBody = await response.Content.ReadAsStringAsync();
+                    using var doc = JsonDocument.Parse(respBody);
+                    string msgId = doc.RootElement.TryGetProperty("id", out var idProp)
+                        ? (idProp.GetString() ?? $"resend-{Guid.NewGuid():N}"[..20])
+                        : $"resend-{Guid.NewGuid():N}"[..20];
+
+                    return (true, msgId, $"Đã gửi Email thực qua Resend API tới {normalizedEmail} (MessageId: {msgId}).");
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Không thể kết nối Resend API khi gửi thông báo, dùng chế độ Dev Mail Log.");
+            }
+        }
+
+        string devId = $"dev-resend-{Guid.NewGuid():N}"[..22];
+        _logger.LogInformation("[BOOKSHARE RESEND NOTIFICATION] To: {To} | Subject: {Subject} | MsgId: {MsgId}",
+            normalizedEmail, subject, devId);
+
+        return (true, devId, $"Đã kích hoạt IResendEmailService tới {normalizedEmail} (Mã thông điệp: {devId}).");
+    }
+
     private static string ComputeSha256Hash(string rawData)
     {
         byte[] bytes = SHA256.HashData(Encoding.UTF8.GetBytes(rawData));

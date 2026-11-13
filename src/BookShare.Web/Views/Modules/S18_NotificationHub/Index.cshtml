@@ -1,0 +1,140 @@
+@model BookShare.Web.Models.ViewModels.S18NotificationHubPageViewModel
+@{
+    ViewData["Title"] = "S18 - Trung Tâm Thông Báo Web & Gửi Email Nhắc Hạn Resend";
+}
+
+@section Styles {
+    <link rel="stylesheet" href="~/modules/s18-notification-hub/s18-notification-hub.css" asp-append-version="true" />
+}
+
+<section class="s18-hero card border-0 shadow-sm rounded-4 p-4 mb-4">
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
+        <div>
+            <span class="badge bg-info text-dark mb-2 px-3 py-1 rounded-pill">DỊCH VỤ S18 • NOTIFICATION HUB & RESEND EMAIL API</span>
+            <h2 class="fw-bold mb-1">🔔 Trung Tâm Thông Báo Web & Gửi Email Tự Động Qua Resend</h2>
+            <p class="text-muted small mb-0">
+                Đồng bộ thông báo thời gian thực từ bảng <code>Notifications</code> kết hợp kích hoạt gửi Email nhắc hạn trả sách (<code>DueReminder</code>) và thông báo có sách đặt trước S11 (<code>QueueAvailable</code>) qua <code>IResendEmailService</code>.
+            </p>
+        </div>
+        <div class="d-flex gap-2">
+            <div class="s18-counter-box">
+                <span>Chưa đọc</span>
+                <strong>@Model.UnreadCount</strong>
+            </div>
+            <div class="s18-counter-box s18-counter-resend">
+                <span>Đã gửi Resend</span>
+                <strong>@Model.EmailSentCount</strong>
+            </div>
+        </div>
+    </div>
+</section>
+
+<div class="row g-4">
+    <!-- CỘT TRÁI: BẢNG ĐIỀU KHIỂN KÍCH HOẠT GỬI EMAIL RESEND -->
+    <div class="col-lg-4">
+        <div class="card border-0 shadow-sm rounded-4 bg-white mb-4">
+            <div class="card-body p-4">
+                <h5 class="fw-bold mb-2"><i class="bi bi-envelope-paper-fill text-primary me-2"></i>Kích Hoạt Gửi Email (<code>IResendEmailService</code>)</h5>
+                <p class="text-muted small mb-3">
+                    Quét dữ liệu thật từ bảng <code>Loans</code> & <code>Reservations</code> để gửi Email qua <code>POST https://api.resend.com/emails</code> và lưu nhật ký vào <code>Notifications</code>.
+                </p>
+
+                <div class="d-grid gap-2 mb-3">
+                    <button type="button" class="btn btn-primary fw-bold text-start p-3 rounded-3 js-trigger-campaign" data-campaign="DueReminder">
+                        <div class="d-flex align-items-center justify-content-between">
+                            <span><i class="bi bi-alarm-fill me-2"></i>Gửi Email Nhắc Hạn Trả Sách</span>
+                            <span class="badge bg-light text-primary">DueReminder</span>
+                        </div>
+                        <small class="d-block opacity-75 fw-normal mt-1">Quét toàn bộ hợp đồng đang mở & quá hạn</small>
+                    </button>
+
+                    <button type="button" class="btn btn-warning fw-bold text-dark text-start p-3 rounded-3 js-trigger-campaign" data-campaign="QueueAvailable">
+                        <div class="d-flex align-items-center justify-content-between">
+                            <span><i class="bi bi-fire me-2"></i>Báo Có Sách Đặt Trước (S11)</span>
+                            <span class="badge bg-dark text-warning">QueueAvailable</span>
+                        </div>
+                        <small class="d-block opacity-75 fw-normal mt-1">Gửi thông báo giữ chỗ 48h cho đầu hàng chờ</small>
+                    </button>
+                </div>
+
+                <hr />
+                <form id="formCustomResend" class="d-flex flex-column gap-2">
+                    <label class="small fw-bold">Gửi thông báo tùy chỉnh kèm Resend Email:</label>
+                    <input type="text" id="customNotifTitle" class="form-control form-control-sm" placeholder="Tiêu đề thông báo / Email..." required />
+                    <textarea id="customNotifContent" class="form-control form-control-sm" rows="2" placeholder="Nội dung chi tiết gửi tới người dùng..." required></textarea>
+                    <button type="submit" class="btn btn-outline-primary btn-sm fw-bold">
+                        <i class="bi bi-send-check-fill me-1"></i>Phát Thông Báo & Gửi Resend Email
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- CỘT PHẢI: DANH SÁCH THÔNG BÁO & BỘ LỌC THEO LOẠI -->
+    <div class="col-lg-8">
+        <div class="card border-0 shadow-sm rounded-4 bg-white">
+            <div class="card-body p-4">
+                <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3 pb-3 border-bottom">
+                    <div class="d-flex flex-wrap gap-1">
+                        <button type="button" class="btn btn-xs btn-primary js-filter-notif" data-type="all">Tất cả (@Model.Notifications.Count)</button>
+                        <button type="button" class="btn btn-xs btn-outline-danger js-filter-notif" data-type="DueReminder">⏰ Nhắc hạn trả</button>
+                        <button type="button" class="btn btn-xs btn-outline-warning text-dark js-filter-notif" data-type="QueueAvailable">🔥 Hàng chờ S11</button>
+                        <button type="button" class="btn btn-xs btn-outline-success js-filter-notif" data-type="LoanApproved">✅ Duyệt mượn</button>
+                        <button type="button" class="btn btn-xs btn-outline-secondary js-filter-notif" data-type="Dispute">⚖️ Tranh chấp</button>
+                        <button type="button" class="btn btn-xs btn-outline-dark js-filter-notif" data-type="System">⚙️ Hệ thống</button>
+                    </div>
+                    <button type="button" id="btnMarkAllRead" class="btn btn-sm btn-outline-success fw-bold">
+                        <i class="bi bi-check2-all me-1"></i>Đánh dấu tất cả đã đọc
+                    </button>
+                </div>
+
+                <div class="d-flex flex-column gap-3" id="notifListContainer">
+                    @foreach (var n in Model.Notifications)
+                    {
+                        <div class="s18-notif-card @(n.IsRead ? "is-read" : "is-unread")" data-notif-type="@n.Type">
+                            <div class="d-flex justify-content-between align-items-start gap-2 flex-wrap mb-1">
+                                <div class="d-flex align-items-center gap-2 flex-wrap">
+                                    <span class="badge @(n.Type == "DueReminder" ? "bg-danger" : n.Type == "QueueAvailable" ? "bg-warning text-dark" : n.Type == "Dispute" ? "bg-dark" : "bg-primary")">
+                                        @n.Type
+                                    </span>
+                                    @if (n.EmailSentViaResend)
+                                    {
+                                        <span class="badge bg-success bg-opacity-10 text-success border border-success">
+                                            <i class="bi bi-envelope-check-fill me-1"></i>Đã gửi Resend Email
+                                        </span>
+                                    }
+                                    @if (!n.IsRead)
+                                    {
+                                        <span class="badge bg-danger rounded-pill">Mới</span>
+                                    }
+                                    <strong class="text-dark">@n.Title</strong>
+                                </div>
+                                <small class="text-muted">@n.CreatedAt.ToString("dd/MM/yyyy HH:mm")</small>
+                            </div>
+
+                            <p class="small text-secondary mb-2">@n.Content</p>
+
+                            <div class="d-flex justify-content-between align-items-center">
+                                <small class="text-muted">Người nhận: <strong>@n.UserFullName</strong> (<code>@n.UserEmail</code>)</small>
+                                @if (!n.IsRead)
+                                {
+                                    <button type="button" class="btn btn-xs btn-outline-primary js-mark-read" data-id="@n.Id">
+                                        <i class="bi bi-check2 me-1"></i>Đánh dấu đã đọc
+                                    </button>
+                                }
+                                else
+                                {
+                                    <span class="small text-success"><i class="bi bi-check2-all me-1"></i>Đã đọc</span>
+                                }
+                            </div>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script type="module" src="~/modules/s18-notification-hub/s18-notification-hub.js" asp-append-version="true"></script>
+}

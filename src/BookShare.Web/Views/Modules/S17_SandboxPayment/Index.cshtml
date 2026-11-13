@@ -1,0 +1,199 @@
+@model BookShare.Web.Models.ViewModels.S17SandboxPaymentPageViewModel
+@{
+    ViewData["Title"] = "S17 - Cổng Thanh Toán Sandbox (VNPay / MoMo & Chữ ký HMAC-SHA512)";
+}
+
+@section Styles {
+    <link rel="stylesheet" href="~/modules/s17-sandbox-payment/s17-sandbox-payment.css" asp-append-version="true" />
+}
+
+<section class="s17-hero card border-0 shadow-sm rounded-4 p-4 mb-4">
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
+        <div>
+            <span class="badge bg-success mb-2 px-3 py-1 rounded-pill">DỊCH VỤ S17 • VNPAY / MOMO SANDBOX & HMAC-SHA512 SIGNATURE</span>
+            <h2 class="fw-bold mb-1">💳 Cổng Thanh Toán Sandbox & Kiểm Định Chữ Ký Điện Tử HMAC-SHA512</h2>
+            <p class="text-muted small mb-0">
+                <strong>Tuân thủ nghiêm ngặt quy tắc không bán sách:</strong> Cổng thanh toán chỉ phục vụ đúng 3 nghiệp vụ:
+                <code>Membership</code> (Phí nâng cấp gói Premium), <code>Fine</code> (Nộp phạt trễ hạn từ S12) và <code>SimulatedDeposit</code> (Tiền cọc mô phỏng bảo đảm sách quý).
+            </p>
+        </div>
+        <div class="s17-stat-box">
+            <div class="small opacity-75">Tổng giao dịch hoàn tất</div>
+            <div class="fs-4 fw-bold">@Model.TotalCompletedAmount.ToString("N0") VNĐ</div>
+            <div class="small">Đã xác thực HMAC-SHA512: <strong>@Model.TotalVerifiedHmacCount giao dịch</strong></div>
+        </div>
+    </div>
+</section>
+
+<div class="row g-4 mb-4">
+    <!-- BƯỚC 1: KHỞI TẠO LỆNH THANH TOÁN SANDBOX -->
+    <div class="col-lg-5">
+        <div class="card border-0 shadow-sm rounded-4 h-100 bg-white">
+            <div class="card-body p-4">
+                <h5 class="fw-bold mb-3"><i class="bi bi-1-circle-fill text-primary me-2"></i>Bước 1: Tạo Lệnh & Ký Số HMAC-SHA512</h5>
+                <form id="formCreateSandboxOrder" class="d-flex flex-column gap-3">
+                    <div>
+                        <label class="form-label small fw-bold">Loại giao dịch (<code>TransactionType</code>)</label>
+                        <select id="txTypeSelect" class="form-select">
+                            <option value="Membership" data-amount="99000">👑 Phí nâng cấp gói Premium 12 tháng (99.000đ)</option>
+                            <option value="Fine" data-amount="25000">⏰ Nộp phí phạt trả sách trễ hạn từ S12 (25.000đ)</option>
+                            <option value="SimulatedDeposit" data-amount="50000">🛡️ Tiền cọc mô phỏng Kho chung (50.000đ - Hoàn 100%)</option>
+                        </select>
+                    </div>
+
+                    <div id="loanSelectGroup">
+                        <label class="form-label small fw-bold">Liên kết Hợp đồng mượn (<code>LoanId</code> - Dùng cho Phí trễ / Cọc)</label>
+                        <select id="txLoanIdSelect" class="form-select">
+                            <option value="">-- Không gắn hợp đồng (Dành cho Gói Membership) --</option>
+                            @foreach (var l in Model.UnpaidFineLoans)
+                            {
+                                <option value="@l.LoanId">Loan #@l.LoanId — [@l.Barcode] @l.BookTitle (@l.BorrowerName • Phí: @l.FineAmount.ToString("N0")đ)</option>
+                            }
+                        </select>
+                    </div>
+
+                    <div class="row g-2">
+                        <div class="col-6">
+                            <label class="form-label small fw-bold">Số tiền (VNĐ)</label>
+                            <input type="number" id="txAmountInput" class="form-control fw-bold" value="99000" min="5000" step="1000" required />
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label small fw-bold">Cổng Sandbox</label>
+                            <select id="txGatewaySelect" class="form-select">
+                                <option value="VNPaySandbox">VNPaySandbox</option>
+                                <option value="MoMoSandbox">MoMoSandbox</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <button type="submit" id="btnCreateOrder" class="btn btn-primary fw-bold">
+                        <i class="bi bi-key-fill me-1"></i>Khởi Tạo Giao Dịch & Sinh Chữ Ký HMAC-SHA512
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- BƯỚC 2: MÔ PHỎNG LUỒNG CALLBACK KIỂM TRA CHỮ KÝ HMAC-SHA512 -->
+    <div class="col-lg-7">
+        <div class="card border-0 shadow-sm rounded-4 h-100 bg-white">
+            <div class="card-body p-4">
+                <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+                    <h5 class="fw-bold mb-0"><i class="bi bi-2-circle-fill text-success me-2"></i>Bước 2: Giả Lập ReturnURL / IPN Callback (Kiểm tra <code>HmacSignature</code>)</h5>
+                    <span class="badge bg-dark font-monospace">HMAC-SHA512 Verification</span>
+                </div>
+
+                <form id="formVerifyCallback" class="d-flex flex-column gap-3">
+                    <div class="row g-2">
+                        <div class="col-md-4">
+                            <label class="form-label small fw-bold">Mã giao dịch (<code>TransactionId</code>)</label>
+                            <input type="number" id="cbTransactionId" class="form-control font-monospace fw-bold" placeholder="VD: 3" required />
+                        </div>
+                        <div class="col-md-8">
+                            <label class="form-label small fw-bold">Mã phản hồi cổng (<code>vnp_ResponseCode</code>)</label>
+                            <select id="cbResponseCode" class="form-select">
+                                <option value="00">00 — Giao dịch thành công (Kích hoạt Membership / Xóa nợ phí trễ)</option>
+                                <option value="24">24 — Khách hàng hủy giao dịch (Chuyển sang Failed)</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="form-label small fw-bold">Chuỗi dữ liệu gốc cần ký (Canonical Raw Payload)</label>
+                        <input type="text" id="cbRawPayload" class="form-control form-control-sm font-monospace bg-light" placeholder="Bấm Bước 1 để hệ thống tự động sinh chuỗi dữ liệu..." />
+                    </div>
+
+                    <div>
+                        <label class="form-label small fw-bold">Chữ ký điện tử <code>HMAC-SHA512</code> (128 ký tự Hex)</label>
+                        <textarea id="cbHmacSignature" class="form-control form-control-sm font-monospace" rows="2" placeholder="Chữ ký HMAC-SHA512 sinh từ khóa bí mật VNPay__HashSecret..." required></textarea>
+                    </div>
+
+                    <div class="d-flex flex-wrap gap-2">
+                        <button type="submit" id="btnVerifyCallback" class="btn btn-success fw-bold flex-grow-1">
+                            <i class="bi bi-shield-fill-check me-1"></i>Xác Thực Chữ Ký HMAC-SHA512 & Hoàn Tất Giao Dịch
+                        </button>
+                        <button type="button" id="btnTamperSignature" class="btn btn-outline-danger btn-sm fw-semibold">
+                            <i class="bi bi-bug-fill me-1"></i>Giả lập sửa chữ ký (Test chặn giả mạo)
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- BẢNG LỊCH SỬ GIAO DỊCH SANDBOX (TRANSACTIONS) -->
+<section class="card border-0 shadow-sm rounded-4 p-4 bg-white">
+    <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+        <div>
+            <h5 class="fw-bold mb-0"><i class="bi bi-receipt-cutoff text-primary me-2"></i>Nhật Ký Giao Dịch Cổng Sandbox (Bảng <code>Transactions</code>)</h5>
+            <small class="text-muted">Lưu trữ đầy đủ loại giao dịch, cổng thanh toán, trạng thái và chữ ký <code>HmacSignature</code></small>
+        </div>
+        <span class="badge bg-primary">@Model.Transactions.Count giao dịch</span>
+    </div>
+
+    <div class="table-responsive">
+        <table class="table table-hover align-middle small mb-0">
+            <thead class="table-light">
+                <tr>
+                    <th>Mã GD</th>
+                    <th>Độc giả</th>
+                    <th>Loại giao dịch</th>
+                    <th>Số tiền</th>
+                    <th>Cổng Sandbox</th>
+                    <th>Trạng thái</th>
+                    <th>Chữ ký điện tử (HmacSignature)</th>
+                    <th>Thao tác</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var tx in Model.Transactions)
+                {
+                    <tr>
+                        <td><code>#TX-@tx.TransactionId</code></td>
+                        <td>
+                            <strong>@tx.UserFullName</strong>
+                            @if (tx.LoanId.HasValue)
+                            {
+                                <div><small class="text-muted">Loan #@tx.LoanId</small></div>
+                            }
+                        </td>
+                        <td>
+                            <span class="badge @(tx.TransactionType == "Membership" ? "bg-warning text-dark" : tx.TransactionType == "Fine" ? "bg-danger" : "bg-info text-dark")">
+                                @tx.TransactionType
+                            </span>
+                        </td>
+                        <td class="fw-bold">@tx.Amount.ToString("N0") đ</td>
+                        <td><code>@tx.PaymentGateway</code></td>
+                        <td>
+                            <span class="badge @(tx.PaymentStatus == "Completed" ? "bg-success" : tx.PaymentStatus == "Pending" ? "bg-warning text-dark" : tx.PaymentStatus == "Refunded" ? "bg-info text-dark" : "bg-danger")">
+                                @tx.PaymentStatus
+                            </span>
+                        </td>
+                        <td>
+                            <code class="s17-hmac-code" title="@tx.HmacSignature">
+                                @(string.IsNullOrEmpty(tx.HmacSignature) ? "(Chờ Callback)" : tx.HmacSignature.Length > 28 ? tx.HmacSignature[..28] + "..." : tx.HmacSignature)
+                            </code>
+                        </td>
+                        <td>
+                            @if (tx.TransactionType == "SimulatedDeposit" && tx.PaymentStatus == "Completed")
+                            {
+                                <button type="button" class="btn btn-xs btn-outline-info fw-bold js-refund-deposit" data-tx-id="@tx.TransactionId">
+                                    Hoàn cọc 100%
+                                </button>
+                            }
+                            else
+                            {
+                                <span class="text-muted small">@tx.CreatedAt.ToString("dd/MM HH:mm")</span>
+                            }
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</section>
+
+@section Scripts {
+    <script type="module" src="~/modules/s17-sandbox-payment/s17-sandbox-payment.js" asp-append-version="true"></script>
+}

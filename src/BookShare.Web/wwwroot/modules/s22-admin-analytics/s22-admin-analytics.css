@@ -1,0 +1,15 @@
+/* =========================================================================
+   S22: ADMIN ANALYTICS, USER GOVERNANCE & HANGFIRE JOBS STYLES
+   ========================================================================= */
+.s22-hero {
+    background: linear-gradient(135deg, #ffffff 0%, #fffbeb 100%);
+    border-left: 6px solid #d97706 !important;
+}
+
+.s22-admin-pill {
+    background: linear-gradient(135deg, #0f172a, #1e293b);
+    color: #ffffff;
+    padding: 12px 20px;
+    border-radius: 14px;
+    min-width: 265px;
+}

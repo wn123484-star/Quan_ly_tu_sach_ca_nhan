@@ -1,0 +1,9 @@
+/* =========================================================================
+   S21: LIBRARIAN DESK & BARCODE SCANNER STYLES
+   ========================================================================= */
+.s21-scanner-banner {
+    background: linear-gradient(135deg, #0f172a 0%, #1e3a8a 100%);
+    color: #ffffff;
+    border-radius: 18px;
+    padding: 22px 24px;
+}

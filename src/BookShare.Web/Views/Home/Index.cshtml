@@ -54,19 +54,49 @@
                     <a asp-controller="S12LoanRenewalFine" asp-action="Index" class="btn btn-outline-light btn-sm fw-semibold px-3">
                         <i class="bi bi-calendar2-plus me-1"></i>S12. Gia hạn & Phí trễ
                     </a>
+                    <a asp-controller="S13GeminiAiAssistant" asp-action="Index" class="btn btn-warning btn-sm fw-bold text-dark px-3">
+                        <i class="bi bi-robot me-1"></i>S13. Trợ lý AI Gemini (RAG)
+                    </a>
+                    <a asp-controller="S14AiRecommendation" asp-action="Index" class="btn btn-light btn-sm fw-bold text-dark px-3">
+                        <i class="bi bi-magic text-primary me-1"></i>S14. Gợi ý Sách AI
+                    </a>
+                    <a asp-controller="S15TrustScoreReview" asp-action="Index" class="btn btn-light btn-sm fw-bold text-dark px-3">
+                        <i class="bi bi-star-fill text-warning me-1"></i>S15. Đánh giá 2 chiều & TrustScore
+                    </a>
+                    <a asp-controller="S16MembershipTier" asp-action="Index" class="btn btn-warning btn-sm fw-bold text-dark px-3">
+                        <i class="bi bi-gem me-1"></i>S16. Gói Thành viên
+                    </a>
+                    <a asp-controller="S17SandboxPayment" asp-action="Index" class="btn btn-light btn-sm fw-bold text-dark px-3">
+                        <i class="bi bi-shield-lock-fill text-success me-1"></i>S17. Thanh toán Sandbox HMAC
+                    </a>
+                    <a asp-controller="S18NotificationHub" asp-action="Index" class="btn btn-outline-light btn-sm fw-semibold px-3">
+                        <i class="bi bi-bell-fill me-1"></i>S18. Trung tâm Thông báo
+                    </a>
+                    <a asp-controller="S19DisputeResolution" asp-action="Index" class="btn btn-light btn-sm fw-bold text-dark px-3">
+                        <i class="bi bi-gavel text-danger me-1"></i>S19. Phân xử Tranh chấp
+                    </a>
+                    <a asp-controller="S20ExchangeHubClub" asp-action="Index" class="btn btn-outline-light btn-sm fw-semibold px-3">
+                        <i class="bi bi-geo-alt-fill me-1"></i>S20. Trạm CLB / Hub P2P
+                    </a>
+                    <a asp-controller="S21LibrarianDesk" asp-action="Index" class="btn btn-warning btn-sm fw-bold text-dark px-3">
+                        <i class="bi bi-upc-scan me-1"></i>S21. Bàn Thủ thư
+                    </a>
+                    <a asp-controller="S22AdminAnalytics" asp-action="Index" class="btn btn-light btn-sm fw-bold text-dark px-3">
+                        <i class="bi bi-speedometer2 text-primary me-1"></i>S22. Quản trị Admin & Jobs
+                    </a>
                 </div>
             </div>
         </div>
         <div class="col-lg-4 d-flex flex-column gap-3">
             <div class="p-3 rounded-4 text-white flex-fill d-flex flex-column justify-content-center" style="background: linear-gradient(135deg, #7c3aed, #4f46e5);">
-                <span class="badge bg-white text-dark align-self-start mb-1" style="font-size:0.7rem;">Phân quyền 4 Vai trò</span>
+                <span class="badge bg-white text-dark align-self-start mb-1" style="font-size:0.7rem;">Phân quyền 4 Vai trò & Bảo mật [Authorize]</span>
                 <h6 class="fw-bold mb-1">User • Curator • Librarian • Admin</h6>
-                <p class="small opacity-85 mb-0">Trạm kiểm định CLB Cầu Giấy & Thư viện ĐH CMC</p>
+                <p class="small opacity-85 mb-0">Phân trang SQL (S06/S07), Hồ sơ S01, 4-CRUD S02, HMAC-SHA512 S17 & Kiểm soát Role 403</p>
             </div>
             <div class="p-3 rounded-4 text-white flex-fill d-flex flex-column justify-content-center" style="background: linear-gradient(135deg, #0f766e, #0ea5e9);">
-                <span class="badge bg-warning text-dark align-self-start mb-1" style="font-size:0.7rem;">12 Dịch vụ (S01 → S12) đã hoàn thiện 100%</span>
-                <h6 class="fw-bold mb-1">S01..S07 • S08 • S09 • S10 • S11 • S12</h6>
-                <p class="small opacity-85 mb-0">Mỗi dịch vụ tách riêng 1 CSHTML + 1 CSS + 1 JS</p>
+                <span class="badge bg-warning text-dark align-self-start mb-1" style="font-size:0.7rem;">22/22 Dịch vụ (S01 → S22) Hoàn thiện 100%</span>
+                <h6 class="fw-bold mb-1">S01..S07 • S08..S15 • S16..S22</h6>
+                <p class="small opacity-85 mb-0">Mỗi dịch vụ tách riêng 1 CSHTML + 1 CSS + 1 JS độc lập</p>
             </div>
         </div>
     </div>

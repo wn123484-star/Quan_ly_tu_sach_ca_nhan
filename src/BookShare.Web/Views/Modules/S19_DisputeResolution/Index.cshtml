@@ -1,0 +1,180 @@
+@model BookShare.Web.Models.ViewModels.S19DisputeResolutionPageViewModel
+@{
+    ViewData["Title"] = "S19 - Khiếu Nại & Phân Xử Tranh Chấp Sách Hỏng/Mất (User & Admin)";
+}
+
+@section Styles {
+    <link rel="stylesheet" href="~/modules/s19-dispute-resolution/s19-dispute-resolution.css" asp-append-version="true" />
+}
+
+<section class="s19-hero card border-0 shadow-sm rounded-4 p-4 mb-4">
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
+        <div>
+            <span class="badge bg-danger mb-2 px-3 py-1 rounded-pill">DỊCH VỤ S19 • DISPUTE RESOLUTION & CONDITION EVIDENCE</span>
+            <h2 class="fw-bold mb-1">⚖️ Hồ Sơ Khiếu Nại & Phân Xử Tranh Chấp Sách Hỏng / Mất</h2>
+            <p class="text-muted small mb-0">
+                <strong>Phân quyền 2 cấp:</strong> Độc giả / Chủ sách (<code>User</code>) gửi hồ sơ khiếu nại kèm ảnh bằng chứng. Quản trị viên (<code>[Authorize(Roles = "Admin")]</code>) đối chiếu ảnh <code>ConditionReports</code> (S10) lúc giao vs lúc trả để ra phán quyết, trừ <code>TrustScore</code> hoặc khấu trừ tiền cọc mô phỏng.
+            </p>
+        </div>
+        <div class="s19-role-box">
+            <div class="small">Vai trò hiện tại: <strong>@Model.CurrentUserRole</strong></div>
+            <div class="fw-bold">Đang chờ xử lý: @Model.OpenDisputesCount hồ sơ</div>
+            <small>Đã giải quyết: @Model.ResolvedDisputesCount hồ sơ</small>
+        </div>
+    </div>
+</section>
+
+<div class="row g-4">
+    <!-- CỘT TRÁI: FORM TẠO HỒ SƠ TRANH CHẤP (DÀNH CHO USER / LIBRARIAN) -->
+    <div class="col-lg-4">
+        <div class="card border-0 shadow-sm rounded-4 bg-white">
+            <div class="card-body p-4">
+                <h5 class="fw-bold mb-3"><i class="bi bi-exclamation-octagon-fill text-danger me-2"></i>Gửi Hồ Sơ Khiếu Nại Mới (<code>User</code>)</h5>
+                <form id="formCreateDispute" class="d-flex flex-column gap-3">
+                    <div>
+                        <label class="form-label small fw-bold">Chọn Hợp đồng mượn (<code>LoanId</code>)</label>
+                        <select id="disputeLoanId" class="form-select">
+                            @foreach (var l in Model.EligibleLoans)
+                            {
+                                <option value="@l.LoanId">Loan #@l.LoanId — [@l.Barcode] @l.BookTitle (Người mượn: @l.BorrowerName)</option>
+                            }
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="form-label small fw-bold">Mô tả hư hại / vi phạm tình trạng sách</label>
+                        <textarea id="disputeReason" class="form-control" rows="3"
+                                  placeholder="VD: Sách trả về bị rách bìa sau, ướt góc trang 45-60 so với ảnh biên bản Handover ban đầu..." required></textarea>
+                    </div>
+
+                    <div>
+                        <label class="form-label small fw-bold">URL Ảnh bằng chứng lúc nhận trả (<code>ConditionReports</code>)</label>
+                        <input type="url" id="disputeEvidenceUrl" class="form-control form-control-sm"
+                               value="https://images.unsplash.com/photo-1589829085413-56de8ae18c73?w=600" />
+                    </div>
+
+                    <button type="submit" class="btn btn-danger fw-bold">
+                        <i class="bi bi-file-earmark-medical-fill me-1"></i>Tạo Hồ Sơ Tranh Chấp Gửi Admin
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- CỘT PHẢI: DANH SÁCH HỒ SƠ ĐỐI CHIẾU ẢNH 2 BÊN & BẢNG PHÁN QUYẾT ADMIN -->
+    <div class="col-lg-8">
+        <div class="d-flex flex-column gap-4">
+            @foreach (var d in Model.Disputes)
+            {
+                <div class="card border-0 shadow-sm rounded-4 bg-white overflow-hidden">
+                    <div class="card-header bg-light py-3 px-4 d-flex flex-wrap justify-content-between align-items-center gap-2">
+                        <div>
+                            <span class="badge @(d.Status == "Resolved" ? "bg-success" : d.Status == "Rejected" ? "bg-secondary" : "bg-danger") me-2">
+                                @d.Status
+                            </span>
+                            <strong class="text-dark">Hồ sơ #DSP-@d.DisputeId.ToString("D4") — Bản sao <code>@d.Barcode</code> (@d.BookTitle)</strong>
+                        </div>
+                        <small class="text-muted">Người khiếu nại: <strong>@d.RaisedByName</strong> • @d.CreatedAt.ToString("dd/MM/yyyy HH:mm")</small>
+                    </div>
+
+                    <div class="card-body p-4">
+                        <p class="mb-3">
+                            <strong>Người mượn liên quan:</strong> <span class="text-primary fw-bold">@d.BorrowerName</span>
+                            <span class="badge bg-warning text-dark ms-1">TrustScore hiện tại: @d.BorrowerTrustScore</span>
+                            <br />
+                            <strong>Lý do khiếu nại:</strong> <span class="text-danger">@d.Reason</span>
+                        </p>
+
+                        <!-- ĐỐI CHIẾU ẢNH BIÊN BẢN LÚC GIAO (HANDOVER) VS LÚC TRẢ (RETURN) -->
+                        <div class="row g-3 mb-3">
+                            <div class="col-md-6">
+                                <div class="s19-evidence-box">
+                                    <div class="d-flex justify-content-between small fw-bold mb-2">
+                                        <span class="text-success"><i class="bi bi-camera-fill me-1"></i>Ảnh Lúc Giao (Handover - S10)</span>
+                                        <span class="badge bg-success">Tình trạng: @d.HandoverGrade</span>
+                                    </div>
+                                    <img src="@d.HandoverImageUrl" alt="Handover Evidence" class="s19-evidence-img" />
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="s19-evidence-box s19-evidence-return">
+                                    <div class="d-flex justify-content-between small fw-bold mb-2">
+                                        <span class="text-danger"><i class="bi bi-exclamation-triangle-fill me-1"></i>Ảnh Bằng Chứng Khiếu Nại (Return)</span>
+                                        <span class="badge bg-danger">Tình trạng: @d.ReturnGrade</span>
+                                    </div>
+                                    <img src="@d.ReturnImageUrl" alt="Return Evidence" class="s19-evidence-img" />
+                                </div>
+                            </div>
+                        </div>
+
+                        @if (!string.IsNullOrWhiteSpace(d.ResolutionNote))
+                        {
+                            <div class="alert alert-info small mb-3 py-2">
+                                <strong><i class="bi bi-shield-check me-1"></i>Ghi chú phán quyết của Admin (@(d.ResolvedByAdminName ?? "Admin")):</strong>
+                                @d.ResolutionNote
+                            </div>
+                        }
+
+                        <!-- KHUNG PHÁN QUYẾT CỦA ADMIN (KHÓA CHẶT BỞI [Authorize(Roles = "Admin")]) -->
+                        <div class="p-3 rounded-3 bg-light border">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <strong class="small text-uppercase text-dark">
+                                    <i class="bi bi-gavel text-danger me-1"></i>Bảng Phán Quyết Của Quản Trị Viên (<code>[Authorize(Roles = "Admin")]</code>)
+                                </strong>
+                                <span class="badge bg-dark">Role yêu cầu: Admin</span>
+                            </div>
+                            <div class="row g-2 align-items-end">
+                                <div class="col-md-3">
+                                    <label class="small text-muted">Quyết định</label>
+                                    <select class="form-select form-select-sm js-decision-status" data-id="@d.DisputeId">
+                                        <option value="Resolved" selected>Resolved (Xác nhận vi phạm)</option>
+                                        <option value="Rejected">Rejected (Bác bỏ khiếu nại)</option>
+                                        <option value="UnderReview">UnderReview (Đang thẩm tra)</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="small text-muted">Trừ điểm TrustScore</label>
+                                    <select class="form-select form-select-sm js-penalty-score" data-id="@d.DisputeId">
+                                        <option value="10" selected>-10 điểm TrustScore</option>
+                                        <option value="20">-20 điểm (Hư hỏng nặng)</option>
+                                        <option value="30">-30 điểm (Làm mất sách)</option>
+                                        <option value="0">0 điểm (Cảnh cáo)</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="small text-muted">Khấu trừ cọc / Phạt</label>
+                                    <select class="form-select form-select-sm js-deduct-deposit" data-id="@d.DisputeId">
+                                        <option value="0">0 VNĐ</option>
+                                        <option value="25000" selected>25.000 VNĐ</option>
+                                        <option value="50000">50.000 VNĐ (100% Cọc)</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="small text-muted">Trạng thái Bản sao</label>
+                                    <select class="form-select form-select-sm js-copy-status" data-id="@d.DisputeId">
+                                        <option value="Damaged" selected>Damaged (Hư hỏng)</option>
+                                        <option value="Lost">Lost (Thất lạc)</option>
+                                        <option value="Available">Available (Dùng tiếp)</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-9 mt-2">
+                                    <input type="text" class="form-control form-control-sm js-resolution-note" data-id="@d.DisputeId"
+                                           value="Đã đối chiếu ảnh Handover & Return: Xác nhận sách bị hư hại bìa, trừ TrustScore và khấu trừ cọc bảo đảm." />
+                                </div>
+                                <div class="col-md-3 mt-2 d-grid">
+                                    <button type="button" class="btn btn-sm btn-danger fw-bold js-btn-resolve" data-id="@d.DisputeId">
+                                        <i class="bi bi-check2-circle me-1"></i>Ra Phán Quyết
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script type="module" src="~/modules/s19-dispute-resolution/s19-dispute-resolution.js" asp-append-version="true"></script>
+}

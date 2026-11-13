@@ -1,3 +1,6 @@
+using System.Security.Claims;
+using System.Text.Json;
+using BookShare.Web.BackgroundJobs;
 using BookShare.Web.Data;
 using BookShare.Web.Services.Implementations;
 using BookShare.Web.Services.Interfaces;
@@ -37,6 +40,44 @@ var authBuilder = builder.Services.AddAuthentication(options =>
     options.AccessDeniedPath = "/S01AuthOtpGoogle/Index";
     options.SlidingExpiration = true;
     options.ExpireTimeSpan = TimeSpan.FromDays(7);
+    options.Events = new CookieAuthenticationEvents
+    {
+        OnRedirectToAccessDenied = async context =>
+        {
+            var accept = context.Request.Headers.Accept.ToString();
+            if (accept.Contains("application/json", StringComparison.OrdinalIgnoreCase) ||
+                !HttpMethods.IsGet(context.Request.Method))
+            {
+                var currentRole = context.HttpContext.User.FindFirstValue(ClaimTypes.Role) ?? "User";
+                context.Response.StatusCode = StatusCodes.Status403Forbidden;
+                context.Response.ContentType = "application/json; charset=utf-8";
+                var payload = JsonSerializer.Serialize(new
+                {
+                    message = $"MÃ 403 FORBIDDEN: Tài khoản vai trò [{currentRole}] không đủ quyền truy cập chức năng này (Đã khóa bởi [Authorize(Roles)] ở Backend)! Vui lòng đăng nhập tài khoản Curator / Librarian / Admin tại dịch vụ S01."
+                });
+                await context.Response.WriteAsync(payload);
+                return;
+            }
+            context.Response.Redirect(context.RedirectUri);
+        },
+        OnRedirectToLogin = async context =>
+        {
+            var accept = context.Request.Headers.Accept.ToString();
+            if (accept.Contains("application/json", StringComparison.OrdinalIgnoreCase) ||
+                !HttpMethods.IsGet(context.Request.Method))
+            {
+                context.Response.StatusCode = StatusCodes.Status403Forbidden;
+                context.Response.ContentType = "application/json; charset=utf-8";
+                var payload = JsonSerializer.Serialize(new
+                {
+                    message = "MÃ 403 FORBIDDEN: Chức năng này yêu cầu xác thực phân quyền [Authorize(Roles)]! Vui lòng đăng nhập tài khoản Curator / Librarian / Admin tại dịch vụ S01."
+                });
+                await context.Response.WriteAsync(payload);
+                return;
+            }
+            context.Response.Redirect(context.RedirectUri);
+        }
+    };
 });
 
 if (!string.IsNullOrWhiteSpace(googleClientId) && !string.IsNullOrWhiteSpace(googleClientSecret))
@@ -73,6 +114,17 @@ builder.Services.AddScoped<IS09P2PLoanService, S09P2PLoanService>();
 builder.Services.AddScoped<IS10ConditionReportService, S10ConditionReportService>();
 builder.Services.AddScoped<IS11HotBookQueueService, S11HotBookQueueService>();
 builder.Services.AddScoped<IS12LoanRenewalFineService, S12LoanRenewalFineService>();
+builder.Services.AddScoped<IS13GeminiAiService, S13GeminiAiService>();
+builder.Services.AddScoped<IS14AiRecommendationService, S14AiRecommendationService>();
+builder.Services.AddScoped<IS15TrustScoreReviewService, S15TrustScoreReviewService>();
+builder.Services.AddScoped<IS16MembershipTierService, S16MembershipTierService>();
+builder.Services.AddScoped<IS17SandboxPaymentService, S17SandboxPaymentService>();
+builder.Services.AddScoped<IS18NotificationHubService, S18NotificationHubService>();
+builder.Services.AddScoped<IS19DisputeResolutionService, S19DisputeResolutionService>();
+builder.Services.AddScoped<IS20ExchangeHubClubService, S20ExchangeHubClubService>();
+builder.Services.AddScoped<IS21LibrarianDeskService, S21LibrarianDeskService>();
+builder.Services.AddScoped<IS22AdminAnalyticsService, S22AdminAnalyticsService>();
+builder.Services.AddScoped<BookShareDailyJobs>();
 builder.Services.AddScoped<IPortalDiscoveryService, PortalDiscoveryService>();
 
 // 6. Cấu hình Hangfire Background Jobs
@@ -112,5 +164,34 @@ app.MapControllerRoute(
     name: "default",
     pattern: "{controller=Home}/{action=Index}/{id?}")
     .WithStaticAssets();
+
+// Đăng ký 3 Background Jobs định kỳ với Hangfire sau khi Host khởi động (Không chặn luồng Kestrel)
+app.Lifetime.ApplicationStarted.Register(() =>
+{
+    _ = Task.Run(() =>
+    {
+        try
+        {
+            RecurringJob.AddOrUpdate<BookShareDailyJobs>(
+                "bookshare-due-date-reminder",
+                job => job.SendDueDateRemindersJobAsync(),
+                "0 7 * * *");
+
+            RecurringJob.AddOrUpdate<BookShareDailyJobs>(
+                "bookshare-overdue-fine-calculator",
+                job => job.CalculateOverdueFinesJobAsync(),
+                "5 0 * * *");
+
+            RecurringJob.AddOrUpdate<BookShareDailyJobs>(
+                "bookshare-expired-request-cleanup",
+                job => job.CancelExpiredRequestsAndReservationsJobAsync(),
+                "*/30 * * * *");
+        }
+        catch
+        {
+            // Bỏ qua nếu Hangfire Storage đang khởi tạo
+        }
+    });
+});
 
 app.Run();

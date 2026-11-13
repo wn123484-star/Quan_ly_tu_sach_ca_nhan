@@ -133,4 +133,44 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
     }
+
+    // 5. Cập nhật Hồ sơ Cá nhân (Mục 2.4 Rubric)
+    const updateProfileForm = document.getElementById('s01UpdateProfileForm');
+    if (updateProfileForm) {
+        updateProfileForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const fullName = document.getElementById('profFullName')?.value.trim() || '';
+            const phoneNumber = document.getElementById('profPhone')?.value.trim() || '';
+            const address = document.getElementById('profAddress')?.value.trim() || '';
+            const avatarUrl = document.getElementById('profAvatarUrl')?.value.trim() || '';
+
+            const res = await apiFetch('/S01AuthOtpGoogle/UpdateProfile', {
+                method: 'POST',
+                body: { fullName, phoneNumber, address, avatarUrl }
+            });
+
+            if (res.ok) {
+                window.location.reload();
+            }
+        });
+    }
+
+    // 6. Đổi mật khẩu tài khoản
+    const changePassForm = document.getElementById('s01ChangePasswordForm');
+    if (changePassForm) {
+        changePassForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const currentPassword = document.getElementById('profCurrentPass')?.value || '';
+            const newPassword = document.getElementById('profNewPass')?.value || '';
+
+            const res = await apiFetch('/S01AuthOtpGoogle/ChangePassword', {
+                method: 'POST',
+                body: { currentPassword, newPassword }
+            });
+
+            if (res.ok && res.data) {
+                showSystemStatus(200, res.data.title || 'Đổi mật khẩu thành công', res.data.message);
+            }
+        });
+    }
 });

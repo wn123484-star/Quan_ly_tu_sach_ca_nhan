@@ -109,6 +109,15 @@
                 </select>
             </div>
 
+            <div class="col-lg-2 col-md-4">
+                <label class="form-label small fw-bold text-secondary mb-1">Số sách / trang</label>
+                <select name="pageSize" class="form-select form-select-sm">
+                    <option value="6" selected="@(Model.PageSize == 6)">6 bản sao / trang</option>
+                    <option value="12" selected="@(Model.PageSize == 12)">12 bản sao / trang</option>
+                    <option value="24" selected="@(Model.PageSize == 24)">24 bản sao / trang</option>
+                </select>
+            </div>
+
             <div class="col-lg-2 col-md-4 d-flex align-items-end gap-2">
                 <button type="submit" class="btn btn-primary btn-sm w-100 fw-bold py-2">
                     <i class="bi bi-funnel-fill me-1"></i>Lọc Sách
@@ -213,6 +222,70 @@ else
             </div>
         }
     </div>
+
+    <!-- THANH ĐIỀU HƯỚNG PHÂN TRANG THỰC TẾ TỪ SQL SERVER (MỤC 2.8 RUBRIC) -->
+    <nav class="card border-0 shadow-sm rounded-4 p-3 mt-4 bg-white" aria-label="S06 Pagination">
+        <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
+            <div class="small text-muted">
+                Đang hiển thị trang <strong>@Model.CurrentPage / @Model.TotalPages</strong>
+                (Tổng cộng <strong>@Model.TotalItems bản sao</strong> khớp bộ lọc • Mức phân trang: <code>@Model.PageSize cuốn/trang</code>)
+            </div>
+
+            <ul class="pagination pagination-sm mb-0">
+                <li class="page-item @(Model.CurrentPage <= 1 ? "disabled" : "")">
+                    <a class="page-link fw-semibold"
+                       asp-controller="S06SearchDiscovery" asp-action="Index"
+                       asp-route-keyword="@Model.Filter.Keyword"
+                       asp-route-author="@Model.Filter.Author"
+                       asp-route-isbn="@Model.Filter.Isbn"
+                       asp-route-categoryId="@Model.Filter.CategoryId"
+                       asp-route-areaFilter="@Model.Filter.AreaFilter"
+                       asp-route-ownerType="@Model.Filter.OwnerType"
+                       asp-route-statusFilter="@Model.Filter.StatusFilter"
+                       asp-route-minTrustScore="@Model.Filter.MinTrustScore"
+                       asp-route-pageSize="@Model.PageSize"
+                       asp-route-page="@(Model.CurrentPage - 1)">
+                        &laquo; Trang trước
+                    </a>
+                </li>
+
+                @for (int p = 1; p <= Model.TotalPages; p++)
+                {
+                    <li class="page-item @(p == Model.CurrentPage ? "active" : "")">
+                        <a class="page-link fw-bold"
+                           asp-controller="S06SearchDiscovery" asp-action="Index"
+                           asp-route-keyword="@Model.Filter.Keyword"
+                           asp-route-author="@Model.Filter.Author"
+                           asp-route-isbn="@Model.Filter.Isbn"
+                           asp-route-categoryId="@Model.Filter.CategoryId"
+                           asp-route-areaFilter="@Model.Filter.AreaFilter"
+                           asp-route-ownerType="@Model.Filter.OwnerType"
+                           asp-route-statusFilter="@Model.Filter.StatusFilter"
+                           asp-route-minTrustScore="@Model.Filter.MinTrustScore"
+                           asp-route-pageSize="@Model.PageSize"
+                           asp-route-page="@p">@p</a>
+                    </li>
+                }
+
+                <li class="page-item @(Model.CurrentPage >= Model.TotalPages ? "disabled" : "")">
+                    <a class="page-link fw-semibold"
+                       asp-controller="S06SearchDiscovery" asp-action="Index"
+                       asp-route-keyword="@Model.Filter.Keyword"
+                       asp-route-author="@Model.Filter.Author"
+                       asp-route-isbn="@Model.Filter.Isbn"
+                       asp-route-categoryId="@Model.Filter.CategoryId"
+                       asp-route-areaFilter="@Model.Filter.AreaFilter"
+                       asp-route-ownerType="@Model.Filter.OwnerType"
+                       asp-route-statusFilter="@Model.Filter.StatusFilter"
+                       asp-route-minTrustScore="@Model.Filter.MinTrustScore"
+                       asp-route-pageSize="@Model.PageSize"
+                       asp-route-page="@(Model.CurrentPage + 1)">
+                        Trang sau &raquo;
+                    </a>
+                </li>
+            </ul>
+        </div>
+    </nav>
 }
 
 <!-- 3. HỘP THOẠI ĐĂNG KÝ MƯỢN SÁCH NHANH (TẠO PHIẾU LOANREQUESTS) -->

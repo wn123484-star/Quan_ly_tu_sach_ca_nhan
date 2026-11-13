@@ -1,0 +1,204 @@
+@model BookShare.Web.Models.ViewModels.S20ExchangeHubClubPageViewModel
+@{
+    ViewData["Title"] = "S20 - Điểm Trạm Giao Nhận P2P & CLB Sách (Curator & User)";
+}
+
+@section Styles {
+    <link rel="stylesheet" href="~/modules/s20-exchange-hub-club/s20-exchange-hub-club.css" asp-append-version="true" />
+}
+
+<section class="s20-hero card border-0 shadow-sm rounded-4 p-4 mb-4">
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
+        <div>
+            <span class="badge bg-purple text-white mb-2 px-3 py-1 rounded-pill" style="background:#7c3aed;">DỊCH VỤ S20 • BOOK DROP-OFF HUB & CURATOR VERIFICATION</span>
+            <h2 class="fw-bold mb-1">📍 Điểm Trạm Giao Nhận Sách P2P An Toàn & CLB Sách ĐH CMC</h2>
+            <p class="text-muted small mb-0">
+                Độc giả (<code>User</code>) đăng ký ký gửi sách cá nhân tại Điểm hẹn Hub. Chủ nhiệm CLB / Kiểm định viên (<code>[Authorize(Roles = "Curator,Admin")]</code>) xác nhận kiểm định sách thật ngoài đời và làm trung gian bàn giao/thu hồi sách P2P.
+            </p>
+        </div>
+        <div class="s20-hub-badge">
+            <div class="small">Vai trò hiện tại: <strong>@Model.CurrentUserRole</strong></div>
+            <div class="fs-5 fw-bold">@Model.TotalHubsCount Điểm Trạm • @Model.TotalCopiesAtHubs Bản Sao P2P</div>
+            <small>Đơn P2P hẹn tại Hub: @Model.PendingP2PHubOrdersCount đơn</small>
+        </div>
+    </div>
+</section>
+
+<!-- DANH SÁCH 3 ĐIỂM TRẠM GIAO NHẬN / THƯ VIỆN ĐỐI TÁC -->
+<div class="row g-3 mb-4">
+    @foreach (var h in Model.Hubs)
+    {
+        <div class="col-md-4">
+            <div class="card border-0 shadow-sm rounded-4 h-100 bg-white p-3">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <span class="badge @(h.HubType == "ClubStation" ? "bg-warning text-dark" : "bg-primary")">
+                        @(h.HubType == "ClubStation" ? "⛺ Trạm CLB Sách (Drop-off Hub)" : "🏛️ Thư viện Đối tác")
+                    </span>
+                    <span class="badge bg-success">Đang mở cửa</span>
+                </div>
+                <h6 class="fw-bold mb-1">@h.Name</h6>
+                <p class="small text-muted mb-2"><i class="bi bi-geo-alt-fill text-danger me-1"></i>@h.Address</p>
+                <div class="p-2 rounded-3 bg-light small mt-auto border">
+                    <div class="d-flex justify-content-between">
+                        <span>Quản lý trạm:</span>
+                        <strong>@h.ManagerName</strong>
+                    </div>
+                    <div class="d-flex justify-content-between">
+                        <span>Giờ hoạt động:</span>
+                        <span>@h.OpenHours</span>
+                    </div>
+                    <div class="d-flex justify-content-between">
+                        <span>Sách đang lưu trạm:</span>
+                        <strong class="text-primary">@h.CopiesStoredCount bản sao</strong>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+<div class="row g-4">
+    <!-- CỘT TRÁI: USER ĐĂNG KÝ KÝ GỬI & CURATOR KIỂM ĐỊNH SÁCH THẬT -->
+    <div class="col-lg-5 d-flex flex-column gap-4">
+        <!-- FORM 1: USER ĐĂNG KÝ KÝ GỬI SÁCH P2P -->
+        <div class="card border-0 shadow-sm rounded-4 bg-white">
+            <div class="card-body p-4">
+                <h5 class="fw-bold mb-3"><i class="bi bi-box-seam-fill text-primary me-2"></i>1. Đăng Ký Gửi Sách P2P Tại Trạm Hub (<code>User</code>)</h5>
+                <form id="formRegisterDropoff" class="d-flex flex-column gap-3">
+                    <div>
+                        <label class="form-label small fw-bold">Chọn Bản sao sách P2P cần gửi trạm</label>
+                        <select id="dropoffCopyId" class="form-select">
+                            @foreach (var c in Model.HubCopies)
+                            {
+                                <option value="@c.BookCopyId">[@c.Barcode] @c.BookTitle (Chủ: @c.OwnerName)</option>
+                            }
+                        </select>
+                    </div>
+                    <div>
+                        <label class="form-label small fw-bold">Chọn Điểm trạm nhận ký gửi</label>
+                        <select id="dropoffHubId" class="form-select">
+                            @foreach (var h in Model.Hubs)
+                            {
+                                <option value="@h.HubId" selected="@(h.HubId == 3)">@h.Name</option>
+                            }
+                        </select>
+                    </div>
+                    <button type="submit" class="btn btn-outline-primary fw-bold">
+                        <i class="bi bi-pin-map-fill me-1"></i>Đăng Ký Ký Gửi Tại Điểm Trạm
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <!-- FORM 2: CURATOR XÁC NHẬN KIỂM ĐỊNH SÁCH THẬT NGOÀI ĐỜI -->
+        <div class="card border-0 shadow-sm rounded-4 bg-white border-start border-4 border-warning">
+            <div class="card-body p-4">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <h5 class="fw-bold mb-0"><i class="bi bi-patch-check-fill text-warning me-2"></i>2. Kiểm Định Sách Thật Ngoài Đời</h5>
+                    <span class="badge bg-dark">Curator / Admin</span>
+                </div>
+                <p class="small text-muted mb-3">Khóa bảo vệ bởi <code>[Authorize(Roles = "Curator,Admin")]</code>. Cộng <code>+2 TrustScore</code> cho chủ sách sau khi xác minh.</p>
+
+                <form id="formCuratorVerify" class="d-flex flex-column gap-3">
+                    <div>
+                        <label class="form-label small fw-bold">Bản sao sách kiểm định tại Trạm CLB</label>
+                        <select id="verifyCopyId" class="form-select">
+                            @foreach (var c in Model.HubCopies)
+                            {
+                                <option value="@c.BookCopyId">[@c.Barcode] @c.BookTitle (@c.Condition • @c.ShelfLocation)</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="row g-2">
+                        <div class="col-6">
+                            <label class="form-label small fw-bold">Cấp độ vật lý thực tế</label>
+                            <select id="verifyCondition" class="form-select">
+                                <option value="New">New (Mới 99%)</option>
+                                <option value="Good" selected>Good (Tốt, đủ trang)</option>
+                                <option value="Fair">Fair (Khá)</option>
+                                <option value="Worn">Worn (Sờn gáy)</option>
+                            </select>
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label small fw-bold">Ngăn kệ tại Trạm CLB</label>
+                            <input type="text" id="verifyShelfLocation" class="form-control" value="Trạm CLB-K1 (Đã kiểm định)" required />
+                        </div>
+                    </div>
+                    <button type="submit" class="btn btn-warning fw-bold text-dark">
+                        <i class="bi bi-shield-fill-check me-1"></i>Xác Nhận Kiểm Định Sách Thật (+2 TrustScore)
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- CỘT PHẢI: BẢNG ĐIỀU PHỐI GIAO NHẬN TRUNG GIAN P2P TẠI HUB -->
+    <div class="col-lg-7">
+        <div class="card border-0 shadow-sm rounded-4 bg-white h-100">
+            <div class="card-body p-4">
+                <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+                    <div>
+                        <h5 class="fw-bold mb-0"><i class="bi bi-arrow-left-right text-primary me-2"></i>Điều Phối Ký Gửi & Giao Nhận Sách P2P Trung Gian</h5>
+                        <small class="text-muted">Chủ nhiệm CLB (<code>Curator</code>) xác nhận Chủ sách gửi sách $\rightarrow$ Người mượn nhận sách $\rightarrow$ Hoàn trả tại Hub</small>
+                    </div>
+                    <span class="badge bg-primary">@Model.HubP2POrders.Count đơn P2P</span>
+                </div>
+
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle small mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Đơn / Bản sao</th>
+                                <th>Chủ sách $\rightarrow$ Người mượn</th>
+                                <th>Trạng thái</th>
+                                <th>Xác nhận của Curator (<code>[Authorize]</code>)</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var ord in Model.HubP2POrders)
+                            {
+                                <tr>
+                                    <td>
+                                        <code>#REQ-@ord.LoanRequestId</code> • <code>@ord.Barcode</code>
+                                        <div class="fw-bold">@ord.BookTitle</div>
+                                        <small class="text-muted"><i class="bi bi-geo-alt me-1"></i>@ord.HubName</small>
+                                    </td>
+                                    <td>
+                                        <div>Chủ: <strong>@ord.OwnerName</strong></div>
+                                        <div>Mượn: <strong class="text-primary">@ord.BorrowerName</strong> (Trust: @ord.BorrowerTrustScore)</div>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-info text-dark d-block mb-1">Đơn: @ord.RequestStatus</span>
+                                        <span class="badge @(ord.CopyStatus == "Borrowed" ? "bg-warning text-dark" : ord.CopyStatus == "InTransit" ? "bg-primary" : "bg-success")">
+                                            Sách: @ord.CopyStatus
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <div class="d-flex flex-column gap-1">
+                                            <button type="button" class="btn btn-xs btn-outline-primary fw-semibold js-hub-action"
+                                                    data-req-id="@ord.LoanRequestId" data-action="CheckInDropoff">
+                                                1. Nhận ký gửi (InTransit)
+                                            </button>
+                                            <button type="button" class="btn btn-xs btn-primary fw-bold js-hub-action"
+                                                    data-req-id="@ord.LoanRequestId" data-action="HandoverToBorrower">
+                                                2. Giao người mượn (+Quota)
+                                            </button>
+                                            <button type="button" class="btn btn-xs btn-outline-success fw-semibold js-hub-action"
+                                                    data-req-id="@ord.LoanRequestId" data-action="ConfirmReturnAtHub">
+                                                3. Nhận trả tại Hub
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script type="module" src="~/modules/s20-exchange-hub-club/s20-exchange-hub-club.js" asp-append-version="true"></script>
+}

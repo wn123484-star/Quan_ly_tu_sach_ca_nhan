@@ -1,0 +1,135 @@
+@model BookShare.Web.Models.ViewModels.S14AiRecommendationPageViewModel
+@{
+    ViewData["Title"] = "S14 - Gợi ý Sách Cá nhân hóa bằng AI";
+}
+
+@section Styles {
+    <link rel="stylesheet" href="~/modules/s14-ai-recommendation/s14-ai-recommendation.css" asp-append-version="true" />
+}
+
+<section class="s14-hero bs-card">
+    <div>
+        <span class="bs-badge bs-badge-info">DỊCH VỤ S14 • AI PERSONALIZED BOOK RECOMMENDATION</span>
+        <h1>🎯 Gợi ý Sách Cá nhân hóa theo Hồ sơ Đọc & Tâm trạng</h1>
+        <p class="bs-muted">@Model.AiPersonaSummary</p>
+        <div class="s14-tag-row">
+            <span>Chuyên ngành yêu thích:</span>
+            @foreach (var cat in Model.TopReadCategories)
+            {
+                <span class="bs-badge bs-badge-success">@cat</span>
+            }
+        </div>
+    </div>
+    <div class="s14-stats">
+        <div class="s14-stat-box">
+            <span>Tổng sách theo dõi (S03)</span>
+            <strong>@Model.TotalTrackedBooks cuốn</strong>
+        </div>
+        <div class="s14-stat-box">
+            <span>Đã hoàn thành</span>
+            <strong>@Model.CompletedBooksCount cuốn</strong>
+        </div>
+    </div>
+</section>
+
+<!-- BỘ LỌC TÂM TRẠNG / CHUYÊN NGÀNH & TRÌNH SINH LỘ TRÌNH AI -->
+<div class="s14-filter-grid">
+    <section class="bs-card s14-filter-card">
+        <h3>🧭 Lọc danh sách gợi ý theo Tâm trạng & Chuyên ngành</h3>
+        <form method="get" action="/S14AiRecommendation" class="s14-filter-form">
+            <div>
+                <label class="bs-label">Tâm trạng / Chế độ đọc hiện tại</label>
+                <select name="mood" class="bs-select">
+                    <option value="all" selected="@(Model.SelectedMood == "all")">Tất cả chế độ đọc</option>
+                    <option value="DeepFocus" selected="@(Model.SelectedMood == "DeepFocus")">🔥 Deep Focus (Nghiên cứu sâu / Đồ án)</option>
+                    <option value="CareerBoost" selected="@(Model.SelectedMood == "CareerBoost")">🚀 Career Boost (Kỹ năng & Tư duy)</option>
+                    <option value="WeekendRelax" selected="@(Model.SelectedMood == "WeekendRelax")">☕ Weekend Relax (Đọc thư giãn cuối tuần)</option>
+                </select>
+            </div>
+            <div>
+                <label class="bs-label">Lĩnh vực chuyên môn</label>
+                <select name="major" class="bs-select">
+                    <option value="all" selected="@(Model.SelectedMajor == "all")">Mọi chuyên ngành</option>
+                    <option value="Công nghệ" selected="@(Model.SelectedMajor == "Công nghệ")">Công nghệ & Kỹ thuật phần mềm</option>
+                    <option value="Kinh tế" selected="@(Model.SelectedMajor == "Kinh tế")">Kinh tế & Quản trị</option>
+                    <option value="Kỹ năng" selected="@(Model.SelectedMajor == "Kỹ năng")">Kỹ năng & Tư duy</option>
+                    <option value="Văn học" selected="@(Model.SelectedMajor == "Văn học")">Văn học & Nhân văn</option>
+                </select>
+            </div>
+            <button type="submit" class="bs-btn bs-btn-primary">Lọc gợi ý</button>
+        </form>
+    </section>
+
+    <section class="bs-card s14-ai-roadmap-card">
+        <h3>✨ Nhờ AI Thiết kế Lộ trình Đọc 14 Ngày</h3>
+        <form id="formGenerateCustomRec" class="s14-roadmap-form">
+            <input type="text" id="customSkillGoal" class="bs-input"
+                   value="Kiến trúc Phần mềm Clean Architecture & ASP.NET Core 10"
+                   placeholder="Nhập kỹ năng hoặc mục tiêu học tập..." required />
+            <select id="customMoodSelect" class="bs-select">
+                <option value="DeepFocus">Tập trung cao độ (Deep Focus)</option>
+                <option value="CareerBoost">Tăng tốc phỏng vấn / Đi làm</option>
+                <option value="WeekendRelax">Đọc nhẹ nhàng mỗi tối 30 phút</option>
+            </select>
+            <button type="submit" id="btnGenerateRoadmap" class="bs-btn bs-btn-primary">🤖 Phân tích bằng AI</button>
+        </form>
+        <div id="aiCustomAdviceBox" class="s14-advice-output" style="display:none;"></div>
+    </section>
+</div>
+
+<!-- DANH SÁCH THẺ SÁCH GỢI Ý (KHÔNG GIÁ BÁN - CHỈ MƯỢN HOẶC THÊM VÀO S03) -->
+<section class="s14-grid">
+    @foreach (var item in Model.Recommendations)
+    {
+        <article class="bs-card s14-book-card">
+            <div class="s14-card-top">
+                <span class="s14-match-pill">🎯 Độ khớp AI: @item.MatchScorePercent%</span>
+                <span class="bs-badge @(item.AvailableCopiesCount > 0 ? "bs-badge-success" : "bs-badge-warning")">
+                    @(item.AvailableCopiesCount > 0 ? $"Sẵn sàng {item.AvailableCopiesCount} bản sao" : "Đang được mượn hết")
+                </span>
+            </div>
+
+            <div class="s14-book-main">
+                <div class="s14-cover">📘</div>
+                <div>
+                    <span class="s14-category">@item.CategoryName • @item.MoodTag</span>
+                    <h3>@item.Title</h3>
+                    <p class="bs-muted">@item.Author • ISBN: <code>@item.ISBN</code> • @item.PageCount trang</p>
+                </div>
+            </div>
+
+            <div class="s14-ai-reason">
+                <strong>💡 Lý do AI gợi ý cho bạn:</strong>
+                <p>@item.AiReason</p>
+            </div>
+
+            <div class="s14-card-actions">
+                @if (item.AvailableBookCopyId.HasValue)
+                {
+                    <button type="button"
+                            class="bs-btn bs-btn-primary js-s14-request-loan"
+                            data-copy-id="@item.AvailableBookCopyId.Value"
+                            data-title="@item.Title">
+                        📩 Gửi yêu cầu mượn (@item.AvailableBarcode)
+                    </button>
+                }
+                else
+                {
+                    <a href="/S11HotBookQueue" class="bs-btn bs-btn-outline">⏳ Đặt giữ chỗ S11</a>
+                }
+
+                <button type="button"
+                        class="bs-btn bs-btn-outline js-s14-add-tracker"
+                        data-book-id="@item.BookId"
+                        data-pages="@item.PageCount"
+                        data-title="@item.Title">
+                    🎯 Thêm vào mục tiêu đọc (S03)
+                </button>
+            </div>
+        </article>
+    }
+</section>
+
+@section Scripts {
+    <script type="module" src="~/modules/s14-ai-recommendation/s14-ai-recommendation.js" asp-append-version="true"></script>
+}

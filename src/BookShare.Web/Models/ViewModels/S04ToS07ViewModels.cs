@@ -144,6 +144,8 @@ public class S06SearchDiscoveryFilterDto
     public string OwnerType { get; set; } = "all"; // all / System / User
     public string StatusFilter { get; set; } = "all"; // all / Available / Borrowed / Reserved
     public int MinTrustScore { get; set; } = 0;
+    public int Page { get; set; } = 1;
+    public int PageSize { get; set; } = 6;
 }
 
 public class S06SearchDiscoveryPageViewModel
@@ -155,6 +157,10 @@ public class S06SearchDiscoveryPageViewModel
     public int AvailableCopiesCount { get; set; }
     public int SystemCopiesCount { get; set; }
     public int P2PCopiesCount { get; set; }
+    public int CurrentPage { get; set; } = 1;
+    public int PageSize { get; set; } = 6;
+    public int TotalPages { get; set; } = 1;
+    public int TotalItems { get; set; }
     public List<S06DiscoveredCopyDto> Results { get; set; } = new();
 }
 
@@ -200,8 +206,18 @@ public class S07LibraryCatalogPageViewModel
     public int ReservedCount { get; set; }
     public int BorrowedCount { get; set; }
     public int DamagedOrLostCount { get; set; }
+    public int CurrentPage { get; set; } = 1;
+    public int PageSize { get; set; } = 6;
+    public int TotalPages { get; set; } = 1;
+    public int TotalItems { get; set; }
     public List<S07LibraryPartnerDto> Libraries { get; set; } = new();
     public List<S07LibraryCopyItemDto> Copies { get; set; } = new();
+}
+
+public class S07UpdateShelfRequestDto
+{
+    public int BookCopyId { get; set; }
+    public string ShelfLocation { get; set; } = string.Empty;
 }
 
 public class S07LibraryPartnerDto

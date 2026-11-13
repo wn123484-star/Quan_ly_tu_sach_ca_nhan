@@ -66,3 +66,20 @@ public class AddBookToShelfRequestDto
     public string Condition { get; set; } = "Good";
     public bool IsLendable { get; set; } = true;
 }
+
+public class UpdateBookCopyRequestDto
+{
+    public int BookCopyId { get; set; }
+    public string Condition { get; set; } = "Good";
+    public int? ShelfId { get; set; }
+}
+
+public class DeleteBookCopyRequestDto
+{
+    public int BookCopyId { get; set; }
+}
+
+public class DeleteShelfRequestDto
+{
+    public int ShelfId { get; set; }
+}

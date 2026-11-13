@@ -18,6 +18,18 @@ public interface IS02PersonalShelfService
     Task<(bool Success, string Message)> AddBookToShelfAsync(
         string currentUserId,
         AddBookToShelfRequestDto request);
+
+    Task<(bool Success, string Message)> UpdateBookCopyAsync(
+        string currentUserId,
+        UpdateBookCopyRequestDto request);
+
+    Task<(bool Success, string Message)> DeleteBookCopyAsync(
+        string currentUserId,
+        int bookCopyId);
+
+    Task<(bool Success, string Message)> DeleteShelfAsync(
+        string currentUserId,
+        int shelfId);
 }
 
 public interface IS03ReadingTrackerService

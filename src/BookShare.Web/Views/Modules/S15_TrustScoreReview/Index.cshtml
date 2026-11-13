@@ -1,0 +1,157 @@
+@model BookShare.Web.Models.ViewModels.S15TrustScoreReviewPageViewModel
+@{
+    ViewData["Title"] = "S15 - Đánh giá 2 Chiều & Hệ thống Uy tín TrustScore";
+}
+
+@section Styles {
+    <link rel="stylesheet" href="~/modules/s15-trust-score-review/s15-trust-score-review.css" asp-append-version="true" />
+}
+
+<section class="s15-hero bs-card">
+    <div>
+        <span class="bs-badge bs-badge-info">DỊCH VỤ S15 • TWO-WAY REVIEW & TRUSTSCORE REPUTATION</span>
+        <h1>⭐ Đánh giá 2 Chiều (Sách & Độc giả) & Bảng Vinh danh Uy tín</h1>
+        <p class="bs-muted">
+            Hệ thống chấm điểm uy tín minh bạch sau mỗi lượt mượn – trả: Đánh giá chất lượng đầu sách (<code>TargetType = Book</code>) và đánh giá thái độ giữ gìn sách của Người mượn / Chủ sách (<code>TargetType = User</code>), tự động cộng/trừ trực tiếp vào cột <code>AspNetUsers.TrustScore</code>.
+        </p>
+    </div>
+    <div class="s15-my-score">
+        <span>Điểm Uy tín của @Model.CurrentUserName</span>
+        <strong>🛡️ @Model.CurrentUserTrustScore điểm</strong>
+        <small>Thưởng hạn mức: +@Model.CurrentUserLendQuotaBonus cuốn mượn thêm</small>
+    </div>
+</section>
+
+<div class="s15-workspace">
+    <!-- CỘT TRÁI: FORM ĐÁNH GIÁ 2 CHIỀU & BẢNG VINH DANH -->
+    <div class="s15-left-col">
+        <section class="bs-card s15-form-card">
+            <h3>✍️ Gửi Đánh giá 2 Chiều (Lưu vào bảng <code>Reviews</code>)</h3>
+            <form id="formSubmitReview" class="s15-form">
+                <div>
+                    <label class="bs-label">Loại đối tượng đánh giá</label>
+                    <select id="reviewTargetType" class="bs-select">
+                        <option value="User">👤 Đánh giá Uy tín Thành viên (Cộng/Trừ TrustScore)</option>
+                        <option value="Book">📘 Đánh giá Chất lượng Nội dung Đầu sách</option>
+                    </select>
+                </div>
+
+                <div id="userTargetGroup">
+                    <label class="bs-label">Chọn Thành viên (Người mượn / Chủ sách / Thủ thư)</label>
+                    <select id="reviewTargetUserId" class="bs-select">
+                        @foreach (var u in Model.UsersToReview)
+                        {
+                            <option value="@u.UserId">@u.FullName (@u.RoleName • @u.TrustScore điểm)</option>
+                        }
+                    </select>
+                </div>
+
+                <div id="bookTargetGroup" style="display:none;">
+                    <label class="bs-label">Chọn Đầu sách cần đánh giá</label>
+                    <select id="reviewTargetBookId" class="bs-select">
+                        @foreach (var b in Model.BooksToReview)
+                        {
+                            <option value="@b.Id">@b.Title — @b.Author</option>
+                        }
+                    </select>
+                </div>
+
+                <div>
+                    <label class="bs-label">Mức xếp hạng sao (1 -> 5 sao)</label>
+                    <select id="reviewRating" class="bs-select">
+                        <option value="5">⭐⭐⭐⭐⭐ (5 sao — Xuất sắc • +5 TrustScore)</option>
+                        <option value="4">⭐⭐⭐⭐ (4 sao — Tốt • +2 TrustScore)</option>
+                        <option value="3">⭐⭐⭐ (3 sao — Bình thường • +0 TrustScore)</option>
+                        <option value="2">⭐⭐ (2 sao — Trễ hẹn / Sách nhăn • -3 TrustScore)</option>
+                        <option value="1">⭐ (1 sao — Vi phạm nghiêm trọng • -6 TrustScore)</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label class="bs-label">Nhận xét chi tiết</label>
+                    <textarea id="reviewComment" class="bs-textarea" rows="3"
+                              placeholder="Ghi nhận tình trạng bảo quản sách, độ đúng giờ tại điểm hẹn Hub hoặc cảm nhận chuyên môn về cuốn sách..." required></textarea>
+                </div>
+
+                <button type="submit" id="btnSubmitReview" class="bs-btn bs-btn-primary" style="width:100%;">
+                    ⭐ Gửi Đánh giá & Cập nhật TrustScore
+                </button>
+            </form>
+        </section>
+
+        <!-- BẢNG VINH DANH ĐỘC GIẢ UY TÍN -->
+        <section class="bs-card s15-leaderboard-card">
+            <h3>🏆 Bảng Vinh danh Độc giả Uy tín (Top TrustScore)</h3>
+            <div class="s15-leader-list">
+                @foreach (var leader in Model.Leaderboard)
+                {
+                    <div class="s15-leader-row">
+                        <div class="s15-rank">#@leader.Rank</div>
+                        <div class="s15-leader-info">
+                            <strong>@leader.FullName</strong>
+                            <small>@leader.RoleName • @leader.TotalReviewsReceived lượt nhận đánh giá</small>
+                        </div>
+                        <div class="s15-leader-score">
+                            <span class="bs-badge bs-badge-success">@leader.TrustScore điểm</span>
+                            <small>+@leader.LendQuotaBonus cuốn</small>
+                        </div>
+                    </div>
+                }
+            </div>
+        </section>
+    </div>
+
+    <!-- CỘT PHẢI: NHẬT KÝ ĐÁNH GIÁ & BIẾN ĐỘNG TRUSTSCORE -->
+    <section class="bs-card s15-feed-card">
+        <div class="s15-feed-head">
+            <div>
+                <h3>📜 Nhật ký Đánh giá Cộng đồng & Biến động TrustScore</h3>
+                <span class="bs-muted" style="font-size:0.83rem;">Hiển thị trực tiếp từ bảng <code>Reviews</code> trong SQL Server</span>
+            </div>
+            <div class="s15-filter-pills">
+                <button type="button" class="s15-pill active js-filter-review" data-type="all">Tất cả (@Model.Reviews.Count)</button>
+                <button type="button" class="s15-pill js-filter-review" data-type="User">👤 Đánh giá Thành viên</button>
+                <button type="button" class="s15-pill js-filter-review" data-type="Book">📘 Đánh giá Sách</button>
+            </div>
+        </div>
+
+        <div class="s15-review-list" id="s15ReviewList">
+            @foreach (var rev in Model.Reviews)
+            {
+                <article class="s15-review-item" data-target-type="@rev.TargetType">
+                    <div class="s15-review-top">
+                        <div>
+                            <span class="bs-badge @(rev.TargetType == "User" ? "bs-badge-info" : "bs-badge-success")">
+                                @(rev.TargetType == "User" ? "👤 Uy tín Thành viên" : "📘 Review Đầu sách")
+                            </span>
+                            <strong>@rev.ReviewerName</strong>
+                            <span class="bs-muted">đã đánh giá</span>
+                            <strong>@rev.TargetDisplayName</strong>
+                        </div>
+                        <div class="s15-stars">
+                            @for (var i = 0; i < rev.Rating; i++)
+                            {
+                                <span>⭐</span>
+                            }
+                            @if (rev.TargetType == "User")
+                            {
+                                <span class="s15-delta @(rev.TrustScoreDelta >= 0 ? "pos" : "neg")">
+                                    (@(rev.TrustScoreDelta >= 0 ? $"+{rev.TrustScoreDelta}" : rev.TrustScoreDelta.ToString()) TrustScore)
+                                </span>
+                            }
+                        </div>
+                    </div>
+                    <p class="s15-review-comment">@rev.Comment</p>
+                    <div class="s15-review-foot">
+                        <span>Mã đánh giá: #@rev.ReviewId @(rev.LoanId.HasValue ? $"• Phiếu mượn #{rev.LoanId}" : "")</span>
+                        <span>@rev.CreatedAt.ToString("dd/MM/yyyy HH:mm")</span>
+                    </div>
+                </article>
+            }
+        </div>
+    </section>
+</div>
+
+@section Scripts {
+    <script type="module" src="~/modules/s15-trust-score-review/s15-trust-score-review.js" asp-append-version="true"></script>
+}

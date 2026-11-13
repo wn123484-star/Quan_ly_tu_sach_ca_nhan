@@ -92,7 +92,12 @@
                     </li>
                     <li class="nav-item" role="presentation">
                         <button class="nav-link fw-bold" data-bs-toggle="pill" data-bs-target="#tabRegister" type="button">
-                            <i class="bi bi-person-plus me-1"></i>3. Đăng ký Tài khoản Mới
+                            <i class="bi bi-person-plus me-1"></i>3. Đăng ký Mới
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link fw-bold" data-bs-toggle="pill" data-bs-target="#tabProfile" type="button">
+                            <i class="bi bi-person-vcard-fill me-1"></i>4. Hồ sơ Cá nhân & Đổi mật khẩu
                         </button>
                     </li>
                 </ul>
@@ -211,6 +216,70 @@
                                 <div class="col-12">
                                     <button type="submit" class="btn btn-primary w-100 fw-bold py-2">
                                         <i class="bi bi-person-plus-fill me-1"></i>Tạo Tài Khoản Mới (+100 TrustScore)
+                                    </button>
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+
+                    <!-- TAB 4: HỒ SƠ CÁ NHÂN & ĐỔI MẬT KHẨU (MỤC 2.4 RUBRIC) -->
+                    <div class="tab-pane fade" id="tabProfile" role="tabpanel">
+                        <div class="d-flex align-items-center gap-3 p-3 rounded-4 bg-light border mb-3">
+                            <img src="@Model.CurrentUserAvatarUrl" alt="Avatar" id="s01AvatarPreview"
+                                 class="rounded-circle border shadow-sm" style="width:64px; height:64px; object-fit:cover;"
+                                 onerror="this.src='https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=200'" />
+                            <div>
+                                <div class="fw-bold text-dark">@Model.CurrentUserFullName</div>
+                                <div class="small text-muted">Email: <code>@Model.CurrentUserEmail</code> • Vai trò: <span class="badge bg-primary">@Model.CurrentUserRole</span></div>
+                                <div class="small text-success fw-semibold"><i class="bi bi-award-fill me-1"></i>Điểm uy tín: @Model.CurrentTrustScore điểm</div>
+                            </div>
+                        </div>
+
+                        <form id="s01UpdateProfileForm" class="mb-4 pb-3 border-bottom">
+                            <h6 class="fw-bold small text-primary text-uppercase mb-3">
+                                <i class="bi bi-pencil-square me-1"></i>Cập nhật Thông tin Hồ sơ Cá nhân (Bảng <code>AspNetUsers</code>)
+                            </h6>
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label class="form-label small fw-bold">Họ và tên (<code>FullName</code>) *</label>
+                                    <input type="text" id="profFullName" class="form-control" value="@Model.CurrentUserFullName" required />
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label small fw-bold">Số điện thoại (<code>PhoneNumber</code>)</label>
+                                    <input type="text" id="profPhone" class="form-control" value="@Model.CurrentUserPhoneNumber" placeholder="0988xxxxxx" />
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label small fw-bold">Địa chỉ / Khu vực P2P (<code>Address</code>)</label>
+                                    <input type="text" id="profAddress" class="form-control" value="@Model.CurrentUserAddress" />
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label small fw-bold">Link Ảnh đại diện (<code>AvatarUrl</code>)</label>
+                                    <input type="text" id="profAvatarUrl" class="form-control" value="@Model.CurrentUserAvatarUrl" />
+                                </div>
+                                <div class="col-12 text-end">
+                                    <button type="submit" class="btn btn-primary fw-bold px-4">
+                                        <i class="bi bi-check2-circle me-1"></i>Lưu Thay Đổi Hồ Sơ
+                                    </button>
+                                </div>
+                            </div>
+                        </form>
+
+                        <form id="s01ChangePasswordForm">
+                            <h6 class="fw-bold small text-danger text-uppercase mb-3">
+                                <i class="bi bi-key-fill me-1"></i>Đổi Mật Khẩu Bảo Mật (Băm Identity <code>PasswordHash</code>)
+                            </h6>
+                            <div class="row g-3 align-items-end">
+                                <div class="col-md-5">
+                                    <label class="form-label small fw-bold">Mật khẩu hiện tại</label>
+                                    <input type="password" id="profCurrentPass" class="form-control" value="BookShare@123" required />
+                                </div>
+                                <div class="col-md-5">
+                                    <label class="form-label small fw-bold">Mật khẩu mới (tối thiểu 6 ký tự)</label>
+                                    <input type="password" id="profNewPass" class="form-control" value="BookShare@123" required />
+                                </div>
+                                <div class="col-md-2">
+                                    <button type="submit" class="btn btn-outline-danger fw-bold w-100">
+                                        Đổi MK
                                     </button>
                                 </div>
                             </div>

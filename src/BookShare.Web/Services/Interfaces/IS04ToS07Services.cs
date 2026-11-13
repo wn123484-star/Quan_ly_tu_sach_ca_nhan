@@ -48,5 +48,11 @@ public interface IS07LibraryCatalogService
     Task<S07LibraryCatalogPageViewModel> GetLibraryCatalogAsync(
         int? libraryId = null,
         string statusFilter = "all",
-        string? keyword = null);
+        string? keyword = null,
+        int page = 1,
+        int pageSize = 6);
+
+    Task<(bool Success, string Message)> UpdateCopyShelfLocationAsync(
+        int bookCopyId,
+        string shelfLocation);
 }

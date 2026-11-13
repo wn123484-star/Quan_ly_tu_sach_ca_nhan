@@ -1,0 +1,141 @@
+@model BookShare.Web.Models.ViewModels.S13GeminiAssistantPageViewModel
+@{
+    ViewData["Title"] = "S13 - Trợ lý AI Gemini & Tra cứu RAG SQL Server";
+}
+
+@section Styles {
+    <link rel="stylesheet" href="~/modules/s13-gemini-ai-assistant/s13-gemini-ai-assistant.css" asp-append-version="true" />
+}
+
+<section class="s13-header bs-card">
+    <div>
+        <div class="s13-badges">
+            <span class="bs-badge bs-badge-info">DỊCH VỤ S13 • AI COMPANION & LIGHTWEIGHT RAG</span>
+            <span class="bs-badge @(Model.HasConfiguredApiKey ? "bs-badge-success" : "bs-badge-warning")">
+                @(Model.HasConfiguredApiKey ? $"Gemini Live ({Model.ActiveModelName})" : "Smart Local RAG Engine (SQL Server)")
+            </span>
+        </div>
+        <h1>🤖 Trợ lý Học thuật AI Gemini & Tra cứu RAG Kho Sách</h1>
+        <p class="bs-muted">
+            Trò chuyện trực tiếp với AI về tóm tắt chương sách, hỏi quy định hạn mức mượn (S10), kiểm tra sách đang có sẵn trong kho SQL Server (S06/S07) và lưu trọn bộ lịch sử hội thoại vào bảng <code>AiChatSessions</code> & <code>AiChatMessages</code>.
+        </p>
+    </div>
+    <div class="s13-kpi-row">
+        <div class="s13-kpi">
+            <span>Bản sao Sẵn sàng (RAG)</span>
+            <strong>@Model.RagAvailableCopiesCount cuốn</strong>
+        </div>
+        <div class="s13-kpi">
+            <span>Đang đọc (S03)</span>
+            <strong>@Model.UserReadingBooksCount cuốn</strong>
+        </div>
+        <div class="s13-kpi">
+            <span>Phiếu đang mượn</span>
+            <strong>@Model.UserActiveLoansCount phiếu</strong>
+        </div>
+    </div>
+</section>
+
+<div class="s13-workspace">
+    <!-- CỘT TRÁI: QUẢN LÝ PHIÊN HỘI THOẠI & NGỮ CẢNH RAG -->
+    <aside class="s13-sidebar">
+        <div class="bs-card s13-panel">
+            <div class="s13-panel-head">
+                <h3>💬 Phiên hội thoại AI</h3>
+            </div>
+            <form id="formCreateAiSession" class="s13-new-session-form">
+                <input type="text" id="newSessionTitle" class="bs-input" placeholder="Tên chủ đề mới (VD: Ôn tập Clean Code)..." required />
+                <button type="submit" id="btnCreateSession" class="bs-btn bs-btn-primary">+ Tạo phiên</button>
+            </form>
+
+            <div class="s13-session-list">
+                @foreach (var s in Model.Sessions)
+                {
+                    <a href="/S13GeminiAiAssistant?sessionId=@s.SessionId"
+                       class="s13-session-item @(Model.SelectedSessionId == s.SessionId ? "active" : "")">
+                        <div>
+                            <strong>@s.Title</strong>
+                            <small>@s.ModelName • @s.UpdatedAt.ToString("dd/MM HH:mm")</small>
+                        </div>
+                        <span class="bs-badge bs-badge-info">@s.MessageCount tin</span>
+                    </a>
+                }
+            </div>
+        </div>
+
+        <div class="bs-card s13-panel">
+            <h3>📚 Ngữ cảnh RAG Kho sách (SQL Server)</h3>
+            <p class="bs-muted" style="font-size:0.8rem;margin-bottom:0.65rem;">
+                Dữ liệu sách thật dưới đây được đính kèm tự động vào System Prompt khi bạn đặt câu hỏi:
+            </p>
+            <div class="s13-rag-list">
+                @foreach (var b in Model.RagBooksPreview)
+                {
+                    <div class="s13-rag-book">
+                        <div>
+                            <strong>@b.Title</strong>
+                            <small>@b.Author • @b.CategoryName</small>
+                        </div>
+                        <span class="bs-badge @(b.AvailableCopies > 0 ? "bs-badge-success" : "bs-badge-warning")">
+                            Còn @b.AvailableCopies bản
+                        </span>
+                    </div>
+                }
+            </div>
+        </div>
+    </aside>
+
+    <!-- CỘT PHẢI: KHUNG CHAT AI GEMINI -->
+    <section class="bs-card s13-chat-card">
+        <div class="s13-chat-header">
+            <div>
+                <h2>Phiên #@Model.SelectedSessionId — Hỏi đáp Học thuật & Kho sách</h2>
+                <span class="bs-muted" style="font-size:0.82rem;">Người dùng: <strong>@Model.CurrentUserName</strong> • Bảo mật: Chống XSS bằng <code>innerText</code> & khóa API phía Server</span>
+            </div>
+            <a href="/S14AiRecommendation" class="bs-btn bs-btn-outline">🎯 Chuyển sang Gợi ý S14</a>
+        </div>
+
+        <!-- GỢI Ý PROMPT NHANH -->
+        <div class="s13-prompt-chips">
+            <button type="button" class="s13-chip js-quick-prompt" data-prompt="Hiện tại kho sách BookShare còn những cuốn sách Công nghệ hay Kiến trúc phần mềm nào sẵn sàng cho mượn?">
+                🔍 Kiểm tra sách CNTT còn sẵn bản sao
+            </button>
+            <button type="button" class="s13-chip js-quick-prompt" data-prompt="Tóm tắt 3 nguyên tắc quan trọng nhất của cuốn Clean Code và cách áp dụng vào đồ án ASP.NET Core.">
+                📖 Tóm tắt trọng tâm Clean Code
+            </button>
+            <button type="button" class="s13-chip js-quick-prompt" data-prompt="Giải thích quy định hạn mức mượn sách theo điểm uy tín TrustScore và mức phí bảo trì trễ hạn.">
+                ⚖️ Hỏi quy định hạn mức & phí trễ hạn
+            </button>
+        </div>
+
+        <!-- DANH SÁCH TIN NHẮN -->
+        <div id="s13ChatViewport" class="s13-chat-viewport">
+            @foreach (var msg in Model.Messages)
+            {
+                var isAi = msg.Sender.Equals("Gemini", StringComparison.OrdinalIgnoreCase);
+                <div class="s13-msg-row @(isAi ? "ai" : "user")">
+                    <div class="s13-msg-avatar">@(isAi ? "🤖" : "👤")</div>
+                    <div class="s13-msg-bubble">
+                        <div class="s13-msg-meta">
+                            <strong>@(isAi ? "Trợ lý AI BookShare" : Model.CurrentUserName)</strong>
+                            <span>@msg.CreatedAt.ToString("dd/MM/yyyy HH:mm") @(msg.PromptTokens > 0 ? $"• {msg.PromptTokens} tokens" : "")</span>
+                        </div>
+                        <div class="s13-msg-text">@msg.MessageText</div>
+                    </div>
+                </div>
+            }
+        </div>
+
+        <!-- FORM GỬI TIN NHẮN -->
+        <form id="formSendS13Chat" class="s13-chat-input-bar">
+            <input type="hidden" id="s13CurrentSessionId" value="@Model.SelectedSessionId" />
+            <input type="text" id="s13MessageInput" class="bs-input"
+                   placeholder="Nhập câu hỏi về sách trong kho, tóm tắt nội dung hoặc lộ trình đọc..." required />
+            <button type="submit" id="btnSendS13Chat" class="bs-btn bs-btn-primary">Gửi câu hỏi ➔</button>
+        </form>
+    </section>
+</div>
+
+@section Scripts {
+    <script type="module" src="~/modules/s13-gemini-ai-assistant/s13-gemini-ai-assistant.js" asp-append-version="true"></script>
+}

@@ -195,6 +195,42 @@ public class S01AuthOtpGoogleController : Controller
         return RedirectToAction("Index", "S02PersonalShelf");
     }
 
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> UpdateProfile([FromBody] UpdateProfileRequestDto request)
+    {
+        var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "u-user-01";
+        var (success, message, updatedClaims) = await _authService.UpdateUserProfileAsync(currentUserId, request);
+        if (!success)
+        {
+            return BadRequest(new { message });
+        }
+
+        if (User.Identity?.IsAuthenticated == true && updatedClaims != null)
+        {
+            await SignInCookieAsync(updatedClaims, isPersistent: true);
+        }
+
+        TempData["StatusCode"] = 200;
+        TempData["StatusTitle"] = "Đã cập nhật Hồ sơ Cá nhân (S01)";
+        TempData["StatusDetail"] = message;
+        return Ok(new { title = "Cập nhật Hồ sơ Cá nhân thành công (S01)", message });
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> ChangePassword([FromBody] ChangePasswordRequestDto request)
+    {
+        var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "u-user-01";
+        var (success, message) = await _authService.ChangeUserPasswordAsync(currentUserId, request);
+        if (!success)
+        {
+            return BadRequest(new { message });
+        }
+
+        return Ok(new { title = "Đổi mật khẩu thành công (S01)", message });
+    }
+
     private async Task SignInCookieAsync(AuthUserClaimsDto userClaims, bool isPersistent)
     {
         var claims = new List<Claim>

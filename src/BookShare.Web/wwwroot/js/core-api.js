@@ -51,6 +51,8 @@ export async function apiFetch(url, options = {}) {
         if (options.body && typeof options.body === 'object' && !(options.body instanceof FormData)) {
             headers.set('Content-Type', 'application/json');
             options.body = JSON.stringify(options.body);
+        } else if (typeof options.body === 'string' && !headers.has('Content-Type')) {
+            headers.set('Content-Type', 'application/json');
         }
     }
 

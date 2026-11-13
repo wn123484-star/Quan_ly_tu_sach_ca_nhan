@@ -23,7 +23,9 @@ public class S06SearchDiscoveryController : Controller
         string? areaFilter = null,
         string ownerType = "all",
         string statusFilter = "all",
-        int minTrustScore = 0)
+        int minTrustScore = 0,
+        int page = 1,
+        int pageSize = 6)
     {
         var filter = new S06SearchDiscoveryFilterDto
         {
@@ -34,7 +36,9 @@ public class S06SearchDiscoveryController : Controller
             AreaFilter = areaFilter,
             OwnerType = string.IsNullOrWhiteSpace(ownerType) ? "all" : ownerType,
             StatusFilter = string.IsNullOrWhiteSpace(statusFilter) ? "all" : statusFilter,
-            MinTrustScore = minTrustScore
+            MinTrustScore = minTrustScore,
+            Page = page,
+            PageSize = pageSize
         };
 
         var vm = await _searchService.SearchCopiesAsync(filter);

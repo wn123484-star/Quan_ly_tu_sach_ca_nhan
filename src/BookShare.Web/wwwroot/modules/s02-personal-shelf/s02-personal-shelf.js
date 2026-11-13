@@ -90,4 +90,57 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
     }
+
+    // 4. Cập nhật tình trạng & kệ của bản sao sách (Update CRUD)
+    document.querySelectorAll('.js-update-copy').forEach(btn => {
+        btn.addEventListener('click', async () => {
+            const bookCopyId = parseInt(btn.getAttribute('data-copy-id') || '0', 10);
+            const condition = document.getElementById(`editCond-${bookCopyId}`)?.value || 'Good';
+            const shelfId = parseInt(document.getElementById(`editShelf-${bookCopyId}`)?.value || '0', 10);
+
+            const res = await apiFetch('/S02PersonalShelf/UpdateCopy', {
+                method: 'POST',
+                body: { bookCopyId, condition, shelfId: shelfId > 0 ? shelfId : null }
+            });
+
+            if (res.ok) {
+                window.location.reload();
+            }
+        });
+    });
+
+    // 5. Xóa bản sao sách khỏi tủ cá nhân (Delete CRUD)
+    document.querySelectorAll('.js-delete-copy').forEach(btn => {
+        btn.addEventListener('click', async () => {
+            const bookCopyId = parseInt(btn.getAttribute('data-copy-id') || '0', 10);
+            const barcode = btn.getAttribute('data-barcode') || '';
+            if (!bookCopyId) return;
+
+            const res = await apiFetch('/S02PersonalShelf/DeleteCopy', {
+                method: 'POST',
+                body: { bookCopyId }
+            });
+
+            if (res.ok) {
+                window.location.reload();
+            }
+        });
+    });
+
+    // 6. Xóa kệ sách tùy chỉnh
+    document.querySelectorAll('.js-delete-shelf').forEach(btn => {
+        btn.addEventListener('click', async () => {
+            const shelfId = parseInt(btn.getAttribute('data-shelf-id') || '0', 10);
+            if (!shelfId) return;
+
+            const res = await apiFetch('/S02PersonalShelf/DeleteShelf', {
+                method: 'POST',
+                body: { shelfId }
+            });
+
+            if (res.ok) {
+                window.location.href = '/S02PersonalShelf';
+            }
+        });
+    });
 });

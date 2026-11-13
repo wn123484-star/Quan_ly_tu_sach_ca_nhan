@@ -21,6 +21,11 @@
         <form method="get" asp-controller="S07LibraryCatalog" asp-action="Index" class="d-flex gap-2">
             <input type="hidden" name="libraryId" value="@Model.SelectedLibraryId" />
             <input type="hidden" name="statusFilter" value="@Model.StatusFilter" />
+            <select name="pageSize" class="form-select form-select-sm" style="width:auto;" onchange="this.form.submit()">
+                <option value="6" selected="@(Model.PageSize == 6)">6 dòng/trang</option>
+                <option value="12" selected="@(Model.PageSize == 12)">12 dòng/trang</option>
+                <option value="24" selected="@(Model.PageSize == 24)">24 dòng/trang</option>
+            </select>
             <div class="input-group input-group-sm">
                 <span class="input-group-text bg-light"><i class="bi bi-upc-scan text-primary"></i></span>
                 <input type="text" name="keyword" value="@Model.Keyword" class="form-control"
@@ -148,6 +153,19 @@
         </div>
     </div>
 
+    @if (!Model.Copies.Any())
+    {
+        <div class="p-5 text-center border rounded-4 bg-light my-2">
+            <i class="bi bi-inbox fs-1 text-muted d-block mb-2"></i>
+            <h6 class="fw-bold">Dữ liệu rỗng — Không tìm thấy bản sao nào khớp bộ lọc</h6>
+            <p class="small text-muted mb-3">Hãy thử chọn trạng thái "Tất cả" hoặc xóa từ khóa tìm kiếm kệ sách.</p>
+            <a asp-controller="S07LibraryCatalog" asp-action="Index" class="btn btn-sm btn-outline-primary rounded-pill px-4">
+                Xem toàn bộ kho thư viện
+            </a>
+        </div>
+    }
+    else
+    {
     <div class="table-responsive">
         <table class="table table-hover align-middle mb-0">
             <thead class="table-light small text-uppercase text-muted">
@@ -210,12 +228,13 @@
                         </td>
                         <td class="text-end">
                             <button type="button" class="btn btn-sm btn-outline-primary js-locate-shelf"
+                                    data-copy-id="@copy.BookCopyId"
                                     data-barcode="@copy.Barcode"
                                     data-title="@copy.Title"
                                     data-library="@copy.LibraryName"
                                     data-shelf="@copy.ShelfLocation"
                                     data-status="@copy.Status">
-                                <i class="bi bi-compass me-1"></i>Định vị Kệ
+                                <i class="bi bi-compass me-1"></i>Định vị / Đổi kệ
                             </button>
                             <a asp-controller="S06SearchDiscovery" asp-action="Index" asp-route-keyword="@copy.Barcode"
                                class="btn btn-sm btn-primary ms-1">
@@ -227,9 +246,49 @@
             </tbody>
         </table>
     </div>
+
+    <!-- THANH ĐIỀU HƯỚNG PHÂN TRANG THỰC TẾ S07 (MỤC 2.8 RUBRIC) -->
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 pt-3 mt-3 border-top">
+        <div class="small text-muted">
+            Trang <strong>@Model.CurrentPage / @Model.TotalPages</strong> (Tổng <strong>@Model.TotalItems bản sao</strong> • <code>@Model.PageSize dòng/trang</code>)
+        </div>
+        <ul class="pagination pagination-sm mb-0">
+            <li class="page-item @(Model.CurrentPage <= 1 ? "disabled" : "")">
+                <a class="page-link fw-semibold"
+                   asp-controller="S07LibraryCatalog" asp-action="Index"
+                   asp-route-libraryId="@Model.SelectedLibraryId"
+                   asp-route-statusFilter="@Model.StatusFilter"
+                   asp-route-keyword="@Model.Keyword"
+                   asp-route-pageSize="@Model.PageSize"
+                   asp-route-page="@(Model.CurrentPage - 1)">&laquo; Trang trước</a>
+            </li>
+            @for (int p = 1; p <= Model.TotalPages; p++)
+            {
+                <li class="page-item @(p == Model.CurrentPage ? "active" : "")">
+                    <a class="page-link fw-bold"
+                       asp-controller="S07LibraryCatalog" asp-action="Index"
+                       asp-route-libraryId="@Model.SelectedLibraryId"
+                       asp-route-statusFilter="@Model.StatusFilter"
+                       asp-route-keyword="@Model.Keyword"
+                       asp-route-pageSize="@Model.PageSize"
+                       asp-route-page="@p">@p</a>
+                </li>
+            }
+            <li class="page-item @(Model.CurrentPage >= Model.TotalPages ? "disabled" : "")">
+                <a class="page-link fw-semibold"
+                   asp-controller="S07LibraryCatalog" asp-action="Index"
+                   asp-route-libraryId="@Model.SelectedLibraryId"
+                   asp-route-statusFilter="@Model.StatusFilter"
+                   asp-route-keyword="@Model.Keyword"
+                   asp-route-pageSize="@Model.PageSize"
+                   asp-route-page="@(Model.CurrentPage + 1)">Trang sau &raquo;</a>
+            </li>
+        </ul>
+    </div>
+    }
 </section>
 
-<!-- 3. KHUNG HIỂN THỊ SƠ ĐỒ ĐỊNH VỊ KỆ SÁCH TRỰC QUAN -->
+<!-- 3. KHUNG HIỂN THỊ SƠ ĐỒ ĐỊNH VỊ KỆ SÁCH & CẬP NHẬT VỊ TRÍ KỆ (KIỂM TRA ROLE LIBRARIAN/ADMIN) -->
 <div class="modal fade" id="s07ShelfLocatorModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content rounded-4 border-0 shadow">
@@ -250,8 +309,20 @@
                         <code class="px-3 py-1 bg-white rounded-pill border fw-bold" id="locBarcodeText">BS-SYS-0001</code>
                     </div>
                 </div>
+
+                <form id="s07UpdateShelfForm" class="p-3 rounded-3 bg-light border mb-3">
+                    <input type="hidden" id="locCopyIdInput" />
+                    <label class="form-label small fw-bold text-secondary mb-1">
+                        <i class="bi bi-shield-lock-fill text-primary me-1"></i>Điều chuyển vị trí kệ (Chỉ Thủ thư / Admin):
+                    </label>
+                    <div class="input-group input-group-sm">
+                        <input type="text" id="locNewShelfInput" class="form-control" placeholder="VD: Kệ CNTT-B3 - Tầng 3" required />
+                        <button type="submit" class="btn btn-primary fw-bold">Lưu Vị Trí Kệ</button>
+                    </div>
+                </form>
+
                 <div class="d-flex justify-content-end">
-                    <button type="button" class="btn btn-primary fw-bold px-4" data-bs-dismiss="modal">Đã rõ vị trí</button>
+                    <button type="button" class="btn btn-light border fw-bold px-4" data-bs-dismiss="modal">Đóng</button>
                 </div>
             </div>
         </div>

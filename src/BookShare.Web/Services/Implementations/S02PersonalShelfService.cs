@@ -198,4 +198,109 @@ public class S02PersonalShelfService : IS02PersonalShelfService
 
         return (true, $"Đã thêm bản sao \"{book.Title}\" (Mã vạch: {barcode}) vào tủ sách cá nhân!");
     }
+
+    public async Task<(bool Success, string Message)> UpdateBookCopyAsync(
+        string currentUserId,
+        UpdateBookCopyRequestDto request)
+    {
+        var copy = await _db.BookCopies
+            .Include(c => c.Book)
+            .Include(c => c.ShelfItems)
+            .FirstOrDefaultAsync(c => c.Id == request.BookCopyId);
+
+        if (copy == null)
+        {
+            return (false, "Không tìm thấy bản sao sách cần chỉnh sửa.");
+        }
+
+        if (copy.OwnerUserId != currentUserId)
+        {
+            throw new UnauthorizedAccessException("Chặn IDOR: Bạn không có quyền chỉnh sửa bản sao sách của người khác.");
+        }
+
+        var allowedConditions = new[] { "New", "Good", "Fair", "Worn" };
+        if (allowedConditions.Contains(request.Condition))
+        {
+            copy.Condition = request.Condition;
+        }
+
+        if (request.ShelfId.HasValue && request.ShelfId.Value > 0)
+        {
+            var targetShelf = await _db.Shelves
+                .FirstOrDefaultAsync(s => s.Id == request.ShelfId.Value && s.UserId == currentUserId);
+
+            if (targetShelf != null)
+            {
+                _db.ShelfItems.RemoveRange(copy.ShelfItems);
+                _db.ShelfItems.Add(new ShelfItem
+                {
+                    ShelfId = targetShelf.Id,
+                    BookCopyId = copy.Id,
+                    AddedAt = DateTime.UtcNow
+                });
+            }
+        }
+
+        await _db.SaveChangesAsync();
+        return (true, $"Đã cập nhật tình trạng ({copy.Condition}) và kệ sách cho bản sao [{copy.Barcode}] — \"{copy.Book.Title}\"!");
+    }
+
+    public async Task<(bool Success, string Message)> DeleteBookCopyAsync(
+        string currentUserId,
+        int bookCopyId)
+    {
+        var copy = await _db.BookCopies
+            .Include(c => c.Book)
+            .Include(c => c.ShelfItems)
+            .Include(c => c.LoanRequests)
+                .ThenInclude(lr => lr.Loan)
+            .FirstOrDefaultAsync(c => c.Id == bookCopyId);
+
+        if (copy == null)
+        {
+            return (false, "Không tìm thấy bản sao sách cần xóa.");
+        }
+
+        if (copy.OwnerUserId != currentUserId)
+        {
+            throw new UnauthorizedAccessException("Chặn IDOR: Bạn không có quyền xóa bản sao sách của người khác.");
+        }
+
+        if (copy.Status == "Borrowed" || copy.LoanRequests.Any(lr => lr.Loan != null))
+        {
+            return (false, $"Bản sao [{copy.Barcode}] đang có lịch sử hợp đồng mượn (Loans), không thể xóa cứng. Bạn có thể gạt tắt công tắc IsLendable để ngừng cho mượn.");
+        }
+
+        _db.ShelfItems.RemoveRange(copy.ShelfItems);
+        _db.LoanRequests.RemoveRange(copy.LoanRequests);
+        _db.BookCopies.Remove(copy);
+        await _db.SaveChangesAsync();
+
+        return (true, $"Đã xóa bản sao [{copy.Barcode}] (\"{copy.Book.Title}\") khỏi tủ sách cá nhân!");
+    }
+
+    public async Task<(bool Success, string Message)> DeleteShelfAsync(
+        string currentUserId,
+        int shelfId)
+    {
+        var shelf = await _db.Shelves
+            .Include(s => s.ShelfItems)
+            .FirstOrDefaultAsync(s => s.Id == shelfId);
+
+        if (shelf == null)
+        {
+            return (false, "Không tìm thấy kệ sách cần xóa.");
+        }
+
+        if (shelf.UserId != currentUserId)
+        {
+            throw new UnauthorizedAccessException("Chặn IDOR: Bạn không có quyền xóa kệ sách của người khác.");
+        }
+
+        _db.ShelfItems.RemoveRange(shelf.ShelfItems);
+        _db.Shelves.Remove(shelf);
+        await _db.SaveChangesAsync();
+
+        return (true, $"Đã xóa kệ sách \"{shelf.Name}\" khỏi CSDL!");
+    }
 }

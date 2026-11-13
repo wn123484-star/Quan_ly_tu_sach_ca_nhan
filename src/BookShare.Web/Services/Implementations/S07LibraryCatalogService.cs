@@ -17,7 +17,9 @@ public class S07LibraryCatalogService : IS07LibraryCatalogService
     public async Task<S07LibraryCatalogPageViewModel> GetLibraryCatalogAsync(
         int? libraryId = null,
         string statusFilter = "all",
-        string? keyword = null)
+        string? keyword = null,
+        int page = 1,
+        int pageSize = 6)
     {
         var libraries = await _db.Libraries
             .AsNoTracking()
@@ -83,7 +85,18 @@ public class S07LibraryCatalogService : IS07LibraryCatalogService
                 .ToList();
         }
 
-        var copyDtos = filteredList.Select(bc => new S07LibraryCopyItemDto
+        var allowedSizes = new[] { 6, 12, 24 };
+        int cleanPageSize = allowedSizes.Contains(pageSize) ? pageSize : 6;
+        int totalItems = filteredList.Count;
+        int totalPages = Math.Max(1, (int)Math.Ceiling(totalItems / (double)cleanPageSize));
+        int currentPage = Math.Clamp(page, 1, totalPages);
+
+        var pagedList = filteredList
+            .Skip((currentPage - 1) * cleanPageSize)
+            .Take(cleanPageSize)
+            .ToList();
+
+        var copyDtos = pagedList.Select(bc => new S07LibraryCopyItemDto
         {
             BookCopyId = bc.Id,
             BookId = bc.BookId,
@@ -111,8 +124,36 @@ public class S07LibraryCatalogService : IS07LibraryCatalogService
             ReservedCount = reservedCount,
             BorrowedCount = borrowedCount,
             DamagedOrLostCount = damagedCount,
+            CurrentPage = currentPage,
+            PageSize = cleanPageSize,
+            TotalPages = totalPages,
+            TotalItems = totalItems,
             Libraries = libraries,
             Copies = copyDtos
         };
+    }
+
+    public async Task<(bool Success, string Message)> UpdateCopyShelfLocationAsync(
+        int bookCopyId,
+        string shelfLocation)
+    {
+        if (string.IsNullOrWhiteSpace(shelfLocation))
+        {
+            return (false, "Vị trí kệ sách (ShelfLocation) không được để trống.");
+        }
+
+        var copy = await _db.BookCopies
+            .Include(bc => bc.Book)
+            .FirstOrDefaultAsync(bc => bc.Id == bookCopyId);
+
+        if (copy == null)
+        {
+            return (false, "Không tìm thấy bản sao sách trong kho.");
+        }
+
+        copy.ShelfLocation = shelfLocation.Trim();
+        await _db.SaveChangesAsync();
+
+        return (true, $"Thủ thư đã cập nhật vị trí kệ cho bản sao [{copy.Barcode}] ({copy.Book.Title}) sang [{copy.ShelfLocation}]!");
     }
 }

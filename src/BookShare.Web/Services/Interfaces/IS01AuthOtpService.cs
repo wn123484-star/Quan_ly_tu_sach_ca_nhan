@@ -13,6 +13,11 @@ public interface IResendEmailService
         string email,
         string otpCode,
         string purpose);
+
+    Task<(bool SentViaApi, string MessageId, string StatusNote)> SendNotificationEmailAsync(
+        string toEmail,
+        string subject,
+        string htmlBody);
 }
 
 public interface IS01AuthOtpService
@@ -30,6 +35,14 @@ public interface IS01AuthOtpService
         string providerKey,
         string email,
         string fullName);
+
+    Task<(bool Success, string Message, AuthUserClaimsDto? UpdatedClaims)> UpdateUserProfileAsync(
+        string userId,
+        UpdateProfileRequestDto request);
+
+    Task<(bool Success, string Message)> ChangeUserPasswordAsync(
+        string userId,
+        ChangePasswordRequestDto request);
 }
 
 public class AuthUserClaimsDto

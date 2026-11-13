@@ -9,10 +9,12 @@ namespace BookShare.Web.Controllers;
 public class HomeController : Controller
 {
     private readonly IPortalDiscoveryService _portalService;
+    private readonly IS13GeminiAiService _geminiAiService;
 
-    public HomeController(IPortalDiscoveryService portalService)
+    public HomeController(IPortalDiscoveryService portalService, IS13GeminiAiService geminiAiService)
     {
         _portalService = portalService;
+        _geminiAiService = geminiAiService;
     }
 
     [HttpGet]
@@ -26,13 +28,18 @@ public class HomeController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> QuickAiAsk([FromBody] QuickAiPromptDto dto)
     {
-        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-        var reply = await _portalService.GetQuickAiReplyAsync(userId, dto.Message ?? string.Empty);
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "u-user-01";
+        var (success, replyText, sessionId, _, sourceMode) = await _geminiAiService.SendMessageWithRagAsync(
+            userId,
+            null,
+            dto.Message ?? string.Empty);
+
         return Ok(new
         {
-            title = "Trợ lý AI Gemini 2.5 (S13 RAG)",
-            message = "Đã truy vấn ngữ cảnh BookCopies & ReadingProgresses từ SQL Server.",
-            reply
+            title = $"Trợ lý AI Gemini (S13 • {sourceMode})",
+            message = $"Đã lưu lịch sử vào AiChatMessages (Session #{sessionId}).",
+            reply = replyText,
+            sessionId
         });
     }
 
