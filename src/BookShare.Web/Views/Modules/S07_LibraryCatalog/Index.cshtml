@@ -1,0 +1,263 @@
+@model BookShare.Web.Models.ViewModels.S07LibraryCatalogPageViewModel
+@{
+    ViewData["Title"] = "S07. Tra Cứu Tồn Kho Thư Viện Đối Tác & Vị Trí Kệ Sách";
+}
+
+@section Styles {
+    <link rel="stylesheet" href="~/modules/s07-library-catalog/s07-library-catalog.css" asp-append-version="true" />
+}
+
+<!-- 1. THỐNG KÊ TỔNG QUAN KHO THƯ VIỆN ĐỐI TÁC (LIBRARIES) -->
+<section class="card border-0 shadow-sm rounded-4 p-4 mb-4 bg-white">
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+        <div>
+            <span class="badge bg-primary mb-1">Dịch vụ S07 • LibraryCatalog</span>
+            <h4 class="fw-bold mb-1">Tra Cứu Tồn Kho Thư Viện Đối Tác & Sơ Đồ Kệ Sách</h4>
+            <p class="text-muted small mb-0">
+                Theo dõi tồn kho thời gian thực tại các Thư viện trường đại học / Trạm kiểm định CLB (<code>Libraries</code>), tra cứu vị trí kệ vật lý (<code>ShelfLocation</code>) và mã vạch định danh (<code>Barcode</code>).
+            </p>
+        </div>
+
+        <form method="get" asp-controller="S07LibraryCatalog" asp-action="Index" class="d-flex gap-2">
+            <input type="hidden" name="libraryId" value="@Model.SelectedLibraryId" />
+            <input type="hidden" name="statusFilter" value="@Model.StatusFilter" />
+            <div class="input-group input-group-sm">
+                <span class="input-group-text bg-light"><i class="bi bi-upc-scan text-primary"></i></span>
+                <input type="text" name="keyword" value="@Model.Keyword" class="form-control"
+                       placeholder="Tìm Barcode, vị trí kệ, tên sách..." />
+                <button type="submit" class="btn btn-primary fw-bold px-3">Tìm Kệ</button>
+            </div>
+        </form>
+    </div>
+
+    <!-- 4 Ô Thống Kê Trạng Thái Bản Sao Trong Kho (Available, Reserved, Borrowed, Damaged) -->
+    <div class="row g-3 mb-4">
+        <div class="col-md-3 col-6">
+            <div class="s07-kpi-card p-3 rounded-4 border bg-success bg-opacity-10">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <div class="small text-muted fw-semibold">Sẵn sàng trên kệ (Available)</div>
+                        <div class="fs-3 fw-bold text-success">@Model.AvailableCount</div>
+                    </div>
+                    <i class="bi bi-check2-circle fs-2 text-success opacity-75"></i>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 col-6">
+            <div class="s07-kpi-card p-3 rounded-4 border bg-info bg-opacity-10">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <div class="small text-muted fw-semibold">Đã đặt giữ chỗ (Reserved)</div>
+                        <div class="fs-3 fw-bold text-primary">@Model.ReservedCount</div>
+                    </div>
+                    <i class="bi bi-bookmark-check fs-2 text-primary opacity-75"></i>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 col-6">
+            <div class="s07-kpi-card p-3 rounded-4 border bg-warning bg-opacity-10">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <div class="small text-muted fw-semibold">Đang cho mượn (Borrowed)</div>
+                        <div class="fs-3 fw-bold text-warning">@Model.BorrowedCount</div>
+                    </div>
+                    <i class="bi bi-arrow-left-right fs-2 text-warning opacity-75"></i>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 col-6">
+            <div class="s07-kpi-card p-3 rounded-4 border bg-danger bg-opacity-10">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <div class="small text-muted fw-semibold">Bảo trì / Hư hỏng (Damaged)</div>
+                        <div class="fs-3 fw-bold text-danger">@Model.DamagedOrLostCount</div>
+                    </div>
+                    <i class="bi bi-tools fs-2 text-danger opacity-75"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Danh sách Thẻ Thư viện đối tác & Điểm trạm (Libraries) -->
+    <div class="row g-3">
+        <div class="col-lg-3 col-md-6">
+            <a asp-controller="S07LibraryCatalog" asp-action="Index" asp-route-statusFilter="@Model.StatusFilter"
+               class="s07-partner-card p-3 rounded-4 d-block text-decoration-none h-100 @(Model.SelectedLibraryId == null ? "active" : "")">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <span class="badge bg-primary">Toàn Hệ Thống</span>
+                    <i class="bi bi-buildings-fill fs-5 text-primary"></i>
+                </div>
+                <h6 class="fw-bold text-dark mb-1">Tất Cả Thư Viện Đối Tác</h6>
+                <p class="small text-muted mb-2">Tổng hợp toàn bộ các kho sách trường ĐH và Điểm trạm CLB</p>
+                <div class="small fw-bold text-primary">Tổng cộng: @Model.TotalCopies bản sao</div>
+            </a>
+        </div>
+
+        @foreach (var lib in Model.Libraries)
+        {
+            <div class="col-lg-3 col-md-6">
+                <a asp-controller="S07LibraryCatalog" asp-action="Index"
+                   asp-route-libraryId="@lib.Id" asp-route-statusFilter="@Model.StatusFilter"
+                   class="s07-partner-card p-3 rounded-4 d-block text-decoration-none h-100 @(Model.SelectedLibraryId == lib.Id ? "active" : "")">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <span class="badge bg-secondary bg-opacity-10 text-secondary">@lib.HubType</span>
+                        <span class="badge bg-success bg-opacity-10 text-success">@lib.AvailableCopies/@lib.TotalCopies sẵn có</span>
+                    </div>
+                    <h6 class="fw-bold text-dark mb-1">@lib.Name</h6>
+                    <div class="small text-muted mb-1"><i class="bi bi-geo-alt me-1"></i>@lib.Address</div>
+                    <div class="small text-muted"><i class="bi bi-clock me-1"></i>@(lib.OpenHours ?? "08:00 - 17:30") • QL: @lib.ManagerName</div>
+                </a>
+            </div>
+        }
+    </div>
+</section>
+
+<!-- 2. BẢNG TRA CỨU CHI TIẾT BẢN SAO, MÃ BARCODE & SƠ ĐỒ VỊ TRÍ KỆ SÁCH -->
+<section class="card border-0 shadow-sm rounded-4 p-4 bg-white">
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-3">
+        <div class="d-flex flex-wrap gap-2">
+            <a asp-controller="S07LibraryCatalog" asp-action="Index"
+               asp-route-libraryId="@Model.SelectedLibraryId" asp-route-statusFilter="all" asp-route-keyword="@Model.Keyword"
+               class="btn btn-sm @(Model.StatusFilter == "all" ? "btn-dark fw-bold" : "btn-outline-secondary") rounded-pill px-3">
+                Tất cả (@Model.TotalCopies)
+            </a>
+            <a asp-controller="S07LibraryCatalog" asp-action="Index"
+               asp-route-libraryId="@Model.SelectedLibraryId" asp-route-statusFilter="Available" asp-route-keyword="@Model.Keyword"
+               class="btn btn-sm @(Model.StatusFilter == "Available" ? "btn-success fw-bold" : "btn-outline-success") rounded-pill px-3">
+                Available (@Model.AvailableCount)
+            </a>
+            <a asp-controller="S07LibraryCatalog" asp-action="Index"
+               asp-route-libraryId="@Model.SelectedLibraryId" asp-route-statusFilter="Reserved" asp-route-keyword="@Model.Keyword"
+               class="btn btn-sm @(Model.StatusFilter == "Reserved" ? "btn-primary fw-bold" : "btn-outline-primary") rounded-pill px-3">
+                Reserved (@Model.ReservedCount)
+            </a>
+            <a asp-controller="S07LibraryCatalog" asp-action="Index"
+               asp-route-libraryId="@Model.SelectedLibraryId" asp-route-statusFilter="Borrowed" asp-route-keyword="@Model.Keyword"
+               class="btn btn-sm @(Model.StatusFilter == "Borrowed" ? "btn-warning fw-bold" : "btn-outline-warning") rounded-pill px-3">
+                Borrowed (@Model.BorrowedCount)
+            </a>
+            <a asp-controller="S07LibraryCatalog" asp-action="Index"
+               asp-route-libraryId="@Model.SelectedLibraryId" asp-route-statusFilter="Damaged" asp-route-keyword="@Model.Keyword"
+               class="btn btn-sm @(Model.StatusFilter == "Damaged" ? "btn-danger fw-bold" : "btn-outline-danger") rounded-pill px-3">
+                Damaged (@Model.DamagedOrLostCount)
+            </a>
+        </div>
+
+        <div class="small text-muted">
+            Bấm vào nút <strong>Định vị Kệ</strong> để xem sơ đồ vị trí kệ sách trực quan
+        </div>
+    </div>
+
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+            <thead class="table-light small text-uppercase text-muted">
+                <tr>
+                    <th>Mã Barcode</th>
+                    <th>Đầu sách & ISBN</th>
+                    <th>Thư viện lưu trữ</th>
+                    <th>Vị trí Kệ sách (<code>ShelfLocation</code>)</th>
+                    <th>Độ mới</th>
+                    <th>Trạng thái tồn kho</th>
+                    <th class="text-end">Thao tác</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var copy in Model.Copies)
+                {
+                    <tr>
+                        <td>
+                            <code class="fw-bold text-primary fs-6">@copy.Barcode</code>
+                        </td>
+                        <td>
+                            <div class="d-flex align-items-center gap-2">
+                                <img src="@(string.IsNullOrEmpty(copy.CoverImageUrl) ? "https://images.unsplash.com/photo-1544947950-fa07a98d237f?w=120" : copy.CoverImageUrl)"
+                                     class="s07-table-cover" alt="@copy.Title"
+                                     onerror="this.src='https://images.unsplash.com/photo-1544947950-fa07a98d237f?w=120'" />
+                                <div>
+                                    <div class="fw-bold text-dark">@copy.Title</div>
+                                    <div class="small text-muted">@copy.Author • ISBN: @copy.ISBN</div>
+                                </div>
+                            </div>
+                        </td>
+                        <td>
+                            <span class="fw-semibold text-dark small">@copy.LibraryName</span>
+                        </td>
+                        <td>
+                            <span class="badge bg-primary bg-opacity-10 text-primary border border-primary-subtle px-2 py-1">
+                                <i class="bi bi-signpost-split-fill me-1"></i>@copy.ShelfLocation
+                            </span>
+                        </td>
+                        <td>
+                            <span class="badge bg-light text-dark border">@copy.Condition</span>
+                        </td>
+                        <td>
+                            @if (copy.Status == "Available")
+                            {
+                                <span class="badge bg-success"><i class="bi bi-check-circle me-1"></i>Available</span>
+                            }
+                            else if (copy.Status == "Reserved")
+                            {
+                                <span class="badge bg-primary"><i class="bi bi-bookmark-star me-1"></i>Reserved</span>
+                            }
+                            else if (copy.Status == "Borrowed")
+                            {
+                                <span class="badge bg-warning text-dark"><i class="bi bi-clock-history me-1"></i>Borrowed</span>
+                            }
+                            else
+                            {
+                                <span class="badge bg-danger"><i class="bi bi-exclamation-triangle me-1"></i>@copy.Status</span>
+                            }
+                        </td>
+                        <td class="text-end">
+                            <button type="button" class="btn btn-sm btn-outline-primary js-locate-shelf"
+                                    data-barcode="@copy.Barcode"
+                                    data-title="@copy.Title"
+                                    data-library="@copy.LibraryName"
+                                    data-shelf="@copy.ShelfLocation"
+                                    data-status="@copy.Status">
+                                <i class="bi bi-compass me-1"></i>Định vị Kệ
+                            </button>
+                            <a asp-controller="S06SearchDiscovery" asp-action="Index" asp-route-keyword="@copy.Barcode"
+                               class="btn btn-sm btn-primary ms-1">
+                                <i class="bi bi-box-arrow-up-right me-1"></i>Mượn
+                            </a>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</section>
+
+<!-- 3. KHUNG HIỂN THỊ SƠ ĐỒ ĐỊNH VỊ KỆ SÁCH TRỰC QUAN -->
+<div class="modal fade" id="s07ShelfLocatorModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content rounded-4 border-0 shadow">
+            <div class="modal-header border-bottom-0">
+                <div>
+                    <span class="badge bg-primary mb-1">Sơ Đồ Kệ Sách Thư Viện (S07)</span>
+                    <h6 class="modal-title fw-bold" id="locBookTitle">Định vị bản sao trên kệ</h6>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body pt-0">
+                <div class="s07-shelf-map p-4 rounded-4 text-center mb-3">
+                    <i class="bi bi-bookshelf fs-1 text-primary mb-2 d-block"></i>
+                    <div class="small text-muted text-uppercase fw-bold">Vị trí kệ vật lý chính xác</div>
+                    <div class="fs-4 fw-bold text-primary my-1" id="locShelfText">Kệ A1 - Tầng 2</div>
+                    <div class="small text-dark fw-semibold" id="locLibraryText">Thư viện Đại học CMC</div>
+                    <div class="mt-2">
+                        <code class="px-3 py-1 bg-white rounded-pill border fw-bold" id="locBarcodeText">BS-SYS-0001</code>
+                    </div>
+                </div>
+                <div class="d-flex justify-content-end">
+                    <button type="button" class="btn btn-primary fw-bold px-4" data-bs-dismiss="modal">Đã rõ vị trí</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script type="module" src="~/modules/s07-library-catalog/s07-library-catalog.js" asp-append-version="true"></script>
+}

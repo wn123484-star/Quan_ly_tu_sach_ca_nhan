@@ -1,0 +1,284 @@
+@model BookShare.Web.Models.ViewModels.S06SearchDiscoveryPageViewModel
+@{
+    ViewData["Title"] = "S06. Tìm Kiếm Đa Tiêu Chí & Khám Phá Sách Vật Lý (Kho Chung & P2P)";
+}
+
+@section Styles {
+    <link rel="stylesheet" href="~/modules/s06-search-discovery/s06-search-discovery.css" asp-append-version="true" />
+}
+
+<!-- 1. BỘ LỌC TÌM KIẾM ĐA TIÊU CHÍ NÂNG CAO -->
+<section class="card border-0 shadow-sm rounded-4 p-4 mb-4 bg-white">
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-3">
+        <div>
+            <span class="badge bg-primary mb-1">Dịch vụ S06 • SearchDiscovery</span>
+            <h4 class="fw-bold mb-1">Khám Phá Kho Sách Chung & Tủ Sách Cộng Đồng P2P</h4>
+            <p class="text-muted small mb-0">
+                Tìm kiếm đa tiêu chí theo Tên sách, Tác giả, ISBN, Thể loại, Khu vực địa lý, Điểm uy tín (<code>TrustScore</code>) và gửi phiếu mượn trực tiếp (100% chia sẻ phi thương mại).
+            </p>
+        </div>
+
+        <div class="d-flex flex-wrap gap-2">
+            <div class="s06-stat-chip">
+                <span class="text-muted small">Tổng kết quả:</span>
+                <strong class="text-dark">@Model.TotalMatchedCopies bản sao</strong>
+            </div>
+            <div class="s06-stat-chip">
+                <span class="text-muted small">Sẵn sàng mượn:</span>
+                <strong class="text-success">@Model.AvailableCopiesCount cuốn</strong>
+            </div>
+            <div class="s06-stat-chip">
+                <span class="text-muted small">Kho chung / P2P:</span>
+                <strong class="text-primary">@Model.SystemCopiesCount / @Model.P2PCopiesCount</strong>
+            </div>
+        </div>
+    </div>
+
+    <form method="get" asp-controller="S06SearchDiscovery" asp-action="Index" class="s06-filter-box p-3 rounded-4">
+        <div class="row g-3">
+            <div class="col-lg-4 col-md-6">
+                <label class="form-label small fw-bold text-secondary mb-1">Từ khóa (Tên sách / Mã Barcode)</label>
+                <div class="input-group input-group-sm">
+                    <span class="input-group-text bg-white"><i class="bi bi-search text-primary"></i></span>
+                    <input type="text" name="keyword" value="@Model.Filter.Keyword" class="form-control"
+                           placeholder="Nhập tên sách, mã Barcode (VD: Clean Code, BS-SYS)..." />
+                </div>
+            </div>
+
+            <div class="col-lg-3 col-md-6">
+                <label class="form-label small fw-bold text-secondary mb-1">Tác giả (<code>Author</code>)</label>
+                <input type="text" name="author" value="@Model.Filter.Author" class="form-control form-control-sm"
+                       placeholder="VD: Robert C. Martin, Nguyễn Nhật Ánh..." />
+            </div>
+
+            <div class="col-lg-2 col-md-4">
+                <label class="form-label small fw-bold text-secondary mb-1">Mã vạch ISBN</label>
+                <input type="text" name="isbn" value="@Model.Filter.Isbn" class="form-control form-control-sm"
+                       placeholder="VD: 9780132350884" />
+            </div>
+
+            <div class="col-lg-3 col-md-4">
+                <label class="form-label small fw-bold text-secondary mb-1">Thể loại (<code>CategoryId</code>)</label>
+                <select name="categoryId" class="form-select form-select-sm">
+                    <option value="">-- Tất cả thể loại --</option>
+                    @foreach (var cat in Model.Categories)
+                    {
+                        if (Model.Filter.CategoryId == cat.Id)
+                        {
+                            <option value="@cat.Id" selected>@cat.Name (@cat.BookCount)</option>
+                        }
+                        else
+                        {
+                            <option value="@cat.Id">@cat.Name (@cat.BookCount)</option>
+                        }
+                    }
+                </select>
+            </div>
+
+            <div class="col-lg-3 col-md-4">
+                <label class="form-label small fw-bold text-secondary mb-1">Khu vực địa lý (<code>AreaFilter</code>)</label>
+                <input type="text" name="areaFilter" value="@Model.Filter.AreaFilter" class="form-control form-control-sm"
+                       placeholder="VD: Cầu Giấy, Đống Đa, Nam Từ Liêm..." />
+            </div>
+
+            <div class="col-lg-3 col-md-4">
+                <label class="form-label small fw-bold text-secondary mb-1">Nguồn sở hữu (<code>OwnerType</code>)</label>
+                <select name="ownerType" class="form-select form-select-sm">
+                    <option value="all" selected="@(Model.Filter.OwnerType == "all")">Tất cả (Kho chung + P2P)</option>
+                    <option value="System" selected="@(Model.Filter.OwnerType == "System")">Kho chung Thư viện (System)</option>
+                    <option value="User" selected="@(Model.Filter.OwnerType == "User")">Tủ sách cá nhân P2P (User)</option>
+                </select>
+            </div>
+
+            <div class="col-lg-2 col-md-4">
+                <label class="form-label small fw-bold text-secondary mb-1">Trạng thái bản sao</label>
+                <select name="statusFilter" class="form-select form-select-sm">
+                    <option value="all" selected="@(Model.Filter.StatusFilter == "all")">Mọi trạng thái</option>
+                    <option value="Available" selected="@(Model.Filter.StatusFilter == "Available")">Sẵn sàng (Available)</option>
+                    <option value="Borrowed" selected="@(Model.Filter.StatusFilter == "Borrowed")">Đang mượn (Borrowed)</option>
+                    <option value="Reserved" selected="@(Model.Filter.StatusFilter == "Reserved")">Đã đặt giữ (Reserved)</option>
+                </select>
+            </div>
+
+            <div class="col-lg-2 col-md-4">
+                <label class="form-label small fw-bold text-secondary mb-1">Uy tín tối thiểu</label>
+                <select name="minTrustScore" class="form-select form-select-sm">
+                    <option value="0" selected="@(Model.Filter.MinTrustScore == 0)">Mọi điểm TrustScore</option>
+                    <option value="80" selected="@(Model.Filter.MinTrustScore == 80)">Từ 80 điểm trở lên</option>
+                    <option value="95" selected="@(Model.Filter.MinTrustScore == 95)">Từ 95 điểm trở lên</option>
+                </select>
+            </div>
+
+            <div class="col-lg-2 col-md-4 d-flex align-items-end gap-2">
+                <button type="submit" class="btn btn-primary btn-sm w-100 fw-bold py-2">
+                    <i class="bi bi-funnel-fill me-1"></i>Lọc Sách
+                </button>
+                <a asp-controller="S06SearchDiscovery" asp-action="Index" class="btn btn-light border btn-sm py-2" title="Xóa bộ lọc">
+                    <i class="bi bi-arrow-counterclockwise"></i>
+                </a>
+            </div>
+        </div>
+    </form>
+</section>
+
+<!-- 2. LƯỚI KẾT QUẢ BẢN SAO SÁCH VẬT LÝ & NÚT GỬI YÊU CẦU MƯỢN -->
+@if (!Model.Results.Any())
+{
+    <div class="card border-0 shadow-sm rounded-4 p-5 text-center bg-white">
+        <i class="bi bi-search-heart fs-1 text-muted mb-2"></i>
+        <h6 class="fw-bold">Không tìm thấy bản sao sách nào khớp điều kiện</h6>
+        <p class="text-muted small mb-3">Hãy thử nới lỏng bộ lọc khu vực hoặc từ khóa tìm kiếm.</p>
+        <div>
+            <a asp-controller="S06SearchDiscovery" asp-action="Index" class="btn btn-outline-primary btn-sm rounded-pill px-4">
+                Hiển thị toàn bộ kho sách
+            </a>
+        </div>
+    </div>
+}
+else
+{
+    <div class="row g-4">
+        @foreach (var item in Model.Results)
+        {
+            <div class="col-xl-4 col-md-6">
+                <div class="s06-copy-card h-100 p-4 bg-white rounded-4 shadow-sm d-flex flex-column justify-content-between">
+                    <div>
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <span class="badge @(item.OwnerType == "System" ? "bg-primary" : "bg-info text-dark")">
+                                <i class="bi @(item.OwnerType == "System" ? "bi-building-check" : "bi-people-fill") me-1"></i>
+                                @(item.OwnerType == "System" ? "Kho chung Thư viện" : "Tủ sách P2P Cộng đồng")
+                            </span>
+                            <code class="small fw-bold text-secondary">@item.Barcode</code>
+                        </div>
+
+                        <div class="d-flex gap-3 my-3">
+                            <img src="@(string.IsNullOrEmpty(item.CoverImageUrl) ? "https://images.unsplash.com/photo-1544947950-fa07a98d237f?w=300" : item.CoverImageUrl)"
+                                 alt="@item.Title" class="s06-book-cover shadow-sm"
+                                 onerror="this.src='https://images.unsplash.com/photo-1544947950-fa07a98d237f?w=300'" />
+                            <div>
+                                <span class="badge bg-light text-secondary border mb-1">@item.CategoryName</span>
+                                <h6 class="fw-bold text-dark mb-1">@item.Title</h6>
+                                <div class="small text-muted mb-1">@item.Author</div>
+                                <div class="small text-muted">ISBN: <code>@item.ISBN</code> • @item.PageCount tr.</div>
+                            </div>
+                        </div>
+
+                        <div class="s06-meta-panel p-2 rounded-3 mb-3 small">
+                            <div class="d-flex justify-content-between mb-1">
+                                <span class="text-muted"><i class="bi bi-person-badge me-1"></i>Đơn vị / Chủ sách:</span>
+                                <strong class="text-dark">@item.OwnerName</strong>
+                            </div>
+                            <div class="d-flex justify-content-between mb-1">
+                                <span class="text-muted"><i class="bi bi-geo-alt-fill text-danger me-1"></i>Khu vực / Vị trí:</span>
+                                <span class="text-dark">@item.AreaAddress (@item.ShelfLocation)</span>
+                            </div>
+                            <div class="d-flex justify-content-between">
+                                <span class="text-muted"><i class="bi bi-shield-fill-check text-success me-1"></i>Điểm uy tín & Độ mới:</span>
+                                <span>
+                                    <strong class="text-success">@item.TrustScore điểm</strong> •
+                                    <span class="badge bg-white text-dark border">@item.Condition</span>
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Thanh trạng thái & Nút Gửi Yêu Cầu Mượn (Không có nút Mua hay giá tiền) -->
+                    <div class="pt-3 border-top d-flex justify-content-between align-items-center gap-2">
+                        <div>
+                            @if (item.Status == "Available")
+                            {
+                                <span class="badge bg-success bg-opacity-10 text-success fw-bold px-2 py-1">
+                                    <i class="bi bi-check-circle-fill me-1"></i>Sẵn sàng cho mượn
+                                </span>
+                            }
+                            else
+                            {
+                                <span class="badge bg-warning bg-opacity-15 text-dark fw-bold px-2 py-1">
+                                    <i class="bi bi-clock-history me-1"></i>@item.Status (@item.QueueCount chờ)
+                                </span>
+                            }
+                        </div>
+
+                        <button type="button"
+                                class="btn btn-sm @(item.Status == "Available" ? "btn-primary" : "btn-outline-primary") fw-bold rounded-pill px-3 js-open-loan-modal"
+                                data-copy-id="@item.BookCopyId"
+                                data-barcode="@item.Barcode"
+                                data-title="@item.Title"
+                                data-owner="@item.OwnerName"
+                                data-owner-type="@item.OwnerType">
+                            <i class="bi bi-journal-arrow-up me-1"></i>Gửi Yêu Cầu Mượn
+                        </button>
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+}
+
+<!-- 3. HỘP THOẠI ĐĂNG KÝ MƯỢN SÁCH NHANH (TẠO PHIẾU LOANREQUESTS) -->
+<div class="modal fade" id="s06QuickLoanModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content rounded-4 border-0 shadow">
+            <div class="modal-header border-bottom-0 pb-0">
+                <div>
+                    <span class="badge bg-primary mb-1">Phiếu Mượn Sách Vật Lý</span>
+                    <h6 class="modal-title fw-bold" id="modalBookTitle">Đăng ký mượn sách</h6>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="s06QuickLoanForm">
+                    <input type="hidden" id="loanCopyIdInput" />
+
+                    <div class="p-3 rounded-3 bg-light border mb-3 small">
+                        <div class="d-flex justify-content-between mb-1">
+                            <span class="text-muted">Mã bản sao (Barcode):</span>
+                            <code class="fw-bold" id="modalBarcode">BS-SYS-0001</code>
+                        </div>
+                        <div class="d-flex justify-content-between">
+                            <span class="text-muted">Nguồn cho mượn:</span>
+                            <strong id="modalOwnerName">Thư viện ĐH CMC</strong>
+                        </div>
+                    </div>
+
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-5">
+                            <label class="form-label small fw-bold text-secondary">Số ngày mượn dự kiến</label>
+                            <select id="loanDesiredDays" class="form-select">
+                                <option value="7">7 ngày (1 tuần)</option>
+                                <option value="14" selected>14 ngày (Tiêu chuẩn)</option>
+                                <option value="21">21 ngày (3 tuần)</option>
+                            </select>
+                        </div>
+                        <div class="col-md-7">
+                            <label class="form-label small fw-bold text-secondary">Điểm trạm nhận sách an toàn (<code>PickupHub</code>)</label>
+                            <select id="loanPickupHubId" class="form-select">
+                                @foreach (var hub in Model.PickupHubs)
+                                {
+                                    <option value="@hub.Id">@hub.Name</option>
+                                }
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold text-secondary">Lời nhắn gửi Thủ thư / Chủ sách P2P</label>
+                        <textarea id="loanRequestNote" class="form-control" rows="2"
+                                  placeholder="VD: Em xin phép nhận sách vào chiều thứ 5 tại sảnh thư viện..."></textarea>
+                    </div>
+
+                    <div class="d-flex justify-content-end gap-2">
+                        <button type="button" class="btn btn-light border" data-bs-dismiss="modal">Đóng</button>
+                        <button type="submit" class="btn btn-primary fw-bold px-4" id="btnConfirmLoanRequest">
+                            <i class="bi bi-send-check-fill me-1"></i>Xác Nhận Gửi Yêu Cầu Mượn
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script type="module" src="~/modules/s06-search-discovery/s06-search-discovery.js" asp-append-version="true"></script>
+}

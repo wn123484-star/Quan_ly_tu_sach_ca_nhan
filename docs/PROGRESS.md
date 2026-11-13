@@ -39,11 +39,12 @@ Dự án **BookShare (.NET 10 MVC)** được chia thành **5 Giai đoạn (Phas
 
 ---
 
-## Giai đoạn 3: Phát triển Nhóm Dịch vụ Ghi chú, Tự điền ISBN, Tìm kiếm & Kho chung (S04 $\rightarrow$ S07)
-- [ ] **S04 - `BookNotesQuotes`**: Lưu ghi chú cá nhân, trích dẫn tâm đắc theo từng trang sách (`PageNumber`), chia sẻ cảm nhận ngắn.
-- [ ] **S05 - `IsbnAutoCatalog`**: Nhập hoặc quét mã vạch ISBN tự động điền thông tin đầu sách (Tên, Tác giả, NXB, Năm XB, Ảnh bìa).
-- [ ] **S06 - `SearchDiscovery`**: Cổng tìm kiếm đa tiêu chí chuyên sâu (Tên sách, Tác giả, ISBN, Thể loại, Khu vực, lọc theo Kho chung Thư viện hoặc Tủ sách P2P).
-- [ ] **S07 - `LibraryCatalog`**: Tra cứu tồn kho của các Thư viện đối tác (`Libraries`), xem vị trí kệ và số lượng bản sao (`BookCopies`) sẵn sàng.
+## Giai đoạn 3: Phát triển Nhóm Dịch vụ Ghi chú, Tự điền ISBN, Tìm kiếm & Kho chung (S04 $\rightarrow$ S07) (Hoàn thành 100%)
+- [x] **S04 - `BookNotesQuotes`**: Lưu ghi chú cá nhân, trích dẫn tâm đắc theo từng trang sách (`PageNumber`), bật/tắt chia sẻ công khai (`IsPublic`) có chống IDOR, lọc theo đầu sách hoặc chế độ Cộng đồng (`Views/Modules/S04_BookNotesQuotes/Index.cshtml`, `s04-book-notes-quotes.css`, `s04-book-notes-quotes.js`).
+- [x] **S05 - `IsbnAutoCatalog`**: Nhập hoặc chọn mã vạch ISBN mẫu tự động tra cứu (CSDL nội bộ + Kho chuẩn ISBN + OpenLibrary API) để tự điền Tên sách, Tác giả, NXB, Năm XB, Số trang, Ảnh bìa và lưu thẳng vào `Books` kèm sinh bản sao `BookCopies` (`Views/Modules/S05_IsbnAutoCatalog/Index.cshtml`, `s05-isbn-auto-catalog.css`, `s05-isbn-auto-catalog.js`).
+- [x] **S06 - `SearchDiscovery`**: Cổng tìm kiếm đa tiêu chí chuyên sâu (Từ khóa, Tác giả, ISBN, Thể loại, Khu vực địa lý, Nguồn sở hữu `System` vs `User`, Trạng thái, Điểm `TrustScore`) và tạo phiếu mượn `LoanRequests` trực tiếp (`Views/Modules/S06_SearchDiscovery/Index.cshtml`, `s06-search-discovery.css`, `s06-search-discovery.js`).
+- [x] **S07 - `LibraryCatalog`**: Tra cứu tồn kho của các Thư viện đối tác (`Libraries`), thống kê theo 4 trạng thái (`Available`, `Reserved`, `Borrowed`, `Damaged`), xem mã `Barcode` và hộp thoại định vị kệ vật lý `ShelfLocation` (`Views/Modules/S07_LibraryCatalog/Index.cshtml`, `s07-library-catalog.css`, `s07-library-catalog.js`).
+- [x] Cập nhật thanh điều hướng `_Layout.cshtml` & `Views/Home/Index.cshtml` kết nối đầy đủ `S01` $\rightarrow$ `S07` và kiểm tra `dotnet build` đạt **0 Error**.
 
 ---
 

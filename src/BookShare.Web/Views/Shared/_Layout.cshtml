@@ -30,14 +30,22 @@
     <header class="portal-header-wrapper">
         <div class="portal-utility-bar">
             <div class="container d-flex flex-wrap justify-content-between align-items-center gap-2">
-                <div class="d-flex align-items-center gap-3 flex-wrap">
-                    <a asp-controller="Home" asp-action="Index"><i class="bi bi-compass me-1"></i>Cổng Portal Khám Phá</a>
+                <div class="d-flex align-items-center gap-2 flex-wrap">
+                    <a asp-controller="Home" asp-action="Index"><i class="bi bi-compass me-1"></i>Portal</a>
                     <span class="opacity-50">|</span>
-                    <a asp-controller="S01AuthOtpGoogle" asp-action="Index"><i class="bi bi-shield-lock me-1"></i>S01. Auth + OTP Resend + Google</a>
+                    <a asp-controller="S01AuthOtpGoogle" asp-action="Index"><i class="bi bi-shield-lock me-1"></i>S01. Auth/OTP</a>
                     <span class="opacity-50">|</span>
-                    <a asp-controller="S02PersonalShelf" asp-action="Index"><i class="bi bi-bookshelf me-1"></i>S02. Tủ Sách Cá Nhân (IsLendable)</a>
+                    <a asp-controller="S02PersonalShelf" asp-action="Index"><i class="bi bi-bookshelf me-1"></i>S02. Tủ Sách</a>
                     <span class="opacity-50">|</span>
-                    <a asp-controller="S03ReadingTracker" asp-action="Index"><i class="bi bi-pie-chart-fill me-1"></i>S03. Tiến Độ Đọc (Kế thừa Ver07)</a>
+                    <a asp-controller="S03ReadingTracker" asp-action="Index"><i class="bi bi-pie-chart-fill me-1"></i>S03. Tiến Độ</a>
+                    <span class="opacity-50">|</span>
+                    <a asp-controller="S04BookNotesQuotes" asp-action="Index"><i class="bi bi-journal-richtext me-1"></i>S04. Ghi Chú & Quotes</a>
+                    <span class="opacity-50">|</span>
+                    <a asp-controller="S05IsbnAutoCatalog" asp-action="Index"><i class="bi bi-upc-scan me-1"></i>S05. Quét ISBN</a>
+                    <span class="opacity-50">|</span>
+                    <a asp-controller="S06SearchDiscovery" asp-action="Index"><i class="bi bi-funnel-fill me-1"></i>S06. Tìm Kiếm Đa Tiêu Chí</a>
+                    <span class="opacity-50">|</span>
+                    <a asp-controller="S07LibraryCatalog" asp-action="Index"><i class="bi bi-buildings-fill me-1"></i>S07. Kho Thư Viện</a>
                 </div>
 
                 <div class="d-flex align-items-center gap-2 flex-wrap">

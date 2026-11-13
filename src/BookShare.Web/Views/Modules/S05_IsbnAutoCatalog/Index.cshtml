@@ -1,0 +1,245 @@
+@model BookShare.Web.Models.ViewModels.S05IsbnCatalogPageViewModel
+@{
+    ViewData["Title"] = "S05. Tự Động Điền Danh Mục Sách Theo Mã Vạch ISBN";
+}
+
+@section Styles {
+    <link rel="stylesheet" href="~/modules/s05-isbn-auto-catalog/s05-isbn-auto-catalog.css" asp-append-version="true" />
+}
+
+<!-- 1. HEADER & BỘ QUÉT / TRA CỨU MÃ VẠCH ISBN -->
+<section class="card border-0 shadow-sm rounded-4 p-4 mb-4 bg-white">
+    <div class="row g-4 align-items-center">
+        <div class="col-lg-6">
+            <span class="badge bg-primary mb-1">Dịch vụ S05 • IsbnAutoCatalog</span>
+            <h4 class="fw-bold mb-1">Biên Mục Sách Tự Động Bằng Mã Vạch ISBN</h4>
+            <p class="text-muted small mb-0">
+                Nhập mã ISBN-13 / ISBN-10 hoặc chọn các mã mẫu bên dưới để tự động truy vấn (OpenLibrary API + Kho chuẩn ISBN nội bộ), tự điền Tên sách, Tác giả, NXB, Số trang, Ảnh bìa và khởi tạo ngay bản sao <code>BookCopies</code>.
+            </p>
+        </div>
+
+        <div class="col-lg-6">
+            <div class="s05-scanner-box p-3 rounded-4">
+                <label class="form-label small fw-bold text-primary mb-2">
+                    <i class="bi bi-upc-scan me-1"></i>Nhập hoặc Quét Mã Vạch ISBN-13 / ISBN-10
+                </label>
+                <div class="input-group">
+                    <span class="input-group-text bg-white border-end-0"><i class="bi bi-barcode text-primary fs-5"></i></span>
+                    <input type="text" id="isbnQueryInput" class="form-control border-start-0 fw-bold"
+                           value="9780134494166" placeholder="VD: 9780134494166 hoặc 9786048853214..." />
+                    <button type="button" id="btnLookupIsbn" class="btn btn-primary fw-bold px-4">
+                        <i class="bi bi-magic me-1"></i>Tra Cứu & Tự Điền
+                    </button>
+                </div>
+
+                <!-- Danh sách chip ISBN mẫu để bấm thử 1 chạm -->
+                <div class="d-flex flex-wrap gap-1 mt-2 pt-1">
+                    <span class="small text-muted me-1 align-self-center">Chọn nhanh mã ISBN mẫu:</span>
+                    @foreach (var sample in Model.PresetSamples)
+                    {
+                        <button type="button" class="s05-preset-chip js-isbn-preset"
+                                data-isbn="@sample.ISBN" title="@sample.Title — @sample.Author">
+                            <i class="bi bi-upc me-1"></i>@sample.ShortLabel
+                        </button>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- 2. FORM BIÊN MỤC TỰ ĐỘNG & XEM TRƯỚC BÌA SÁCH + SINH BARCODE -->
+<div class="row g-4 mb-4">
+    <div class="col-lg-8">
+        <div class="card border-0 shadow-sm rounded-4 bg-white h-100">
+            <div class="card-body p-4">
+                <div class="d-flex flex-wrap justify-content-between align-items-center mb-3">
+                    <h6 class="fw-bold mb-0">
+                        <i class="bi bi-card-checklist text-primary me-2"></i>Thông Tin Đầu Sách Tự Động Điền (Bảng <code>Books</code> & <code>BookCopies</code>)
+                    </h6>
+                    <span class="badge bg-info bg-opacity-10 text-primary border" id="s05LookupSourceBadge">
+                        Sẵn sàng tra cứu ISBN
+                    </span>
+                </div>
+
+                <form id="s05SaveCatalogForm" class="row g-3">
+                    <div class="col-md-4">
+                        <label class="form-label small fw-bold text-secondary">Mã chuẩn ISBN *</label>
+                        <input type="text" id="catIsbn" class="form-control fw-bold" value="9780134494166" required />
+                    </div>
+                    <div class="col-md-8">
+                        <label class="form-label small fw-bold text-secondary">Tên đầu sách (<code>Title</code>) *</label>
+                        <input type="text" id="catTitle" class="form-control fw-bold"
+                               value="Clean Architecture: A Craftsman's Guide to Software Structure and Design" required />
+                    </div>
+
+                    <div class="col-md-5">
+                        <label class="form-label small fw-bold text-secondary">Tác giả (<code>Author</code>) *</label>
+                        <input type="text" id="catAuthor" class="form-control" value="Robert C. Martin" required />
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label small fw-bold text-secondary">Nhà xuất bản (<code>Publisher</code>)</label>
+                        <input type="text" id="catPublisher" class="form-control" value="Prentice Hall" />
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label small fw-bold text-secondary">Năm XB (<code>PublishedYear</code>)</label>
+                        <input type="number" id="catPublishedYear" class="form-control" value="2017" min="1900" max="2030" />
+                    </div>
+
+                    <div class="col-md-4">
+                        <label class="form-label small fw-bold text-secondary">Tổng số trang (<code>PageCount</code>)</label>
+                        <input type="number" id="catPageCount" class="form-control" value="432" min="10" max="5000" required />
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label small fw-bold text-secondary">Thể loại (<code>CategoryId</code>)</label>
+                        <select id="catCategoryId" class="form-select">
+                            @foreach (var cat in Model.Categories)
+                            {
+                                <option value="@cat.Id">@cat.Name</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label small fw-bold text-secondary">URL Ảnh bìa (<code>CoverImageUrl</code>)</label>
+                        <input type="text" id="catCoverUrl" class="form-control"
+                               value="https://covers.openlibrary.org/b/isbn/9780134494166-L.jpg" />
+                    </div>
+
+                    <div class="col-12">
+                        <label class="form-label small fw-bold text-secondary">Tóm tắt nội dung (<code>Summary</code>)</label>
+                        <textarea id="catSummary" class="form-control" rows="2">Nguyên lý thiết kế kiến trúc phần mềm sạch, tách biệt tầng nghiệp vụ (Domain/UseCases) khỏi cơ sở dữ liệu và giao diện.</textarea>
+                    </div>
+
+                    <!-- Khối cấu hình tạo Bản sao vật lý (BookCopies) -->
+                    <div class="col-12">
+                        <div class="p-3 rounded-4 bg-light border">
+                            <div class="fw-bold small text-dark mb-2">
+                                <i class="bi bi-box-seam-fill text-success me-1"></i>Cấu Hình Tạo Bản Sao Sách Vật Lý Đi Kèm (<code>BookCopies</code>)
+                            </div>
+                            <div class="row g-3 align-items-end">
+                                <div class="col-md-4">
+                                    <label class="form-label small text-muted mb-1">Nơi lưu trữ bản sao</label>
+                                    <select id="catTargetOwnerType" class="form-select form-select-sm">
+                                        <option value="User" selected>Tủ sách cá nhân của tôi (P2P)</option>
+                                        <option value="System">Kho chung Thư viện đối tác (System)</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-4" id="librarySelectWrap">
+                                    <label class="form-label small text-muted mb-1">Thư viện / Điểm trạm quản lý</label>
+                                    <select id="catLibraryId" class="form-select form-select-sm">
+                                        @foreach (var lib in Model.Libraries)
+                                        {
+                                            <option value="@lib.Id">@lib.Name (@lib.HubType)</option>
+                                        }
+                                    </select>
+                                </div>
+                                <div class="col-md-2">
+                                    <label class="form-label small text-muted mb-1">Vị trí kệ</label>
+                                    <input type="text" id="catShelfLocation" class="form-control form-control-sm" value="Kệ A1 - Tầng 2" />
+                                </div>
+                                <div class="col-md-2">
+                                    <label class="form-label small text-muted mb-1">Độ mới</label>
+                                    <select id="catCondition" class="form-select form-select-sm">
+                                        <option value="New" selected>Mới (New)</option>
+                                        <option value="Good">Tốt (Good)</option>
+                                        <option value="Fair">Khá (Fair)</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-12 d-flex justify-content-end gap-2 pt-2">
+                        <button type="submit" class="btn btn-success fw-bold px-4 py-2 rounded-3">
+                            <i class="bi bi-cloud-arrow-down-fill me-1"></i>Lưu Đầu Sách & Khởi Tạo Bản Sao Vật Lý
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Cột phải: Thẻ Xem Trước Bìa Sách & Nhãn Mã Vạch (Preview) -->
+    <div class="col-lg-4">
+        <div class="card border-0 shadow-sm rounded-4 bg-white h-100">
+            <div class="card-body p-4 d-flex flex-column justify-content-between">
+                <div>
+                    <h6 class="fw-bold mb-3"><i class="bi bi-eye-fill text-primary me-2"></i>Xem Trước Thẻ Biên Mục</h6>
+                    <div class="text-center p-3 rounded-4 bg-light border mb-3">
+                        <img id="previewCoverImg"
+                             src="https://covers.openlibrary.org/b/isbn/9780134494166-L.jpg"
+                             alt="Book Cover Preview"
+                             class="s05-preview-cover shadow-sm mb-3"
+                             onerror="this.src='https://images.unsplash.com/photo-1544947950-fa07a98d237f?w=400'" />
+                        <h6 class="fw-bold mb-1" id="previewTitle">Clean Architecture</h6>
+                        <div class="small text-muted mb-2" id="previewAuthor">Robert C. Martin</div>
+                        <div class="d-flex justify-content-center gap-2 flex-wrap">
+                            <span class="badge bg-primary bg-opacity-10 text-primary" id="previewIsbn">ISBN: 9780134494166</span>
+                            <span class="badge bg-secondary bg-opacity-10 text-secondary" id="previewPages">432 trang</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="s05-barcode-ticket p-3 rounded-3 text-center">
+                    <div class="small text-muted fw-semibold mb-1">NHÃN BARCODE VẬT LÝ DỰ KIẾN</div>
+                    <div class="fs-5 fw-bold font-monospace text-dark"><i class="bi bi-upc-scan me-1"></i>BS-AUTO-ISBN</div>
+                    <div class="small text-success fw-semibold mt-1">
+                        <i class="bi bi-shield-check me-1"></i>Chuẩn lưu thông phi thương mại (0đ)
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 3. DANH SÁCH ĐẦU SÁCH BIÊN MỤC GẦN ĐÂY TRONG HỆ THỐNG -->
+<section class="card border-0 shadow-sm rounded-4 p-4 bg-white">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h6 class="fw-bold mb-0"><i class="bi bi-collection text-primary me-2"></i>Danh Mục Đầu Sách Hiện Có Trong Kho (Bảng <code>Books</code>)</h6>
+        <span class="badge bg-light text-dark border">@Model.RecentCatalogBooks.Count đầu sách hiển thị</span>
+    </div>
+
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+            <thead class="table-light small text-uppercase text-muted">
+                <tr>
+                    <th>Đầu sách</th>
+                    <th>Mã ISBN</th>
+                    <th>Thể loại</th>
+                    <th>NXB / Năm</th>
+                    <th>Số trang</th>
+                    <th class="text-center">Tổng bản sao (<code>BookCopies</code>)</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var item in Model.RecentCatalogBooks)
+                {
+                    <tr>
+                        <td>
+                            <div class="d-flex align-items-center gap-2">
+                                <img src="@(string.IsNullOrEmpty(item.CoverImageUrl) ? "https://images.unsplash.com/photo-1544947950-fa07a98d237f?w=120" : item.CoverImageUrl)"
+                                     class="s05-table-thumb" alt="@item.Title"
+                                     onerror="this.src='https://images.unsplash.com/photo-1544947950-fa07a98d237f?w=120'" />
+                                <div>
+                                    <div class="fw-bold text-dark">@item.Title</div>
+                                    <div class="small text-muted">@item.Author</div>
+                                </div>
+                            </div>
+                        </td>
+                        <td><code class="fw-bold">@item.ISBN</code></td>
+                        <td><span class="badge bg-primary bg-opacity-10 text-primary">@item.CategoryName</span></td>
+                        <td class="small text-muted">@(item.Publisher ?? "NXB Tri Thức") (@(item.PublishedYear ?? 2024))</td>
+                        <td class="small fw-semibold">@item.PageCount tr.</td>
+                        <td class="text-center">
+                            <span class="badge bg-success rounded-pill px-3">@item.CopyCount bản sao</span>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</section>
+
+@section Scripts {
+    <script type="module" src="~/modules/s05-isbn-auto-catalog/s05-isbn-auto-catalog.js" asp-append-version="true"></script>
+}
