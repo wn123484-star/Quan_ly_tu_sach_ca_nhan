@@ -41,7 +41,7 @@
             <div class="d-inline-flex align-items-center gap-1">
                 <a asp-controller="S02PersonalShelf" asp-action="Index" asp-route-shelfId="@shelf.Id"
                    class="s02-shelf-tab @(Model.SelectedShelfId == shelf.Id ? "active" : "")"
-                   title="@shelf.Description">
+                   title="@shelf.Description" data-shelf-drop="@shelf.Id" data-shelf-name="@shelf.Name">
                     <i class="bi bi-journal-bookmark"></i>
                     <span>@shelf.Name (@shelf.ItemCount)</span>
                 </a>
@@ -55,6 +55,9 @@
             </div>
         }
     </div>
+    <p class="small text-muted mt-2 mb-0">
+        <i class="bi bi-arrows-move me-1"></i>Mẹo: dùng chuột <strong>kéo thả thẻ sách</strong> vào một kệ phía trên để chuyển kệ ngay (hoặc chọn kệ rồi bấm <em>Sửa</em> nếu dùng bàn phím).
+    </p>
 </section>
 
 <!-- 2. KHUNG THÊM BẢN SAO SÁCH MỚI VÀO KỆ & TẠO KỆ TÙY CHỈNH -->
@@ -139,7 +142,8 @@
     @foreach (var copy in Model.Copies)
     {
         <div class="col-lg-6">
-            <div class="s02-copy-card p-4">
+            <div class="s02-copy-card p-4" draggable="true" data-copy-id="@copy.BookCopyId" data-barcode="@copy.Barcode"
+                 aria-roledescription="Thẻ sách kéo thả được">
                 <div class="d-flex gap-3">
                     <img src="@(string.IsNullOrEmpty(copy.CoverImageUrl) ? "https://images.unsplash.com/photo-1544947950-fa07a98d237f?w=400" : copy.CoverImageUrl)"
                          class="s02-cover-thumb shadow-sm" alt="@copy.Title"

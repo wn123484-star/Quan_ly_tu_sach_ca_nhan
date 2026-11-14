@@ -1,19 +1,28 @@
-import { apiFetch } from '../../js/core-api.js';
+import { apiFetch, loadScript, CDN, showSystemStatus } from '../../js/core-api.js';
 
 document.addEventListener('DOMContentLoaded', () => {
     // 1. Khởi tạo 2 biểu đồ thống kê Chart.js
     const chartDataEl = document.getElementById('s22ChartData');
     if (chartDataEl && typeof window.Chart !== 'undefined') {
-        const libLoans = parseInt(chartDataEl.getAttribute('data-lib-loans') || '0', 10);
-        const p2pLoans = parseInt(chartDataEl.getAttribute('data-p2p-loans') || '0', 10);
-        const availCopies = parseInt(chartDataEl.getAttribute('data-avail-copies') || '0', 10);
-        const borrowedCopies = parseInt(chartDataEl.getAttribute('data-borrowed-copies') || '0', 10);
-        const reservedCopies = parseInt(chartDataEl.getAttribute('data-reserved-copies') || '0', 10);
-        const damagedCopies = parseInt(chartDataEl.getAttribute('data-damaged-copies') || '0', 10);
+        loadCharts();
+    }
 
-        const revMembership = parseFloat(chartDataEl.getAttribute('data-rev-membership') || '0');
-        const revFine = parseFloat(chartDataEl.getAttribute('data-rev-fine') || '0');
-        const revDeposit = parseFloat(chartDataEl.getAttribute('data-rev-deposit') || '0');
+    async function loadCharts() {
+        // Lấy số liệu thật từ API (chỉ Admin); nếu API lỗi thì dùng dữ liệu nhúng sẵn trong trang
+        const res = await apiFetch('/S22AdminAnalytics/ChartData');
+        const api = res.ok && res.data && typeof res.data === 'object' ? res.data : null;
+        const attr = (name, parse) => parse(chartDataEl.getAttribute(name) || '0');
+
+        const libLoans = api ? api.libraryLoans : attr('data-lib-loans', v => parseInt(v, 10));
+        const p2pLoans = api ? api.p2pLoans : attr('data-p2p-loans', v => parseInt(v, 10));
+        const availCopies = api ? api.availableCopies : attr('data-avail-copies', v => parseInt(v, 10));
+        const borrowedCopies = api ? api.borrowedCopies : attr('data-borrowed-copies', v => parseInt(v, 10));
+        const reservedCopies = api ? api.reservedCopies : attr('data-reserved-copies', v => parseInt(v, 10));
+        const damagedCopies = api ? api.damagedCopies : attr('data-damaged-copies', v => parseInt(v, 10));
+
+        const revMembership = api ? api.membershipRevenue : attr('data-rev-membership', parseFloat);
+        const revFine = api ? api.fineRevenue : attr('data-rev-fine', parseFloat);
+        const revDeposit = api ? api.simulatedDeposits : attr('data-rev-deposit', parseFloat);
 
         const ctxDist = document.getElementById('chartLoanAndCopyDistribution');
         if (ctxDist) {
@@ -116,5 +125,63 @@ document.addEventListener('DOMContentLoaded', () => {
                 btn.disabled = false;
             }
         });
+    });
+
+    // 5. Xuất Báo Cáo PDF (jspdf + html2canvas): chụp tiêu đề, KPI, 2 biểu đồ Chart.js và bảng tài khoản
+    document.getElementById('btnExportS22Pdf')?.addEventListener('click', async (e) => {
+        const btn = e.currentTarget;
+        const original = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1" aria-hidden="true"></span>Đang tạo PDF...';
+        try {
+            await Promise.all([loadScript(CDN.jspdf), loadScript(CDN.html2canvas)]);
+            const { jsPDF } = window.jspdf;
+            const sections = [...document.querySelectorAll('[data-report-section]')];
+            const userTableCard = document.querySelector('table.table-mobile-cards')?.closest('.card');
+            if (userTableCard) sections.push(userTableCard);
+
+            const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+            const pageW = pdf.internal.pageSize.getWidth();
+            const pageH = pdf.internal.pageSize.getHeight();
+            const margin = 10;
+            const usableW = pageW - margin * 2;
+            const bg = getComputedStyle(document.body).backgroundColor || '#ffffff';
+            let y = margin;
+
+            for (const section of sections) {
+                const canvas = await window.html2canvas(section, {
+                    scale: 2,
+                    backgroundColor: bg,
+                    useCORS: true,
+                    ignoreElements: el => el.hasAttribute?.('data-report-ignore')
+                });
+                const imgH = canvas.height * usableW / canvas.width;
+                if (y + imgH > pageH - margin && y > margin) {
+                    pdf.addPage();
+                    y = margin;
+                }
+                // JPEG 0.85 giữ chữ nét mà file nhẹ hơn PNG hàng chục lần
+                pdf.addImage(canvas.toDataURL('image/jpeg', 0.85), 'JPEG', margin, y, usableW, Math.min(imgH, pageH - margin * 2), undefined, 'FAST');
+                y += imgH + 5;
+            }
+
+            const stamp = new Date();
+            const pages = pdf.getNumberOfPages();
+            for (let i = 1; i <= pages; i++) {
+                pdf.setPage(i);
+                pdf.setFontSize(8);
+                pdf.setTextColor(120);
+                pdf.text(`BookShare Admin Report - ${stamp.toLocaleString('en-GB')} - Page ${i}/${pages}`, margin, pageH - 4);
+            }
+
+            const fileName = `BookShare_BaoCao_S22_${stamp.toISOString().slice(0, 10)}.pdf`;
+            pdf.save(fileName);
+            showSystemStatus(200, 'Đã xuất báo cáo PDF (Mã 200)', `Tệp ${fileName} đã được tải xuống.`);
+        } catch (err) {
+            showSystemStatus(500, 'Không xuất được báo cáo PDF (Mã 500)', err.message);
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = original;
+        }
     });
 });

@@ -7,7 +7,7 @@
     <link rel="stylesheet" href="~/modules/s22-admin-analytics/s22-admin-analytics.css" asp-append-version="true" />
 }
 
-<section class="s22-hero card border-0 shadow-sm rounded-4 p-4 mb-4">
+<section class="s22-hero card border-0 shadow-sm rounded-4 p-4 mb-4" data-report-section>
     <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
         <div>
             <span class="badge bg-warning text-dark fw-bold mb-2 px-3 py-1 rounded-pill">DỊCH VỤ S22 • [Authorize(Roles = "Admin")] • SYSTEM GOVERNANCE</span>
@@ -20,12 +20,15 @@
             <div class="small opacity-75">Quyền truy cập hiện tại: <strong>@Model.CurrentUserRole</strong></div>
             <div class="fs-5 fw-bold">@Model.TotalUsers Thành Viên • @Model.TotalCopies Bản Sao</div>
             <small>Tổng thu Gói & Phạt: <strong>@((Model.TotalMembershipRevenue + Model.TotalFineRevenue).ToString("N0")) VNĐ</strong></small>
+            <button type="button" id="btnExportS22Pdf" class="btn btn-light btn-sm fw-bold w-100 mt-2" data-report-ignore>
+                <i class="bi bi-file-earmark-pdf-fill text-danger me-1"></i>Xuất Báo Cáo PDF
+            </button>
         </div>
     </div>
 </section>
 
 <!-- 4 THẺ KPI TOÀN HỆ THỐNG -->
-<div class="row g-3 mb-4">
+<div class="row g-3 mb-4" data-report-section>
     <div class="col-md-3">
         <div class="card border-0 shadow-sm rounded-4 p-3 bg-white h-100">
             <small class="text-muted fw-semibold">Doanh thu Gói Premium (S16/S17)</small>
@@ -57,7 +60,7 @@
 </div>
 
 <!-- BIỂU ĐỒ THỐNG KÊ CHART.JS (TỶ LỆ MƯỢN & DOANH THU SANDBOX) -->
-<div class="row g-4 mb-4"
+<div class="row g-4 mb-4" data-report-section
      id="s22ChartData"
      data-lib-loans="@Model.LibraryLoansCount"
      data-p2p-loans="@Model.P2PLoansCount"
@@ -100,7 +103,7 @@
                 </div>
 
                 <div class="table-responsive">
-                    <table class="table table-hover align-middle small mb-0">
+                    <table class="table table-hover align-middle small mb-0 table-mobile-cards">
                         <thead class="table-light">
                             <tr>
                                 <th>Họ tên & Email</th>

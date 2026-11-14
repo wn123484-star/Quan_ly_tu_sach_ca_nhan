@@ -149,10 +149,10 @@
         @foreach (var b in Model.BookCards)
         {
             <div class="col-md-6 col-lg-4">
-                <div class="card book-card h-100 border shadow-sm overflow-hidden">
+                <div class="card book-card tilt-3d h-100 border shadow-sm overflow-hidden">
                     <div class="position-relative">
                         <img src="@(string.IsNullOrEmpty(b.CoverImageUrl) ? "https://images.unsplash.com/photo-1544947950-fa07a98d237f?w=400" : b.CoverImageUrl)"
-                             class="book-cover w-100" alt="@b.Title"
+                             class="book-cover w-100 lazy-blur" alt="Bìa sách @b.Title" loading="lazy" decoding="async"
                              onerror="this.src='https://images.unsplash.com/photo-1544947950-fa07a98d237f?w=400'" />
                         <span class="position-absolute top-0 start-0 m-2 @(b.OwnerType == "System" ? "owner-badge-lib" : "owner-badge-p2p")">
                             @(b.OwnerType == "System" ? "🏛️ Kho chung ĐH CMC" : "🤝 Tủ sách P2P")

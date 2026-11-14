@@ -133,7 +133,7 @@
 <!-- 2. LƯỚI KẾT QUẢ BẢN SAO SÁCH VẬT LÝ & NÚT GỬI YÊU CẦU MƯỢN -->
 @if (!Model.Results.Any())
 {
-    <div class="card border-0 shadow-sm rounded-4 p-5 text-center bg-white">
+    <div class="card border-0 shadow-sm rounded-4 p-5 text-center bg-white" data-skeleton-target="grid">
         <i class="bi bi-search-heart fs-1 text-muted mb-2"></i>
         <h6 class="fw-bold">Không tìm thấy bản sao sách nào khớp điều kiện</h6>
         <p class="text-muted small mb-3">Hãy thử nới lỏng bộ lọc khu vực hoặc từ khóa tìm kiếm.</p>
@@ -146,11 +146,11 @@
 }
 else
 {
-    <div class="row g-4">
+    <div class="row g-4" data-skeleton-target="grid" aria-live="polite">
         @foreach (var item in Model.Results)
         {
             <div class="col-xl-4 col-md-6">
-                <div class="s06-copy-card h-100 p-4 bg-white rounded-4 shadow-sm d-flex flex-column justify-content-between">
+                <div class="s06-copy-card tilt-3d h-100 p-4 bg-white rounded-4 shadow-sm d-flex flex-column justify-content-between">
                     <div>
                         <div class="d-flex justify-content-between align-items-center mb-2">
                             <span class="badge @(item.OwnerType == "System" ? "bg-primary" : "bg-info text-dark")">
@@ -162,7 +162,7 @@ else
 
                         <div class="d-flex gap-3 my-3">
                             <img src="@(string.IsNullOrEmpty(item.CoverImageUrl) ? "https://images.unsplash.com/photo-1544947950-fa07a98d237f?w=300" : item.CoverImageUrl)"
-                                 alt="@item.Title" class="s06-book-cover shadow-sm"
+                                 alt="Bìa sách @item.Title" class="s06-book-cover shadow-sm lazy-blur" loading="lazy" decoding="async" width="82" height="116"
                                  onerror="this.src='https://images.unsplash.com/photo-1544947950-fa07a98d237f?w=300'" />
                             <div>
                                 <span class="badge bg-light text-secondary border mb-1">@item.CategoryName</span>

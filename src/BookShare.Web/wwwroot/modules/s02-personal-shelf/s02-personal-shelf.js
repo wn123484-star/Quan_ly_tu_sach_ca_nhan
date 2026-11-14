@@ -2,7 +2,7 @@
  * MODULE S02: PERSONAL SHELF MANAGEMENT (s02-personal-shelf.js)
  * Đóng gói ES6 Module độc lập cho dịch vụ S02
  */
-import { apiFetch, showSystemStatus } from '../../js/core-api.js';
+import { apiFetch, showSystemStatus, confirmDialog } from '../../js/core-api.js';
 
 document.addEventListener('DOMContentLoaded', () => {
     // 1. Bật/tắt công tắc cho phép mượn P2P (IsLendable)
@@ -115,10 +115,17 @@ document.addEventListener('DOMContentLoaded', () => {
             const bookCopyId = parseInt(btn.getAttribute('data-copy-id') || '0', 10);
             const barcode = btn.getAttribute('data-barcode') || '';
             if (!bookCopyId) return;
+            const ok = await confirmDialog({
+                title: `Xóa bản sao ${barcode}?`,
+                text: 'Bản sao sẽ bị xóa khỏi tủ sách cá nhân. Thao tác này không thể hoàn tác.',
+                confirmText: 'Xóa bản sao'
+            });
+            if (!ok) return;
 
             const res = await apiFetch('/S02PersonalShelf/DeleteCopy', {
                 method: 'POST',
-                body: { bookCopyId }
+                body: { bookCopyId },
+                button: btn
             });
 
             if (res.ok) {
@@ -131,15 +138,78 @@ document.addEventListener('DOMContentLoaded', () => {
     document.querySelectorAll('.js-delete-shelf').forEach(btn => {
         btn.addEventListener('click', async () => {
             const shelfId = parseInt(btn.getAttribute('data-shelf-id') || '0', 10);
+            const shelfName = btn.getAttribute('data-shelf-name') || '';
             if (!shelfId) return;
+            const ok = await confirmDialog({
+                title: `Xóa kệ sách "${shelfName}"?`,
+                text: 'Các bản sao trong kệ vẫn được giữ trong tủ sách.',
+                confirmText: 'Xóa kệ'
+            });
+            if (!ok) return;
 
             const res = await apiFetch('/S02PersonalShelf/DeleteShelf', {
                 method: 'POST',
-                body: { shelfId }
+                body: { shelfId },
+                button: btn
             });
 
             if (res.ok) {
                 window.location.href = '/S02PersonalShelf';
+            }
+        });
+    });
+
+    // 7. Kéo thả thẻ sách sang kệ khác (HTML5 Drag & Drop) – tự gọi API UpdateCopy khi thả chuột
+    let draggingCard = null;
+
+    document.querySelectorAll('.s02-copy-card[draggable="true"]').forEach(card => {
+        card.addEventListener('dragstart', (e) => {
+            draggingCard = card;
+            card.classList.add('dnd-dragging');
+            e.dataTransfer.effectAllowed = 'move';
+            e.dataTransfer.setData('text/plain', card.getAttribute('data-copy-id') || '');
+        });
+        card.addEventListener('dragend', () => {
+            card.classList.remove('dnd-dragging');
+            draggingCard = null;
+            document.querySelectorAll('.dnd-drop-target').forEach(el => el.classList.remove('dnd-drop-target'));
+        });
+    });
+
+    document.querySelectorAll('[data-shelf-drop]').forEach(zone => {
+        zone.addEventListener('dragover', (e) => {
+            if (!draggingCard) return;
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'move';
+            zone.classList.add('dnd-drop-target');
+        });
+        zone.addEventListener('dragleave', () => zone.classList.remove('dnd-drop-target'));
+        zone.addEventListener('drop', async (e) => {
+            e.preventDefault();
+            zone.classList.remove('dnd-drop-target');
+            const card = draggingCard;
+            const bookCopyId = parseInt(e.dataTransfer.getData('text/plain') || '0', 10);
+            const shelfId = parseInt(zone.getAttribute('data-shelf-drop') || '0', 10);
+            if (!bookCopyId || !shelfId) return;
+
+            const currentShelf = parseInt(document.getElementById(`editShelf-${bookCopyId}`)?.value || '0', 10);
+            if (currentShelf === shelfId) {
+                showSystemStatus(300, 'Sách đã ở kệ này (Mã 300)', `Bản sao đã nằm trong kệ "${zone.getAttribute('data-shelf-name')}".`);
+                return;
+            }
+
+            const condition = document.getElementById(`editCond-${bookCopyId}`)?.value || 'Good';
+            card?.classList.add('opacity-50');
+            const res = await apiFetch('/S02PersonalShelf/UpdateCopy', {
+                method: 'POST',
+                body: { bookCopyId, condition, shelfId },
+                button: null
+            });
+
+            if (res.ok) {
+                setTimeout(() => window.location.reload(), 600);
+            } else {
+                card?.classList.remove('opacity-50');
             }
         });
     });

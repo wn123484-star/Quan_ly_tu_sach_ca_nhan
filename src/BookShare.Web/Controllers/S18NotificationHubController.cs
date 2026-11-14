@@ -22,6 +22,26 @@ public class S18NotificationHubController : Controller
         return View("~/Views/Modules/S18_NotificationHub/Index.cshtml", vm);
     }
 
+    // API cho chuông thông báo trên header (Frontend gọi Polling mỗi 30 giây)
+    [HttpGet]
+    public async Task<IActionResult> UnreadCount()
+    {
+        if (User.Identity?.IsAuthenticated != true)
+        {
+            return Unauthorized(new { unreadCount = 0 });
+        }
+
+        var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "u-user-01";
+        var vm = await _notificationService.GetNotificationHubPageAsync(currentUserId);
+        // Chỉ đếm thông báo của chính người đang đăng nhập
+        var myUnread = vm.Notifications.Where(n => n.UserId == currentUserId && !n.IsRead).ToList();
+        return Ok(new
+        {
+            unreadCount = myUnread.Count,
+            latestTitle = myUnread.OrderByDescending(n => n.CreatedAt).FirstOrDefault()?.Title
+        });
+    }
+
     [HttpPost]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> MarkRead([FromBody] S18MarkNotificationRequestDto request)

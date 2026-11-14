@@ -15,9 +15,15 @@
             Hệ thống chấm điểm uy tín minh bạch sau mỗi lượt mượn – trả: Đánh giá chất lượng đầu sách (<code>TargetType = Book</code>) và đánh giá thái độ giữ gìn sách của Người mượn / Chủ sách (<code>TargetType = User</code>), tự động cộng/trừ trực tiếp vào cột <code>AspNetUsers.TrustScore</code>.
         </p>
     </div>
-    <div class="s15-my-score">
+    @{
+        var myTier = Model.CurrentUserTrustScore >= 150 ? "Platinum" : Model.CurrentUserTrustScore >= 130 ? "Gold" : Model.CurrentUserTrustScore >= 110 ? "Silver" : "Bronze";
+    }
+    <div class="s15-my-score" data-trust-score="@Model.CurrentUserTrustScore" data-user-id="@Model.CurrentUserId">
         <span>Điểm Uy tín của @Model.CurrentUserName</span>
         <strong>🛡️ @Model.CurrentUserTrustScore điểm</strong>
+        <span class="trust-tier trust-tier-@myTier.ToLowerInvariant() align-self-start my-1" aria-label="Hạng uy tín @myTier">
+            <i class="bi bi-gem"></i>Hạng @myTier
+        </span>
         <small>Thưởng hạn mức: +@Model.CurrentUserLendQuotaBonus cuốn mượn thêm</small>
     </div>
 </section>

@@ -166,6 +166,14 @@ public class S05IsbnCatalogService : IS05IsbnCatalogService
             return new IsbnLookupResultDto { Found = false, ISBN = string.Empty };
         }
 
+        // Chỉ chấp nhận ISBN-10 (9 số + số/X) hoặc ISBN-13 (13 số)
+        bool isIsbn10 = cleanIsbn.Length == 10 && cleanIsbn[..9].All(char.IsDigit) && (char.IsDigit(cleanIsbn[9]) || cleanIsbn[9] is 'X' or 'x');
+        bool isIsbn13 = cleanIsbn.Length == 13 && cleanIsbn.All(char.IsDigit);
+        if (!isIsbn10 && !isIsbn13)
+        {
+            return new IsbnLookupResultDto { Found = false, ISBN = cleanIsbn };
+        }
+
         // 1. Kiểm tra trong bảng Books của SQL Server trước
         var existingBook = await _db.Books
             .AsNoTracking()

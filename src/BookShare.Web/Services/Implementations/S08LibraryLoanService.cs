@@ -163,7 +163,7 @@ public class S08LibraryLoanService : IS08LibraryLoanService
         {
             BookCopyId = copy.Id,
             BorrowerId = currentUserId,
-            ApproverId = "u-lib-01",
+            ApproverId = null, // Gán khi Thủ thư bấm Duyệt
             LoanType = "Library",
             Status = "Pending",
             RequestedAt = DateTime.UtcNow,

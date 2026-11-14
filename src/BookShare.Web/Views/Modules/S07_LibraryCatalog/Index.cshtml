@@ -155,7 +155,7 @@
 
     @if (!Model.Copies.Any())
     {
-        <div class="p-5 text-center border rounded-4 bg-light my-2">
+        <div class="p-5 text-center border rounded-4 bg-light my-2" data-skeleton-target="table">
             <i class="bi bi-inbox fs-1 text-muted d-block mb-2"></i>
             <h6 class="fw-bold">Dữ liệu rỗng — Không tìm thấy bản sao nào khớp bộ lọc</h6>
             <p class="small text-muted mb-3">Hãy thử chọn trạng thái "Tất cả" hoặc xóa từ khóa tìm kiếm kệ sách.</p>
@@ -166,8 +166,8 @@
     }
     else
     {
-    <div class="table-responsive">
-        <table class="table table-hover align-middle mb-0">
+    <div class="table-responsive" data-skeleton-target="table">
+        <table class="table table-hover align-middle mb-0 table-mobile-cards">
             <thead class="table-light small text-uppercase text-muted">
                 <tr>
                     <th>Mã Barcode</th>
@@ -189,7 +189,7 @@
                         <td>
                             <div class="d-flex align-items-center gap-2">
                                 <img src="@(string.IsNullOrEmpty(copy.CoverImageUrl) ? "https://images.unsplash.com/photo-1544947950-fa07a98d237f?w=120" : copy.CoverImageUrl)"
-                                     class="s07-table-cover" alt="@copy.Title"
+                                     class="s07-table-cover lazy-blur" alt="Bìa sách @copy.Title" loading="lazy" decoding="async"
                                      onerror="this.src='https://images.unsplash.com/photo-1544947950-fa07a98d237f?w=120'" />
                                 <div>
                                     <div class="fw-bold text-dark">@copy.Title</div>

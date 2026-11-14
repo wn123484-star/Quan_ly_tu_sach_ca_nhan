@@ -2,7 +2,7 @@
  * MODULE S09: P2P LOAN FLOW (s09-p2p-loan-flow.js)
  * Đóng gói ES6 Module độc lập cho dịch vụ S09
  */
-import { apiFetch } from '../../js/core-api.js';
+import { apiFetch, celebrate } from '../../js/core-api.js';
 
 document.addEventListener('DOMContentLoaded', () => {
     // 1. Tạo yêu cầu mượn P2P
@@ -53,6 +53,12 @@ document.addEventListener('DOMContentLoaded', () => {
             });
 
             if (res.ok) {
+                if (stage === 'Returned') {
+                    // Giao dịch P2P hoàn tất: bắn pháo hoa chúc mừng trước khi tải lại
+                    await celebrate();
+                    setTimeout(() => window.location.reload(), 1800);
+                    return;
+                }
                 window.location.reload();
             }
         });

@@ -37,6 +37,27 @@ public class S22AdminAnalyticsController : Controller
         return View("~/Views/Modules/S22_AdminAnalytics/Index.cshtml", vm);
     }
 
+    // API số liệu cho 2 biểu đồ Chart.js (Phân bổ đơn mượn/bản sao & Doanh thu Sandbox)
+    [HttpGet]
+    [Authorize(Roles = "Admin")]
+    public async Task<IActionResult> ChartData()
+    {
+        var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "u-admin-01";
+        var vm = await _adminService.GetAdminAnalyticsPageAsync(currentUserId, "Admin");
+        return Ok(new
+        {
+            libraryLoans = vm.LibraryLoansCount,
+            p2pLoans = vm.P2PLoansCount,
+            availableCopies = vm.AvailableCopiesCount,
+            borrowedCopies = vm.BorrowedCopiesCount,
+            reservedCopies = vm.ReservedCopiesCount,
+            damagedCopies = vm.DamagedOrLostCopiesCount,
+            membershipRevenue = vm.TotalMembershipRevenue,
+            fineRevenue = vm.TotalFineRevenue,
+            simulatedDeposits = vm.TotalSimulatedDeposits
+        });
+    }
+
     [HttpPost]
     [ValidateAntiForgeryToken]
     [Authorize(Roles = "Admin")]

@@ -2,7 +2,7 @@
  * MODULE S05: ISBN AUTO CATALOG (s05-isbn-auto-catalog.js)
  * Đóng gói ES6 Module độc lập cho dịch vụ S05
  */
-import { apiFetch, showSystemStatus } from '../../js/core-api.js';
+import { apiFetch, showSystemStatus, openBarcodeScanner } from '../../js/core-api.js';
 
 document.addEventListener('DOMContentLoaded', () => {
     const isbnQueryInput = document.getElementById('isbnQueryInput');
@@ -45,6 +45,16 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
+        const cleanIsbn = isbnValue.replace(/[^0-9Xx]/g, '');
+        if (!/^(\d{9}[\dXx]|\d{13})$/.test(cleanIsbn)) {
+            showSystemStatus(400, 'Mã ISBN không hợp lệ (Mã 400)', 'ISBN phải gồm 10 ký tự (ISBN-10) hoặc 13 chữ số (ISBN-13).');
+            return;
+        }
+
+        // Khóa nút Lưu trong lúc tra cứu để không lưu nhầm dữ liệu cũ còn trên form
+        const btnSaveCatalog = document.querySelector('#s05SaveCatalogForm [type="submit"]');
+        if (btnSaveCatalog) btnSaveCatalog.disabled = true;
+
         if (btnLookupIsbn) {
             btnLookupIsbn.disabled = true;
             btnLookupIsbn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Đang tra cứu...';
@@ -55,6 +65,7 @@ document.addEventListener('DOMContentLoaded', () => {
             body: { isbn: isbnValue }
         });
 
+        if (btnSaveCatalog) btnSaveCatalog.disabled = false;
         if (btnLookupIsbn) {
             btnLookupIsbn.disabled = false;
             btnLookupIsbn.innerHTML = '<i class="bi bi-magic me-1"></i>Tra Cứu & Tự Điền';
@@ -90,6 +101,14 @@ document.addEventListener('DOMContentLoaded', () => {
             performIsbnLookup(isbn);
         });
     }
+
+    // 1b. Quét mã ISBN bằng Camera (html5-qrcode) rồi tự tra cứu
+    document.getElementById('btnScanIsbnCamera')?.addEventListener('click', async () => {
+        const code = await openBarcodeScanner({ title: 'Quét mã ISBN', hint: 'Đưa mã vạch ISBN (EAN-13) ở bìa sau cuốn sách vào khung' });
+        if (!code) return;
+        if (isbnQueryInput) isbnQueryInput.value = code;
+        performIsbnLookup(code);
+    });
 
     // 2. Bấm vào các chip ISBN mẫu
     document.querySelectorAll('.js-isbn-preset').forEach(chip => {

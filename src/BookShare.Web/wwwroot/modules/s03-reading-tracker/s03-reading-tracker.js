@@ -7,12 +7,25 @@ import { apiFetch, showSystemStatus } from '../../js/core-api.js';
 document.addEventListener('DOMContentLoaded', () => {
     // 1. Vẽ Biểu đồ Doughnut (Kế thừa Ver07) & Biểu đồ Cột Thống kê Trang đọc
     const chartDataEl = document.getElementById('s03ChartPayload');
+    let payload = null;
+    let doughnutChart = null;
+    let barChart = null;
     if (chartDataEl && typeof Chart !== 'undefined') {
+        loadCharts();
+    }
+
+    async function loadCharts() {
         try {
-            const payload = JSON.parse(chartDataEl.textContent || '{}');
+            // Lấy số liệu thật từ API; nếu API lỗi thì dùng dữ liệu nhúng sẵn trong trang
+            const res = await apiFetch('/S03ReadingTracker/ChartData');
+            payload = res.ok && res.data && typeof res.data === 'object'
+                ? res.data
+                : JSON.parse(chartDataEl.textContent || '{}');
+            chartDataEl.textContent = JSON.stringify(payload);
+
             const doughnutCtx = document.getElementById('s03DoughnutChart');
             if (doughnutCtx) {
-                new Chart(doughnutCtx, {
+                doughnutChart = new Chart(doughnutCtx, {
                     type: 'doughnut',
                     data: {
                         labels: ['Đã đọc xong', 'Đang đọc', 'Muốn đọc'],
@@ -35,7 +48,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const barCtx = document.getElementById('s03PagesBarChart');
             if (barCtx && Array.isArray(payload.bookProgressLabels)) {
-                new Chart(barCtx, {
+                barChart = new Chart(barCtx, {
                     type: 'bar',
                     data: {
                         labels: payload.bookProgressLabels,
@@ -79,6 +92,33 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
+    // Cập nhật lại 2 biểu đồ & payload xuất JSON ngay sau khi lưu, không cần tải lại trang
+    function refreshCharts(progId, currentPage, percent, newStatus) {
+        if (!payload || !Array.isArray(payload.books)) return;
+        const idx = payload.books.findIndex(b => b.Id === progId);
+        if (idx < 0) return;
+
+        const book = payload.books[idx];
+        book.CurrentPage = Math.min(currentPage, book.TotalPages);
+        book.PercentCompleted = percent;
+        book.Status = newStatus;
+
+        payload.completedCount = payload.books.filter(b => b.Status === 'Completed').length;
+        payload.readingCount = payload.books.filter(b => b.Status === 'Reading').length;
+        payload.wantToReadCount = payload.books.filter(b => b.Status === 'WantToRead').length;
+        payload.bookProgressPercents[idx] = percent;
+        chartDataEl.textContent = JSON.stringify(payload);
+
+        if (doughnutChart) {
+            doughnutChart.data.datasets[0].data = [payload.completedCount, payload.readingCount, payload.wantToReadCount];
+            doughnutChart.update();
+        }
+        if (barChart) {
+            barChart.data.datasets[0].data = payload.bookProgressPercents;
+            barChart.update();
+        }
+    }
+
     // 3. Nút Lưu cập nhật số trang đọc xuống SQL Server
     document.querySelectorAll('.js-save-progress-btn').forEach(btn => {
         btn.addEventListener('click', async () => {
@@ -99,10 +139,15 @@ document.addEventListener('DOMContentLoaded', () => {
                 });
 
                 if (res.ok && res.data) {
+                    const percent = Number(res.data.percent) || 0;
+                    const newStatus = percent <= 0 ? 'WantToRead' : (percent >= 100 ? 'Completed' : 'Reading');
                     const statusBadge = document.getElementById(`statusBadge-${progId}`);
                     if (statusBadge && res.data.statusLabel) {
                         statusBadge.innerText = res.data.statusLabel;
+                        statusBadge.className = 'badge ' + (newStatus === 'Completed' ? 'bg-success'
+                            : newStatus === 'Reading' ? 'bg-warning text-dark' : 'bg-secondary');
                     }
+                    refreshCharts(progId, currentPage, percent, newStatus);
                     showSystemStatus(200, 'Cập nhật tiến độ đọc thành công (Mã 200)', res.data.message);
                 }
             } finally {
