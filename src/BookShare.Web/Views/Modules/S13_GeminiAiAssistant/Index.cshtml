@@ -109,7 +109,7 @@
         </div>
 
         <!-- DANH SÁCH TIN NHẮN -->
-        <div id="s13ChatViewport" class="s13-chat-viewport">
+        <div id="s13ChatViewport" class="s13-chat-viewport" role="log" aria-live="polite" aria-label="Hội thoại với Trợ lý AI">
             @foreach (var msg in Model.Messages)
             {
                 var isAi = msg.Sender.Equals("Gemini", StringComparison.OrdinalIgnoreCase);

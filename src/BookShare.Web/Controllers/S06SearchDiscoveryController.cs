@@ -14,6 +14,40 @@ public class S06SearchDiscoveryController : Controller
         _searchService = searchService;
     }
 
+    // API gợi ý tức thì (Autocomplete) cho thanh tìm kiếm: top 5 đầu sách khớp nhất
+    [HttpGet]
+    public async Task<IActionResult> Suggest(string? q)
+    {
+        if (string.IsNullOrWhiteSpace(q) || q.Trim().Length < 2)
+        {
+            return Ok(Array.Empty<object>());
+        }
+
+        var vm = await _searchService.SearchCopiesAsync(new S06SearchDiscoveryFilterDto
+        {
+            Keyword = q.Trim(),
+            OwnerType = "all",
+            StatusFilter = "all",
+            Page = 1,
+            PageSize = 24
+        });
+
+        var suggestions = vm.Results
+            .GroupBy(r => r.BookId)
+            .Select(g => new
+            {
+                bookId = g.Key,
+                title = g.First().Title,
+                author = g.First().Author,
+                isbn = g.First().ISBN,
+                coverImageUrl = g.First().CoverImageUrl,
+                availableCopies = g.Count(c => c.Status == "Available")
+            })
+            .Take(5);
+
+        return Ok(suggestions);
+    }
+
     [HttpGet]
     public async Task<IActionResult> Index(
         string? keyword = null,

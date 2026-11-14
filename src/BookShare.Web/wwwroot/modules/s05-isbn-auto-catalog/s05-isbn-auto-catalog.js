@@ -2,7 +2,7 @@
  * MODULE S05: ISBN AUTO CATALOG (s05-isbn-auto-catalog.js)
  * Đóng gói ES6 Module độc lập cho dịch vụ S05
  */
-import { apiFetch, showSystemStatus } from '../../js/core-api.js';
+import { apiFetch, showSystemStatus, openBarcodeScanner } from '../../js/core-api.js';
 
 document.addEventListener('DOMContentLoaded', () => {
     const isbnQueryInput = document.getElementById('isbnQueryInput');
@@ -101,6 +101,14 @@ document.addEventListener('DOMContentLoaded', () => {
             performIsbnLookup(isbn);
         });
     }
+
+    // 1b. Quét mã ISBN bằng Camera (html5-qrcode) rồi tự tra cứu
+    document.getElementById('btnScanIsbnCamera')?.addEventListener('click', async () => {
+        const code = await openBarcodeScanner({ title: 'Quét mã ISBN', hint: 'Đưa mã vạch ISBN (EAN-13) ở bìa sau cuốn sách vào khung' });
+        if (!code) return;
+        if (isbnQueryInput) isbnQueryInput.value = code;
+        performIsbnLookup(code);
+    });
 
     // 2. Bấm vào các chip ISBN mẫu
     document.querySelectorAll('.js-isbn-preset').forEach(chip => {

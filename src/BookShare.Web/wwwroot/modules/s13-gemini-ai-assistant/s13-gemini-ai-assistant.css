@@ -257,6 +257,12 @@
     font-size: 0.9rem;
     color: #0f172a;
 }
+.s13-msg-text.ai-md {
+    white-space: normal;
+}
+[data-bs-theme="dark"] .s13-msg-text {
+    color: var(--portal-text);
+}
 
 .s13-chat-input-bar {
     display: flex;

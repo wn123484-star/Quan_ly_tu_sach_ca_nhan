@@ -1,8 +1,17 @@
-import { apiFetch } from '../../js/core-api.js';
+import { apiFetch, openBarcodeScanner, showSystemStatus } from '../../js/core-api.js';
 
 document.addEventListener('DOMContentLoaded', () => {
     const scanInput = document.getElementById('scanBarcodeInput');
     const scanAction = document.getElementById('scanDeskAction');
+
+    // Quét Barcode bản sao bằng Camera (html5-qrcode) và tự điền vào ô nhập
+    document.getElementById('btnScanBarcodeCamera')?.addEventListener('click', async () => {
+        const code = await openBarcodeScanner({ title: 'Quét Barcode bản sao', hint: 'Đưa nhãn Barcode dán trên sách vào khung' });
+        if (!code || !scanInput) return;
+        scanInput.value = code;
+        scanInput.focus();
+        showSystemStatus(200, 'Đã đọc được mã từ Camera', `Barcode: ${code}. Chọn thao tác rồi bấm xử lý.`);
+    });
 
     // Điền nhanh Barcode mẫu
     document.querySelectorAll('.js-sample-barcode').forEach(btn => {

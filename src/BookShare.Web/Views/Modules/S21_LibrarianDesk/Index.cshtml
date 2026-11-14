@@ -28,7 +28,12 @@
                 <div class="row g-2 align-items-end">
                     <div class="col-md-4">
                         <label class="small fw-bold text-muted">Mã Barcode bản sao:</label>
-                        <input type="text" id="scanBarcodeInput" class="form-control font-monospace fw-bold" value="BS-SYS-0002" required />
+                        <div class="input-group">
+                            <input type="text" id="scanBarcodeInput" class="form-control font-monospace fw-bold" value="BS-SYS-0002" required aria-label="Mã Barcode bản sao" />
+                            <button type="button" id="btnScanBarcodeCamera" class="btn btn-outline-primary" title="Quét Barcode bằng Camera" aria-label="Quét Barcode bằng Camera">
+                                <i class="bi bi-camera-video-fill"></i>
+                            </button>
+                        </div>
                     </div>
                     <div class="col-md-5">
                         <label class="small fw-bold text-muted">Thao tác tại quầy:</label>
@@ -170,7 +175,7 @@
                 </div>
 
                 <div class="table-responsive" style="max-height: 620px;">
-                    <table class="table table-hover align-middle small mb-0">
+                    <table class="table table-hover align-middle small mb-0 table-mobile-cards">
                         <thead class="table-light sticky-top">
                             <tr>
                                 <th>Barcode / Đầu sách</th>

@@ -24,7 +24,30 @@
     --portal-grad-end: #2563eb;
     --portal-accent: #2563eb;
     --portal-light-bg: #f4f6fb;
+    --portal-surface: #ffffff;
+    --portal-surface-2: #f8fafc;
+    --portal-text: #1e293b;
+    --portal-border: #e2e8f0;
+    --portal-skeleton: #e2e8f0;
+    --portal-skeleton-shine: #f1f5f9;
     --bs-font-sans-serif: 'Roboto', 'Segoe UI', system-ui, -apple-system, sans-serif;
+}
+
+/* Dark Mode: Bootstrap 5.3 tự đổi màu component qua data-bs-theme, phần dưới phủ các màu tự định nghĩa */
+[data-bs-theme="dark"] {
+    --portal-light-bg: #0f172a;
+    --portal-surface: #1e293b;
+    --portal-surface-2: #172033;
+    --portal-text: #e2e8f0;
+    --portal-border: #334155;
+    --portal-skeleton: #26324a;
+    --portal-skeleton-shine: #334155;
+    --bs-body-bg: #0f172a;
+    --bs-body-color: #e2e8f0;
+    --bs-border-color: #334155;
+    --bs-secondary-color: #94a3b8;
+    --bs-tertiary-bg: #172033;
+    color-scheme: dark;
 }
 
 body[data-portal-palette="coral"] {
@@ -45,7 +68,8 @@ body {
     min-height: 100vh;
     display: flex;
     flex-direction: column;
-    color: #1e293b;
+    color: var(--portal-text);
+    transition: background-color 0.25s ease, color 0.25s ease;
 }
 
 main {
@@ -312,9 +336,9 @@ main {
     max-width: calc(100vw - 32px);
     height: 470px;
     max-height: calc(100vh - 120px);
-    background-color: #ffffff;
-    color: #1e293b;
-    border: 1px solid #cbd5e1;
+    background-color: var(--portal-surface);
+    color: var(--portal-text);
+    border: 1px solid var(--portal-border);
     border-radius: 16px;
     display: flex;
     flex-direction: column;
@@ -331,7 +355,7 @@ main {
     display: flex;
     flex-direction: column;
     gap: 10px;
-    background-color: #f8fafc;
+    background-color: var(--portal-surface-2);
 }
 
 .ai-msg {
@@ -354,4 +378,378 @@ main {
     background: #2563eb;
     color: #ffffff;
     border-bottom-right-radius: 4px;
+}
+
+/* Câu trả lời AI dạng Markdown (S13): bỏ pre-wrap vì đã render thành thẻ HTML */
+.ai-msg.ai-md,
+.ai-md {
+    white-space: normal;
+}
+.ai-md p { margin: 0 0 6px; }
+.ai-md p:last-child { margin-bottom: 0; }
+.ai-md ul, .ai-md ol { margin: 4px 0 6px; padding-left: 20px; }
+.ai-md li { margin-bottom: 2px; }
+.ai-md code {
+    background: rgba(37, 99, 235, 0.1);
+    padding: 1px 5px;
+    border-radius: 4px;
+    font-size: 0.82em;
+}
+
+/* Hiệu ứng "AI đang gõ..." */
+.ai-typing {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+.ai-typing span {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: #3b82f6;
+    animation: ai-typing-bounce 1.2s infinite ease-in-out;
+}
+.ai-typing span:nth-child(2) { animation-delay: 0.15s; }
+.ai-typing span:nth-child(3) { animation-delay: 0.3s; }
+@keyframes ai-typing-bounce {
+    0%, 60%, 100% { transform: translateY(0); opacity: 0.45; }
+    30% { transform: translateY(-5px); opacity: 1; }
+}
+
+/* ==========================================================================
+   5. FINAL POLISH: DARK MODE, LOADING, MOBILE, ẢNH, 3D, THÔNG BÁO, A11Y, PWA
+   ========================================================================== */
+
+/* 5.1 Dark Mode – phủ các lớp màu sáng cố định của Bootstrap & 22 module */
+[data-bs-theme="dark"] .bg-white,
+[data-bs-theme="dark"] .bg-light,
+[data-bs-theme="dark"] .card {
+    background-color: var(--portal-surface) !important;
+    color: var(--portal-text);
+}
+[data-bs-theme="dark"] .text-dark { color: var(--portal-text) !important; }
+/* Nền vàng / xanh nhạt vẫn cần chữ tối để đọc được */
+[data-bs-theme="dark"] :is(.bg-warning, .bg-info, .btn-warning, .btn-info, .text-bg-warning, .text-bg-info).text-dark,
+[data-bs-theme="dark"] :is(.bg-warning, .bg-info, .btn-warning) .text-dark { color: #111827 !important; }
+/* Nút sáng trong nội dung chuyển sang tông tối */
+[data-bs-theme="dark"] main .btn-light {
+    --bs-btn-bg: var(--portal-surface-2);
+    --bs-btn-color: var(--portal-text);
+    --bs-btn-border-color: var(--portal-border);
+    --bs-btn-hover-bg: #26324a;
+    --bs-btn-hover-color: #fff;
+    --bs-btn-hover-border-color: #475569;
+}
+[data-bs-theme="dark"] .text-secondary { color: #94a3b8 !important; }
+[data-bs-theme="dark"] .border,
+[data-bs-theme="dark"] .border-top,
+[data-bs-theme="dark"] .border-bottom { border-color: var(--portal-border) !important; }
+[data-bs-theme="dark"] .table-light {
+    --bs-table-bg: var(--portal-surface-2);
+    --bs-table-color: var(--portal-text);
+    --bs-table-border-color: var(--portal-border);
+}
+[data-bs-theme="dark"] .table { --bs-table-bg: transparent; --bs-table-color: var(--portal-text); }
+[data-bs-theme="dark"] code { color: #f9a8d4; }
+[data-bs-theme="dark"] .portal-search-box,
+[data-bs-theme="dark"] .portal-search-box input { background: var(--portal-surface); color: var(--portal-text); }
+[data-bs-theme="dark"] .portal-search-box select { color: #cbd5e1; border-left-color: var(--portal-border); }
+[data-bs-theme="dark"] .portal-search-box select option { background: var(--portal-surface); }
+[data-bs-theme="dark"] .ai-msg-bot { background-color: #1e3a5f; border-color: #1d4ed8; color: #e2e8f0; }
+[data-bs-theme="dark"] .ai-md code { background: rgba(147, 197, 253, 0.15); }
+
+/* Các khối nền sáng tự định nghĩa trong module sXX (card, box, hero, panel, ...) */
+[data-bs-theme="dark"] main :is([class*="s0"], [class*="s1"], [class*="s2"]):is([class*="-card"], [class*="-box"], [class*="-hero"], [class*="-panel"], [class*="-viewport"], [class*="-bubble"], [class*="-tab"], [class*="-item"], [class*="-thumb"], [class*="-score"], [class*="-avatar"], [class*="-chip"]) {
+    background-color: var(--portal-surface) !important;
+    background-image: none !important;
+    color: var(--portal-text);
+    border-color: var(--portal-border) !important;
+}
+[data-bs-theme="dark"] main .s13-msg-row.user .s13-msg-bubble { background-color: #1d4ed8 !important; color: #fff; }
+[data-bs-theme="dark"] main .s18-notif-card.is-unread { background-color: #13314a !important; }
+[data-bs-theme="dark"] main .s02-shelf-tab.active { background-color: #1e3a5f !important; }
+
+/* Status banner tối, giữ màu nhận diện ở viền trái */
+[data-bs-theme="dark"] .status-banner { background-color: var(--portal-surface) !important; color: var(--portal-text) !important; }
+
+/* Nút gạt Dark Mode trên thanh tiện ích */
+.theme-toggle {
+    background: rgba(255, 255, 255, 0.16);
+    border: 1px solid rgba(255, 255, 255, 0.35);
+    color: #fff;
+    border-radius: 50px;
+    padding: 2px 10px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+.theme-toggle:hover { background: rgba(255, 255, 255, 0.26); }
+
+/* 5.2 Loading: spinner trên nút & Skeleton khung xám nhấp nháy */
+.btn-loading { pointer-events: none; opacity: 0.8; }
+.skeleton {
+    background: linear-gradient(90deg, var(--portal-skeleton) 25%, var(--portal-skeleton-shine) 37%, var(--portal-skeleton) 63%);
+    background-size: 400% 100%;
+    animation: skeleton-shimmer 1.3s ease infinite;
+    border-radius: 8px;
+}
+@keyframes skeleton-shimmer {
+    0% { background-position: 100% 50%; }
+    100% { background-position: 0 50%; }
+}
+.skeleton-card {
+    background: var(--portal-surface);
+    border-radius: 16px;
+    padding: 20px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+}
+.skeleton-line { height: 12px; margin-bottom: 10px; }
+.skeleton-cover { width: 82px; height: 116px; flex-shrink: 0; }
+
+/* Header trên điện thoại rất cao (22 dịch vụ) nên không dính đầu trang để khỏi che nội dung */
+@media (max-width: 768px) {
+    .portal-header-wrapper { position: static; }
+}
+/* Nút Trợ lý AI trên điện thoại: chỉ hiện icon tròn để không tràn mép phải */
+@media (max-width: 576px) {
+    .ai-chat-widget { right: 14px; bottom: 14px; }
+    .ai-chat-fab { padding: 14px; }
+    .ai-chat-fab span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+    .ai-chat-popup { right: 8px; bottom: 76px; max-width: calc(100vw - 16px); }
+    /* Ô tìm kiếm header co theo màn hình 375px, không đẩy trang tràn ngang */
+    .portal-search-box input { min-width: 0; padding: 8px 10px; }
+    .portal-search-box select { max-width: 112px; padding: 8px 6px; }
+    .portal-search-btn { padding: 8px 14px; }
+    /* Badge tiêu đề dài được xuống dòng thay vì đẩy trang tràn ngang */
+    main .badge { white-space: normal; text-align: left; line-height: 1.35; }
+    /* Con của flex được phép co lại, chữ/mã quá dài tự ngắt dòng */
+    main .d-flex > * { min-width: 0; }
+    main { overflow-wrap: anywhere; }
+    main select { max-width: 100%; }
+}
+
+/* 5.3 Bảng dữ liệu chuyển thành Thẻ trên Mobile (S07, S21, S22) */
+@media (max-width: 576px) {
+    .table-mobile-cards thead { display: none; }
+    .table-mobile-cards,
+    .table-mobile-cards tbody,
+    .table-mobile-cards tr,
+    .table-mobile-cards td { display: block; width: 100%; }
+    .table-mobile-cards tr {
+        background: var(--portal-surface);
+        border: 1px solid var(--portal-border);
+        border-radius: 14px;
+        padding: 10px 12px;
+        margin-bottom: 12px;
+        box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
+    }
+    .table-mobile-cards td {
+        border: none;
+        padding: 6px 0;
+        text-align: left !important;
+    }
+    .table-mobile-cards td[data-label]::before {
+        content: attr(data-label);
+        display: block;
+        font-size: 0.7rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.3px;
+        color: var(--bs-secondary-color);
+        margin-bottom: 2px;
+    }
+    .table-mobile-cards td .d-flex { flex-wrap: wrap; }
+    .table-responsive:has(> .table-mobile-cards) { max-height: none !important; overflow: visible; }
+}
+
+/* 5.4 Ảnh bìa Lazy Loading + Blur-up */
+img.lazy-blur {
+    filter: blur(12px);
+    transform: scale(1.03);
+    transition: filter 0.45s ease, transform 0.45s ease;
+    background-color: var(--portal-skeleton);
+}
+img.lazy-blur.is-loaded {
+    filter: none;
+    transform: none;
+}
+
+/* 5.5 Hover 3D cho thẻ / bìa sách */
+.tilt-3d {
+    transform-style: preserve-3d;
+    transition: transform 0.18s ease-out, box-shadow 0.18s ease-out;
+    will-change: transform;
+}
+.tilt-3d.is-tilting {
+    box-shadow: var(--tilt-shadow-x, 0) 18px 30px rgba(15, 23, 42, 0.22) !important;
+}
+
+/* 5.6 Chuông thông báo real-time (S18) */
+.notif-bell {
+    position: relative;
+    color: #fff;
+    text-decoration: none;
+    font-size: 1.05rem;
+    line-height: 1;
+}
+.notif-bell:hover { color: #fff; opacity: 0.85; }
+.notif-bell .notif-dot {
+    position: absolute;
+    top: -6px;
+    right: -9px;
+    min-width: 17px;
+    height: 17px;
+    padding: 0 4px;
+    border-radius: 9px;
+    background: #ef4444;
+    color: #fff;
+    font-size: 0.62rem;
+    font-weight: 800;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 0 0 2px var(--portal-grad-start);
+}
+.notif-bell.is-ringing i { display: inline-block; animation: bell-ring 0.9s ease-in-out 2; transform-origin: 50% 0; }
+@keyframes bell-ring {
+    0%, 100% { transform: rotate(0); }
+    15% { transform: rotate(16deg); }
+    30% { transform: rotate(-14deg); }
+    45% { transform: rotate(10deg); }
+    60% { transform: rotate(-8deg); }
+    75% { transform: rotate(4deg); }
+}
+
+/* 5.7 Huy hiệu TrustScore lấp lánh (Bronze / Silver / Gold / Platinum) */
+.trust-tier {
+    position: relative;
+    overflow: hidden;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    border-radius: 50px;
+    padding: 2px 9px;
+    font-size: 0.7rem;
+    font-weight: 800;
+    letter-spacing: 0.3px;
+    color: #1f2937;
+}
+.trust-tier::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: -60%;
+    width: 40%;
+    height: 100%;
+    background: linear-gradient(100deg, transparent, rgba(255, 255, 255, 0.75), transparent);
+    animation: tier-shine 2.6s ease-in-out infinite;
+}
+@keyframes tier-shine { 0% { left: -60%; } 55%, 100% { left: 130%; } }
+.trust-tier-bronze { background: linear-gradient(135deg, #f3c19a, #b8733f); }
+.trust-tier-silver { background: linear-gradient(135deg, #f1f5f9, #94a3b8); }
+.trust-tier-gold { background: linear-gradient(135deg, #fde68a, #d97706); }
+.trust-tier-platinum { background: linear-gradient(135deg, #e0f2fe, #a5b4fc, #f0abfc); }
+
+/* 5.8 Autocomplete thanh tìm kiếm (S06) */
+.autocomplete-wrap { position: relative; }
+.autocomplete-list {
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0;
+    min-width: min(420px, 92vw);
+    z-index: 1050;
+    background: var(--portal-surface);
+    border: 1px solid var(--portal-border);
+    border-radius: 12px;
+    box-shadow: 0 12px 28px rgba(15, 23, 42, 0.16);
+    padding: 4px;
+    margin: 0;
+    list-style: none;
+}
+.autocomplete-list li {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    padding: 7px 9px;
+    border-radius: 8px;
+    cursor: pointer;
+}
+.autocomplete-list li[aria-selected="true"],
+.autocomplete-list li:hover { background: rgba(37, 99, 235, 0.1); }
+.autocomplete-list img { width: 30px; height: 42px; object-fit: cover; border-radius: 4px; }
+.autocomplete-list mark { padding: 0; background: #fde68a; color: inherit; }
+
+/* 5.9 Kéo thả sách giữa các kệ (S02) */
+.dnd-dragging { opacity: 0.45; }
+.dnd-drop-target {
+    outline: 2px dashed var(--portal-accent);
+    outline-offset: 2px;
+    transform: scale(1.04);
+    transition: transform 0.12s ease;
+}
+
+/* 5.10 Trợ năng: bỏ qua menu, focus ring nổi bật */
+.skip-link {
+    position: absolute;
+    left: 12px;
+    top: -60px;
+    z-index: 2000;
+    background: #facc15;
+    color: #111827;
+    font-weight: 700;
+    padding: 8px 14px;
+    border-radius: 8px;
+    text-decoration: none;
+}
+.skip-link:focus { top: 12px; }
+:focus-visible {
+    outline: 3px solid #f59e0b !important;
+    outline-offset: 2px !important;
+    box-shadow: 0 0 0 6px rgba(245, 158, 11, 0.25) !important;
+    border-radius: 6px;
+}
+.book-card:focus-visible,
+[class*="-card"][tabindex]:focus-visible {
+    transform: translateY(-3px);
+}
+
+/* 5.11 Splash Screen khi mở PWA */
+.app-splash {
+    position: fixed;
+    inset: 0;
+    z-index: 3000;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 14px;
+    color: #fff;
+    background: linear-gradient(160deg, #1e3a8a, #2563eb);
+    transition: opacity 0.45s ease, visibility 0.45s ease;
+}
+.app-splash.is-hidden { opacity: 0; visibility: hidden; }
+.app-splash-logo {
+    width: 86px;
+    height: 86px;
+    border-radius: 22px;
+    background: #fff;
+    color: #1d4ed8;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2.8rem;
+    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.25);
+    animation: splash-pop 0.9s ease-out;
+}
+@keyframes splash-pop { 0% { transform: scale(0.6); opacity: 0; } 70% { transform: scale(1.06); opacity: 1; } 100% { transform: scale(1); } }
+
+/* Tôn trọng thiết lập giảm chuyển động của hệ điều hành */
+@media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+    }
 }

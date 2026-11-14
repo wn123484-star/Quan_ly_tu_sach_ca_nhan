@@ -2,7 +2,7 @@
  * MODULE S04: BOOK NOTES & QUOTES (s04-book-notes-quotes.js)
  * Đóng gói ES6 Module độc lập cho dịch vụ S04
  */
-import { apiFetch, showSystemStatus } from '../../js/core-api.js';
+import { apiFetch, showSystemStatus, confirmDialog } from '../../js/core-api.js';
 
 document.addEventListener('DOMContentLoaded', () => {
     const saveForm = document.getElementById('s04SaveNoteForm');
@@ -130,11 +130,17 @@ document.addEventListener('DOMContentLoaded', () => {
         btn.addEventListener('click', async () => {
             const noteId = parseInt(btn.getAttribute('data-note-id') || '0', 10);
             if (!noteId) return;
-            if (!confirm(`Xóa ghi chú #${noteId} khỏi sổ tay? Thao tác này không thể hoàn tác.`)) return;
+            const ok = await confirmDialog({
+                title: `Xóa ghi chú #${noteId}?`,
+                text: 'Ghi chú sẽ bị xóa khỏi sổ tay. Thao tác này không thể hoàn tác.',
+                confirmText: 'Xóa ghi chú'
+            });
+            if (!ok) return;
 
             const res = await apiFetch('/S04BookNotesQuotes/DeleteNote', {
                 method: 'POST',
-                body: { noteId }
+                body: { noteId },
+                button: btn
             });
 
             if (res.ok) {

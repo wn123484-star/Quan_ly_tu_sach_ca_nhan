@@ -1,4 +1,4 @@
-import { apiFetch, showSystemStatus } from '../../js/core-api.js';
+import { apiFetch, showSystemStatus, renderMarkdown } from '../../js/core-api.js';
 
 document.addEventListener('DOMContentLoaded', () => {
     const viewport = document.getElementById('s13ChatViewport');
@@ -9,9 +9,16 @@ document.addEventListener('DOMContentLoaded', () => {
     const formCreateSession = document.getElementById('formCreateAiSession');
     const btnCreateSession = document.getElementById('btnCreateSession');
 
-    if (viewport) {
-        viewport.scrollTop = viewport.scrollHeight;
-    }
+    const scrollToLatest = (smooth = true) => {
+        if (viewport) viewport.scrollTo({ top: viewport.scrollHeight, behavior: smooth ? 'smooth' : 'auto' });
+    };
+
+    // Lịch sử trả lời AI do server render dạng text: chuyển sang Markdown (in đậm, danh sách...)
+    document.querySelectorAll('.s13-msg-row.ai .s13-msg-text').forEach(el => {
+        el.innerHTML = renderMarkdown(el.innerText);
+        el.classList.add('ai-md');
+    });
+    scrollToLatest(false);
 
     function appendMessageBubble(senderLabel, text, isAi, metaSuffix = 'Vừa xong') {
         if (!viewport) return;
@@ -40,8 +47,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const body = document.createElement('div');
         body.className = 's13-msg-text';
-        // Bắt buộc dùng innerText để chống XSS theo RULES.md
-        body.innerText = text;
+        if (isAi) {
+            // renderMarkdown escape HTML trước khi dựng thẻ → vẫn chống XSS theo RULES.md
+            body.classList.add('ai-md');
+            body.innerHTML = renderMarkdown(text);
+        } else {
+            body.innerText = text;
+        }
 
         bubble.appendChild(meta);
         bubble.appendChild(body);
@@ -49,7 +61,18 @@ document.addEventListener('DOMContentLoaded', () => {
         row.appendChild(avatar);
         row.appendChild(bubble);
         viewport.appendChild(row);
-        viewport.scrollTop = viewport.scrollHeight;
+        scrollToLatest();
+        return row;
+    }
+
+    // Hiệu ứng "AI đang gõ..." trong lúc chờ Gemini trả lời
+    function showTypingIndicator() {
+        const row = appendMessageBubble('Trợ lý AI BookShare', '', true, 'Đang soạn câu trả lời...');
+        const body = row?.querySelector('.s13-msg-text');
+        if (body) {
+            body.innerHTML = '<span class="ai-typing" aria-hidden="true"><span></span><span></span><span></span></span><span class="visually-hidden">AI đang gõ...</span>';
+        }
+        return row;
     }
 
     // 1. Gửi câu hỏi thông qua gợi ý nhanh
@@ -72,14 +95,17 @@ document.addEventListener('DOMContentLoaded', () => {
         const sessionId = parseInt(sessionIdInput?.value || '0', 10) || null;
         appendMessageBubble('Bạn', text, false, 'Đang gửi...');
         messageInput.value = '';
+        const typingRow = showTypingIndicator();
 
         const res = await apiFetch('/S13GeminiAiAssistant/SendMessage', {
             method: 'POST',
             body: JSON.stringify({
                 sessionId,
                 message: text
-            })
-        }, btnSend);
+            }),
+            button: btnSend
+        });
+        typingRow?.remove();
 
         if (res.ok && res.data) {
             if (res.data.sessionId && sessionIdInput) {
@@ -102,8 +128,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const res = await apiFetch('/S13GeminiAiAssistant/CreateSession', {
             method: 'POST',
-            body: JSON.stringify({ title })
-        }, btnCreateSession);
+            body: JSON.stringify({ title }),
+            button: btnCreateSession
+        });
 
         if (res.ok && res.data?.sessionId) {
             setTimeout(() => {
