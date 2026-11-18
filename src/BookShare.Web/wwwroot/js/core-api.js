@@ -1,7 +1,7 @@
 /**
  * BOOKSHARE CORE API & UI HELPER (wwwroot/js/core-api.js)
  * - Tự động đính kèm AntiForgeryToken (CSRF) vào mọi request POST/PUT/DELETE
- * - Cập nhật thanh trạng thái #systemStatusBox (Mã 200, 300, 400, 404, 500) kế thừa book-tracker-ver07
+ * - Cập nhật thanh trạng thái #systemStatusBox (Mã 200, 300, 400, 403, 404, 500) kế thừa book-tracker-ver07
  * - Điều khiển hộp thoại Trợ lý AI Gemini nổi ở góc phải dưới màn hình
  */
 
@@ -22,10 +22,11 @@ export function showSystemStatus(code, title, detail) {
 
     if (!box || !badge || !titleEl || !detailEl) return;
 
-    box.classList.remove('hidden-banner', 'd-none', 'status-200', 'status-300', 'status-400', 'status-404', 'status-500');
+    box.classList.remove('hidden-banner', 'd-none', 'status-200', 'status-300', 'status-400', 'status-403', 'status-404', 'status-500');
     let cls = 'status-200';
     if (code >= 500) cls = 'status-500';
     else if (code === 404) cls = 'status-404';
+    else if (code === 403) cls = 'status-403';
     else if (code >= 400) cls = 'status-400';
     else if (code >= 300) cls = 'status-300';
 
@@ -65,24 +66,36 @@ export async function apiFetch(url, options = {}) {
         });
 
         const contentType = response.headers.get('content-type') || '';
-        const payload = contentType.includes('application/json')
-            ? await response.json()
-            : await response.text();
+        let payload = null;
+        const responseText = await response.text();
+        if (responseText) {
+            if (contentType.includes('application/json')) {
+                try { payload = JSON.parse(responseText); }
+                catch { payload = { message: 'Máy chủ trả về dữ liệu JSON không hợp lệ.' }; }
+            } else {
+                payload = responseText;
+            }
+        }
 
         if (!response.ok) {
-            const errMsg = (payload && payload.message) ? payload.message : `Yêu cầu thất bại với mã HTTP ${response.status}`;
-            showSystemStatus(response.status, `Cảnh báo phản hồi máy chủ (Mã ${response.status})`, errMsg);
+            const errMsg = (payload && typeof payload === 'object' && payload.message)
+                ? payload.message
+                : response.status >= 500
+                    ? 'Hệ thống đang gặp sự cố. Vui lòng thử lại sau.'
+                    : `Yêu cầu chưa được chấp nhận (HTTP ${response.status}).`;
+            showSystemStatus(response.status, `Yêu cầu thất bại (Mã ${response.status})`, errMsg);
             return { ok: false, status: response.status, data: payload, message: errMsg };
         }
 
-        if (payload && payload.message) {
-            showSystemStatus(response.status, payload.title || 'Thao tác thành công (Mã 200)', payload.message);
+        if (payload && typeof payload === 'object' && payload.message) {
+            showSystemStatus(response.status, payload.title || `Thao tác thành công (Mã ${response.status})`, payload.message);
         }
 
         return { ok: true, status: response.status, data: payload };
     } catch (error) {
-        showSystemStatus(500, 'Lỗi kết nối máy chủ (Mã 500)', error.message);
-        return { ok: false, status: 500, data: null, message: error.message };
+        const safeMessage = 'Không thể kết nối tới máy chủ. Vui lòng kiểm tra mạng và thử lại.';
+        showSystemStatus(500, 'Lỗi kết nối máy chủ (Mã 500)', safeMessage);
+        return { ok: false, status: 500, data: null, message: safeMessage };
     }
 }
 

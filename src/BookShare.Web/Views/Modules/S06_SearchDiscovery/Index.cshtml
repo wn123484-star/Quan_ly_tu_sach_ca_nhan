@@ -317,7 +317,7 @@ else
                     <div class="row g-3 mb-3">
                         <div class="col-md-5">
                             <label class="form-label small fw-bold text-secondary">Số ngày mượn dự kiến</label>
-                            <select id="loanDesiredDays" class="form-select">
+                            <select id="loanDesiredDays" class="form-select" required>
                                 <option value="7">7 ngày (1 tuần)</option>
                                 <option value="14" selected>14 ngày (Tiêu chuẩn)</option>
                                 <option value="21">21 ngày (3 tuần)</option>
@@ -325,7 +325,7 @@ else
                         </div>
                         <div class="col-md-7">
                             <label class="form-label small fw-bold text-secondary">Điểm trạm nhận sách an toàn (<code>PickupHub</code>)</label>
-                            <select id="loanPickupHubId" class="form-select">
+                            <select id="loanPickupHubId" class="form-select" required>
                                 @foreach (var hub in Model.PickupHubs)
                                 {
                                     <option value="@hub.Id">@hub.Name</option>

@@ -20,6 +20,19 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
+    // Xem trước ảnh đại diện trước khi lưu hồ sơ.
+    const avatarUrlInput = document.getElementById('profAvatarUrl');
+    const avatarPreview = document.getElementById('s01AvatarPreview');
+    const fallbackAvatar = 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=200';
+    avatarUrlInput?.addEventListener('input', () => {
+        if (!avatarPreview) return;
+        const nextUrl = avatarUrlInput.value.trim();
+        avatarPreview.src = nextUrl || fallbackAvatar;
+    });
+    avatarPreview?.addEventListener('error', () => {
+        if (avatarPreview.src !== fallbackAvatar) avatarPreview.src = fallbackAvatar;
+    });
+
     // 2. Xử lý 6 ô nhập mã OTP tự động nhảy chữ số
     const otpDigits = Array.from(document.querySelectorAll('.s01-otp-digit'));
     const hiddenOtpCode = document.getElementById('otpCodeFull');
@@ -32,11 +45,17 @@ document.addEventListener('DOMContentLoaded', () => {
 
     otpDigits.forEach((input, idx) => {
         input.addEventListener('input', (e) => {
-            const val = e.target.value.replace(/\D/g, '');
-            e.target.value = val ? val[0] : '';
+            const val = e.target.value.replace(/\D/g, '').slice(0, otpDigits.length - idx);
+            if (val.length > 1) {
+                val.split('').forEach((digit, offset) => {
+                    if (otpDigits[idx + offset]) otpDigits[idx + offset].value = digit;
+                });
+            } else {
+                e.target.value = val;
+            }
             syncFullOtp();
             if (val && idx < otpDigits.length - 1) {
-                otpDigits[idx + 1].focus();
+                otpDigits[Math.min(idx + Math.max(val.length, 1), otpDigits.length - 1)].focus();
             }
         });
 
@@ -69,8 +88,9 @@ document.addEventListener('DOMContentLoaded', () => {
             const email = emailEl ? emailEl.value.trim() : '';
             const purpose = purposeEl ? purposeEl.value : 'VerifyLoan';
 
-            if (!email) {
-                showSystemStatus(400, 'Thiếu địa chỉ Email nhận OTP (Mã 400)', 'Vui lòng nhập email để nhận mã xác thực 6 chữ số.');
+            if (!email || (emailEl && !emailEl.checkValidity())) {
+                emailEl?.reportValidity();
+                showSystemStatus(400, 'Địa chỉ Email chưa hợp lệ (Mã 400)', 'Vui lòng nhập email đúng định dạng để nhận mã xác thực 6 chữ số.');
                 return;
             }
 
@@ -114,8 +134,15 @@ document.addEventListener('DOMContentLoaded', () => {
             const email = document.getElementById('otpEmail')?.value.trim() || '';
             const purpose = document.getElementById('otpPurpose')?.value || 'VerifyLoan';
             const otpCode = hiddenOtpCode?.value || '';
+            const emailInput = document.getElementById('otpEmail');
 
-            if (otpCode.length !== 6) {
+            if (!email || (emailInput && !emailInput.checkValidity())) {
+                emailInput?.reportValidity();
+                showSystemStatus(400, 'Địa chỉ Email chưa hợp lệ (Mã 400)', 'Vui lòng nhập email đúng định dạng trước khi xác thực OTP.');
+                return;
+            }
+
+            if (otpCode.length !== 6 || !/^\d{6}$/.test(otpCode)) {
                 showSystemStatus(400, 'Mã OTP chưa đủ 6 chữ số (Mã 400)', 'Vui lòng nhập đủ 6 chữ số OTP.');
                 return;
             }
@@ -126,9 +153,12 @@ document.addEventListener('DOMContentLoaded', () => {
             });
 
             if (res.ok && res.data) {
-                showSystemStatus(200, 'Xác thực OTP thành công (Mã 200)', res.data.message);
+                showSystemStatus(200, res.data.title || 'Xác thực OTP thành công (Mã 200)', res.data.message);
                 if (typeof Swal !== 'undefined') {
-                    Swal.fire('Xác thực OTP Hợp lệ!', res.data.message, 'success');
+                    Swal.fire('Xác thực OTP hợp lệ!', res.data.message, 'success');
+                }
+                if (purpose === 'Login' && res.data.redirectUrl) {
+                    window.location.assign(res.data.redirectUrl);
                 }
             }
         });
@@ -170,6 +200,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             if (res.ok && res.data) {
                 showSystemStatus(200, res.data.title || 'Đổi mật khẩu thành công', res.data.message);
+                changePassForm.reset();
             }
         });
     }

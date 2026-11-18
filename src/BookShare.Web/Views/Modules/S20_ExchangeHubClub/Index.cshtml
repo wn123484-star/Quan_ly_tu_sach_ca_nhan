@@ -67,7 +67,7 @@
                 <form id="formRegisterDropoff" class="d-flex flex-column gap-3">
                     <div>
                         <label class="form-label small fw-bold">Chọn Bản sao sách P2P cần gửi trạm</label>
-                        <select id="dropoffCopyId" class="form-select">
+                        <select id="dropoffCopyId" class="form-select" required>
                             @foreach (var c in Model.HubCopies)
                             {
                                 <option value="@c.BookCopyId">[@c.Barcode] @c.BookTitle (Chủ: @c.OwnerName)</option>
@@ -76,7 +76,7 @@
                     </div>
                     <div>
                         <label class="form-label small fw-bold">Chọn Điểm trạm nhận ký gửi</label>
-                        <select id="dropoffHubId" class="form-select">
+                        <select id="dropoffHubId" class="form-select" required>
                             @foreach (var h in Model.Hubs)
                             {
                                 <option value="@h.HubId" selected="@(h.HubId == 3)">@h.Name</option>
@@ -102,7 +102,7 @@
                 <form id="formCuratorVerify" class="d-flex flex-column gap-3">
                     <div>
                         <label class="form-label small fw-bold">Bản sao sách kiểm định tại Trạm CLB</label>
-                        <select id="verifyCopyId" class="form-select">
+                        <select id="verifyCopyId" class="form-select" required>
                             @foreach (var c in Model.HubCopies)
                             {
                                 <option value="@c.BookCopyId">[@c.Barcode] @c.BookTitle (@c.Condition • @c.ShelfLocation)</option>
@@ -112,7 +112,7 @@
                     <div class="row g-2">
                         <div class="col-6">
                             <label class="form-label small fw-bold">Cấp độ vật lý thực tế</label>
-                            <select id="verifyCondition" class="form-select">
+                            <select id="verifyCondition" class="form-select" required>
                                 <option value="New">New (Mới 99%)</option>
                                 <option value="Good" selected>Good (Tốt, đủ trang)</option>
                                 <option value="Fair">Fair (Khá)</option>

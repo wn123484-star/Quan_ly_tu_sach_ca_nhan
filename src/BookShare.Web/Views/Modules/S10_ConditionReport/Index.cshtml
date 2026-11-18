@@ -61,14 +61,14 @@
                     <div class="row g-2 mb-3">
                         <div class="col-6">
                             <label class="form-label small fw-bold text-secondary">Thời điểm lập (<code>ReportType</code>)</label>
-                            <select id="s10ReportType" name="reportType" class="form-select">
+                            <select id="s10ReportType" name="reportType" class="form-select" required>
                                 <option value="Handover">Lúc Giao (Handover)</option>
                                 <option value="Return" selected>Lúc Trả (Return)</option>
                             </select>
                         </div>
                         <div class="col-6">
                             <label class="form-label small fw-bold text-secondary">Độ mới (<code>ConditionGrade</code>)</label>
-                            <select id="s10ConditionGrade" name="conditionGrade" class="form-select">
+                            <select id="s10ConditionGrade" name="conditionGrade" class="form-select" required>
                                 <option value="New">Mới nguyên (New)</option>
                                 <option value="Good" selected>Tốt / Nguyên vẹn (Good)</option>
                                 <option value="Fair">Khá / Quăn góc nhẹ (Fair)</option>
