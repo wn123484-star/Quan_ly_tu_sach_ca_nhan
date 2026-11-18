@@ -34,7 +34,7 @@
                 <form id="formCreateSandboxOrder" class="d-flex flex-column gap-3">
                     <div>
                         <label class="form-label small fw-bold">Loại giao dịch (<code>TransactionType</code>)</label>
-                        <select id="txTypeSelect" class="form-select">
+                        <select id="txTypeSelect" class="form-select" required>
                             <option value="Membership" data-amount="99000">👑 Phí nâng cấp gói Premium 12 tháng (99.000đ)</option>
                             <option value="Fine" data-amount="25000">⏰ Nộp phí phạt trả sách trễ hạn từ S12 (25.000đ)</option>
                             <option value="SimulatedDeposit" data-amount="50000">🛡️ Tiền cọc mô phỏng Kho chung (50.000đ - Hoàn 100%)</option>
@@ -43,7 +43,7 @@
 
                     <div id="loanSelectGroup">
                         <label class="form-label small fw-bold">Liên kết Hợp đồng mượn (<code>LoanId</code> - Dùng cho Phí trễ / Cọc)</label>
-                        <select id="txLoanIdSelect" class="form-select">
+                        <select id="txLoanIdSelect" class="form-select" required>
                             <option value="">-- Không gắn hợp đồng (Dành cho Gói Membership) --</option>
                             @foreach (var l in Model.UnpaidFineLoans)
                             {
@@ -59,7 +59,7 @@
                         </div>
                         <div class="col-6">
                             <label class="form-label small fw-bold">Cổng Sandbox</label>
-                            <select id="txGatewaySelect" class="form-select">
+                            <select id="txGatewaySelect" class="form-select" required>
                                 <option value="VNPaySandbox">VNPaySandbox</option>
                                 <option value="MoMoSandbox">MoMoSandbox</option>
                             </select>
@@ -87,11 +87,11 @@
                     <div class="row g-2">
                         <div class="col-md-4">
                             <label class="form-label small fw-bold">Mã giao dịch (<code>TransactionId</code>)</label>
-                            <input type="number" id="cbTransactionId" class="form-control font-monospace fw-bold" placeholder="VD: 3" required />
+                            <input type="number" id="cbTransactionId" class="form-control font-monospace fw-bold" placeholder="VD: 3" min="1" required />
                         </div>
                         <div class="col-md-8">
                             <label class="form-label small fw-bold">Mã phản hồi cổng (<code>vnp_ResponseCode</code>)</label>
-                            <select id="cbResponseCode" class="form-select">
+                            <select id="cbResponseCode" class="form-select" required>
                                 <option value="00">00 — Giao dịch thành công (Kích hoạt Membership / Xóa nợ phí trễ)</option>
                                 <option value="24">24 — Khách hàng hủy giao dịch (Chuyển sang Failed)</option>
                             </select>
@@ -100,12 +100,12 @@
 
                     <div>
                         <label class="form-label small fw-bold">Chuỗi dữ liệu gốc cần ký (Canonical Raw Payload)</label>
-                        <input type="text" id="cbRawPayload" class="form-control form-control-sm font-monospace bg-light" placeholder="Bấm Bước 1 để hệ thống tự động sinh chuỗi dữ liệu..." />
+                        <input type="text" id="cbRawPayload" class="form-control form-control-sm font-monospace bg-light" required placeholder="Bấm Bước 1 để hệ thống tự động sinh chuỗi dữ liệu..." />
                     </div>
 
                     <div>
                         <label class="form-label small fw-bold">Chữ ký điện tử <code>HMAC-SHA512</code> (128 ký tự Hex)</label>
-                        <textarea id="cbHmacSignature" class="form-control form-control-sm font-monospace" rows="2" placeholder="Chữ ký HMAC-SHA512 sinh từ khóa bí mật VNPay__HashSecret..." required></textarea>
+                        <input type="text" id="cbHmacSignature" class="form-control form-control-sm font-monospace" placeholder="Chữ ký HMAC-SHA512 sinh từ khóa bí mật VNPay__HashSecret..." required minlength="128" maxlength="128" pattern="[A-Fa-f0-9]{128}" title="Chữ ký phải gồm đúng 128 ký tự hệ thập lục phân." autocomplete="off" spellcheck="false" />
                     </div>
 
                     <div class="d-flex flex-wrap gap-2">

@@ -1,0 +1,27 @@
+1
+00:00:00,000 --> 00:00:15,000
+BookShare Portal – quản lý tủ sách cá nhân, chia sẻ sách, mượn/trả và phân quyền theo vai trò.
+
+2
+00:00:15,000 --> 00:00:55,000
+Đăng nhập OTP qua email: gửi mã sáu chữ số, nhập mã và xác thực. Phiên chỉ được tạo sau khi OTP hợp lệ, còn hạn và chưa sử dụng.
+
+3
+00:00:55,000 --> 00:01:35,000
+Quản lý tủ sách: tạo kệ, thêm sách hoặc bản sao và kiểm tra dữ liệu sau khi lưu.
+
+4
+00:01:35,000 --> 00:02:20,000
+Mượn sách: tìm đầu sách, chọn bản sao, thời hạn và điểm nhận; gửi yêu cầu mượn theo luồng phù hợp.
+
+5
+00:02:20,000 --> 00:02:55,000
+Trả sách: dùng tài khoản có quyền nghiệp vụ để ghi nhận nhận trả và kiểm tra trạng thái hợp đồng.
+
+6
+00:02:55,000 --> 00:03:35,000
+Phân quyền: tài khoản User bị từ chối truy cập dịch vụ Admin (403); tài khoản Admin được phép mở màn hình quản trị.
+
+7
+00:03:35,000 --> 00:04:00,000
+Kết thúc: tổng hợp kết quả kiểm thử đã thực hiện và phiên bản branch/commit bàn giao.

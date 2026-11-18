@@ -134,14 +134,14 @@
                 <form id="formCustomMembership" class="d-flex flex-column gap-3">
                     <div>
                         <label class="form-label small fw-bold">Gói thành viên mục tiêu</label>
-                        <select id="selectTargetTier" class="form-select">
+                        <select id="selectTargetTier" class="form-select" required>
                             <option value="Premium" selected>👑 Premium (Tối đa 5 cuốn + Ưu tiên S11)</option>
                             <option value="Free">📘 Free (Tối đa 2 cuốn cơ bản)</option>
                         </select>
                     </div>
                     <div>
                         <label class="form-label small fw-bold">Thời hạn đăng ký / gia hạn thêm</label>
-                        <select id="selectDurationMonths" class="form-select">
+                        <select id="selectDurationMonths" class="form-select" required>
                             <option value="1">1 tháng (19.000 VNĐ)</option>
                             <option value="6">6 tháng (59.000 VNĐ)</option>
                             <option value="12" selected>12 tháng — 1 Năm học (99.000 VNĐ)</option>
@@ -149,7 +149,7 @@
                     </div>
                     <div>
                         <label class="form-label small fw-bold">Cổng thanh toán liên kết (S17)</label>
-                        <select id="selectGateway" class="form-select">
+                        <select id="selectGateway" class="form-select" required>
                             <option value="VNPaySandbox">VNPay Sandbox (HMAC-SHA512)</option>
                             <option value="MoMoSandbox">MoMo Sandbox (HMAC-SHA512)</option>
                         </select>

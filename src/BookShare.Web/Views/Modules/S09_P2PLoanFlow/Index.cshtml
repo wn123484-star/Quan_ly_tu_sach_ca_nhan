@@ -45,7 +45,7 @@
                     </div>
                     <div class="col-md-4">
                         <label class="form-label small text-muted mb-1">Điểm hẹn giao nhận (Hub/CLB)</label>
-                        <select id="s09PickupHubId" class="form-select form-select-sm">
+                        <select id="s09PickupHubId" class="form-select form-select-sm" required>
                             @foreach (var h in Model.PickupHubs)
                             {
                                 <option value="@h.Id">@h.Name</option>

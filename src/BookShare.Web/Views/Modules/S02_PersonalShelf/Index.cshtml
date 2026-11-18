@@ -66,7 +66,7 @@
                 <form id="s02AddBookCopyForm" class="row g-3 align-items-end">
                     <div class="col-md-5">
                         <label class="form-label small text-muted">Chọn đầu sách từ Danh mục (Books)</label>
-                        <select id="selectBookId" class="form-select form-select-sm">
+                        <select id="selectBookId" class="form-select form-select-sm" required>
                             @foreach (var b in Model.CatalogBooks)
                             {
                                 <option value="@b.Id">@b.Title — @b.Author (ISBN: @b.ISBN)</option>
@@ -75,7 +75,7 @@
                     </div>
                     <div class="col-md-3">
                         <label class="form-label small text-muted">Xếp vào kệ sách</label>
-                        <select id="selectShelfId" class="form-select form-select-sm">
+                        <select id="selectShelfId" class="form-select form-select-sm" required>
                             @foreach (var s in Model.Shelves)
                             {
                                 <option value="@s.Id">@s.Name</option>
@@ -84,7 +84,7 @@
                     </div>
                     <div class="col-md-2">
                         <label class="form-label small text-muted">Tình trạng vật lý</label>
-                        <select id="selectCondition" class="form-select form-select-sm">
+                        <select id="selectCondition" class="form-select form-select-sm" required>
                             <option value="New">Mới (New)</option>
                             <option value="Good" selected>Tốt (Good)</option>
                             <option value="Fair">Khá (Fair)</option>

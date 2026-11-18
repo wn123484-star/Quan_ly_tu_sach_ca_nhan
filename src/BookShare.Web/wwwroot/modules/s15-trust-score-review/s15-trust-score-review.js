@@ -7,12 +7,24 @@ document.addEventListener('DOMContentLoaded', () => {
     const formSubmitReview = document.getElementById('formSubmitReview');
     const btnSubmitReview = document.getElementById('btnSubmitReview');
 
-    // 1. Chuyển đổi đối tượng đánh giá (User vs Book)
-    targetTypeSelect?.addEventListener('change', () => {
-        const isUser = targetTypeSelect.value === 'User';
+    // 1. Chuyển đổi đối tượng đánh giá (User vs Book) và validate đúng nhóm đang hiển thị.
+    const syncTargetValidation = () => {
+        const isUser = targetTypeSelect?.value === 'User';
+        const userSelect = document.getElementById('reviewTargetUserId');
+        const bookSelect = document.getElementById('reviewTargetBookId');
         if (userTargetGroup) userTargetGroup.style.display = isUser ? 'block' : 'none';
         if (bookTargetGroup) bookTargetGroup.style.display = isUser ? 'none' : 'block';
-    });
+        if (userSelect) {
+            userSelect.required = Boolean(isUser);
+            userSelect.disabled = !isUser;
+        }
+        if (bookSelect) {
+            bookSelect.required = !isUser;
+            bookSelect.disabled = Boolean(isUser);
+        }
+    };
+    targetTypeSelect?.addEventListener('change', syncTargetValidation);
+    syncTargetValidation();
 
     // 2. Gửi đánh giá 2 chiều lên Server
     formSubmitReview?.addEventListener('submit', async (e) => {

@@ -212,6 +212,9 @@ main {
 .status-banner.status-400 { border-left-color: #fd7e14; background-color: #fff3cd; color: #664d03; }
 .status-banner.status-400 .status-code-pill { background-color: #fd7e14; }
 
+.status-banner.status-403 { border-left-color: #7c3aed; background-color: #f3e8ff; color: #581c87; }
+.status-banner.status-403 .status-code-pill { background-color: #7c3aed; }
+
 .status-banner.status-404 { border-left-color: #d97706; background-color: #fef3c7; color: #78350f; }
 .status-banner.status-404 .status-code-pill { background-color: #d97706; }
 
@@ -354,4 +357,381 @@ main {
     background: #2563eb;
     color: #ffffff;
     border-bottom-right-radius: 4px;
+}
+
+
+/* Shared form validation feedback */
+.form-control.is-invalid, .form-select.is-invalid { border-color: #dc3545; box-shadow: 0 0 0 .15rem rgba(220,53,69,.10); }
+.form-control[aria-invalid="true"], .form-select[aria-invalid="true"] { border-color: #dc3545; }
+.form-control:focus, .form-select:focus { outline-offset: 1px; }
+@media (max-width: 575.98px) {
+    .status-banner { align-items: flex-start; gap: .5rem; }
+    .status-banner-left { min-width: 0; }
+    .status-text-group { min-width: 0; overflow-wrap: anywhere; }
+    .s01-auth-card { padding: 1rem; }
+}
+
+
+/* Cross-module responsive guardrails: all 22 service links remain reachable without
+   expanding the header into a 22-row block on small screens. */
+.portal-utility-bar .container > div:first-child {
+    min-width: 0;
+}
+
+@media (max-width: 991.98px) {
+    .portal-utility-bar .container {
+        align-items: stretch !important;
+    }
+
+    .portal-utility-bar .container > div:first-child {
+        flex-wrap: nowrap !important;
+        overflow-x: auto;
+        overflow-y: hidden;
+        white-space: nowrap;
+        max-width: 100%;
+        padding-bottom: .4rem;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: thin;
+        overscroll-behavior-x: contain;
+    }
+
+    .portal-utility-bar .container > div:first-child > * {
+        flex: 0 0 auto;
+    }
+
+    .portal-utility-bar .container > div:nth-child(2) {
+        width: 100%;
+        min-width: 0;
+    }
+}
+
+@media (max-width: 767.98px) {
+    .portal-header-wrapper { position: relative; }
+    .portal-main-bar .row > * { min-width: 0; }
+    .portal-main-bar .col-lg-2 { text-align: start !important; }
+    .status-banner { padding: .75rem; }
+    .status-banner-left { align-items: flex-start; gap: .5rem; }
+    .status-text-group { min-width: 0; overflow-wrap: anywhere; }
+    .status-detail-sub { overflow-wrap: anywhere; }
+    .ai-chat-widget { right: 12px; bottom: 12px; }
+    .ai-chat-popup {
+        right: 12px;
+        bottom: 76px;
+        width: calc(100vw - 24px);
+        max-width: calc(100vw - 24px);
+        max-height: calc(100dvh - 100px);
+    }
+    .modal-dialog { margin: .5rem; }
+    .modal-content { max-height: calc(100dvh - 1rem); }
+    .modal-body { overflow-y: auto; }
+    .table-responsive { max-width: 100%; -webkit-overflow-scrolling: touch; }
+    .table-responsive > .table { min-width: 600px; }
+    .row > * { min-width: 0; }
+    .card-body, .modal-body { overflow-wrap: anywhere; }
+    pre, code { overflow-wrap: anywhere; }
+}
+
+@media (max-width: 575.98px) {
+    main.container { padding-left: .75rem; padding-right: .75rem; }
+    .portal-search-box { flex-wrap: wrap; gap: .25rem; }
+    .portal-search-box input { flex: 1 1 100%; min-width: 0; }
+    .portal-search-box select { flex: 1 1 auto; min-width: 0; max-width: none; border-left: 0; }
+    .portal-search-btn { flex: 0 0 auto; }
+    .portal-quick-tags { gap: .5rem .75rem; }
+    .portal-utility-bar .container > div:nth-child(2) .btn-group { flex-wrap: wrap; }
+    .status-code-pill { padding: .25rem .55rem; }
+    .status-close-btn { flex: 0 0 auto; }
+    .ai-chat-fab { padding: .65rem .85rem; }
+    .ai-chat-fab span { font-size: .82rem; }
+    .table-responsive > .table { min-width: 560px; }
+}
+
+/* ==========================================================================
+   SPRINT 2 – RESPONSIVE PORTAL SHELL (22 service links, tables and dialogs)
+   ========================================================================== */
+.portal-utility-container {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: .45rem 1rem;
+    min-width: 0;
+}
+
+.portal-service-nav {
+    flex: 1 1 100%;
+    min-width: 0;
+    max-width: 100%;
+}
+
+.portal-service-links {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: .25rem .45rem;
+    min-width: 0;
+}
+
+.portal-service-links > a {
+    flex: 0 0 auto;
+    white-space: nowrap;
+    line-height: 1.6;
+}
+
+.portal-service-links > span {
+    flex: 0 0 auto;
+    user-select: none;
+}
+
+.portal-utility-actions {
+    min-width: 0;
+    max-width: 100%;
+}
+
+.portal-search-box input {
+    min-width: 0;
+}
+
+main,
+main .row,
+main [class*="col-"],
+main .card,
+main .card-body {
+    min-width: 0;
+}
+
+main img,
+main video,
+main iframe {
+    max-width: 100%;
+}
+
+/* Tables can scroll within their own region instead of widening the page. */
+main .table-responsive {
+    max-width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+main table.table {
+    max-width: 100%;
+}
+
+main .table-responsive > .table,
+main .table:not(.table-layout-fixed) {
+    white-space: nowrap;
+}
+
+/* Long user-generated values should wrap instead of expanding cards. */
+main pre,
+main code,
+main .text-break,
+main .status-detail-sub {
+    overflow-wrap: anywhere;
+    word-break: break-word;
+}
+
+/* Keep dialogs usable on short laptop and phone viewports. */
+.modal-dialog {
+    width: auto;
+    max-width: min(100% - 1rem, 960px);
+    margin: .5rem auto;
+}
+
+.modal-content {
+    max-height: calc(100dvh - 1rem);
+    min-width: 0;
+}
+
+.modal-body {
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+}
+
+/* All form controls must stay inside their grid/card on narrow devices. */
+main .form-control,
+main .form-select,
+main .input-group,
+main .btn,
+#aiChatWidgetForm .form-control {
+    min-width: 0;
+    max-width: 100%;
+}
+
+.form-control.is-invalid,
+.form-select.is-invalid {
+    border-color: #dc3545;
+    box-shadow: 0 0 0 .15rem rgba(220, 53, 69, .10);
+}
+
+.form-control[aria-invalid="true"],
+.form-select[aria-invalid="true"] {
+    border-color: #dc3545;
+}
+
+@media (max-width: 767.98px) {
+    .portal-header-wrapper {
+        position: relative;
+    }
+
+    .portal-utility-container {
+        display: block;
+        padding-top: .25rem;
+        padding-bottom: .45rem;
+    }
+
+    .portal-service-nav {
+        overflow-x: auto;
+        overflow-y: hidden;
+        white-space: nowrap;
+        scrollbar-width: thin;
+        scrollbar-color: rgba(255, 255, 255, .4) transparent;
+        -webkit-overflow-scrolling: touch;
+        padding-bottom: .15rem;
+        margin-bottom: .45rem;
+    }
+
+    .portal-service-links {
+        width: max-content;
+        min-width: 100%;
+        flex-wrap: nowrap;
+        gap: .25rem .45rem;
+    }
+
+    .portal-service-links > a {
+        font-size: .75rem;
+    }
+
+    .portal-service-links > span {
+        font-size: .72rem;
+    }
+
+    .portal-utility-actions {
+        justify-content: flex-start;
+        gap: .4rem !important;
+    }
+
+    .portal-utility-actions .btn-group {
+        margin-right: 0 !important;
+        max-width: 100%;
+    }
+
+    .portal-utility-actions .btn-group .btn {
+        padding: .2rem .4rem;
+        font-size: .68rem;
+    }
+
+    .portal-main-bar {
+        padding: .65rem 0;
+    }
+
+    .portal-main-bar .row {
+        row-gap: .65rem !important;
+    }
+
+    .portal-search-box {
+        display: flex;
+        flex-wrap: wrap;
+        gap: .25rem;
+        padding: .35rem;
+    }
+
+    .portal-search-box input {
+        flex: 1 1 100%;
+        width: 100%;
+        padding: .55rem .65rem;
+    }
+
+    .portal-search-box select {
+        flex: 1 1 58%;
+        width: auto;
+        max-width: none;
+        border-left: 0;
+        border-top: 1px solid #e2e8f0;
+        padding: .5rem .35rem;
+        font-size: .75rem;
+    }
+
+    .portal-search-btn {
+        flex: 1 1 35%;
+        padding: .5rem .55rem;
+        font-size: .8rem;
+    }
+
+    .status-banner {
+        align-items: flex-start;
+        gap: .5rem;
+        padding: .7rem .8rem;
+    }
+
+    .status-banner-left {
+        min-width: 0;
+        flex: 1 1 auto;
+        align-items: flex-start;
+        gap: .5rem;
+    }
+
+    .status-text-group {
+        min-width: 0;
+        overflow-wrap: anywhere;
+    }
+
+    .ai-chat-widget {
+        right: .75rem;
+        bottom: .75rem;
+    }
+
+    .ai-chat-fab {
+        padding: .65rem .85rem;
+        font-size: .82rem;
+    }
+
+    .ai-chat-popup {
+        right: .5rem;
+        bottom: 4.5rem;
+        width: min(365px, calc(100vw - 1rem));
+        max-height: calc(100dvh - 6rem);
+    }
+
+    .modal-dialog {
+        max-width: calc(100% - .75rem);
+        margin: .375rem auto;
+    }
+
+    main .table-responsive {
+        margin-right: -.15rem;
+        margin-left: -.15rem;
+    }
+}
+
+@media (max-width: 420px) {
+    main.container {
+        padding-right: .65rem;
+        padding-left: .65rem;
+    }
+
+    main .btn {
+        white-space: normal;
+    }
+
+    .portal-logo .fs-4 {
+        font-size: 1.25rem !important;
+    }
+
+    .status-code-pill {
+        padding: .25rem .5rem;
+        font-size: .68rem;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        scroll-behavior: auto !important;
+        animation-duration: .01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: .01ms !important;
+    }
 }

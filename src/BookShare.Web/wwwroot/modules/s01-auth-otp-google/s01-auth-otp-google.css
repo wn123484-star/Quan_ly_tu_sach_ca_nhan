@@ -95,3 +95,16 @@
     padding: 12px 16px;
     color: #92400e;
 }
+
+
+@media (max-width: 575.98px) {
+    .s01-auth-card { padding: 1rem; }
+    .s01-auth-card .nav { flex-wrap: nowrap; overflow-x: auto; padding-bottom: .35rem; }
+    .s01-auth-card .nav .nav-link { white-space: nowrap; font-size: .82rem; }
+    .s01-otp-box { gap: 5px; }
+    .s01-otp-digit { width: clamp(35px, 10vw, 41px); height: 48px; font-size: 1.15rem; }
+    .s01-auth-card .input-group { flex-wrap: wrap; }
+    .s01-auth-card .input-group > #otpEmail { flex: 1 1 100%; border-radius: .375rem !important; margin-bottom: .4rem; }
+    .s01-auth-card .input-group > #otpPurpose { flex: 1 1 58%; max-width: none !important; border-radius: .375rem !important; }
+    .s01-auth-card .input-group > #btnSendOtp { flex: 1 1 38%; border-radius: .375rem !important; }
+}

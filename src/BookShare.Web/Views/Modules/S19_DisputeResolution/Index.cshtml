@@ -33,7 +33,7 @@
                 <form id="formCreateDispute" class="d-flex flex-column gap-3">
                     <div>
                         <label class="form-label small fw-bold">Chọn Hợp đồng mượn (<code>LoanId</code>)</label>
-                        <select id="disputeLoanId" class="form-select">
+                        <select id="disputeLoanId" class="form-select" required>
                             @foreach (var l in Model.EligibleLoans)
                             {
                                 <option value="@l.LoanId">Loan #@l.LoanId — [@l.Barcode] @l.BookTitle (Người mượn: @l.BorrowerName)</option>

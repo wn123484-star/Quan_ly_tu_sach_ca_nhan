@@ -32,7 +32,7 @@
                     </div>
                     <div class="col-md-5">
                         <label class="small fw-bold text-muted">Thao tác tại quầy:</label>
-                        <select id="scanDeskAction" class="form-select">
+                        <select id="scanDeskAction" class="form-select" required>
                             <option value="AutoDetect" selected>⚡ Tự động nhận diện (Mượn ↔ Trả)</option>
                             <option value="Checkin">📥 Thu hồi sách trả & Kiểm tra phí trễ</option>
                             <option value="Checkout">📤 Xuất kho bàn giao sách tại quầy</option>
@@ -87,7 +87,7 @@
                 <form id="formBatchImport" class="d-flex flex-column gap-3">
                     <div>
                         <label class="form-label small fw-bold">Chọn Đầu sách (<code>Books</code>)</label>
-                        <select id="importBookId" class="form-select">
+                        <select id="importBookId" class="form-select" required>
                             @foreach (var b in Model.Books)
                             {
                                 <option value="@b.BookId">@b.Title (ISBN: @b.ISBN)</option>
@@ -96,7 +96,7 @@
                     </div>
                     <div>
                         <label class="form-label small fw-bold">Thư viện tiếp nhận (<code>Libraries</code>)</label>
-                        <select id="importLibraryId" class="form-select">
+                        <select id="importLibraryId" class="form-select" required>
                             @foreach (var lib in Model.Libraries)
                             {
                                 <option value="@lib.LibraryId">@lib.Name</option>
@@ -110,7 +110,7 @@
                         </div>
                         <div class="col-4">
                             <label class="form-label small fw-bold">Tình trạng</label>
-                            <select id="importCondition" class="form-select">
+                            <select id="importCondition" class="form-select" required>
                                 <option value="New" selected>New</option>
                                 <option value="Good">Good</option>
                             </select>

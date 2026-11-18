@@ -38,7 +38,7 @@ var authBuilder = builder.Services.AddAuthentication(options =>
     options.Cookie.SameSite = SameSiteMode.Lax;
     options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
     options.LoginPath = "/S01AuthOtpGoogle/Index";
-    options.AccessDeniedPath = "/S01AuthOtpGoogle/Index";
+    options.AccessDeniedPath = "/S01AuthOtpGoogle/AccessDenied";
     options.SlidingExpiration = true;
     options.ExpireTimeSpan = TimeSpan.FromDays(7);
     options.Events = new CookieAuthenticationEvents
@@ -71,7 +71,7 @@ var authBuilder = builder.Services.AddAuthentication(options =>
                 context.Response.ContentType = "application/json; charset=utf-8";
                 var payload = JsonSerializer.Serialize(new
                 {
-                    message = "MÃ 403 FORBIDDEN: Chức năng này yêu cầu xác thực phân quyền [Authorize(Roles)]! Vui lòng đăng nhập tài khoản Curator / Librarian / Admin tại dịch vụ S01."
+                    message = "MÃ 403 FORBIDDEN: Bạn cần đăng nhập để tiếp tục thao tác này. Vui lòng đăng nhập tại dịch vụ S01."
                 });
                 await context.Response.WriteAsync(payload);
                 return;

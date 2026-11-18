@@ -28,6 +28,8 @@ public interface IS01AuthOtpService
         string email,
         string password);
 
+    Task<AuthUserClaimsDto?> GetUserClaimsForOtpLoginAsync(string email);
+
     Task<(bool Success, string Message, AuthUserClaimsDto? UserClaims)> RegisterUserAsync(
         RegisterInputModel input);
 

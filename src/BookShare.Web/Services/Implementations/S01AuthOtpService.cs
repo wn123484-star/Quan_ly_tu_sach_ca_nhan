@@ -63,23 +63,26 @@ public class S01AuthOtpService : IS01AuthOtpService
             }
         };
 
-        var profileUserId = string.IsNullOrEmpty(currentUserId) ? "u-user-01" : currentUserId;
+        // Khách chưa đăng nhập không được truy vấn hoặc nhận dữ liệu của tài khoản demo.
+        if (string.IsNullOrWhiteSpace(currentUserId))
+        {
+            return vm;
+        }
+
         var user = await _db.AspNetUsers
             .Include(u => u.Roles)
             .AsNoTracking()
-            .FirstOrDefaultAsync(u => u.Id == profileUserId);
+            .FirstOrDefaultAsync(u => u.Id == currentUserId);
 
         if (user != null)
         {
-            vm.IsAuthenticated = !string.IsNullOrEmpty(currentUserId);
+            vm.IsAuthenticated = true;
             vm.CurrentUserId = user.Id;
             vm.CurrentUserFullName = user.FullName;
             vm.CurrentUserEmail = user.Email;
-            vm.CurrentUserPhoneNumber = user.PhoneNumber ?? "0988123456";
-            vm.CurrentUserAddress = user.Address ?? "Cầu Giấy, Hà Nội";
-            vm.CurrentUserAvatarUrl = string.IsNullOrWhiteSpace(user.AvatarUrl)
-                ? "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=200"
-                : user.AvatarUrl;
+            vm.CurrentUserPhoneNumber = user.PhoneNumber;
+            vm.CurrentUserAddress = user.Address;
+            vm.CurrentUserAvatarUrl = user.AvatarUrl;
             vm.CurrentUserRole = user.Roles.FirstOrDefault()?.Name ?? "User";
             vm.CurrentTrustScore = user.TrustScore;
             vm.TwoFactorEnabled = user.TwoFactorEnabled;
@@ -92,9 +95,19 @@ public class S01AuthOtpService : IS01AuthOtpService
         string userId,
         UpdateProfileRequestDto request)
     {
-        if (string.IsNullOrWhiteSpace(request.FullName))
+        if (string.IsNullOrWhiteSpace(userId))
         {
-            return (false, "Họ và tên không được để trống.", null);
+            return (false, "Phiên đăng nhập không hợp lệ. Vui lòng đăng nhập lại.", null);
+        }
+        if (string.IsNullOrWhiteSpace(request.FullName) || request.FullName.Trim().Length < 2 || request.FullName.Trim().Length > 100)
+        {
+            return (false, "Họ và tên phải có từ 2 đến 100 ký tự.", null);
+        }
+        if (!string.IsNullOrWhiteSpace(request.AvatarUrl) &&
+            (!Uri.TryCreate(request.AvatarUrl.Trim(), UriKind.Absolute, out var avatarUri) ||
+             (avatarUri.Scheme != Uri.UriSchemeHttp && avatarUri.Scheme != Uri.UriSchemeHttps)))
+        {
+            return (false, "Đường dẫn ảnh đại diện phải bắt đầu bằng http:// hoặc https://.", null);
         }
 
         var user = await _db.AspNetUsers
@@ -109,10 +122,7 @@ public class S01AuthOtpService : IS01AuthOtpService
         user.FullName = request.FullName.Trim();
         user.PhoneNumber = request.PhoneNumber?.Trim();
         user.Address = request.Address?.Trim();
-        if (!string.IsNullOrWhiteSpace(request.AvatarUrl))
-        {
-            user.AvatarUrl = request.AvatarUrl.Trim();
-        }
+        user.AvatarUrl = string.IsNullOrWhiteSpace(request.AvatarUrl) ? null : request.AvatarUrl.Trim();
 
         await _db.SaveChangesAsync();
 
@@ -138,9 +148,17 @@ public class S01AuthOtpService : IS01AuthOtpService
             return (false, "Vui lòng nhập đầy đủ mật khẩu hiện tại và mật khẩu mới.");
         }
 
-        if (request.NewPassword.Length < 6)
+        if (request.NewPassword.Length < 6 || request.NewPassword.Length > 100)
         {
-            return (false, "Mật khẩu mới phải có tối thiểu 6 ký tự.");
+            return (false, "Mật khẩu mới phải có từ 6 đến 100 ký tự.");
+        }
+        if (string.Equals(request.CurrentPassword, request.NewPassword, StringComparison.Ordinal))
+        {
+            return (false, "Mật khẩu mới phải khác mật khẩu hiện tại.");
+        }
+        if (string.IsNullOrWhiteSpace(userId))
+        {
+            return (false, "Phiên đăng nhập không hợp lệ. Vui lòng đăng nhập lại.");
         }
 
         var user = await _db.AspNetUsers.FirstOrDefaultAsync(u => u.Id == userId);
@@ -150,11 +168,13 @@ public class S01AuthOtpService : IS01AuthOtpService
         }
 
         bool currentValid = false;
-        if (!string.IsNullOrEmpty(user.PasswordHash))
+        if (!string.IsNullOrWhiteSpace(user.PasswordHash))
         {
-            if (user.PasswordHash.StartsWith("AQAAAAIAAYagAAAAEBookShareDemoHash") && request.CurrentPassword == "BookShare@123")
+            // Các tài khoản SeedData cũ có hash đánh dấu demo, chưa phải hash Identity hợp lệ.
+            // Chỉ chấp nhận mật khẩu seed đã công bố trong môi trường local; sau khi đổi sẽ ghi hash Identity thật.
+            if (user.PasswordHash.StartsWith("AQAAAAIAAYagAAAAEBookShareDemoHash", StringComparison.Ordinal))
             {
-                currentValid = true;
+                currentValid = string.Equals(request.CurrentPassword, "BookShare@123", StringComparison.Ordinal);
             }
             else
             {
@@ -163,16 +183,16 @@ public class S01AuthOtpService : IS01AuthOtpService
                     var verify = _passwordHasher.VerifyHashedPassword(user, user.PasswordHash, request.CurrentPassword);
                     currentValid = verify != PasswordVerificationResult.Failed;
                 }
-                catch
+                catch (FormatException)
                 {
-                    currentValid = request.CurrentPassword == "BookShare@123";
+                    currentValid = false;
                 }
             }
         }
 
         if (!currentValid)
         {
-            return (false, "Mật khẩu hiện tại không chính xác (Mật khẩu gốc mặc định: BookShare@123).");
+            return (false, "Mật khẩu hiện tại không chính xác.");
         }
 
         user.PasswordHash = _passwordHasher.HashPassword(user, request.NewPassword);
@@ -189,6 +209,10 @@ public class S01AuthOtpService : IS01AuthOtpService
         if (string.IsNullOrWhiteSpace(email) || string.IsNullOrWhiteSpace(password))
         {
             return (false, "Vui lòng nhập đầy đủ Email và Mật khẩu.", null);
+        }
+        if (password.Length > 100 || email.Trim().Length > 254 || !new System.ComponentModel.DataAnnotations.EmailAddressAttribute().IsValid(email.Trim()))
+        {
+            return (false, "Email hoặc mật khẩu không đúng định dạng.", null);
         }
 
         var normalizedEmail = email.Trim().ToUpperInvariant();
@@ -218,16 +242,16 @@ public class S01AuthOtpService : IS01AuthOtpService
                     var verifyResult = _passwordHasher.VerifyHashedPassword(user, user.PasswordHash, password);
                     passwordValid = verifyResult != PasswordVerificationResult.Failed;
                 }
-                catch
+                catch (FormatException)
                 {
-                    passwordValid = password == "BookShare@123";
+                    passwordValid = false;
                 }
             }
         }
 
         if (!passwordValid)
         {
-            return (false, "Mật khẩu không chính xác. (Gợi ý tài khoản mẫu: BookShare@123).", null);
+            return (false, "Email hoặc mật khẩu không chính xác.", null);
         }
 
         var primaryRole = user.Roles.FirstOrDefault()?.Name ?? "User";
@@ -243,12 +267,41 @@ public class S01AuthOtpService : IS01AuthOtpService
         return (true, $"Đăng nhập thành công với vai trò [{primaryRole}]!", claimsDto);
     }
 
+    public async Task<AuthUserClaimsDto?> GetUserClaimsForOtpLoginAsync(string email)
+    {
+        if (string.IsNullOrWhiteSpace(email) ||
+            !new System.ComponentModel.DataAnnotations.EmailAddressAttribute().IsValid(email.Trim()))
+        {
+            return null;
+        }
+
+        var normalizedEmail = email.Trim().ToUpperInvariant();
+        var user = await _db.AspNetUsers
+            .Include(u => u.Roles)
+            .AsNoTracking()
+            .FirstOrDefaultAsync(u => u.NormalizedEmail == normalizedEmail);
+
+        if (user == null) return null;
+
+        return new AuthUserClaimsDto
+        {
+            UserId = user.Id,
+            Email = user.Email ?? email.Trim(),
+            FullName = user.FullName,
+            PrimaryRole = user.Roles.FirstOrDefault()?.Name ?? "User",
+            TrustScore = user.TrustScore
+        };
+    }
+
     public async Task<(bool Success, string Message, AuthUserClaimsDto? UserClaims)> RegisterUserAsync(
         RegisterInputModel input)
     {
-        if (string.IsNullOrWhiteSpace(input.FullName) || string.IsNullOrWhiteSpace(input.Email) || string.IsNullOrWhiteSpace(input.Password))
+        if (string.IsNullOrWhiteSpace(input.FullName) || input.FullName.Trim().Length < 2 || input.FullName.Trim().Length > 100 ||
+            string.IsNullOrWhiteSpace(input.Email) || input.Email.Trim().Length > 254 ||
+            !new System.ComponentModel.DataAnnotations.EmailAddressAttribute().IsValid(input.Email.Trim()) ||
+            string.IsNullOrWhiteSpace(input.Password) || input.Password.Length < 6 || input.Password.Length > 100)
         {
-            return (false, "Vui lòng điền đầy đủ Họ tên, Email và Mật khẩu.", null);
+            return (false, "Vui lòng kiểm tra họ tên, email và mật khẩu (mật khẩu tối thiểu 6 ký tự).", null);
         }
 
         var normalizedEmail = input.Email.Trim().ToUpperInvariant();
@@ -258,8 +311,9 @@ public class S01AuthOtpService : IS01AuthOtpService
             return (false, "Địa chỉ Email này đã được đăng ký trên hệ thống.", null);
         }
 
-        var allowedRoles = new[] { "User", "Curator", "Librarian", "Admin" };
-        var roleName = allowedRoles.Contains(input.SelectedRole) ? input.SelectedRole : "User";
+        // Không tin vai trò do client gửi lên. Đăng ký công khai luôn tạo tài khoản User;
+        // quyền Curator/Librarian/Admin phải được cấp bởi luồng quản trị đã được bảo vệ.
+        const string roleName = "User";
         var roleEntity = await _db.AspNetRoles.FirstOrDefaultAsync(r => r.Name == roleName);
 
         var newUser = new AspNetUser
