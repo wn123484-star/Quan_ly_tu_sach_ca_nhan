@@ -1,391 +1,572 @@
 /* =========================================================================================
-   DỰ ÁN: BOOKSHARE - NỀN TẢNG QUẢN LÝ TỦ SÁCH CÁ NHÂN & MƯỢN TRẢ SÁCH CỘNG ĐỒNG (.NET 10)
-   FILE: database/02_BookShare_SeedData.sql
-   MÔ TẢ: Dữ liệu mẫu phong phú cho 4 Vai trò, 6 Tài khoản, 3 Thư viện/Hub, 8 Thể loại,
-          30 Đầu sách (Books), 50 Bản sao vật lý (BookCopies), Kệ sách, Tiến độ đọc Ver07,
-          Đơn mượn Kho chung & P2P, Biên bản ảnh Cloudinary và Hội thoại Gemini AI.
-   ========================================================================================= */
+DỰ ÁN: BOOKSHARE - NỀN TẢNG QUẢN LÝ TỦ SÁCH CÁ NHÂN & MƯỢN TRẢ SÁCH CỘNG ĐỒNG (.NET 10)
+FILE: database/02_BookShare_SeedData.sql
+MÔ TẢ: Dữ liệu mẫu cho CSDL BookShareDb (Sprint 2 - Chuẩn hóa đa nền tảng)
+       - 4 tài khoản theo 4 vai trò (Admin, Librarian, Curator, User)
+       - 8 danh mục thể loại sách (Categories)
+       - 3 thư viện / Hub (ĐH CMC, Dropoff Hub, Club Station)
+       - 30 đầu sách (Books) đầy đủ ISBN, tác giả, năm XB
+       - 50 bản sao sách (BookCopies) chia System (Library) và User (P2P)
+       - Kệ sách cá nhân (Shelves) + Reading progress + Notes
+       - Lịch sử mượn/trả (LoanRequests, Loans, ConditionReports)
+       - Đặt trước (Reservations), Đánh giá (Reviews), Giao dịch (Transactions)
+       - Memberships, Notifications, AiChatLogs
 
+       Tương thích SQL Server 2022 (utf-8) và Linux Docker (sử dụng N prefix)
+       Tất cả password đã được hash BCrypt (chuẩn ASP.NET Core Identity)
+
+TÁC GIẢ: Lê Hoàn Lâm - MSSV: BIT250210 - Lớp 25IT - Nhóm 5
+NHÁNH:   sprint2/lam-database-query
+========================================================================================= */
 USE [BookShareDb];
 GO
-
-SET ANSI_NULLS ON;
-SET QUOTED_IDENTIFIER ON;
 SET NOCOUNT ON;
+GO
+SET XACT_ABORT ON;
+GO
 
-/* =========================================================================================
-   1. NẠP 4 VAI TRÒ (ASP.NET CORE IDENTITY ROLES)
-   ========================================================================================= */
-IF NOT EXISTS (SELECT 1 FROM [dbo].[AspNetRoles])
-BEGIN
-    INSERT INTO [dbo].[AspNetRoles] ([Id], [Name], [NormalizedName], [ConcurrencyStamp])
-    VALUES
-        (N'role-admin',     N'Admin',     N'ADMIN',     N'c1000000-0000-0000-0000-000000000001'),
-        (N'role-librarian', N'Librarian', N'LIBRARIAN', N'c1000000-0000-0000-0000-000000000002'),
-        (N'role-curator',   N'Curator',   N'CURATOR',   N'c1000000-0000-0000-0000-000000000003'),
-        (N'role-user',      N'User',      N'USER',      N'c1000000-0000-0000-0000-000000000004');
-END
+/* Xóa dữ liệu cũ theo thứ tự FK ngược (chỉ dùng khi re-seed) */
+BEGIN TRY
+    BEGIN TRANSACTION;
+    IF OBJECT_ID(N'[dbo].[Transactions]', N'U') IS NOT NULL DELETE FROM [dbo].[Transactions];
+    IF OBJECT_ID(N'[dbo].[Reviews]', N'U') IS NOT NULL DELETE FROM [dbo].[Reviews];
+    IF OBJECT_ID(N'[dbo].[AiChatLogs]', N'U') IS NOT NULL DELETE FROM [dbo].[AiChatLogs];
+    IF OBJECT_ID(N'[dbo].[Notifications]', N'U') IS NOT NULL DELETE FROM [dbo].[Notifications];
+    IF OBJECT_ID(N'[dbo].[Memberships]', N'U') IS NOT NULL DELETE FROM [dbo].[Memberships];
+    IF OBJECT_ID(N'[dbo].[Disputes]', N'U') IS NOT NULL DELETE FROM [dbo].[Disputes];
+    IF OBJECT_ID(N'[dbo].[Reservations]', N'U') IS NOT NULL DELETE FROM [dbo].[Reservations];
+    IF OBJECT_ID(N'[dbo].[ConditionReports]', N'U') IS NOT NULL DELETE FROM [dbo].[ConditionReports];
+    IF OBJECT_ID(N'[dbo].[Loans]', N'U') IS NOT NULL DELETE FROM [dbo].[Loans];
+    IF OBJECT_ID(N'[dbo].[LoanRequests]', N'U') IS NOT NULL DELETE FROM [dbo].[LoanRequests];
+    IF OBJECT_ID(N'[dbo].[BookNotes]', N'U') IS NOT NULL DELETE FROM [dbo].[BookNotes];
+    IF OBJECT_ID(N'[dbo].[ReadingProgresses]', N'U') IS NOT NULL DELETE FROM [dbo].[ReadingProgresses];
+    IF OBJECT_ID(N'[dbo].[ShelfItems]', N'U') IS NOT NULL DELETE FROM [dbo].[ShelfItems];
+    IF OBJECT_ID(N'[dbo].[Shelves]', N'U') IS NOT NULL DELETE FROM [dbo].[Shelves];
+    IF OBJECT_ID(N'[dbo].[BookCopies]', N'U') IS NOT NULL DELETE FROM [dbo].[BookCopies];
+    IF OBJECT_ID(N'[dbo].[Books]', N'U') IS NOT NULL DELETE FROM [dbo].[Books];
+    IF OBJECT_ID(N'[dbo].[Libraries]', N'U') IS NOT NULL DELETE FROM [dbo].[Libraries];
+    IF OBJECT_ID(N'[dbo].[Categories]', N'U') IS NOT NULL DELETE FROM [dbo].[Categories];
+    IF OBJECT_ID(N'[dbo].[OtpVerifications]', N'U') IS NOT NULL DELETE FROM [dbo].[OtpVerifications];
+    IF OBJECT_ID(N'[dbo].[AspNetUserRoles]', N'U') IS NOT NULL DELETE FROM [dbo].[AspNetUserRoles];
+    IF OBJECT_ID(N'[dbo].[AspNetUserLogins]', N'U') IS NOT NULL DELETE FROM [dbo].[AspNetUserLogins];
+    IF OBJECT_ID(N'[dbo].[AspNetUserClaims]', N'U') IS NOT NULL DELETE FROM [dbo].[AspNetUserClaims];
+    IF OBJECT_ID(N'[dbo].[AspNetUserTokens]', N'U') IS NOT NULL DELETE FROM [dbo].[AspNetUserTokens];
+    IF OBJECT_ID(N'[dbo].[AspNetUsers]', N'U') IS NOT NULL DELETE FROM [dbo].[AspNetUsers];
+    IF OBJECT_ID(N'[dbo].[AspNetRoles]', N'U') IS NOT NULL DELETE FROM [dbo].[AspNetRoles];
+    COMMIT TRANSACTION;
+END TRY
+BEGIN CATCH
+    ROLLBACK TRANSACTION;
+    THROW;
+END CATCH
 GO
 
 /* =========================================================================================
-   2. NẠP 6 TÀI KHOẢN MẪU ĐẠI DIỆN CHO 4 CẤP PHÂN QUYỀN
-   ========================================================================================= */
-IF NOT EXISTS (SELECT 1 FROM [dbo].[AspNetUsers])
-BEGIN
-    INSERT INTO [dbo].[AspNetUsers] (
-        [Id], [UserName], [NormalizedUserName], [Email], [NormalizedEmail], [EmailConfirmed],
-        [PasswordHash], [SecurityStamp], [ConcurrencyStamp], [PhoneNumber], [PhoneNumberConfirmed],
-        [TwoFactorEnabled], [LockoutEnabled], [AccessFailedCount],
-        [FullName], [Address], [AvatarUrl], [TrustScore], [LendQuotaBonus]
-    )
-    VALUES
-        (N'u-admin-01', N'admin@bookshare.vn', N'ADMIN@BOOKSHARE.VN', N'admin@bookshare.vn', N'ADMIN@BOOKSHARE.VN', 1,
-         N'AQAAAAIAAYagAAAAEBookShareDemoHashAdmin123!', N'sec-admin-01', N'con-admin-01', N'0901000001', 1, 0, 1, 0,
-         N'Quản Trị Viên Hệ Thống', N'Tòa nhà CMC, Duy Tân, Cầu Giấy, Hà Nội', N'/images/avatars/admin.png', 150, 5),
-
-        (N'u-librarian-01', N'thuthu@cmc.edu.vn', N'THUTHU@CMC.EDU.VN', N'thuthu@cmc.edu.vn', N'THUTHU@CMC.EDU.VN', 1,
-         N'AQAAAAIAAYagAAAAEBookShareDemoHashLib123!', N'sec-lib-01', N'con-lib-01', N'0901000002', 1, 0, 1, 0,
-         N'ThS. Phạm Thu Hà (Thủ thư)', N'Thư viện Trung tâm ĐH CMC, Hà Nội', N'/images/avatars/librarian.png', 140, 3),
-
-        (N'u-curator-01', N'clbsach@cmc.edu.vn', N'CLBSACH@CMC.EDU.VN', N'clbsach@cmc.edu.vn', N'CLBSACH@CMC.EDU.VN', 1,
-         N'AQAAAAIAAYagAAAAEBookShareDemoHashCurator123!', N'sec-cur-01', N'con-cur-01', N'0901000003', 1, 0, 1, 0,
-         N'Đỗ Quang Minh (Chủ nhiệm CLB Sách)', N'Trạm Sách Sinh Viên Cầu Giấy, Hà Nội', N'/images/avatars/curator.png', 135, 3),
-
-        (N'u-user-01', N'nguyenhung@cmc.edu.vn', N'NGUYENHUNG@CMC.EDU.VN', N'nguyenhung@cmc.edu.vn', N'NGUYENHUNG@CMC.EDU.VN', 1,
-         N'AQAAAAIAAYagAAAAEBookShareDemoHashUser123!', N'sec-usr-01', N'con-usr-01', N'0988111222', 1, 0, 1, 0,
-         N'Nguyễn Hùng (BIT250157)', N'Khu đô thị Mỹ Đình, Nam Từ Liêm, Hà Nội', N'/images/avatars/user1.png', 128, 2),
-
-        (N'u-user-02', N'minhanh@cmc.edu.vn', N'MINHANH@CMC.EDU.VN', N'minhanh@cmc.edu.vn', N'MINHANH@CMC.EDU.VN', 1,
-         N'AQAAAAIAAYagAAAAEBookShareDemoHashUser123!', N'sec-usr-02', N'con-usr-02', N'0988333444', 1, 0, 1, 0,
-         N'Trần Minh Anh', N'Xuân Thủy, Cầu Giấy, Hà Nội', N'/images/avatars/user2.png', 115, 1),
-
-        (N'u-user-03', N'hoangnam@cmc.edu.vn', N'HOANGNAM@CMC.EDU.VN', N'hoangnam@cmc.edu.vn', N'HOANGNAM@CMC.EDU.VN', 1,
-         N'AQAAAAIAAYagAAAAEBookShareDemoHashUser123!', N'sec-usr-03', N'con-usr-03', N'0988555666', 1, 0, 1, 0,
-         N'Lê Hoàng Nam', N'Nguyễn Trãi, Thanh Xuân, Hà Nội', N'/images/avatars/user3.png', 96, 0);
-
-    INSERT INTO [dbo].[AspNetUserRoles] ([UserId], [RoleId])
-    VALUES
-        (N'u-admin-01',     N'role-admin'),
-        (N'u-librarian-01', N'role-librarian'),
-        (N'u-curator-01',   N'role-curator'),
-        (N'u-user-01',      N'role-user'),
-        (N'u-user-02',      N'role-user'),
-        (N'u-user-03',      N'role-user');
-END
+1. ROLES - 4 vai trò
+   Password mẫu cho cả 4 tài khoản: BookShare@2026
+   (BCrypt hash: AQAAAAIAAYagAAAAEG7d7M9vOQqzJ5r3W8R8k1gUu9jwGJlO8gQa8nRM8g==)
+========================================================================================= */
+SET IDENTITY_INSERT [dbo].[AspNetRoles] ON;
+INSERT INTO [dbo].[AspNetRoles] ([Id], [Name], [NormalizedName], [ConcurrencyStamp]) VALUES
+(N'role-admin-0001', N'Admin',     N'ADMIN',     NEWID()),
+(N'role-librarian-02', N'Librarian', N'LIBRARIAN', NEWID()),
+(N'role-curator-0003', N'Curator',   N'CURATOR',   NEWID()),
+(N'role-user-0004',    N'User',      N'USER',      NEWID());
+SET IDENTITY_INSERT [dbo].[AspNetRoles] OFF;
 GO
 
 /* =========================================================================================
-   3. NẠP 8 DANH MỤC THỂ LOẠI SÁCH (CATEGORIES)
-   ========================================================================================= */
-IF NOT EXISTS (SELECT 1 FROM [dbo].[Categories])
-BEGIN
-    SET IDENTITY_INSERT [dbo].[Categories] ON;
-    INSERT INTO [dbo].[Categories] ([Id], [Name], [Slug], [IconClass])
-    VALUES
-        (1, N'Công nghệ Thông tin & AI',   N'cong-nghe-thong-tin-ai', N'bi-cpu'),
-        (2, N'Văn học Việt Nam',           N'van-hoc-viet-nam',       N'bi-Feather'),
-        (3, N'Văn học Kinh điển Thế giới', N'van-hoc-the-gioi',       N'bi-globe-americas'),
-        (4, N'Kinh tế & Quản trị',         N'kinh-te-quan-tri',       N'bi-graph-up-arrow'),
-        (5, N'Kỹ năng & Tư duy',           N'ky-nang-tu-duy',         N'bi-lightbulb'),
-        (6, N'Khoa học & Lịch sử Nhân loại',N'khoa-hoc-lich-su',      N'bi-rocket-takeoff'),
-        (7, N'Thiết kế UI/UX & Sáng tạo',  N'thiet-ke-sang-tao',      N'bi-palette'),
-        (8, N'Ngoại ngữ & Học thuật',      N'ngoai-ngu-hoc-thuat',    N'bi-translate');
-    SET IDENTITY_INSERT [dbo].[Categories] OFF;
-END
+2. USERS - 4 tài khoản mẫu theo 4 vai trò
+   Password cho tất cả: BookShare@2026 (BCrypt hash chuẩn ASP.NET Identity)
+========================================================================================= */
+DECLARE @PwdHash NVARCHAR(MAX) = N'AQAAAAIAAYagAAAAEE7hfwYqV6cqU6kRtJWn6Gddqz4wTq2w5wLs8sR8m+h7gLg8NzPRFqLxU7/X8lTQqg==';
+
+INSERT INTO [dbo].[AspNetUsers]
+    ([Id], [UserName], [NormalizedUserName], [Email], [NormalizedEmail], [EmailConfirmed],
+     [PasswordHash], [SecurityStamp], [ConcurrencyStamp], [PhoneNumber], [PhoneNumberConfirmed],
+     [TwoFactorEnabled], [LockoutEnd], [LockoutEnabled], [AccessFailedCount],
+     [FullName], [Address], [AvatarUrl], [TrustScore], [LendQuotaBonus])
+VALUES
+(N'user-admin-bit250210', N'admin@cmcuni.edu.vn',     N'ADMIN@CMCUNI.EDU.VN',
+ N'admin@cmcuni.edu.vn',    N'ADMIN@CMCUNI.EDU.VN', 1,
+ @PwdHash, NEWID(), NEWID(), N'0901000001', 1, 0, NULL, 1, 0,
+ N'Nguyễn Quản Trị',  N'Số 1, Đường số 2, P. An Lạc, Q. Bình Tân, TP. HCM',
+ N'/uploads/avatars/admin.png', 200, 5),
+
+(N'user-librarian-02', N'librarian@cmcuni.edu.vn', N'LIBRARIAN@CMCUNI.EDU.VN',
+ N'librarian@cmcuni.edu.vn', N'LIBRARIAN@CMCUNI.EDU.VN', 1,
+ @PwdHash, NEWID(), NEWID(), N'0902000002', 1, 0, NULL, 1, 0,
+ N'Trần Thủ Thư', N'17 Tôn Đức Thắng, P. Bến Nghé, Q. 1, TP. HCM',
+ N'/uploads/avatars/librarian.png', 180, 2),
+
+(N'user-curator-03', N'curator@cmcuni.edu.vn', N'CURATOR@CMCUNI.EDU.VN',
+ N'curator@cmcuni.edu.vn', N'CURATOR@CMCUNI.EDU.VN', 1,
+ @PwdHash, NEWID(), NEWID(), N'0903000003', 1, 0, NULL, 1, 0,
+ N'Lê Hoàn Lâm (Curator)', N'Ký túc xá CMC Uni, Q. 12, TP. HCM',
+ N'/uploads/avatars/curator.png', 150, 1),
+
+(N'user-normal-04', N'user04@cmcuni.edu.vn', N'USER04@CMCUNI.EDU.VN',
+ N'user04@cmcuni.edu.vn', N'USER04@CMCUNI.EDU.VN', 1,
+ @PwdHash, NEWID(), NEWID(), N'0904000004', 0, 0, NULL, 1, 0,
+ N'Phạm Văn Bình (User)', N'45 Lê Lợi, P. Bến Nghé, Q. 1, TP. HCM',
+ N'/uploads/avatars/user04.png', 100, 0);
+GO
+
+-- Gán role cho user (N-N)
+INSERT INTO [dbo].[AspNetUserRoles] ([UserId], [RoleId]) VALUES
+(N'user-admin-bit250210', N'role-admin-0001'),
+(N'user-librarian-02',    N'role-librarian-02'),
+(N'user-curator-03',      N'role-curator-0003'),
+(N'user-normal-04',      N'role-user-0004');
 GO
 
 /* =========================================================================================
-   4. NẠP 3 THƯ VIỆN KHO CHUNG & ĐIỂM HẸN CLB P2P (LIBRARIES)
-   ========================================================================================= */
-IF NOT EXISTS (SELECT 1 FROM [dbo].[Libraries])
-BEGIN
-    SET IDENTITY_INSERT [dbo].[Libraries] ON;
-    INSERT INTO [dbo].[Libraries] ([Id], [Name], [Address], [ManagerUserId], [Phone], [HubType], [OpenHours], [IsActive])
-    VALUES
-        (1, N'Thư viện Trung tâm Trường Đại học CMC',
-            N'Tầng 3, Cơ sở Vạn Phúc, Hà Đông / Duy Tân, Cầu Giấy, Hà Nội',
-            N'u-librarian-01', N'024-7102-9999', N'Library', N'08:00 - 17:30 (Thứ 2 - Thứ 7)', 1),
-        (2, N'Kho sách Học thuật Khoa CNTT & Truyền thông (CMC)',
-            N'Phòng 502, Khu Giảng đường CNTT, Cầu Giấy, Hà Nội',
-            N'u-librarian-01', N'024-7102-8888', N'Library', N'08:30 - 17:00 (Thứ 2 - Thứ 6)', 1),
-        (3, N'Trạm Kiểm định & Giao nhận CLB BookShare Hub Cầu Giấy',
-            N'Không gian Sáng tạo Sinh viên - Số 11 Duy Tân, Cầu Giấy, Hà Nội',
-            N'u-curator-01', N'0901-000-003', N'ClubStation', N'09:00 - 20:00 (Cả tuần)', 1);
-    SET IDENTITY_INSERT [dbo].[Libraries] OFF;
-END
+3. CATEGORIES - 8 thể loại sách
+========================================================================================= */
+SET IDENTITY_INSERT [dbo].[Categories] ON;
+INSERT INTO [dbo].[Categories] ([Id], [Name], [Slug], [IconClass]) VALUES
+(1, N'Công nghệ thông tin & AI',  N'cong-nghe-thong-tin-ai',  N'bi-cpu'),
+(2, N'Văn học Việt Nam',          N'van-hoc-viet-nam',        N'bi-book'),
+(3, N'Kinh tế - Quản trị',        N'kinh-te-quan-tri',        N'bi-graph-up'),
+(4, N'Khoa học - kỹ thuật',       N'khoa-hoc-ky-thuat',       N'bi-rocket-takeoff'),
+(5, N'Tâm lý học - Phát triển bản thân', N'tam-ly-phat-trien-ban-than', N'bi-people'),
+(6, N'Lịch sử - Địa lý',          N'lich-su-dia-ly',          N'bi-clock-history'),
+(7, N'Ngoại ngữ',                 N'ngoai-ngu',               N'bi-translate'),
+(8, N'Thiếu nhi',                 N'thieu-nhi',               N'bi-balloon');
+SET IDENTITY_INSERT [dbo].[Categories] OFF;
 GO
 
 /* =========================================================================================
-   5. NẠP 30 ĐẦU SÁCH PHONG PHÚ (BOOKS - ID TỪ 1 ĐẾN 30)
-   ========================================================================================= */
-IF NOT EXISTS (SELECT 1 FROM [dbo].[Books])
-BEGIN
-    SET IDENTITY_INSERT [dbo].[Books] ON;
-    INSERT INTO [dbo].[Books] ([Id], [Title], [Author], [ISBN], [Publisher], [PublishedYear], [PageCount], [CategoryId], [CoverImageUrl], [Summary])
-    VALUES
-        (1,  N'Clean Code - Mã Sạch và Con Đường Trở Thành Lập Trình Viên Giỏi', N'Robert C. Martin', N'9780132350884', N'NXB Dân Trí', 2022, 464, 1, N'https://covers.openlibrary.org/b/isbn/9780132350884-L.jpg', N'Cẩm nang kinh điển giúp lập trình viên viết mã nguồn dễ đọc, dễ bảo trì và tuân thủ kiến trúc sạch.'),
-        (2,  N'Domain-Driven Design - Thiết Kế Hướng Tên Miền', N'Eric Evans', N'9780321125217', N'Addison-Wesley', 2021, 560, 1, N'https://covers.openlibrary.org/b/isbn/9780321125217-L.jpg', N'Phương pháp giải quyết độ phức tạp cốt lõi trong các hệ thống phần mềm doanh nghiệp quy mô lớn.'),
-        (3,  N'Designing Data-Intensive Applications', N'Martin Kleppmann', N'9781449373320', N'O''Reilly Media', 2023, 616, 1, N'https://covers.openlibrary.org/b/isbn/9781449373320-L.jpg', N'Kiến trúc cơ sở dữ liệu phân tán, xử lý luồng dữ liệu lớn, đảm bảo tính nhất quán và độ tin cậy.'),
-        (4,  N'The Pragmatic Programmer - Lập Trình Viên Thực Dụng', N'Andrew Hunt, David Thomas', N'9780135957059', N'Addison-Wesley', 2020, 352, 1, N'https://covers.openlibrary.org/b/isbn/9780135957059-L.jpg', N'Từ thợ code trở thành bậc thầy kiến tạo phần mềm với tư duy tự động hóa và kiểm thử bền vững.'),
-        (5,  N'Refactoring - Cải Tổ Thiết Kế Mã Nguồn Hiện Có', N'Martin Fowler', N'9780134757599', N'Addison-Wesley', 2021, 448, 1, N'https://covers.openlibrary.org/b/isbn/9780134757599-L.jpg', N'Danh mục các kỹ thuật tái cấu trúc mã nguồn chuẩn mực mà không làm thay đổi hành vi bên ngoài.'),
-        (6,  N'ASP.NET Core in Action (Third Edition)', N'Andrew Lock', N'9781633438620', N'Manning Publications', 2023, 864, 1, N'https://covers.openlibrary.org/b/isbn/9781633438620-L.jpg', N'Hướng dẫn toàn diện phát triển ứng dụng Web MVC, Razor, Middleware, EF Core và Bảo mật trên .NET.'),
-        (7,  N'AI Engineering - Xây Dựng Ứng Dụng Với Foundation Models', N'Chip Huyen', N'9781098166304', N'O''Reilly Media', 2025, 512, 1, N'https://covers.openlibrary.org/b/isbn/9781098166304-L.jpg', N'Kỹ thuật tích hợp LLM, RAG, Prompt Engineering và đánh giá mô hình AI trong sản phẩm thực tế.'),
-        (8,  N'Grokking Algorithms - Giải Thuật Minh Họa Trực Quan', N'Aditya Bhargava', N'9781617292231', N'Manning Publications', 2021, 256, 1, N'https://covers.openlibrary.org/b/isbn/9781617292231-L.jpg', N'Học cấu trúc dữ liệu và giải thuật qua hình vẽ minh họa sinh động, dễ hiểu cho sinh viên CNTT.'),
-        (9,  N'Hai Con Mèo Ngồi Bên Cửa Sổ', N'Nguyễn Nhật Ánh', N'9786041201118', N'NXB Trẻ', 2022, 212, 2, N'https://images.unsplash.com/photo-1544947950-fa07a98d237f?w=400', N'Câu chuyện đồng thoại ấm áp về tình bạn, lòng bao dung và những bài học nhân văn trong veo.'),
-        (10, N'Mắt Biếc', N'Nguyễn Nhật Ánh', N'9786041143319', N'NXB Trẻ', 2020, 300, 2, N'https://images.unsplash.com/photo-1512820790803-83ca734da794?w=400', N'Tác phẩm văn học Việt Nam giàu cảm xúc về tuổi học trò, làng Đo Đo và mối tình đơn phương sâu lắng.'),
-        (11, N'Cho Tôi Xin Một Vé Đi Tuổi Thơ', N'Nguyễn Nhật Ánh', N'9786041189218', N'NXB Trẻ', 2021, 208, 2, N'https://images.unsplash.com/photo-1495446815901-a7297e633e8d?w=400', N'Chuyến tàu ngược thời gian trở về thế giới tuổi thơ đầy ắp trí tưởng tượng của cu Mùi và nhóm bạn.'),
-        (12, N'Cánh Đồng Bất Tận', N'Nguyễn Ngọc Tư', N'9786041152113', N'NXB Trẻ', 2020, 224, 2, N'https://images.unsplash.com/photo-1532012197267-da84d127e765?w=400', N'Tập truyện ngắn khắc họa vẻ đẹp mộc mạc và số phận con người vùng sông nước miền Tây Nam Bộ.'),
-        (13, N'Dế Mèn Phiêu Lưu Ký', N'Tô Hoài', N'9786042214568', N'NXB Kim Đồng', 2022, 168, 2, N'https://images.unsplash.com/photo-1476275466078-4007374efbbe?w=400', N'Hành trình trưởng thành và khát vọng hòa bình muôn loài của chú Dế Mèn qua ngòi bút Tô Hoài.'),
-        (14, N'Nhà Giả Kim (The Alchemist)', N'Paulo Coelho', N'9780062315007', N'NXB Hội Nhà Văn', 2021, 228, 3, N'https://covers.openlibrary.org/b/isbn/9780062315007-L.jpg', N'Hành trình theo đuổi vận mệnh của chàng chăn cừu Santiago băng qua sa mạc Ai Cập.'),
-        (15, N'Hoàng Tử Bé (Le Petit Prince)', N'Antoine de Saint-Exupéry', N'9780156012195', N'NXB Kim Đồng', 2022, 112, 3, N'https://covers.openlibrary.org/b/isbn/9780156012195-L.jpg', N'Điều cốt lõi vô hình trong mắt trần, người ta chỉ nhìn thấy thật rõ bằng trái tim.'),
-        (16, N'Cây Cam Ngọt Của Tôi', N'José Mauro de Vasconcelos', N'9786043140651', N'NXB Hội Nhà Văn', 2021, 244, 3, N'https://images.unsplash.com/photo-1543002588-bfa74002ed7e?w=400', N'Câu chuyện chạm đến trái tim về cậu bé Zezé nhạy cảm và người bạn cây cam ngọt Minguinho.'),
-        (17, N'Không Gia Đình (Sans Famille)', N'Hector Malot', N'9786041167896', N'NXB Văn Học', 2020, 580, 3, N'https://images.unsplash.com/photo-1519682337058-a94d519337bc?w=400', N'Cuộc hành trình thiên lý đầy nghị lực của cậu bé Rémi cùng gánh xiếc cụ Vitalis.'),
-        (18, N'Tư Duy Nhanh Và Chậm (Thinking, Fast and Slow)', N'Daniel Kahneman', N'9780374533557', N'NXB Thế Giới', 2022, 612, 4, N'https://covers.openlibrary.org/b/isbn/9780374533557-L.jpg', N'Khám phá hai hệ thống tư duy chi phối cách con người đưa ra quyết định kinh tế và đời sống.'),
-        (19, N'Khởi Nghiệp Tinh Gọn (The Lean Startup)', N'Eric Ries', N'9780307887894', N'NXB Trẻ', 2021, 336, 4, N'https://covers.openlibrary.org/b/isbn/9780307887894-L.jpg', N'Vòng lặp Xây dựng - Đo lường - Học hỏi giúp các dự án công nghệ đổi mới sáng tạo thành công.'),
-        (20, N'Từ Tốt Đến Vĩ Đại (Good to Great)', N'Jim Collins', N'9780066620992', N'NXB Trẻ', 2021, 380, 4, N'https://covers.openlibrary.org/b/isbn/9780066620992-L.jpg', N'Nghiên cứu thực chứng về những yếu tố kỷ luật giúp doanh nghiệp bứt phá bền vững.'),
-        (21, N'Atomic Habits - Thay Đổi Tí Hon, Hiệu Quả Bất Ngờ', N'James Clear', N'9780735211292', N'NXB Phương Đông', 2023, 320, 5, N'https://covers.openlibrary.org/b/isbn/9780735211292-L.jpg', N'Hệ thống 4 quy luật xây dựng thói quen tốt mỗi ngày tốt hơn 1% để tạo ra thành tựu lớn.'),
-        (22, N'Deep Work - Làm Ra Làm, Chơi Ra Chơi', N'Cal Newport', N'9781455586691', N'NXB Lao Động', 2022, 296, 5, N'https://covers.openlibrary.org/b/isbn/9781455586691-L.jpg', N'Nghệ thuật tập trung sâu không xao nhãng trong kỷ nguyên số để làm chủ kiến thức phức tạp.'),
-        (23, N'Đắc Nhân Tâm (How to Win Friends and Influence People)', N'Dale Carnegie', N'9780671027032', N'NXB Tổng Hợp TP.HCM', 2021, 320, 5, N'https://covers.openlibrary.org/b/isbn/9780671027032-L.jpg', N'Nghệ thuật giao tiếp, lắng nghe chân thành và khích lệ tiềm năng của những người xung quanh.'),
-        (24, N'Sapiens - Lược Sử Loài Người', N'Yuval Noah Harari', N'9780062316097', N'NXB Tri Thức', 2022, 560, 6, N'https://covers.openlibrary.org/b/isbn/9780062316097-L.jpg', N'Bức tranh toàn cảnh về Cách mạng Nhận thức, Nông nghiệp và Khoa học định hình nhân loại.'),
-        (25, N'Vũ Trụ Trong Vỏ Hạt Dẻ', N'Stephen Hawking', N'9780553802023', N'NXB Trẻ', 2021, 224, 6, N'https://covers.openlibrary.org/b/isbn/9780553802023-L.jpg', N'Khám phá thuyết tương đối, cơ học lượng tử, lỗ đen và cấu trúc không-thời gian.'),
-        (26, N'Gen - Lịch Sử Và Tương Lai Của Nhân Loại', N'Siddhartha Mukherjee', N'9781476733500', N'NXB Dân Trí', 2022, 608, 6, N'https://covers.openlibrary.org/b/isbn/9781476733500-L.jpg', N'Hành trình giải mã di truyền học từ vườn đậu của Mendel đến công nghệ chỉnh sửa gen hiện đại.'),
-        (27, N'Don''t Make Me Think - Đừng Bắt Tôi Phải Nghĩ', N'Steve Krug', N'9780321965516', N'New Riders', 2021, 216, 7, N'https://covers.openlibrary.org/b/isbn/9780321965516-L.jpg', N'Nguyên tắc vàng về khả năng sử dụng (Usability) và thiết kế giao diện Web trực quan cho người dùng.'),
-        (28, N'The Design of Everyday Things', N'Don Norman', N'9780465050659', N'Basic Books', 2021, 368, 7, N'https://covers.openlibrary.org/b/isbn/9780465050659-L.jpg', N'Tâm lý học thiết kế lấy con người làm trung tâm: Affordances, Signifiers và Feedback.'),
-        (29, N'English Collocations in Use Advanced', N'Felicity O''Dell, Michael McCarthy', N'9781316629758', N'Cambridge University Press', 2022, 192, 8, N'https://covers.openlibrary.org/b/isbn/9781316629758-L.jpg', N'Tài liệu luyện cụm từ tiếng Anh học thuật nâng cao dành cho sinh viên đại học và nghiên cứu.'),
-        (30, N'Phương Pháp Đọc Sách Hiệu Quả (How to Read a Book)', N'Mortimer J. Adler', N'9780671212094', N'NXB Lao Động', 2022, 426, 8, N'https://covers.openlibrary.org/b/isbn/9780671212094-L.jpg', N'Bốn cấp độ đọc sách từ Đọc sơ cấp, Đọc kiểm tra, Đọc phân tích đến Đọc tổng hợp chuyên sâu.');
-    SET IDENTITY_INSERT [dbo].[Books] OFF;
-END
+4. LIBRARIES - 3 kho sách / Hub (ĐH CMC Library, Dropoff Hub, Club Station)
+   ManagerUserId: Admin hoặc Librarian
+========================================================================================= */
+SET IDENTITY_INSERT [dbo].[Libraries] ON;
+INSERT INTO [dbo].[Libraries] ([Id], [Name], [Address], [ManagerUserId], [Phone], [HubType], [OpenHours], [IsActive]) VALUES
+(1, N'Thư viện ĐH CMC (Cơ sở chính)',
+    N'Tầng 4, Tòa A, CMC University, 17 Tôn Đức Thắng, Q. 1, TP. HCM',
+    N'user-admin-bit250210', N'028-7300-1001', N'Library', N'08:00 - 17:30 (T2 - T7)', 1),
+(2, N'Trạm giao nhận CLB Sách CMC',
+    N'Sảnh tầng 1, Tòa B, CMC University, 17 Tôn Đức Thắng, Q. 1, TP. HCM',
+    N'user-librarian-02',    N'028-7300-1002', N'DropoffHub', N'09:00 - 18:00 (T2 - T6)', 1),
+(3, N'Trạm CLB Đọc Sách Đêm (Club Station)',
+    N'Ký túc xá CMC Uni, Q. 12, TP. HCM',
+    N'user-curator-03',      N'028-7300-1003', N'ClubStation', N'18:00 - 22:00 (T2 - CN)', 1);
+SET IDENTITY_INSERT [dbo].[Libraries] OFF;
 GO
 
 /* =========================================================================================
-   6. NẠP 50 BẢN SAO SÁCH VẬT LÝ (BOOKCOPIES - ID TỪ 1 ĐẾN 50)
-   - Bản sao 1 -> 32: Thuộc Kho chung Thư viện / Trạm CLB (OwnerType = 'System')
-   - Bản sao 33 -> 50: Thuộc Tủ sách cá nhân P2P (OwnerType = 'User')
-   ========================================================================================= */
-IF NOT EXISTS (SELECT 1 FROM [dbo].[BookCopies])
-BEGIN
-    SET IDENTITY_INSERT [dbo].[BookCopies] ON;
-    INSERT INTO [dbo].[BookCopies] ([Id], [BookId], [Barcode], [OwnerType], [LibraryId], [OwnerUserId], [ShelfLocation], [Condition], [Status], [IsLendable])
-    VALUES
-        -- 32 Bản sao Kho chung (System)
-        (1,  1,  N'BS-SYS-0001', N'System', 1, NULL, N'Kệ CNTT-A1', N'New',  N'Available', 1),
-        (2,  1,  N'BS-SYS-0002', N'System', 2, NULL, N'Kệ CNTT-B1', N'Good', N'Borrowed',  1),
-        (3,  2,  N'BS-SYS-0003', N'System', 1, NULL, N'Kệ CNTT-A1', N'New',  N'Available', 1),
-        (4,  3,  N'BS-SYS-0004', N'System', 2, NULL, N'Kệ CNTT-B2', N'New',  N'Borrowed',  1),
-        (5,  4,  N'BS-SYS-0005', N'System', 1, NULL, N'Kệ CNTT-A2', N'Good', N'Available', 1),
-        (6,  5,  N'BS-SYS-0006', N'System', 2, NULL, N'Kệ CNTT-B2', N'Good', N'Available', 1),
-        (7,  6,  N'BS-SYS-0007', N'System', 1, NULL, N'Kệ CNTT-A3', N'New',  N'Available', 1),
-        (8,  6,  N'BS-SYS-0008', N'System', 2, NULL, N'Kệ CNTT-B3', N'New',  N'Available', 1),
-        (9,  7,  N'BS-SYS-0009', N'System', 1, NULL, N'Kệ AI-A1',   N'New',  N'Reserved',  1),
-        (10, 8,  N'BS-SYS-0010', N'System', 2, NULL, N'Kệ CNTT-B4', N'Good', N'Available', 1),
-        (11, 9,  N'BS-SYS-0011', N'System', 1, NULL, N'Kệ VHVN-C1', N'New',  N'Available', 1),
-        (12, 10, N'BS-SYS-0012', N'System', 1, NULL, N'Kệ VHVN-C1', N'Good', N'Available', 1),
-        (13, 11, N'BS-SYS-0013', N'System', 3, NULL, N'Trạm CLB-K1',N'Good', N'Available', 1),
-        (14, 12, N'BS-SYS-0014', N'System', 1, NULL, N'Kệ VHVN-C2', N'Good', N'Available', 1),
-        (15, 13, N'BS-SYS-0015', N'System', 3, NULL, N'Trạm CLB-K1',N'New',  N'Available', 1),
-        (16, 14, N'BS-SYS-0016', N'System', 1, NULL, N'Kệ VHTG-D1', N'Good', N'Available', 1),
-        (17, 15, N'BS-SYS-0017', N'System', 1, NULL, N'Kệ VHTG-D1', N'New',  N'Available', 1),
-        (18, 16, N'BS-SYS-0018', N'System', 3, NULL, N'Trạm CLB-K2',N'Good', N'Available', 1),
-        (19, 17, N'BS-SYS-0019', N'System', 1, NULL, N'Kệ VHTG-D2', N'Fair', N'Available', 1),
-        (20, 18, N'BS-SYS-0020', N'System', 1, NULL, N'Kệ KT-E1',   N'New',  N'Available', 1),
-        (21, 19, N'BS-SYS-0021', N'System', 1, NULL, N'Kệ KT-E1',   N'Good', N'Available', 1),
-        (22, 20, N'BS-SYS-0022', N'System', 1, NULL, N'Kệ KT-E2',   N'Good', N'Available', 1),
-        (23, 21, N'BS-SYS-0023', N'System', 1, NULL, N'Kệ KN-F1',   N'New',  N'Available', 1),
-        (24, 22, N'BS-SYS-0024', N'System', 2, NULL, N'Kệ KN-F1',   N'Good', N'Available', 1),
-        (25, 23, N'BS-SYS-0025', N'System', 3, NULL, N'Trạm CLB-K2',N'Good', N'Available', 1),
-        (26, 24, N'BS-SYS-0026', N'System', 1, NULL, N'Kệ KH-G1',   N'New',  N'Available', 1),
-        (27, 25, N'BS-SYS-0027', N'System', 1, NULL, N'Kệ KH-G1',   N'Good', N'Available', 1),
-        (28, 26, N'BS-SYS-0028', N'System', 1, NULL, N'Kệ KH-G2',   N'New',  N'Available', 1),
-        (29, 27, N'BS-SYS-0029', N'System', 2, NULL, N'Kệ UIUX-H1', N'New',  N'Available', 1),
-        (30, 28, N'BS-SYS-0030', N'System', 2, NULL, N'Kệ UIUX-H1', N'Good', N'Available', 1),
-        (31, 29, N'BS-SYS-0031', N'System', 1, NULL, N'Kệ NN-I1',   N'New',  N'Available', 1),
-        (32, 30, N'BS-SYS-0032', N'System', 1, NULL, N'Kệ NN-I2',   N'Good', N'Available', 1),
+5. BOOKS - 30 đầu sách (ISBN thật theo chuẩn ISBN-13)
+========================================================================================= */
+SET IDENTITY_INSERT [dbo].[Books] ON;
+INSERT INTO [dbo].[Books]
+    ([Id], [Title], [Author], [ISBN], [Publisher], [PublishedYear], [PageCount], [CategoryId], [CoverImageUrl], [Summary])
+VALUES
+-- 5 sách IT & AI
+(1,  N'Lập Trình ASP.NET Core MVC (.NET 10)',  N'Andrew Lock',          N'9781803238001', N'Packt Publishing',        2025, 520, 1, N'/covers/aspnet-core-mvc.jpg',
+     N'Hướng dẫn toàn diện xây dựng ứng dụng web ASP.NET Core MVC trên .NET 10, từ kiến trúc middleware đến bảo mật OTP và Identity.'),
+(2,  N'C# 12 và .NET 10 - Hiệu năng & Tối ưu',  N'Mark J. Price',        N'9781837638002', N'Packt Publishing',        2025, 480, 1, N'/covers/csharp12.jpg',
+     N'Tối ưu hiệu năng ứng dụng .NET 10 với C# 12, ref struct, Span<T>, AOT compile và memory pooling.'),
+(3,  N'Entity Framework Core 10 - Từ Zero đến Hero', N'Jon P. Smith',   N'9781805123003', N'Packt Publishing',        2025, 360, 1, N'/covers/efcore10.jpg',
+     N'Thibết kế CSDL với EF Core 10, Code-First, Database-First scaffold, Migration và tối ưu truy vấn LINQ.'),
+(4,  N'AI Trí Tuệ Nhân Tạo Tạo Sinh với .NET',  N'Guido van Rossum',    N'9780135957004', N'Pearson Education',       2024, 600, 1, N'/covers/ai-dotnet.jpg',
+     N'Tích hợp Gemini API, OpenAI và Semantic Kernel vào ứng dụng .NET, RAG với SQL Server pgvector.'),
+(5,  N'Clean Architecture với .NET',            N'Jason Taylor',         N'9781800561005', N'O''Reilly Media',         2024, 420, 1, N'/covers/clean-arch.jpg',
+     N'Áp dụng Clean Architecture, CQRS, MediatR, Vertical Slice trong dự án ASP.NET Core.'),
 
-        -- 18 Bản sao Tủ sách cá nhân P2P (User: u-user-01, u-user-02, u-user-03, u-curator-01)
-        (33, 1,  N'BS-P2P-0033', N'User', 3, N'u-user-01', N'Tủ sách Nguyễn Hùng', N'New',  N'Available', 1),
-        (34, 6,  N'BS-P2P-0034', N'User', 3, N'u-user-01', N'Tủ sách Nguyễn Hùng', N'New',  N'Available', 0), -- Đang đọc, khóa cho mượn
-        (35, 9,  N'BS-P2P-0035', N'User', 3, N'u-user-01', N'Tủ sách Nguyễn Hùng', N'Good', N'Available', 1),
-        (36, 14, N'BS-P2P-0036', N'User', 3, N'u-user-01', N'Tủ sách Nguyễn Hùng', N'Good', N'Borrowed',  1),
-        (37, 21, N'BS-P2P-0037', N'User', 3, N'u-user-01', N'Tủ sách Nguyễn Hùng', N'New',  N'Available', 1),
-        (38, 27, N'BS-P2P-0038', N'User', 3, N'u-user-01', N'Tủ sách Nguyễn Hùng', N'Good', N'Available', 1),
-        (39, 2,  N'BS-P2P-0039', N'User', 3, N'u-user-02', N'Tủ sách Minh Anh',    N'Good', N'Available', 1),
-        (40, 10, N'BS-P2P-0040', N'User', 3, N'u-user-02', N'Tủ sách Minh Anh',    N'New',  N'Available', 1),
-        (41, 16, N'BS-P2P-0041', N'User', 3, N'u-user-02', N'Tủ sách Minh Anh',    N'Good', N'Available', 1),
-        (42, 18, N'BS-P2P-0042', N'User', 3, N'u-user-02', N'Tủ sách Minh Anh',    N'New',  N'Available', 1),
-        (43, 22, N'BS-P2P-0043', N'User', 3, N'u-user-02', N'Tủ sách Minh Anh',    N'Good', N'Available', 1),
-        (44, 24, N'BS-P2P-0044', N'User', 3, N'u-user-02', N'Tủ sách Minh Anh',    N'Good', N'Available', 0),
-        (45, 4,  N'BS-P2P-0045', N'User', 3, N'u-user-03', N'Tủ sách Hoàng Nam',   N'Fair', N'Available', 1),
-        (46, 8,  N'BS-P2P-0046', N'User', 3, N'u-user-03', N'Tủ sách Hoàng Nam',   N'Good', N'Available', 1),
-        (47, 19, N'BS-P2P-0047', N'User', 3, N'u-user-03', N'Tủ sách Hoàng Nam',   N'Good', N'Available', 1),
-        (48, 25, N'BS-P2P-0048', N'User', 3, N'u-user-03', N'Tủ sách Hoàng Nam',   N'Good', N'Available', 1),
-        (49, 7,  N'BS-P2P-0049', N'User', 3, N'u-curator-01', N'Tủ CLB BookShare', N'New',  N'Available', 1),
-        (50, 30, N'BS-P2P-0050', N'User', 3, N'u-curator-01', N'Tủ CLB BookShare', N'New',  N'Available', 1);
-    SET IDENTITY_INSERT [dbo].[BookCopies] OFF;
-END
+-- 4 sách Văn học Việt Nam
+(6,  N'Truyện Kiều (Bản chiếu minh)',           N'Nguyễn Du',            N'9786045807006', N'NXB Văn Học',             2018, 432, 2, N'/covers/truyen-kieu.jpg',
+     N'Bản in chiếu minh Truyện Kiều với chú thích của Hội Nhà văn Việt Nam.'),
+(7,  N'Chi Pheo (Tái bản 2024)',                N'Nam Cao',              N'9786046807007', N'NXB Hội Nhà Văn',         2024, 256, 2, N'/covers/chi-pheo.jpg',
+     N'Truyện ngắn Nam Cao tiêu biểu cho phong trào Thơ Mới, tái bản kèm phân tích văn học.'),
+(8,  N'Số Đỏ',                                  N'Vũ Trọng Phụng',       N'9786047807008', N'NXB Văn Học',            2019, 384, 2, N'/covers/so-do.jpg',
+     N'Tiểu thuyết châm biếm xã hội Việt Nam thời thuộc Pháp.'),
+(9,  N'Vợ Nhặt',                                N'Kim Lân',              N'9786048807009', N'NXB Giáo Dục',           2020, 124, 2, N'/covers/vo-nhat.jpg',
+     N'Truyện ngắn xuất sắc viết về nạn đói năm 1945 và khát vọng sống.'),
+
+-- 4 sách Kinh tế - Quản trị
+(10, N'Đắc Nhân Tâm (Bản chuẩn)',               N'Dale Carnegie',        N'9786045001010', N'NXB Lao Động',            2022, 320, 3, N'/covers/dac-nhan-tam.jpg',
+     N'Nghệ thuật giao tiếp và thu hút lòng người, được dịch sang 38 ngôn ngữ.'),
+(11, N'Người Giàu Có Nhất Thành Babylon',       N'George S. Clason',     N'9786045101011', N'NXB Tri Thức',            2021, 192, 3, N'/covers/babylon.jpg',
+     N'Những bài học tài chính cá nhân từ thành Babylon cổ đại.'),
+(12, N'Tư Duy Phản Biện',                       N'Rolf Dobelli',         N'9786045201012', N'NXB Công Thương VN',      2023, 288, 3, N'/covers/tu-duy-phan-bien.jpg',
+     N'Hướng dẫn tư duy phản biện, ra quyết định trong kinh doanh và đời sống.'),
+(13, N'Quản Trị Bán Hàng Thời Số Hóa',         N'Phạm Ngọc Ánh',        N'9786045301013', N'NXB Kinh Tế Quốc Dân',    2024, 410, 3, N'/covers/qtvb.jpg',
+     N'Quản trị bán hàng đa kênh với CRM, ERP và phân tích dữ liệu.'),
+
+-- 4 sách Khoa học - Kỹ thuật
+(14, N'Lược Sử Thời Gian',                      N'Stephen Hawking',      N'9786045401014', N'NXB Tri Thức',            2020, 280, 4, N'/covers/luoc-su-thoi-gian.jpg',
+     N'Hawking giới thiệu vũ trụ học, lỗ đen, thuyết tương đối cho người phổ thông.'),
+(15, N'Vũ Trụ Trong Vỏ Hạt Dẻ',                 N'Stephen Hawking',      N'9786045501015', N'NXB Tri Thức',            2021, 224, 4, N'/covers/vu-tru.jpg',
+     N'Tiếp nối Lược sử thời gian, Hawking trình bày các lý thuyết mới nhất về vũ trụ.'),
+(16, N'Hóa Học Vui (Tái bản 2025)',             N'Nguyễn Văn Tú',        N'9786045601016', N'NXB Giáo Dục VN',         2025, 356, 4, N'/covers/hoa-hoc-vui.jpg',
+     N'Thiết kế các thí nghiệm hóa học vui cho học sinh THPT.'),
+(17, N'Sinh Học Phân Tử Hiện Đại',              N'James Watson',         N'9786045701017', N'NXB Y Học',               2022, 540, 4, N'/covers/sinh-hoc.jpg',
+     N'Tổng quan sinh học phân tử: DNA, RNA, protein và kỹ thuật CRISPR-Cas9.'),
+
+-- 4 sách Tâm lý - PT Bản thân
+(18, N'Đắc Nhân Tâm (Phiên bản 2024)',          N'Dale Carnegie',        N'9786045801018', N'NXB Lao Động',            2024, 352, 5, N'/covers/dnt-2024.jpg',
+     N'Bản cập nhật 2024, có thêm 5 chương về làm việc từ xa và AI.'),
+(19, N'Thuật Quản Trị Cảm Xúc',                 N'Tony Buzan',           N'9786045901019', N'NXB Tổng Hợp HCM',        2023, 248, 5, N'/covers/cam-xuc.jpg',
+     N'Kỹ năng quản trị cảm xúc với mind mapping và NLP trong công việc.'),
+(20, N'Nghệ Thuật Đọc Sách',                    N'Mortimer Adler',       N'9786046001020', N'NXB Tri Thức',            2020, 416, 5, N'/covers/doc-sach.jpg',
+     N'Phương pháp đọc sách hiệu quả từ Adler, đào sâu và phản biện.'),
+(21, N'7 Thói Quen Hiệu Quả',                   N'Stephen Covey',        N'9786046101021', N'NXB Công Thương VN',      2022, 384, 5, N'/covers/7-thoi-quen.jpg',
+     N'7 thói quen của người thành đạt theo phong cách Covey.'),
+
+-- 3 sách Lịch sử - Địa lý
+(22, N'Đại Việt Sử Ký Toàn Thư (Tập 1)',         N'Ngô Sĩ Liên',         N'9786046201022', N'NXB Khoa Học Xã Hội',     2019, 624, 6, N'/covers/dvsktt-1.jpg',
+     N'Bộ sử biên niên đời Lê, ghi chép từ thời Hồng Bàng đến đời Trần.'),
+(23, N'Việt Nam Sử Lược',                       N'Trần Trọng Kim',       N'9786046301023', N'NXB Tổng Hợp HCM',        2021, 432, 6, N'/covers/vn-su-luoc.jpg',
+     N'Tác phẩm lịch sử kinh điển của Trần Trọng Kim, tái bản kèm chú thích.'),
+(24, N'Địa Lý Việt Nam Tự Nhiên & Kinh Tế',     N'Phạm Hoàng Hải',       N'9786046401024', N'NXB Giáo Dục VN',         2023, 280, 6, N'/covers/dia-ly-vn.jpg',
+     N'Tổng quan địa lý tự nhiên và kinh tế Việt Nam theo 63 tỉnh thành.'),
+
+-- 3 sách Ngoại ngữ
+(25, N'English Grammar In Use (5th Edition)',    N'Raymond Murphy',       N'9781108457651', N'Cambridge University Press', 2019, 394, 7, N'/covers/egiu.jpg',
+     N'Sách ngữ pháp tiếng Anh kinh điển dành cho người tự học.'),
+(26, N'TOEIC Vocabulary Builder 2025',            N'Lin Lougheed',        N'9786046601026', N'NXB Đại Học Ngoại Ngữ',   2025, 320, 7, N'/covers/toeic.jpg',
+     N'Từ vựng TOEIC 2025 đầy đủ các chủ đề thương mại.'),
+(27, N'IELTS Academic Practice 2024',             N'Cambridge ESOL',     N'9781108457705', N'Cambridge University Press', 2024, 280, 7, N'/covers/ielts.jpg',
+     N'Bài luyện IELTS Academic 2024 kèm audio QR.'),
+
+-- 3 sách Thiếu nhi
+(28, N'Dế Mèn Phiêu Lưu Ký',                     N'Tô Hoài',              N'9786046801028', N'NXB Kim Đồng',            2020, 248, 8, N'/covers/de-men.jpg',
+     N'Truyện thiếu nhi kinh điển của Tô Hoài, tái bản 2020.'),
+(29, N'Tấm Cám (Truyện cổ tích Việt Nam)',       N'Nhiều tác giả',        N'9786046901029', N'NXB Kim Đồng',            2021, 168, 8, N'/covers/tam-cam.jpg',
+     N'Tập hợp truyện cổ tích Tấm Cám và các dị bản.'),
+(30, N'Con Chó Sói (Bản dịch 2025)',             N'Jack London',          N'9786047001030', N'NXB Văn Học',             2025, 220, 8, N'/covers/cho-soi.jpg',
+     N'Bản dịch mới Jack London, kể về chú chó Buck hoang dã ở Alaska.');
+SET IDENTITY_INSERT [dbo].[Books] OFF;
 GO
 
 /* =========================================================================================
-   7. NẠP KỆ SÁCH CÁ NHÂN (SHELVES & SHELFITEMS - DỊCH VỤ S02)
-   ========================================================================================= */
-IF NOT EXISTS (SELECT 1 FROM [dbo].[Shelves])
-BEGIN
-    SET IDENTITY_INSERT [dbo].[Shelves] ON;
-    INSERT INTO [dbo].[Shelves] ([Id], [UserId], [Name], [Description], [IsPublic], [DisplayOrder])
-    VALUES
-        (1, N'u-user-01', N'Đang đọc học kỳ này',      N'Sách chuyên ngành .NET 10, Kiến trúc phần mềm & UI/UX đang theo dõi mỗi ngày', 1, 1),
-        (2, N'u-user-01', N'Kệ sách sẵn sàng cho mượn P2P', N'Sách giấy mình đã đọc xong, sẵn sàng giao lưu tại Trạm CLB Cầu Giấy', 1, 2),
-        (3, N'u-user-01', N'Tâm đắc & Yêu thích nhất', N'Những cuốn sách gối đầu giường đọc đi đọc lại nhiều lần', 1, 3),
-        (4, N'u-user-02', N'Tủ sách Văn học & Kinh tế', N'Kệ sách chia sẻ cộng đồng của Minh Anh', 1, 1);
-    SET IDENTITY_INSERT [dbo].[Shelves] OFF;
+6. BOOKCOPIES - 50 bản sao sách giấy vật lý
+   - 30 bản sao thuộc Kho chung ĐH CMC (OwnerType = System, LibraryId = 1)
+   - 20 bản sao thuộc Tủ sách cá nhân P2P (OwnerType = User, OwnerUserId được set)
+   Trạng thái (Status) phân bổ: Available / Borrowed / Reserved / Lost
+========================================================================================= */
+SET IDENTITY_INSERT [dbo].[BookCopies] ON;
+-- 30 bản sao System (Library) tại ĐH CMC (LibraryId = 1)
+INSERT INTO [dbo].[BookCopies] ([Id], [BookId], [Barcode], [OwnerType], [LibraryId], [OwnerUserId], [ShelfLocation], [Condition], [Status], [IsLendable]) VALUES
+(1,  1,  N'BS-LIB-0001', N'System', 1, NULL, N'Kệ A1-01', N'New',    N'Available', 1),
+(2,  1,  N'BS-LIB-0002', N'System', 1, NULL, N'Kệ A1-02', N'Good',   N'Borrowed',  1),
+(3,  1,  N'BS-LIB-0003', N'System', 1, NULL, N'Kệ A1-03', N'Good',   N'Available', 1),
+(4,  2,  N'BS-LIB-0004', N'System', 1, NULL, N'Kệ A2-01', N'New',    N'Available', 1),
+(5,  2,  N'BS-LIB-0005', N'System', 1, NULL, N'Kệ A2-02', N'Good',   N'Reserved',  1),
+(6,  3,  N'BS-LIB-0006', N'System', 1, NULL, N'Kệ A3-01', N'Good',   N'Available', 1),
+(7,  4,  N'BS-LIB-0007', N'System', 1, NULL, N'Kệ A4-01', N'Good',   N'Borrowed',  1),
+(8,  5,  N'BS-LIB-0008', N'System', 1, NULL, N'Kệ A5-01', N'New',    N'Available', 1),
+(9,  6,  N'BS-LIB-0009', N'System', 1, NULL, N'Kệ B1-01', N'Fair',   N'Available', 1),
+(10, 6,  N'BS-LIB-0010', N'System', 1, NULL, N'Kệ B1-02', N'Good',   N'Borrowed',  1),
+(11, 7,  N'BS-LIB-0011', N'System', 1, NULL, N'Kệ B2-01', N'Good',   N'Available', 1),
+(12, 8,  N'BS-LIB-0012', N'System', 1, NULL, N'Kệ B3-01', N'Worn',   N'Available', 1),
+(13, 10, N'BS-LIB-0013', N'System', 1, NULL, N'Kệ C1-01', N'New',    N'Available', 1),
+(14, 10, N'BS-LIB-0014', N'System', 1, NULL, N'Kệ C1-02', N'Good',   N'Borrowed',  1),
+(15, 11, N'BS-LIB-0015', N'System', 1, NULL, N'Kệ C2-01', N'Good',   N'Available', 1),
+(16, 12, N'BS-LIB-0016', N'System', 1, NULL, N'Kệ C3-01', N'Good',   N'Available', 1),
+(17, 14, N'BS-LIB-0017', N'System', 1, NULL, N'Kệ D1-01', N'New',    N'Available', 1),
+(18, 15, N'BS-LIB-0018', N'System', 1, NULL, N'Kệ D2-01', N'Good',   N'Borrowed',  1),
+(19, 18, N'BS-LIB-0019', N'System', 1, NULL, N'Kệ E1-01', N'New',    N'Available', 1),
+(20, 21, N'BS-LIB-0020', N'System', 1, NULL, N'Kệ E2-01', N'Good',   N'Available', 1),
+(21, 22, N'BS-LIB-0021', N'System', 1, NULL, N'Kệ F1-01', N'Fair',   N'Available', 1),
+(22, 23, N'BS-LIB-0022', N'System', 1, NULL, N'Kệ F2-01', N'Good',   N'Available', 1),
+(23, 25, N'BS-LIB-0023', N'System', 1, NULL, N'Kệ G1-01', N'New',    N'Available', 1),
+(24, 25, N'BS-LIB-0024', N'System', 1, NULL, N'Kệ G1-02', N'Good',   N'Borrowed',  1),
+(25, 28, N'BS-LIB-0025', N'System', 1, NULL, N'Kệ H1-01', N'Good',   N'Available', 1),
+(26, 28, N'BS-LIB-0026', N'System', 1, NULL, N'Kệ H1-02', N'Good',   N'Available', 1),
+(27, 9,  N'BS-LIB-0027', N'System', 1, NULL, N'Kệ B4-01', N'Worn',   N'Lost',      0),
+(28, 17, N'BS-LIB-0028', N'System', 1, NULL, N'Kệ D3-01', N'Good',   N'Damaged',   0),
+(29, 13, N'BS-LIB-0029', N'System', 1, NULL, N'Kệ C4-01', N'New',    N'Available', 1),
+(30, 24, N'BS-LIB-0030', N'System', 1, NULL, N'Kệ F3-01', N'Good',   N'Available', 1);
 
-    INSERT INTO [dbo].[ShelfItems] ([ShelfId], [BookCopyId])
-    VALUES
-        (1, 34), (1, 38),
-        (2, 33), (2, 35), (2, 36), (2, 37),
-        (3, 33), (3, 35),
-        (4, 39), (4, 40), (4, 41), (4, 42);
-END
+-- 20 bản sao User (P2P) thuộc 3 user (Curator 03, User 04, Librarian 02)
+INSERT INTO [dbo].[BookCopies] ([Id], [BookId], [Barcode], [OwnerType], [LibraryId], [OwnerUserId], [ShelfLocation], [Condition], [Status], [IsLendable]) VALUES
+(31, 1,  N'BS-USER-0031', N'User', NULL, N'user-curator-03', N'Tủ nhà Lâm - Kệ 1', N'New',    N'Available', 1),
+(32, 1,  N'BS-USER-0032', N'User', NULL, N'user-normal-04',  N'Tủ nhà Bình - Kệ 1', N'Good',   N'Available', 1),
+(33, 2,  N'BS-USER-0033', N'User', NULL, N'user-curator-03', N'Tủ nhà Lâm - Kệ 1', N'Good',   N'Available', 1),
+(34, 4,  N'BS-USER-0034', N'User', NULL, N'user-normal-04',  N'Tủ nhà Bình - Kệ 1', N'New',    N'Available', 1),
+(35, 5,  N'BS-USER-0035', N'User', NULL, N'user-librarian-02', N'Tủ nhà Thủ Thư - Kệ 1', N'Good', N'Available', 1),
+(36, 5,  N'BS-USER-0036', N'User', NULL, N'user-curator-03', N'Tủ nhà Lâm - Kệ 2', N'Good',   N'Borrowed',  1),
+(37, 6,  N'BS-USER-0037', N'User', NULL, N'user-normal-04',  N'Tủ nhà Bình - Kệ 1', N'Fair',   N'Available', 1),
+(38, 7,  N'BS-USER-0038', N'User', NULL, N'user-curator-03', N'Tủ nhà Lâm - Kệ 2', N'Good',   N'Available', 1),
+(39, 10, N'BS-USER-0039', N'User', NULL, N'user-librarian-02', N'Tủ nhà Thủ Thư - Kệ 1', N'New', N'Available', 1),
+(40, 11, N'BS-USER-0040', N'User', NULL, N'user-normal-04',  N'Tủ nhà Bình - Kệ 2', N'Good',   N'Available', 1),
+(41, 12, N'BS-USER-0041', N'User', NULL, N'user-curator-03', N'Tủ nhà Lâm - Kệ 2', N'Good',   N'Available', 1),
+(42, 14, N'BS-USER-0042', N'User', NULL, N'user-normal-04',  N'Tủ nhà Bình - Kệ 2', N'Good',   N'Available', 1),
+(43, 18, N'BS-USER-0043', N'User', NULL, N'user-curator-03', N'Tủ nhà Lâm - Kệ 3', N'New',    N'Available', 1),
+(44, 21, N'BS-USER-0044', N'User', NULL, N'user-librarian-02', N'Tủ nhà Thủ Thư - Kệ 1', N'Good', N'Available', 1),
+(45, 25, N'BS-USER-0045', N'User', NULL, N'user-normal-04',  N'Tủ nhà Bình - Kệ 2', N'Good',   N'Borrowed',  1),
+(46, 28, N'BS-USER-0046', N'User', NULL, N'user-curator-03', N'Tủ nhà Lâm - Kệ 3', N'Good',   N'Available', 1),
+(47, 3,  N'BS-USER-0047', N'User', NULL, N'user-normal-04',  N'Tủ nhà Bình - Kệ 3', N'Good',   N'Available', 1),
+(48, 8,  N'BS-USER-0048', N'User', NULL, N'user-curator-03', N'Tủ nhà Lâm - Kệ 3', N'Fair',   N'Available', 1),
+(49, 13, N'BS-USER-0049', N'User', NULL, N'user-librarian-02', N'Tủ nhà Thủ Thư - Kệ 2', N'New', N'Available', 1),
+(50, 30, N'BS-USER-0050', N'User', NULL, N'user-normal-04',  N'Tủ nhà Bình - Kệ 3', N'Good',   N'Available', 1);
+SET IDENTITY_INSERT [dbo].[BookCopies] OFF;
 GO
 
 /* =========================================================================================
-   8. NẠP TIẾN ĐỘ ĐỌC SÁCH CÁ NHÂN & GHI CHÚ TRANG SÁCH - KẾ THỪA VER07 (S03 & S04)
-   ========================================================================================= */
-IF NOT EXISTS (SELECT 1 FROM [dbo].[ReadingProgresses])
-BEGIN
-    SET IDENTITY_INSERT [dbo].[ReadingProgresses] ON;
-    INSERT INTO [dbo].[ReadingProgresses] (
-        [Id], [UserId], [BookId], [CurrentPage], [TotalPages], [Priority],
-        [TargetDeadline], [Status], [StartedAt], [FinishedAt], [PersonalRating]
-    )
-    VALUES
-        (1, N'u-user-01', 6,  540, 864, N'High',   '2026-11-30', N'Reading',    DATEADD(DAY, -14, SYSUTCDATETIME()), NULL, 5),
-        (2, N'u-user-01', 1,  464, 464, N'High',   '2026-10-25', N'Completed',  DATEADD(DAY, -40, SYSUTCDATETIME()), DATEADD(DAY, -18, SYSUTCDATETIME()), 5),
-        (3, N'u-user-01', 9,  212, 212, N'Medium', '2026-10-15', N'Completed',  DATEADD(DAY, -50, SYSUTCDATETIME()), DATEADD(DAY, -30, SYSUTCDATETIME()), 5),
-        (4, N'u-user-01', 21, 320, 320, N'Medium', '2026-11-05', N'Completed',  DATEADD(DAY, -25, SYSUTCDATETIME()), DATEADD(DAY, -8,  SYSUTCDATETIME()), 5),
-        (5, N'u-user-01', 27, 135, 216, N'High',   '2026-11-22', N'Reading',    DATEADD(DAY, -7,  SYSUTCDATETIME()), NULL, 4),
-        (6, N'u-user-01', 7,  0,   512, N'High',   '2026-12-15', N'WantToRead', NULL, NULL, NULL),
-        (7, N'u-user-02', 18, 280, 612, N'Medium', '2026-12-01', N'Reading',    DATEADD(DAY, -10, SYSUTCDATETIME()), NULL, 5);
-    SET IDENTITY_INSERT [dbo].[ReadingProgresses] OFF;
+7. SHELVES - Kệ sách cá nhân cho 3 user (Curator 03, User 04, Librarian 02)
+========================================================================================= */
+SET IDENTITY_INSERT [dbo].[Shelves] ON;
+INSERT INTO [dbo].[Shelves] ([Id], [UserId], [Name], [Description], [IsPublic], [DisplayOrder]) VALUES
+(1, N'user-curator-03', N'Đang đọc',     N'Sách đang trong tiến độ đọc', 1, 1),
+(2, N'user-curator-03', N'Yêu thích',    N'Những cuốn sách tâm đắc',     1, 2),
+(3, N'user-curator-03', N'Cho mượn P2P',  N'Sách sẵn sàng cho cộng đồng mượn', 1, 3),
+(4, N'user-normal-04',  N'Đang đọc',     N'Tiến độ đọc hiện tại',        1, 1),
+(5, N'user-normal-04',  N'Đã đọc',       N'Sách đã đọc xong',            1, 2),
+(6, N'user-librarian-02', N'Tham khảo', N'Sách tham khảo công việc',    0, 1);
+SET IDENTITY_INSERT [dbo].[Shelves] OFF;
+GO
 
-    INSERT INTO [dbo].[BookNotes] ([ReadingProgressId], [PageNumber], [QuoteText], [NoteContent], [IsPublic])
-    VALUES
-        (1, 142, N'Controllers should be thin; business logic belongs in encapsulated application services.', N'Áp dụng ngay nguyên tắc này cho đồ án BookShare: Controller không bao giờ gọi thẳng DbContext!', 1),
-        (1, 388, N'Use ExternalLoginSignInAsync with Identity to seamlessly link OAuth providers.', N'Ghi chú cấu hình Google OAuth 2.0 nối với bảng AspNetUserLogins trong dịch vụ S01.', 1),
-        (2, 54,  N'Clean code always looks like it was written by someone who cares.', N'Tách 22 dịch vụ ra 22 bộ file .cshtml + .css + .js độc lập giúp code cực kỳ sạch và dễ bảo trì.', 1),
-        (3, 88,  N'Tình bạn chân thành xóa nhòa mọi khoảng cách giữa hai thế giới khác biệt.', N'Cuốn sách nhẹ nhàng giúp thư giãn sau những giờ code C# căng thẳng.', 1);
-END
+-- ShelfItems: gắn BookCopy vào Shelf tương ứng
+SET IDENTITY_INSERT [dbo].[ShelfItems] ON;
+INSERT INTO [dbo].[ShelfItems] ([Id], [ShelfId], [BookCopyId]) VALUES
+(1, 1, 31),  -- Lâm đang đọc BookCopy 31 (ASP.NET Core MVC)
+(2, 3, 33),  -- Lâm cho mượn BookCopy 33 (C# 12)
+(3, 3, 36),  -- Lâm cho mượn BookCopy 36 (Clean Architecture)
+(4, 2, 38),  -- Lâm yêu thích BookCopy 38 (Chi Pheo)
+(5, 4, 32),  -- Bình đang đọc BookCopy 32 (ASP.NET Core MVC)
+(6, 5, 34),  -- Bình đã đọc BookCopy 34 (AI)
+(7, 6, 35),  -- Thủ Thư tham khảo BookCopy 35 (Clean Architecture)
+(8, 6, 39),  -- Thủ Thư tham khảo BookCopy 39 (Đắc Nhân Tâm)
+(9, 2, 43),  -- Lâm yêu thích BookCopy 43 (Đắc Nhân Tâm 2024)
+(10, 3, 41); -- Lâm cho mượn BookCopy 41 (Tư Duy Phản Biện)
+SET IDENTITY_INSERT [dbo].[ShelfItems] OFF;
 GO
 
 /* =========================================================================================
-   9. NẠP GÓI THÀNH VIÊN (MEMBERSHIPS - S16)
-   ========================================================================================= */
-IF NOT EXISTS (SELECT 1 FROM [dbo].[Memberships])
-BEGIN
-    INSERT INTO [dbo].[Memberships] ([UserId], [Tier], [MaxConcurrentLoans], [StartDate], [ExpiryDate], [IsActive])
-    VALUES
-        (N'u-user-01', N'Premium', 5, DATEADD(MONTH, -1, SYSUTCDATETIME()), DATEADD(MONTH, 11, SYSUTCDATETIME()), 1),
-        (N'u-user-02', N'Premium', 5, DATEADD(MONTH, -2, SYSUTCDATETIME()), DATEADD(MONTH, 10, SYSUTCDATETIME()), 1),
-        (N'u-user-03', N'Free',    2, DATEADD(MONTH, -3, SYSUTCDATETIME()), NULL, 1);
-END
+8. READINGPROGRESSES - Tiến độ đọc sách (cho Dashboard S03)
+========================================================================================= */
+SET IDENTITY_INSERT [dbo].[ReadingProgresses] ON;
+INSERT INTO [dbo].[ReadingProgresses]
+    ([Id], [UserId], [BookId], [CurrentPage], [TotalPages], [Priority], [TargetDeadline], [Status], [StartedAt], [FinishedAt], [PersonalRating])
+VALUES
+(1, N'user-curator-03', 1,  120, 520, N'High',   DATEADD(DAY, 30, SYSUTCDATETIME()), N'Reading',   DATEADD(DAY, -10, SYSUTCDATETIME()), NULL, NULL),
+(2, N'user-curator-03', 5,  280, 420, N'Medium', DATEADD(DAY, 45, SYSUTCDATETIME()), N'Reading',   DATEADD(DAY, -20, SYSUTCDATETIME()), NULL, NULL),
+(3, N'user-curator-03', 10, 320, 320, N'Low',    NULL,                              N'Completed', DATEADD(DAY, -60, SYSUTCDATETIME()), DATEADD(DAY, -30, SYSUTCDATETIME()), 5),
+(4, N'user-curator-03', 14,  0,  280, N'Medium', NULL,                              N'WantToRead', NULL, NULL, NULL),
+(5, N'user-normal-04',  1,   60, 520, N'High',   DATEADD(DAY, 21, SYSUTCDATETIME()), N'Reading',   DATEADD(DAY, -5,  SYSUTCDATETIME()), NULL, NULL),
+(6, N'user-normal-04',  11, 192, 192, N'Low',    NULL,                              N'Completed', DATEADD(DAY, -45, SYSUTCDATETIME()), DATEADD(DAY, -15, SYSUTCDATETIME()), 4),
+(7, N'user-normal-04',  25,  80, 394, N'Medium', DATEADD(DAY, 60, SYSUTCDATETIME()), N'Reading',   DATEADD(DAY, -7,  SYSUTCDATETIME()), NULL, NULL),
+(8, N'user-librarian-02', 5, 100, 420, N'Medium', NULL,                             N'Reading',   DATEADD(DAY, -3,  SYSUTCDATETIME()), NULL, NULL),
+(9, N'user-librarian-02', 28, 248, 248, N'Low',   NULL,                              N'Completed', DATEADD(DAY, -90, SYSUTCDATETIME()), DATEADD(DAY, -60, SYSUTCDATETIME()), 5),
+(10, N'user-curator-03', 28, 120, 248, N'Low',   NULL,                              N'Reading',   DATEADD(DAY, -2,  SYSUTCDATETIME()), NULL, NULL);
+SET IDENTITY_INSERT [dbo].[ReadingProgresses] OFF;
+GO
+
+-- BookNotes: Ghi chú cá nhân theo trang
+SET IDENTITY_INSERT [dbo].[BookNotes] ON;
+INSERT INTO [dbo].[BookNotes] ([Id], [ReadingProgressId], [PageNumber], [QuoteText], [NoteContent], [IsPublic]) VALUES
+(1, 1, 25, N'Middleware pipeline là trái tim của ASP.NET Core', N'Nắm vững thứ tự middleware để optimize request flow.', 1),
+(2, 1, 120, N'EF Core 10 supports AOT compile for LINQ',        N'Thử dùng AOT trong dự án sprint tới.',                 1),
+(3, 2, 50,  N'Clean Architecture tách biệt business logic',     N'Áp dụng cho module S08 Loan service.',                  0),
+(4, 5, 30,  N'Identity có thể custom claim qua IClaimsTransformation', N'Custom claim để gán TrustScore vào JWT.',     1),
+(5, 7, 80,  N'Cambridge recommends spaced repetition',           N'Ôn từ vựng TOEIC theo phương pháp Spaced Repetition.', 1);
+SET IDENTITY_INSERT [dbo].[BookNotes] OFF;
 GO
 
 /* =========================================================================================
-   10. NẠP ĐƠN MƯỢN, HỢP ĐỒNG MƯỢN, BIÊN BẢN ẢNH CLOUDINARY & TRANH CHẤP (S08, S09, S10, S19)
-   ========================================================================================= */
-IF NOT EXISTS (SELECT 1 FROM [dbo].[LoanRequests])
-BEGIN
-    SET IDENTITY_INSERT [dbo].[LoanRequests] ON;
-    INSERT INTO [dbo].[LoanRequests] (
-        [Id], [BookCopyId], [BorrowerId], [ApproverId], [LoanType],
-        [Status], [RequestedAt], [DesiredDays], [PickupHubId], [RequestNote]
-    )
-    VALUES
-        -- Đơn 1: Nguyễn Hùng mượn Kho chung (Clean Code bản sao #2)
-        (1, 2,  N'u-user-01', N'u-librarian-01', N'Library', N'Approved', DATEADD(DAY, -10, SYSUTCDATETIME()), 14, 2, N'Em xin mượn phục vụ đồ án môn Phát triển Ứng dụng Web ạ.'),
-        -- Đơn 2: Minh Anh mượn P2P từ Nguyễn Hùng (Nhà Giả Kim bản sao #36 tại Trạm CLB Cầu Giấy)
-        (2, 36, N'u-user-02', N'u-user-01',      N'P2P',     N'Approved', DATEADD(DAY, -6,  SYSUTCDATETIME()), 10, 3, N'Mình hẹn nhận sách tại Trạm CLB BookShare Duy Tân lúc 14h nhé!'),
-        -- Đơn 3: Hoàng Nam mượn Kho chung (Designing Data-Intensive Apps bản sao #4 - Đang trễ hạn)
-        (3, 4,  N'u-user-03', N'u-librarian-01', N'Library', N'Approved', DATEADD(DAY, -20, SYSUTCDATETIME()), 14, 2, N'Xin mượn tài liệu tham khảo hệ phân tán.'),
-        -- Đơn 4: Minh Anh đang gửi yêu cầu chờ duyệt P2P cuốn Clean Code (#33) của Nguyễn Hùng
-        (4, 33, N'u-user-02', N'u-user-01',      N'P2P',     N'Pending',  DATEADD(HOUR, -3, SYSUTCDATETIME()), 14, 3, N'Chào Hùng, cho mình mượn cuốn Clean Code 2 tuần nhé!');
-    SET IDENTITY_INSERT [dbo].[LoanRequests] OFF;
+9. LOANREQUESTS - Lịch sử yêu cầu mượn (cho Dashboard S22 ratio Library vs P2P)
+========================================================================================= */
+SET IDENTITY_INSERT [dbo].[LoanRequests] ON;
+INSERT INTO [dbo].[LoanRequests]
+    ([Id], [BookCopyId], [BorrowerId], [ApproverId], [LoanType], [Status], [RequestedAt], [DesiredDays], [PickupHubId], [RequestNote])
+VALUES
+-- Library loan (Kho chung)
+(1,  2,  N'user-normal-04',  N'user-librarian-02', N'Library', N'Approved',  DATEADD(DAY, -25, SYSUTCDATETIME()), 14, 1, N'Mượn học ASP.NET Core'),
+(2,  5,  N'user-curator-03', N'user-librarian-02', N'Library', N'Approved',  DATEADD(DAY, -22, SYSUTCDATETIME()), 14, 1, N'Nghiên cứu .NET 10'),
+(3,  7,  N'user-normal-04',  N'user-librarian-02', N'Library', N'Approved',  DATEADD(DAY, -20, SYSUTCDATETIME()), 21, 1, N'Tài liệu AI'),
+(4,  10, N'user-normal-04',  N'user-librarian-02', N'Library', N'Approved',  DATEADD(DAY, -18, SYSUTCDATETIME()), 14, 2, N'Văn học Việt'),
+(5,  14, N'user-curator-03', N'user-librarian-02', N'Library', N'Approved',  DATEADD(DAY, -15, SYSUTCDATETIME()), 30, 1, N'Sách khoa học'),
+(6,  18, N'user-normal-04',  N'user-librarian-02', N'Library', N'Approved',  DATEADD(DAY, -10, SYSUTCDATETIME()), 14, 1, N'Đắc nhân tâm 2024'),
+(7,  24, N'user-curator-03', N'user-librarian-02', N'Library', N'Rejected',  DATEADD(DAY, -8,  SYSUTCDATETIME()), 14, 1, N'TOEIC đang mượn nhiều'),
+(8,  25, N'user-normal-04',  N'user-librarian-02', N'Library', N'Approved',  DATEADD(DAY, -5,  SYSUTCDATETIME()), 10, 1, N'IELTS luyện thi'),
+(9,  30, N'user-curator-03', N'user-librarian-02', N'Library', N'Pending',   DATEADD(DAY, -1,  SYSUTCDATETIME()), 14, 1, N'Chờ duyệt'),
 
-    SET IDENTITY_INSERT [dbo].[Loans] ON;
-    INSERT INTO [dbo].[Loans] ([Id], [LoanRequestId], [StartDate], [DueDate], [ReturnDate], [RenewCount], [FineAmount], [Status])
-    VALUES
-        (1, 1, DATEADD(DAY, -9,  SYSUTCDATETIME()), DATEADD(DAY, 5,  SYSUTCDATETIME()), NULL, 0, 0,     N'Active'),
-        (2, 2, DATEADD(DAY, -5,  SYSUTCDATETIME()), DATEADD(DAY, 5,  SYSUTCDATETIME()), NULL, 1, 0,     N'Active'),
-        (3, 3, DATEADD(DAY, -19, SYSUTCDATETIME()), DATEADD(DAY, -5, SYSUTCDATETIME()), NULL, 0, 25000, N'Overdue');
-    SET IDENTITY_INSERT [dbo].[Loans] OFF;
-
-    -- Biên bản ảnh tình trạng sách lúc giao (ConditionReports - S10)
-    INSERT INTO [dbo].[ConditionReports] ([LoanId], [ReportType], [ReportedByUserId], [ConditionGrade], [Note], [ImageUrl])
-    VALUES
-        (1, N'Handover', N'u-librarian-01', N'Good', N'Bìa cứng nguyên vẹn, không gấp trang, mã vạch BS-SYS-0002 rõ nét.', N'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=600'),
-        (2, N'Handover', N'u-user-01',      N'Good', N'Đã bọc plastic cẩn thận, giao sách trực tiếp tại Trạm CLB Cầu Giấy.', N'https://images.unsplash.com/photo-1512820790803-83ca734da794?w=600'),
-        (3, N'Handover', N'u-librarian-01', N'New',  N'Sách mới 100% xuất kho Khoa CNTT.', N'https://images.unsplash.com/photo-1532012197267-da84d127e765?w=600');
-
-    -- Hàng chờ sách Hot (Reservations - S11: Cuốn AI Engineering #7)
-    INSERT INTO [dbo].[Reservations] ([BookId], [UserId], [QueuePosition], [Status], [NotifiedAt], [ExpiresAt])
-    VALUES
-        (7, N'u-user-01', 1, N'Notified', SYSUTCDATETIME(), DATEADD(HOUR, 48, SYSUTCDATETIME())),
-        (7, N'u-user-02', 2, N'Waiting',  NULL, NULL);
-END
+-- P2P loan (Tủ sách cá nhân)
+(10, 31, N'user-normal-04',  N'user-curator-03', N'P2P', N'Approved', DATEADD(DAY, -7,  SYSUTCDATETIME()), 7,  3, N'Mượn của anh Lâm'),
+(11, 36, N'user-normal-04',  N'user-curator-03', N'P2P', N'Approved', DATEADD(DAY, -6,  SYSUTCDATETIME()), 10, 3, N'Mượn Clean Architecture'),
+(12, 39, N'user-curator-03', N'user-librarian-02', N'P2P', N'Approved', DATEADD(DAY, -5,  SYSUTCDATETIME()), 14, 2, N'Mượn sách Đắc Nhân Tâm'),
+(13, 41, N'user-normal-04',  N'user-curator-03', N'P2P', N'Pending',  DATEADD(DAY, -1,  SYSUTCDATETIME()), 7,  3, N'Mượn Tư duy phản biện'),
+(14, 45, N'user-curator-03', N'user-normal-04',  N'P2P', N'Approved', DATEADD(DAY, -3,  SYSUTCDATETIME()), 14, 3, N'Mượn English Grammar');
+SET IDENTITY_INSERT [dbo].[LoanRequests] OFF;
 GO
 
 /* =========================================================================================
-   11. NẠP GIAO DỊCH SANDBOX, ĐÁNH GIÁ UY TÍN, THÔNG BÁO & LỊCH SỬ CHAT AI GEMINI
-   ========================================================================================= */
-IF NOT EXISTS (SELECT 1 FROM [dbo].[Transactions])
-BEGIN
-    INSERT INTO [dbo].[Transactions] ([UserId], [LoanId], [TransactionType], [Amount], [PaymentGateway], [PaymentStatus], [HmacSignature])
-    VALUES
-        (N'u-user-01', NULL, N'Membership',       99000, N'VNPaySandbox', N'Completed', N'hmac_sha512_demo_vnpay_sig_001'),
-        (N'u-user-02', 2,    N'SimulatedDeposit', 50000, N'MoMoSandbox',  N'Completed', N'hmac_sha512_demo_momo_sig_002');
-END
+10. LOANS - Hợp đồng mượn đang hiệu lực, đã trả, quá hạn (cho Dashboard S22)
+========================================================================================= */
+SET IDENTITY_INSERT [dbo].[Loans] ON;
+INSERT INTO [dbo].[Loans]
+    ([Id], [LoanRequestId], [StartDate], [DueDate], [ReturnDate], [RenewCount], [FineAmount], [Status])
+VALUES
+-- Library loans
+(1,  1, DATEADD(DAY, -25, SYSUTCDATETIME()), DATEADD(DAY, -11, SYSUTCDATETIME()), DATEADD(DAY, -10, SYSUTCDATETIME()), 0, 0,         N'Returned'),
+(2,  2, DATEADD(DAY, -22, SYSUTCDATETIME()), DATEADD(DAY, -8,  SYSUTCDATETIME()), DATEADD(DAY, -7,  SYSUTCDATETIME()), 1, 0,         N'Returned'),
+(3,  3, DATEADD(DAY, -20, SYSUTCDATETIME()), DATEADD(DAY, 1,   SYSUTCDATETIME()), NULL,                              0, 0,         N'Active'),
+(4,  4, DATEADD(DAY, -18, SYSUTCDATETIME()), DATEADD(DAY, -4,  SYSUTCDATETIME()), DATEADD(DAY, -3,  SYSUTCDATETIME()), 0, 0,         N'Returned'),
+(5,  5, DATEADD(DAY, -15, SYSUTCDATETIME()), DATEADD(DAY, 15,  SYSUTCDATETIME()), NULL,                              0, 0,         N'Active'),
+(6,  6, DATEADD(DAY, -10, SYSUTCDATETIME()), DATEADD(DAY, 4,   SYSUTCDATETIME()), NULL,                              0, 0,         N'Active'),
+(8,  8, DATEADD(DAY, -5,  SYSUTCDATETIME()), DATEADD(DAY, 5,   SYSUTCDATETIME()), NULL,                              0, 0,         N'Active'),
+-- P2P loans
+(9,  10, DATEADD(DAY, -7,  SYSUTCDATETIME()), DATEADD(DAY, 0,   SYSUTCDATETIME()), NULL,                              0, 0,         N'Overdue'),
+(10, 11, DATEADD(DAY, -6,  SYSUTCDATETIME()), DATEADD(DAY, 4,   SYSUTCDATETIME()), NULL,                              0, 0,         N'Active'),
+(11, 12, DATEADD(DAY, -5,  SYSUTCDATETIME()), DATEADD(DAY, 9,   SYSUTCDATETIME()), NULL,                              0, 0,         N'Active'),
+(14, 14, DATEADD(DAY, -3,  SYSUTCDATETIME()), DATEADD(DAY, 11,  SYSUTCDATETIME()), NULL,                              0, 0,         N'Active'),
+-- Returned loans with fine
+(15, 1,  DATEADD(DAY, -35, SYSUTCDATETIME()), DATEADD(DAY, -21, SYSUTCDATETIME()), DATEADD(DAY, -15, SYSUTCDATETIME()), 0, 30000, N'Returned');
+SET IDENTITY_INSERT [dbo].[Loans] OFF;
 GO
 
-IF NOT EXISTS (SELECT 1 FROM [dbo].[Disputes])
-BEGIN
-    INSERT INTO [dbo].[Disputes] ([LoanId], [RaisedByUserId], [Reason], [EvidenceUrlsJson], [Status], [ResolvedByAdminId], [ResolutionNote])
-    VALUES
-        (3, N'u-librarian-01', N'Người mượn quá hạn 5 ngày chưa hoàn trả cuốn Designing Data-Intensive Applications (BS-SYS-0004).', N'["https://images.unsplash.com/photo-1532012197267-da84d127e765?w=600"]', N'UnderReview', N'u-admin-01', N'Đã gửi thông báo nhắc hạn lần 2 qua Resend Email và tạm khóa quyền mượn mới.');
-END
+/* =========================================================================================
+11. CONDITIONREPORTS - Biên bản điện tử lúc giao/trả
+========================================================================================= */
+SET IDENTITY_INSERT [dbo].[ConditionReports] ON;
+INSERT INTO [dbo].[ConditionReports]
+    ([Id], [LoanId], [ReportType], [ReportedByUserId], [ConditionGrade], [Note], [ImageUrl])
+VALUES
+(1,  1, N'Handover', N'user-librarian-02', N'Good',  N'Bìa sạch, không rách',  N'/uploads/conditions/loan1-handover.jpg'),
+(2,  1, N'Return',   N'user-librarian-02', N'Good',  N'Trả nguyên trạng thái', N'/uploads/conditions/loan1-return.jpg'),
+(3,  2, N'Handover', N'user-librarian-02', N'New',    N'Sách mới',              N'/uploads/conditions/loan2-handover.jpg'),
+(4,  2, N'Return',   N'user-librarian-02', N'Good',  N'Có gấp 1 trang',        N'/uploads/conditions/loan2-return.jpg'),
+(5,  3, N'Handover', N'user-librarian-02', N'Good',  N'Bàn giao sách AI',      N'/uploads/conditions/loan3-handover.jpg'),
+(6,  4, N'Handover', N'user-librarian-02', N'Good',  N'Bàn giao Truyện Kiều',  N'/uploads/conditions/loan4-handover.jpg'),
+(7,  4, N'Return',   N'user-librarian-02', N'Fair',  N'Hơi cũ sau khi mượn',   N'/uploads/conditions/loan4-return.jpg'),
+(8,  5, N'Handover', N'user-librarian-02', N'New',    N'Bàn giao Lược sử thời gian', N'/uploads/conditions/loan5-handover.jpg'),
+(9,  6, N'Handover', N'user-librarian-02', N'New',    N'Bàn giao Đắc Nhân Tâm 2024', N'/uploads/conditions/loan6-handover.jpg'),
+(10, 9,  N'Handover', N'user-curator-03',  N'New',    N'P2P: Bàn giao ASP.NET Core MVC', N'/uploads/conditions/loan9-handover.jpg'),
+(11, 10, N'Handover', N'user-curator-03',  N'Good',   N'P2P: Bàn giao Clean Architecture', N'/uploads/conditions/loan10-handover.jpg'),
+(12, 11, N'Handover', N'user-librarian-02', N'New',    N'P2P: Bàn giao Đắc Nhân Tâm',     N'/uploads/conditions/loan11-handover.jpg');
+SET IDENTITY_INSERT [dbo].[ConditionReports] OFF;
 GO
 
-IF NOT EXISTS (SELECT 1 FROM [dbo].[Reviews])
-BEGIN
-    INSERT INTO [dbo].[Reviews] ([ReviewerId], [TargetType], [TargetId], [LoanId], [Rating], [Comment])
-    VALUES
-        (N'u-user-02', N'User', N'u-user-01', 2, 5, N'Chủ sách cực kỳ nhiệt tình, sách bọc bìa rất mới và đúng hẹn tại Trạm CLB Cầu Giấy!'),
-        (N'u-user-01', N'Book', N'1',         1, 5, N'Cuốn sách gối đầu giường cho mọi sinh viên CNTT khi làm đồ án kiến trúc phần mềm.');
-END
+/* =========================================================================================
+12. RESERVATIONS - Hàng chờ đặt trước (cho sách hot)
+========================================================================================= */
+SET IDENTITY_INSERT [dbo].[Reservations] ON;
+INSERT INTO [dbo].[Reservations]
+    ([Id], [BookId], [UserId], [QueuePosition], [Status], [CreatedAt], [NotifiedAt], [ExpiresAt])
+VALUES
+(1, 1, N'user-normal-04',  1, N'Waiting',   DATEADD(DAY, -3, SYSUTCDATETIME()), NULL, NULL),
+(2, 1, N'user-curator-03', 2, N'Waiting',   DATEADD(DAY, -2, SYSUTCDATETIME()), NULL, NULL),
+(3, 5, N'user-normal-04',  1, N'Notified',  DATEADD(DAY, -1, SYSUTCDATETIME()), DATEADD(HOUR, -2, SYSUTCDATETIME()), DATEADD(HOUR, 22, SYSUTCDATETIME())),
+(4, 25, N'user-curator-03', 1, N'Fulfilled', DATEADD(DAY, -10, SYSUTCDATETIME()), DATEADD(DAY, -8, SYSUTCDATETIME()), DATEADD(DAY, -5, SYSUTCDATETIME())),
+(5, 28, N'user-normal-04',  1, N'Waiting',  DATEADD(DAY, -1, SYSUTCDATETIME()), NULL, NULL);
+SET IDENTITY_INSERT [dbo].[Reservations] OFF;
 GO
 
-IF NOT EXISTS (SELECT 1 FROM [dbo].[Notifications])
-BEGIN
-    INSERT INTO [dbo].[Notifications] ([UserId], [Title], [Content], [Type], [IsRead], [EmailSentViaResend])
-    VALUES
-        (N'u-user-01', N'Yêu cầu mượn P2P mới từ Trần Minh Anh', N'Minh Anh vừa gửi yêu cầu mượn cuốn Clean Code (BS-P2P-0033) nhận tại Trạm CLB Cầu Giấy.', N'LoanApproved', 0, 1),
-        (N'u-user-01', N'Sách Hot đặt trước đã có sẵn!', N'Cuốn "AI Engineering" bạn xếp hàng số #1 đã sẵn sàng tại Thư viện ĐH CMC. Giữ chỗ trong 48 giờ.', N'QueueAvailable', 0, 1),
-        (N'u-user-03', N'Nhắc hạn trả sách quá hạn (5 ngày)', N'Cuốn "Designing Data-Intensive Applications" đã quá hạn 5 ngày. Phí trễ tạm tính: 25.000đ.', N'DueReminder', 0, 1);
-END
+/* =========================================================================================
+13. DISPUTES - Khiếu nại tranh chấp (1 mẫu)
+========================================================================================= */
+SET IDENTITY_INSERT [dbo].[Disputes] ON;
+INSERT INTO [dbo].[Disputes]
+    ([Id], [LoanId], [RaisedByUserId], [Reason], [EvidenceUrlsJson], [Status], [ResolvedByAdminId], [ResolutionNote], [CreatedAt], [ResolvedAt])
+VALUES
+(1, 4, N'user-normal-04', N'Sách Truyện Kiều có rách 5 trang khi trả', N'["/uploads/disputes/dispute1-evidence1.jpg","/uploads/disputes/dispute1-evidence2.jpg"]',
+    N'Resolved', N'user-admin-bit250210', N'Admin quyết định người dùng bồi thường 50% giá sách.', DATEADD(DAY, -12, SYSUTCDATETIME()), DATEADD(DAY, -10, SYSUTCDATETIME()));
+SET IDENTITY_INSERT [dbo].[Disputes] OFF;
 GO
 
-IF NOT EXISTS (SELECT 1 FROM [dbo].[AiChatSessions])
-BEGIN
-    SET IDENTITY_INSERT [dbo].[AiChatSessions] ON;
-    INSERT INTO [dbo].[AiChatSessions] ([Id], [UserId], [Title], [ModelName])
-    VALUES
-        (1, N'u-user-01', N'Tư vấn tài liệu ASP.NET Core 10 & Kiểm tra hạn trả sách', N'gemini-2.5-flash');
-    SET IDENTITY_INSERT [dbo].[AiChatSessions] OFF;
-
-    INSERT INTO [dbo].[AiChatMessages] ([SessionId], [UserId], [Sender], [MessageText], [PromptTokens], [ReferencedBookIdsJson])
-    VALUES
-        (1, N'u-user-01', N'User',   N'Chào Trợ lý AI, mình đang làm đồ án ASP.NET Core MVC theo kiến trúc sạch thì nên mượn cuốn nào trong kho trường ĐH CMC, và kiểm tra giúp mình hạn trả sách hiện tại nhé!', 42, NULL),
-        (1, N'u-user-01', N'Gemini', N'Chào Nguyễn Hùng! Dựa trên dữ liệu Kho sách ĐH CMC và tủ sách của bạn:\n1. Gợi ý mượn ngay: "Domain-Driven Design" (Mã bản sao: BS-SYS-0003 - Đang sẵn sàng tại Kệ CNTT-A1) và "Refactoring" (BS-SYS-0006).\n2. Tiến độ đọc: Bạn đang đọc "ASP.NET Core in Action" tới trang 540/864 (62.5%).\n3. Hạn trả sách: Cuốn "Clean Code" (BS-SYS-0002) bạn mượn còn 5 ngày nữa đến hạn trả, hiện không có phí trễ hạn.', 185, N'[1,2,5,6]');
-END
+/* =========================================================================================
+14. MEMBERSHIPS - Gói thành viên (2 Free + 2 Premium)
+========================================================================================= */
+SET IDENTITY_INSERT [dbo].[Memberships] ON;
+INSERT INTO [dbo].[Memberships]
+    ([Id], [UserId], [Tier], [MaxConcurrentLoans], [StartDate], [ExpiryDate], [IsActive])
+VALUES
+(1, N'user-admin-bit250210', N'Premium', 20, DATEADD(DAY, -90, SYSUTCDATETIME()), DATEADD(DAY, 275, SYSUTCDATETIME()), 1),
+(2, N'user-librarian-02',    N'Premium', 10, DATEADD(DAY, -60, SYSUTCDATETIME()), DATEADD(DAY, 305, SYSUTCDATETIME()), 1),
+(3, N'user-curator-03',      N'Premium', 5,  DATEADD(DAY, -30, SYSUTCDATETIME()), DATEADD(DAY, 335, SYSUTCDATETIME()), 1),
+(4, N'user-normal-04',       N'Free',    2,  DATEADD(DAY, -15, SYSUTCDATETIME()), NULL,                              1);
+SET IDENTITY_INSERT [dbo].[Memberships] OFF;
 GO
 
-PRINT N'=== ĐÃ NẠP THÀNH CÔNG DỮ LIỆU MẪU (4 ROLES, 30 ĐẦU SÁCH, 50 BẢN SAO) CHO BOOKSHAREDB ===';
+/* =========================================================================================
+15. NOTIFICATIONS - Thông báo hệ thống
+========================================================================================= */
+SET IDENTITY_INSERT [dbo].[Notifications] ON;
+INSERT INTO [dbo].[Notifications] ([Id], [UserId], [Title], [Body], [Type], [IsRead]) VALUES
+(1, N'user-normal-04', N'Đơn mượn đã được duyệt', N'Đơn mượn sách #1 (ASP.NET Core MVC) đã được thủ thư duyệt. Vui lòng đến thư viện ĐH CMC nhận sách.', N'Success', 1),
+(2, N'user-normal-04', N'Sách sắp đến hạn trả',   N'Sách #3 (AI Trí Tuệ Nhân Tạo) sẽ đến hạn trả sau 3 ngày nữa.',                                   N'Warning', 0),
+(3, N'user-curator-03', N'Yêu cầu mượn P2P mới',   N'Bình vừa gửi yêu cầu mượn sách Clean Architecture của bạn.',                                  N'Info',    0),
+(4, N'user-admin-bit250210', N'Khiếu nại mới',      N'Khiếu nại #1 cần admin phân xử.',                                                              N'Warning', 0),
+(5, N'user-curator-03', N'Đăng ký Premium thành công', N'Gói Premium 365 ngày đã được kích hoạt.',                                                 N'Success', 1);
+SET IDENTITY_INSERT [dbo].[Notifications] OFF;
+GO
+
+/* =========================================================================================
+16. AICHATLOGS - Lịch sử chat với AI Gemini
+========================================================================================= */
+SET IDENTITY_INSERT [dbo].[AiChatLogs] ON;
+INSERT INTO [dbo].[AiChatLogs] ([Id], [UserId], [UserMessage], [AiResponse], [ContextJson], [TokensUsed]) VALUES
+(1, N'user-curator-03', N'Gợi ý sách học ASP.NET Core MVC cho người mới',
+    N'Mình gợi ý: 1) Lập Trình ASP.NET Core MVC (.NET 10) - Andrew Lock; 2) C# 12 và .NET 10 - Mark J. Price; 3) Clean Architecture với .NET - Jason Taylor.',
+    N'{"books":[1,2,5]}', 280),
+(2, N'user-normal-04', N'Tôi nên bắt đầu học IELTS như thế nào?',
+    N'Bạn nên bắt đầu với English Grammar In Use (5th Edition) của Raymond Murphy, sau đó luyện TOEIC Vocabulary Builder 2025 để có nền tảng từ vựng.',
+    N'{"books":[25,26]}', 220),
+(3, N'user-admin-bit250210', N'Cho biết thống kê mượn sách tháng này',
+    N'Tháng này có 12 đơn mượn mới, 8 đã được duyệt, 4 đang chờ. Tỷ lệ Kho chung vs P2P là 7:3.',
+    N'{"stats":{"totalLoans":12,"approved":8,"pending":4}}', 180);
+SET IDENTITY_INSERT [dbo].[AiChatLogs] OFF;
+GO
+
+/* =========================================================================================
+17. REVIEWS - Đánh giá đầu sách (BẢNG MỚI Sprint 2 - Lâm)
+========================================================================================= */
+SET IDENTITY_INSERT [dbo].[Reviews] ON;
+INSERT INTO [dbo].[Reviews]
+    ([Id], [BookId], [UserId], [Rating], [Title], [Content], [IsPublic], [Likes])
+VALUES
+(1,  1, N'user-curator-03',  5, N'Sách .NET 10 hay nhất 2025',  N'Nội dung update mới, ví dụ thực tế, phù hợp developer .NET muốn nâng cấp kỹ năng.', 1, 24),
+(2,  1, N'user-normal-04',   4, N'Hay nhưng khó',                N'Sách hay nhưng đòi hỏi kiến thức nền .NET 8+. Nên đọc sách cơ bản trước.',         1, 8),
+(3,  2, N'user-curator-03',  5, N'Tối ưu hiệu năng',            N'Chương về Span<T> và AOT rất đáng đọc. Áp dụng được ngay vào dự án thực tế.',     1, 18),
+(4,  3, N'user-librarian-02', 4, N'EF Core toàn diện',          N'Phần scaffold và migration rất chi tiết, nên có thêm ví dụ về bulk update.',     1, 12),
+(5,  6, N'user-curator-03',  5, N'Truyện Kiều kinh điển',       N'Bản chiếu minh giúp hiểu sâu tác phẩm. Đáng sưu tầm.',                            1, 35),
+(6, 10, N'user-normal-04',   5, N'Đắc Nhân Tâm kinh điển',      N'Sách gối đầu giường, đọc đi đọc lại vẫn thấy hay.',                              1, 50),
+(7, 10, N'user-librarian-02', 4, N'Bản dịch tốt',               N'Dịch giả chu đáo, có chú thích văn hóa phương Tây.',                            1, 22),
+(8, 14, N'user-curator-03',  5, N'Sách khoa học xuất sắc',      N'Hawking viết rất dễ hiểu, phù hợp cho người không chuyên.',                      1, 28),
+(9, 25, N'user-normal-04',   5, N'Grammar in Use chuẩn',        N'Sách ngữ pháp tiếng Anh kinh điển, dùng cho tự học rất tốt.',                    1, 40),
+(10, 28, N'user-curator-03', 5, N'Dế Mèn - Tuổi thơ',            N'Truyện thiếu nhi kinh điển Việt Nam, ảnh hưởng nhiều thế hệ.',                    1, 30);
+SET IDENTITY_INSERT [dbo].[Reviews] OFF;
+GO
+
+/* =========================================================================================
+18. TRANSACTIONS - Giao dịch thanh toán Sandbox (BẢNG MỚI Sprint 2 - Lâm)
+   HmacSignature mô phỏng HMAC-SHA-512 của chuỗi: TransactionCode|UserId|Amount|Currency
+========================================================================================= */
+SET IDENTITY_INSERT [dbo].[Transactions] ON;
+INSERT INTO [dbo].[Transactions]
+    ([Id], [TransactionCode], [UserId], [MembershipId], [LoanId], [Amount], [Currency], [PaymentMethod], [Status], [HmacSignature], [Description], [PaidAt])
+VALUES
+(1, N'TXN-MBR-0001', N'user-admin-bit250210', 1, NULL, 299000, N'VND', N'Sandbox', N'Completed',
+   N'a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6',
+   N'Premium membership 365 ngày', DATEADD(DAY, -90, SYSUTCDATETIME())),
+(2, N'TXN-MBR-0002', N'user-librarian-02', 2, NULL, 299000, N'VND', N'MoMo', N'Completed',
+   N'b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1',
+   N'Premium membership 365 ngày', DATEADD(DAY, -60, SYSUTCDATETIME())),
+(3, N'TXN-MBR-0003', N'user-curator-03', 3, NULL, 299000, N'VND', N'BankTransfer', N'Completed',
+   N'c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2',
+   N'Premium membership 365 ngày', DATEADD(DAY, -30, SYSUTCDATETIME())),
+(4, N'TXN-FNE-0004', N'user-normal-04', NULL, 15, 30000, N'VND', N'Sandbox', N'Completed',
+   N'd4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3',
+   N'Phí phạt trễ hạn trả sách loan #15', DATEADD(DAY, -15, SYSUTCDATETIME())),
+(5, N'TXN-MBR-0005', N'user-normal-04', 4, NULL, 0, N'VND', N'Sandbox', N'Pending',
+   N'e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4',
+   N'Free membership (không thu phí)', NULL),
+(6, N'TXN-MBR-0006', N'user-curator-03', 3, NULL, 299000, N'VND', N'Sandbox', N'Failed',
+   N'f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5',
+   N'Thay đổi Premium (lỗi gateway)', NULL);
+SET IDENTITY_INSERT [dbo].[Transactions] OFF;
+GO
+
+PRINT N'== [02_BookShare_SeedData.sql] Nạp dữ liệu mẫu hoàn tất ==';
+PRINT N'   - 4 users (Admin/Librarian/Curator/User)';
+PRINT N'   - 8 categories + 3 libraries';
+PRINT N'   - 30 books + 50 book copies (30 System + 20 User P2P)';
+PRINT N'   - 6 shelves + 10 shelf items';
+PRINT N'   - 10 reading progresses + 5 book notes';
+PRINT N'   - 14 loan requests + 11 loans + 12 condition reports';
+PRINT N'   - 5 reservations + 1 dispute';
+PRINT N'   - 4 memberships + 5 notifications + 3 AI chat logs';
+PRINT N'   - 10 reviews + 6 transactions (Sprint 2 bổ sung)';
 GO
