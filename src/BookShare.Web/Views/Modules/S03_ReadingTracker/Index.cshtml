@@ -122,7 +122,7 @@
             <form asp-controller="S03ReadingTracker" asp-action="AddBookToTracker" method="post" class="mt-3 pt-3 border-top border-white border-opacity-25">
                 @Html.AntiForgeryToken()
                 <label class="small fw-bold mb-1">Đặt mục tiêu đọc cuốn mới:</label>
-                <select name="BookId" class="form-select form-select-sm mb-2">
+                <select name="BookId" class="form-select form-select-sm mb-2" required>
                     @foreach (var b in Model.UntrackedBooks)
                     {
                         <option value="@b.Id">@b.Title</option>
