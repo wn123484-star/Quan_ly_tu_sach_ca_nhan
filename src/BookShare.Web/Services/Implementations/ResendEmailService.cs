@@ -15,17 +15,20 @@ public class ResendEmailService : IResendEmailService
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly IConfiguration _config;
     private readonly ILogger<ResendEmailService> _logger;
+    private readonly IHostEnvironment _environment;
 
     public ResendEmailService(
         BookShareDbContext db,
         IHttpClientFactory httpClientFactory,
         IConfiguration config,
-        ILogger<ResendEmailService> logger)
+        ILogger<ResendEmailService> logger,
+        IHostEnvironment environment)
     {
         _db = db;
         _httpClientFactory = httpClientFactory;
         _config = config;
         _logger = logger;
+        _environment = environment;
     }
 
     public async Task<(bool Success, string Message, string? DevOtpCode)> GenerateAndSendOtpAsync(
@@ -33,16 +36,21 @@ public class ResendEmailService : IResendEmailService
         string purpose,
         string? userId = null)
     {
-        var normalizedEmail = email.Trim().ToLowerInvariant();
-        var allowedPurposes = new[] { "Register", "ResetPassword", "VerifyLoan" };
-        if (!allowedPurposes.Contains(purpose))
+        if (string.IsNullOrWhiteSpace(email) || !new System.ComponentModel.DataAnnotations.EmailAddressAttribute().IsValid(email.Trim()))
         {
-            purpose = "VerifyLoan";
+            return (false, "Địa chỉ email không hợp lệ.", null);
         }
 
-        // Sinh mã OTP 6 chữ số an toàn mật mã học
-        int otpNumber = RandomNumberGenerator.GetInt32(100000, 999999);
-        string otpCodePlain = otpNumber.ToString("D6");
+        var normalizedEmail = email.Trim().ToLowerInvariant();
+        var allowedPurposes = new[] { "Login", "Register", "ResetPassword", "VerifyLoan" };
+        if (!allowedPurposes.Contains(purpose))
+        {
+            return (false, "Mục đích xác thực OTP không hợp lệ.", null);
+        }
+
+        // Sinh mã sáu chữ số bằng bộ sinh số an toàn mật mã học (cho phép số 0 ở đầu).
+        string otpCodePlain = RandomNumberGenerator.GetInt32(0, 1_000_000).ToString("D6");
+        bool allowDevOtp = _environment.IsDevelopment() || _environment.IsEnvironment("Testing");
         string otpHash = ComputeSha256Hash(otpCodePlain);
 
         // Nếu chưa truyền userId thì thử tìm theo email
@@ -59,7 +67,7 @@ public class ResendEmailService : IResendEmailService
         string fromEmail = _config["Resend:FromEmail"] ?? "BookShare <onboarding@resend.dev>";
         bool sentViaRealResend = false;
 
-        if (!string.IsNullOrWhiteSpace(apiKey) && !apiKey.Contains("DIEN_KEY"))
+        if (!string.IsNullOrWhiteSpace(apiKey) && !apiKey.Contains("DIEN_KEY", StringComparison.OrdinalIgnoreCase))
         {
             try
             {
@@ -70,7 +78,7 @@ public class ResendEmailService : IResendEmailService
                 {
                     from = fromEmail,
                     to = new[] { normalizedEmail },
-                    subject = $"[BookShare] Mã xác thực OTP ({otpCodePlain}) cho tác vụ {purpose}",
+                    subject = $"[BookShare] Mã xác thực OTP cho tác vụ {purpose}",
                     html = $"<div style='font-family:Roboto,sans-serif;padding:20px;border:1px solid #e2e8f0;border-radius:12px;'>" +
                            $"<h2 style='color:#1e3a8a;'>BookShare Portal - Xác Thực OTP</h2>" +
                            $"<p>Mã xác thực OTP 6 chữ số của bạn cho tác vụ <strong>{purpose}</strong> là:</p>" +
@@ -90,11 +98,21 @@ public class ResendEmailService : IResendEmailService
                     }
                     sentViaRealResend = true;
                 }
+                else
+                {
+                    _logger.LogWarning("Resend API trả về HTTP {StatusCode} khi gửi OTP.", (int)response.StatusCode);
+                }
             }
             catch (Exception ex)
             {
-                _logger.LogWarning(ex, "Không thể kết nối Resend API, chuyển sang chế độ Dev OTP Console.");
+                _logger.LogWarning(ex, "Không thể kết nối Resend API khi gửi OTP.");
             }
+        }
+
+        // Không được tạo OTP giả/hiển thị OTP trong production khi Resend chưa gửi được.
+        if (!sentViaRealResend && !allowDevOtp)
+        {
+            return (false, "Dịch vụ email chưa sẵn sàng. Vui lòng thử lại sau hoặc liên hệ quản trị viên.", null);
         }
 
         var verification = new OtpVerification
@@ -112,14 +130,13 @@ public class ResendEmailService : IResendEmailService
         _db.OtpVerifications.Add(verification);
         await _db.SaveChangesAsync();
 
-        _logger.LogInformation("==================================================================");
-        _logger.LogInformation("[BOOKSHARE RESEND OTP - {Purpose}] Email: {Email} | Mã OTP 6 số: {OtpCode} | SHA256: {Hash}",
-            purpose, normalizedEmail, otpCodePlain, otpHash[..16] + "...");
-        _logger.LogInformation("==================================================================");
+        // Tuyệt đối không ghi mã OTP rõ hoặc hash OTP ra log.
+        _logger.LogInformation("Đã tạo yêu cầu OTP cho tác vụ {Purpose}; gửi qua Resend: {SentViaApi}; hết hạn sau 5 phút.",
+            purpose, sentViaRealResend);
 
         string msg = sentViaRealResend
-            ? $"Đã gửi mã OTP 6 chữ số tới hộp thư {normalizedEmail} qua Resend API (Hiệu lực 5 phút)."
-            : $"Đã lưu băm SHA-256 vào bảng OtpVerifications. [Chế độ Dev/Demo chưa cấu hình Resend API Key thật: Mã OTP của bạn là {otpCodePlain}].";
+            ? $"Đã gửi mã OTP 6 chữ số tới hộp thư {normalizedEmail}. Mã có hiệu lực trong 5 phút và chỉ sử dụng một lần."
+            : "Đã tạo OTP cho môi trường Development. Mã chỉ hiển thị trong giao diện thử nghiệm và hết hạn sau 5 phút.";
 
         return (true, msg, sentViaRealResend ? null : otpCodePlain);
     }
@@ -129,6 +146,13 @@ public class ResendEmailService : IResendEmailService
         string otpCode,
         string purpose)
     {
+        if (string.IsNullOrWhiteSpace(email) || !new System.ComponentModel.DataAnnotations.EmailAddressAttribute().IsValid(email.Trim()) ||
+            string.IsNullOrWhiteSpace(otpCode) || otpCode.Length != 6 || !otpCode.All(character => character >= '0' && character <= '9') ||
+            string.IsNullOrWhiteSpace(purpose) || !new[] { "Login", "Register", "ResetPassword", "VerifyLoan" }.Contains(purpose))
+        {
+            return (false, "Email, mục đích hoặc mã OTP không hợp lệ.");
+        }
+
         var normalizedEmail = email.Trim().ToLowerInvariant();
         var cleanCode = otpCode.Trim();
         var codeHash = ComputeSha256Hash(cleanCode);
@@ -148,13 +172,31 @@ public class ResendEmailService : IResendEmailService
             return (false, "Mã OTP đã hết hạn (quá 5 phút). Vui lòng bấm gửi lại mã mới.");
         }
 
-        if (!string.Equals(record.OtpCodeHash, codeHash, StringComparison.OrdinalIgnoreCase))
+        byte[] storedHash;
+        byte[] suppliedHash;
+        try
+        {
+            storedHash = Convert.FromHexString(record.OtpCodeHash);
+            suppliedHash = Convert.FromHexString(codeHash);
+        }
+        catch (FormatException)
+        {
+            return (false, "Mã OTP không hợp lệ. Vui lòng yêu cầu mã mới.");
+        }
+
+        if (!CryptographicOperations.FixedTimeEquals(storedHash, suppliedHash))
         {
             return (false, "Mã OTP 6 chữ số không chính xác. Vui lòng kiểm tra lại.");
         }
 
-        record.IsUsed = true;
-        await _db.SaveChangesAsync();
+        var consumed = await _db.OtpVerifications
+            .Where(o => o.Id == record.Id && !o.IsUsed && o.ExpiresAt >= DateTime.UtcNow)
+            .ExecuteUpdateAsync(update => update.SetProperty(o => o.IsUsed, true));
+
+        if (consumed != 1)
+        {
+            return (false, "Mã OTP đã được sử dụng hoặc hết hạn. Vui lòng yêu cầu mã mới.");
+        }
 
         return (true, $"Xác thực mã OTP ({purpose}) thành công cho tài khoản {normalizedEmail}!");
     }
