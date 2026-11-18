@@ -30,7 +30,7 @@
             <form id="formSubmitReview" class="s15-form">
                 <div>
                     <label class="bs-label">Loại đối tượng đánh giá</label>
-                    <select id="reviewTargetType" class="bs-select">
+                    <select id="reviewTargetType" class="bs-select" required>
                         <option value="User">👤 Đánh giá Uy tín Thành viên (Cộng/Trừ TrustScore)</option>
                         <option value="Book">📘 Đánh giá Chất lượng Nội dung Đầu sách</option>
                     </select>
@@ -58,7 +58,7 @@
 
                 <div>
                     <label class="bs-label">Mức xếp hạng sao (1 -> 5 sao)</label>
-                    <select id="reviewRating" class="bs-select">
+                    <select id="reviewRating" class="bs-select" required>
                         <option value="5">⭐⭐⭐⭐⭐ (5 sao — Xuất sắc • +5 TrustScore)</option>
                         <option value="4">⭐⭐⭐⭐ (4 sao — Tốt • +2 TrustScore)</option>
                         <option value="3">⭐⭐⭐ (3 sao — Bình thường • +0 TrustScore)</option>
