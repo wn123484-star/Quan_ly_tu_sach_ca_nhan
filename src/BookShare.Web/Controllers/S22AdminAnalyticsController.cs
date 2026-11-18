@@ -21,19 +21,17 @@ public class S22AdminAnalyticsController : Controller
     }
 
     [HttpGet]
+    [Authorize(Roles = "Admin")]
     public async Task<IActionResult> Index()
     {
-        var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "u-admin-01";
-        var currentUserRole = User.FindFirstValue(ClaimTypes.Role) ?? "User";
-
-        if (User.Identity?.IsAuthenticated == true && currentUserRole != "Admin")
+        var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (string.IsNullOrWhiteSpace(currentUserId) ||
+            !string.Equals(User.FindFirstValue(ClaimTypes.Role), "Admin", StringComparison.Ordinal))
         {
-            TempData["StatusCode"] = 403;
-            TempData["StatusTitle"] = "MÃ 403 FORBIDDEN: Phân khu Quản trị Hệ thống (Chỉ dành cho Admin)";
-            TempData["StatusDetail"] = $"Tài khoản hiện tại có vai trò [{currentUserRole}]. Toàn bộ API cấp quyền, khóa tài khoản và chạy Background Jobs tại S22 đều bị khóa bởi [Authorize(Roles = \"Admin\")]. Vui lòng đăng nhập admin@bookshare.vn tại S01.";
+            return Forbid();
         }
 
-        var vm = await _adminService.GetAdminAnalyticsPageAsync(currentUserId, currentUserRole);
+        var vm = await _adminService.GetAdminAnalyticsPageAsync(currentUserId, "Admin");
         return View("~/Views/Modules/S22_AdminAnalytics/Index.cshtml", vm);
     }
 
@@ -42,7 +40,8 @@ public class S22AdminAnalyticsController : Controller
     [Authorize(Roles = "Admin")]
     public async Task<IActionResult> ChangeUserRole([FromBody] S22ChangeUserRoleDto request)
     {
-        var adminUserId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "u-admin-01";
+        var adminUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (string.IsNullOrWhiteSpace(adminUserId)) return Forbid();
         var (success, message) = await _adminService.ChangeUserRoleAsync(adminUserId, request);
         if (!success)
         {
@@ -65,7 +64,8 @@ public class S22AdminAnalyticsController : Controller
     [Authorize(Roles = "Admin")]
     public async Task<IActionResult> ToggleUserLock([FromBody] S22ToggleUserLockDto request)
     {
-        var adminUserId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "u-admin-01";
+        var adminUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (string.IsNullOrWhiteSpace(adminUserId)) return Forbid();
         var (success, message) = await _adminService.ToggleUserLockoutAsync(adminUserId, request);
         if (!success)
         {

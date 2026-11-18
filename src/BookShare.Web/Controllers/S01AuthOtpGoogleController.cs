@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using Microsoft.AspNetCore.Authorization;
 using BookShare.Web.Models.ViewModels;
 using BookShare.Web.Services.Interfaces;
 using Microsoft.AspNetCore.Authentication;
@@ -13,15 +14,18 @@ public class S01AuthOtpGoogleController : Controller
     private readonly IS01AuthOtpService _authService;
     private readonly IResendEmailService _resendOtpService;
     private readonly IConfiguration _config;
+    private readonly IHostEnvironment _environment;
 
     public S01AuthOtpGoogleController(
         IS01AuthOtpService authService,
         IResendEmailService resendOtpService,
-        IConfiguration config)
+        IConfiguration config,
+        IHostEnvironment environment)
     {
         _authService = authService;
         _resendOtpService = resendOtpService;
         _config = config;
+        _environment = environment;
     }
 
     [HttpGet]
@@ -29,13 +33,34 @@ public class S01AuthOtpGoogleController : Controller
     {
         var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
         var vm = await _authService.GetAuthPageViewModelAsync(currentUserId, returnUrl);
+        if (!_environment.IsDevelopment() && !_environment.IsEnvironment("Testing"))
+        {
+            vm.DemoAccounts.Clear();
+        }
         return View("~/Views/Modules/S01_AuthOtpGoogle/Index.cshtml", vm);
+    }
+
+    [HttpGet]
+    public IActionResult AccessDenied()
+    {
+        TempData["StatusCode"] = 403;
+        TempData["StatusTitle"] = "Bạn không có quyền truy cập chức năng này (Mã 403)";
+        TempData["StatusDetail"] = "Hệ thống đã từ chối yêu cầu theo vai trò tài khoản. Hãy đăng nhập bằng tài khoản có quyền phù hợp.";
+        return RedirectToAction(nameof(Index));
     }
 
     [HttpPost]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Login(LoginInputModel input)
     {
+        if (!ModelState.IsValid)
+        {
+            TempData["StatusCode"] = 400;
+            TempData["StatusTitle"] = "Dữ liệu đăng nhập không hợp lệ (Mã 400)";
+            TempData["StatusDetail"] = GetModelErrorMessage();
+            return RedirectToAction(nameof(Index), new { returnUrl = input.ReturnUrl });
+        }
+
         var result = await _authService.AuthenticateAsync(input.Email, input.Password);
         if (!result.Success || result.UserClaims == null)
         {
@@ -63,6 +88,14 @@ public class S01AuthOtpGoogleController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Register(RegisterInputModel input)
     {
+        if (!ModelState.IsValid)
+        {
+            TempData["StatusCode"] = 400;
+            TempData["StatusTitle"] = "Dữ liệu đăng ký không hợp lệ (Mã 400)";
+            TempData["StatusDetail"] = GetModelErrorMessage();
+            return RedirectToAction(nameof(Index));
+        }
+
         var result = await _authService.RegisterUserAsync(input);
         if (!result.Success || result.UserClaims == null)
         {
@@ -95,11 +128,27 @@ public class S01AuthOtpGoogleController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> SendOtp([FromBody] SendOtpRequestDto request)
     {
+        if (!ModelState.IsValid)
+        {
+            return BadRequest(new { title = "Dữ liệu OTP không hợp lệ", message = GetModelErrorMessage() });
+        }
+
         var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        string? otpUserId = currentUserId;
+        if (request.Purpose == "Login")
+        {
+            var targetUser = await _authService.GetUserClaimsForOtpLoginAsync(request.Email);
+            if (targetUser == null)
+            {
+                return BadRequest(new { title = "Không tìm thấy tài khoản", message = "Email chưa được đăng ký trong BookShare. Vui lòng kiểm tra lại." });
+            }
+            otpUserId = targetUser.UserId;
+        }
+
         var (success, message, devOtpCode) = await _resendOtpService.GenerateAndSendOtpAsync(
             request.Email,
             request.Purpose,
-            currentUserId);
+            otpUserId);
 
         if (!success)
         {
@@ -118,6 +167,11 @@ public class S01AuthOtpGoogleController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> VerifyOtp([FromBody] VerifyOtpRequestDto request)
     {
+        if (!ModelState.IsValid)
+        {
+            return BadRequest(new { title = "Dữ liệu OTP không hợp lệ", message = GetModelErrorMessage() });
+        }
+
         var (success, message) = await _resendOtpService.VerifyOtpAsync(
             request.Email,
             request.OtpCode,
@@ -126,6 +180,23 @@ public class S01AuthOtpGoogleController : Controller
         if (!success)
         {
             return BadRequest(new { title = "Xác thực OTP thất bại", message });
+        }
+
+        if (request.Purpose == "Login")
+        {
+            var userClaims = await _authService.GetUserClaimsForOtpLoginAsync(request.Email);
+            if (userClaims == null)
+            {
+                return BadRequest(new { title = "Không thể đăng nhập", message = "Tài khoản không còn tồn tại hoặc đã bị vô hiệu hóa." });
+            }
+
+            await SignInCookieAsync(userClaims, isPersistent: true);
+            return Ok(new
+            {
+                title = "Đăng nhập bằng OTP thành công (Mã 200)",
+                message = $"Xin chào {userClaims.FullName}. Phiên đăng nhập đã được tạo sau khi xác thực OTP.",
+                redirectUrl = Url.Action("Index", "S02PersonalShelf")
+            });
         }
 
         return Ok(new
@@ -146,6 +217,15 @@ public class S01AuthOtpGoogleController : Controller
             var redirectUrl = Url.Action(nameof(GoogleCallback), "S01AuthOtpGoogle", new { returnUrl });
             var properties = new AuthenticationProperties { RedirectUri = redirectUrl };
             return Challenge(properties, GoogleDefaults.AuthenticationScheme);
+        }
+
+        // Sandbox Google chỉ được bật trong Development; production không được đăng nhập bằng danh tính demo.
+        if (!_environment.IsDevelopment())
+        {
+            TempData["StatusCode"] = 503;
+            TempData["StatusTitle"] = "Google OAuth chưa được cấu hình (Mã 503)";
+            TempData["StatusDetail"] = "Quản trị viên cần cấu hình Google Client ID và Client Secret trước khi bật đăng nhập Google.";
+            return RedirectToAction(nameof(Index));
         }
 
         // Chế độ Sandbox Dev khi chưa điền ClientId thật: nối trực tiếp vào bảng AspNetUserLogins để kiểm thử luồng
@@ -195,11 +275,19 @@ public class S01AuthOtpGoogleController : Controller
         return RedirectToAction("Index", "S02PersonalShelf");
     }
 
+    [Authorize]
     [HttpPost]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> UpdateProfile([FromBody] UpdateProfileRequestDto request)
     {
-        var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "u-user-01";
+        if (!ModelState.IsValid)
+        {
+            return BadRequest(new { title = "Thông tin hồ sơ chưa hợp lệ", message = GetModelErrorMessage() });
+        }
+
+        var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (string.IsNullOrWhiteSpace(currentUserId)) return Forbid();
+
         var (success, message, updatedClaims) = await _authService.UpdateUserProfileAsync(currentUserId, request);
         if (!success)
         {
@@ -217,11 +305,19 @@ public class S01AuthOtpGoogleController : Controller
         return Ok(new { title = "Cập nhật Hồ sơ Cá nhân thành công (S01)", message });
     }
 
+    [Authorize]
     [HttpPost]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> ChangePassword([FromBody] ChangePasswordRequestDto request)
     {
-        var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "u-user-01";
+        if (!ModelState.IsValid)
+        {
+            return BadRequest(new { title = "Dữ liệu đổi mật khẩu chưa hợp lệ", message = GetModelErrorMessage() });
+        }
+
+        var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (string.IsNullOrWhiteSpace(currentUserId)) return Forbid();
+
         var (success, message) = await _authService.ChangeUserPasswordAsync(currentUserId, request);
         if (!success)
         {
@@ -229,6 +325,16 @@ public class S01AuthOtpGoogleController : Controller
         }
 
         return Ok(new { title = "Đổi mật khẩu thành công (S01)", message });
+    }
+
+    private string GetModelErrorMessage()
+    {
+        var errors = ModelState.Values
+            .SelectMany(value => value.Errors)
+            .Select(error => error.ErrorMessage)
+            .Where(message => !string.IsNullOrWhiteSpace(message))
+            .Distinct();
+        return string.Join(" ", errors);
     }
 
     private async Task SignInCookieAsync(AuthUserClaimsDto userClaims, bool isPersistent)

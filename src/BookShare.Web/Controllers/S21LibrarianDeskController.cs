@@ -16,16 +16,14 @@ public class S21LibrarianDeskController : Controller
     }
 
     [HttpGet]
+    [Authorize(Roles = "Librarian,Admin")]
     public async Task<IActionResult> Index()
     {
-        var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "u-librarian-01";
-        var currentUserRole = User.FindFirstValue(ClaimTypes.Role) ?? "User";
-
-        if (User.Identity?.IsAuthenticated == true && currentUserRole != "Librarian" && currentUserRole != "Admin")
+        var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        var currentUserRole = User.FindFirstValue(ClaimTypes.Role);
+        if (string.IsNullOrWhiteSpace(currentUserId) || string.IsNullOrWhiteSpace(currentUserRole))
         {
-            TempData["StatusCode"] = 403;
-            TempData["StatusTitle"] = "MÃ 403 FORBIDDEN: Phân khu Bàn làm việc Thủ thư (Librarian & Admin)";
-            TempData["StatusDetail"] = $"Tài khoản hiện tại có vai trò [{currentUserRole}]. Mọi thao tác nghiệp vụ tại S21 đều được khóa chặt bằng [Authorize(Roles = \"Librarian,Admin\")]. Vui lòng chuyển sang tài khoản thuthu@cmc.edu.vn tại S01.";
+            return Forbid();
         }
 
         var vm = await _deskService.GetLibrarianDeskPageAsync(currentUserId, currentUserRole);
@@ -37,7 +35,8 @@ public class S21LibrarianDeskController : Controller
     [Authorize(Roles = "Librarian,Admin")]
     public async Task<IActionResult> QuickScanBarcode([FromBody] S21QuickScanBarcodeDto request)
     {
-        var librarianUserId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "u-librarian-01";
+        var librarianUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (string.IsNullOrWhiteSpace(librarianUserId)) return Forbid();
         var (success, message, actionPerformed) = await _deskService.ProcessQuickBarcodeScanAsync(librarianUserId, request);
         if (!success)
         {
@@ -62,7 +61,8 @@ public class S21LibrarianDeskController : Controller
     [Authorize(Roles = "Librarian,Admin")]
     public async Task<IActionResult> BatchImportCopies([FromBody] S21BatchImportCopiesDto request)
     {
-        var librarianUserId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "u-librarian-01";
+        var librarianUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (string.IsNullOrWhiteSpace(librarianUserId)) return Forbid();
         var (success, message, barcodes) = await _deskService.BatchImportSystemCopiesAsync(librarianUserId, request);
         if (!success)
         {
@@ -86,7 +86,8 @@ public class S21LibrarianDeskController : Controller
     [Authorize(Roles = "Librarian,Admin")]
     public async Task<IActionResult> UpdateCopyState([FromBody] S21UpdateCopyStateDto request)
     {
-        var librarianUserId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "u-librarian-01";
+        var librarianUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (string.IsNullOrWhiteSpace(librarianUserId)) return Forbid();
         var (success, message) = await _deskService.UpdateCopyDamageOrLostAsync(librarianUserId, request);
         if (!success)
         {
