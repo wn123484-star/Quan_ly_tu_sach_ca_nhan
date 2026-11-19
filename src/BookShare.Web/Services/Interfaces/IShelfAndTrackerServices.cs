@@ -51,6 +51,17 @@ public interface IS03ReadingTrackerService
         Task<(bool Success, string Message)> DeleteReadingProgressAsync(
             string currentUserId,
             int progressId);
+
+    // [BS-READING-STUDIO] Reading Studio Im Lặng (Pomodoro, Lộ trình kịp hạn thuê, Voice-to-Quote, Flashcards)
+    Task<ReadingStudioPageViewModel> GetReadingStudioAsync(string userId, int? bookId = null);
+
+    Task<(bool Success, string Message, int NewCurrentPage, double NewPercent, double PagesPerHour, int StreakDays)> LogReadingSessionAsync(
+        string currentUserId,
+        LogReadingSessionRequestDto request);
+
+    Task<(bool Success, string Message, int NoteId)> SaveVoiceQuoteAsync(
+        string currentUserId,
+        SaveVoiceQuoteRequestDto request);
     }
 
 public interface IPortalDiscoveryService

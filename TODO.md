@@ -32,10 +32,10 @@ Nhánh sao lưu dự phòng: `backup/pre-turbo-rental`
 - [x] QR Cross-Login (`Mobile -> Web PC`): API `/api/mobile/qr-login/init`, `status`, `approve`, `/S01AuthOtpGoogle/ClaimQrLogin` (chống dùng lại 2 lần) + khung quét QR 180s polling 2s ngay trên trang đăng nhập `S01` (`[BS-QRLOGIN-BRIDGE]`).
 
 ## GIAI ĐOẠN 5: Reading Studio Bổ Trợ Thuê Sách (Tuyệt Đối Không Âm Thanh)
-- [ ] Xây dựng `/S03ReadingTracker/Studio?bookId=...` và API `/api/mobile/reading/log-session` (`[BS-READING-STUDIO]`):
-  - [ ] Pomodoro im lặng (25p / 50p / Tùy chỉnh) lưu `ReadingSessions` & cộng trang `ReadingProgresses`.
-  - [ ] Đo tốc độ đọc (trang/giờ), chuỗi Streak 🔥, lộ trình kịp hạn thuê (`DueDate`) & nút gia hạn nhanh +7 ngày.
-  - [ ] Voice-to-Quote (`SpeechRecognition` `vi-VN`) lưu `BookNotes`, Quote Flashcards lật thẻ, chế độ nền Sepia / Sáng / Đêm & chỉnh cỡ chữ `A- / A / A+`.
+- [x] Xây dựng `/S03ReadingTracker/Studio?bookId=...` và API `/api/mobile/reading/log-session`, `/api/mobile/reading/voice-quote`, `/api/mobile/reading/quick-renew` (`[BS-READING-STUDIO]`):
+  - [x] Pomodoro im lặng (25p / 50p / Tùy chỉnh) lưu `ReadingSessions` & cộng trang `ReadingProgresses`.
+  - [x] Đo tốc độ đọc (trang/giờ), chuỗi Streak 🔥, lộ trình kịp hạn thuê (`DueDate`) & nút gia hạn nhanh +7 ngày.
+  - [x] Voice-to-Quote (`SpeechRecognition` `vi-VN`) lưu `BookNotes`, Quote Flashcards lật thẻ, chế độ nền Sepia / Sáng / Đêm & chỉnh cỡ chữ `A- / A / A+`.
 
 ## GIAI ĐOẠN 6: AI Copilot Hành Động, Chat Thủ Thư & Google reCAPTCHA v3
 - [ ] Nâng cấp `S13GeminiAiService` & `/api/ai-chat/quick-ask` trả về `{ reply, sessionId, actions: [...] }` hỗ trợ `SET_DARK_MODE`, `SET_THEME`, `SEND_EMAIL`, `UPDATE_PROGRESS`, `NAVIGATE` (`[BS-AGENT-AI-COPILOT]`).

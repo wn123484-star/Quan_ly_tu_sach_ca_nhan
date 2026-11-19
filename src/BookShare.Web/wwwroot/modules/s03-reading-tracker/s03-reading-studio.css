@@ -1,0 +1,107 @@
+/* =========================================================================
+   [BS-READING-STUDIO] BOOKSHARE READING STUDIO STYLES (IM LẶNG 100%)
+   Hỗ trợ nền Sepia / Sáng / Đêm & chỉnh cỡ chữ A- / A / A+
+   ========================================================================= */
+
+.rs-shell {
+    border-radius: 20px;
+    padding: 0.5rem;
+    transition: background-color 0.25s ease, color 0.25s ease;
+}
+
+.rs-shell.rs-surface-sepia {
+    background-color: #f6eedc;
+    color: #3b2f20;
+    padding: 1rem;
+}
+
+.rs-shell.rs-surface-sepia .bs-card {
+    background: #fbf5e6 !important;
+    border-color: #dfd0b4 !important;
+    color: #3b2f20 !important;
+}
+
+.rs-shell.rs-surface-night {
+    background-color: #0b1120;
+    color: #e2e8f0;
+    padding: 1rem;
+}
+
+.rs-shell.rs-surface-night .bs-card {
+    background: #131c31 !important;
+    border-color: #293548 !important;
+    color: #e2e8f0 !important;
+}
+
+.rs-shell.rs-font-sm .rs-quote-text { font-size: 0.92rem; }
+.rs-shell.rs-font-md .rs-quote-text { font-size: 1.08rem; }
+.rs-shell.rs-font-lg .rs-quote-text { font-size: 1.3rem; }
+
+.rs-timer-ring {
+    width: 210px;
+    height: 210px;
+    margin: 0 auto;
+    border-radius: 50%;
+    border: 8px solid rgba(37, 99, 235, 0.2);
+    border-top-color: var(--portal-accent, #2563eb);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 1rem;
+    box-shadow: inset 0 0 24px rgba(37, 99, 235, 0.08);
+}
+
+.rs-clock-digits {
+    font-size: 2.55rem;
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 1px;
+    line-height: 1.1;
+}
+
+.rs-flashcard {
+    perspective: 1000px;
+    cursor: pointer;
+    min-height: 185px;
+    user-select: none;
+}
+
+.rs-flashcard-inner {
+    position: relative;
+    width: 100%;
+    min-height: 185px;
+    transition: transform 0.55s cubic-bezier(0.22, 1, 0.36, 1);
+    transform-style: preserve-3d;
+}
+
+.rs-flashcard.is-flipped .rs-flashcard-inner {
+    transform: rotateY(180deg);
+}
+
+.rs-flashcard-face {
+    position: absolute;
+    inset: 0;
+    backface-visibility: hidden;
+    border-radius: 16px;
+    padding: 1.35rem;
+    border: 1.5px solid rgba(37, 99, 235, 0.28);
+    background: linear-gradient(135deg, rgba(37, 99, 235, 0.06), rgba(56, 189, 248, 0.05));
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: flex-start;
+}
+
+.rs-flashcard-back {
+    transform: rotateY(180deg);
+    border-color: rgba(22, 163, 74, 0.35);
+    background: linear-gradient(135deg, rgba(22, 163, 74, 0.07), rgba(14, 165, 233, 0.05));
+}
+
+.rs-quote-text {
+    font-style: italic;
+    font-weight: 600;
+    line-height: 1.5;
+}

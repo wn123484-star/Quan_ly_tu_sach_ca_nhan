@@ -22,6 +22,15 @@ public class S03ReadingTrackerController : Controller
         return View("~/Views/Modules/S03_ReadingTracker/Index.cshtml", vm);
     }
 
+    // [BS-READING-STUDIO] Không gian đọc tập trung Im Lặng 100% bổ trợ thuê sách đúng hạn
+    [HttpGet]
+    public async Task<IActionResult> Studio(int? bookId = null)
+    {
+        var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "u-user-01";
+        var vm = await _trackerService.GetReadingStudioAsync(currentUserId, bookId);
+        return View("~/Views/Modules/S03_ReadingTracker/Studio.cshtml", vm);
+    }
+
     // API số liệu cho 2 biểu đồ Chart.js (Doughnut trạng thái đọc & Bar % hoàn thành)
     [HttpGet]
     public async Task<IActionResult> ChartData()

@@ -16,13 +16,19 @@ public class MobileApiController : ControllerBase
 {
     private readonly IWalletService _walletService;
     private readonly IQrLoginService _qrLoginService;
+    private readonly IS03ReadingTrackerService _readingService;
+    private readonly IS12LoanRenewalFineService _renewalService;
 
     public MobileApiController(
         IWalletService walletService,
-        IQrLoginService qrLoginService)
+        IQrLoginService qrLoginService,
+        IS03ReadingTrackerService readingService,
+        IS12LoanRenewalFineService renewalService)
     {
         _walletService = walletService;
         _qrLoginService = qrLoginService;
+        _readingService = readingService;
+        _renewalService = renewalService;
     }
 
     // ==================== 1. VÍ BẢO LÃNH BOOKSHARE PAY ====================
@@ -122,5 +128,62 @@ public class MobileApiController : ControllerBase
         }
 
         return Ok(new { title = "Đã duyệt đăng nhập Web PC bằng QR", message });
+    }
+
+    // ==================== 3. [BS-READING-STUDIO] READING STUDIO API (IM LẶNG 100%) ====================
+
+    [HttpGet("reading/studio-summary")]
+    public async Task<IActionResult> ReadingStudioSummary([FromQuery] int? bookId = null)
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "u-user-01";
+        var vm = await _readingService.GetReadingStudioAsync(userId, bookId);
+        return Ok(vm);
+    }
+
+    [HttpPost("reading/log-session")]
+    public async Task<IActionResult> LogReadingSession([FromBody] LogReadingSessionRequestDto request)
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "u-user-01";
+        var (success, message, newPage, newPct, pph, streak) = await _readingService.LogReadingSessionAsync(userId, request);
+        if (!success)
+        {
+            return BadRequest(new { message });
+        }
+
+        return Ok(new
+        {
+            title = "Đã lưu phiên đọc Pomodoro",
+            message,
+            currentPage = newPage,
+            percentCompleted = newPct,
+            pagesPerHour = pph,
+            readingStreakDays = streak
+        });
+    }
+
+    [HttpPost("reading/voice-quote")]
+    public async Task<IActionResult> SaveVoiceQuote([FromBody] SaveVoiceQuoteRequestDto request)
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "u-user-01";
+        var (success, message, noteId) = await _readingService.SaveVoiceQuoteAsync(userId, request);
+        if (!success)
+        {
+            return BadRequest(new { message });
+        }
+
+        return Ok(new { title = "Đã lưu trích dẫn giọng nói", message, noteId });
+    }
+
+    [HttpPost("reading/quick-renew")]
+    public async Task<IActionResult> QuickRenewLoan([FromBody] QuickRenewLoanRequestDto request)
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "u-user-01";
+        var (success, message, newDueDate, newRenewCount) = await _renewalService.RenewLoanAsync(userId, request.LoanId);
+        if (!success)
+        {
+            return BadRequest(new { message });
+        }
+
+        return Ok(new { title = "Gia hạn thuê sách thành công (+7 ngày)", message, newDueDate, newRenewCount });
     }
 }

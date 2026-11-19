@@ -20,7 +20,11 @@
                 Theo dõi số trang đang đọc (<code>CurrentPage / TotalPages</code>), tự động tính <code>%</code> hoàn thành, đặt mục tiêu đọc sách năm và vẽ biểu đồ thống kê trực quan.
             </p>
         </div>
-        <div class="d-flex gap-2">
+        <div class="d-flex flex-wrap gap-2">
+            <!-- [BS-READING-STUDIO] Nút mở Reading Studio Im Lặng bổ trợ kịp hạn thuê -->
+            <a asp-controller="S03ReadingTracker" asp-action="Studio" class="btn btn-warning text-dark btn-sm fw-bold">
+                <i class="bi bi-stopwatch-fill me-1"></i>Mở Reading Studio (Pomodoro)
+            </a>
             <button type="button" id="btnExportTrackerJson" class="btn btn-outline-primary btn-sm fw-bold">
                 <i class="bi bi-download me-1"></i>Tải Tệp Sao Lưu JSON
             </button>
