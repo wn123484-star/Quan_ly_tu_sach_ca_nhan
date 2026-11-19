@@ -1,0 +1,28 @@
+/* =========================================================================
+   S16: MEMBERSHIP TIER & LENDING QUOTA STYLES
+   ========================================================================= */
+.s16-hero {
+    background: linear-gradient(135deg, #ffffff 0%, #eff6ff 100%);
+    border-left: 6px solid #2563eb !important;
+}
+
+.s16-quota-pill {
+    background: linear-gradient(135deg, #1e3a8a, #2563eb);
+    color: #ffffff;
+    padding: 14px 22px;
+    border-radius: 16px;
+    min-width: 270px;
+    box-shadow: 0 6px 18px rgba(37, 99, 235, 0.22);
+}
+
+.s16-tier-card {
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.s16-tier-card:hover {
+    transform: translateY(-4px);
+}
+
+.s16-tier-premium {
+    background: linear-gradient(145deg, #0f172a 0%, #1e3a8a 100%);
+}

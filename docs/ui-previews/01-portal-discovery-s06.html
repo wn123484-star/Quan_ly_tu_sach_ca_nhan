@@ -1,0 +1,927 @@
+<!DOCTYPE html>
+<html lang="vi" data-font="priority-regular">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>[Mẫu 01 - Portal] Cổng Dịch Vụ BookShare (Bố cục Portal Tham khảo + Tuyệt đối Không Bán Sách)</title>
+    <link id="themeStylesheet" href="../../_reference/book-tracker-ver07/vendor/bootstrap/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="../../_reference/book-tracker-ver07/vendor/bootstrap-icons/font/bootstrap-icons.css">
+    <link rel="stylesheet" href="../../_reference/book-tracker-ver07/assets/css/style.css">
+    <style>
+        :root {
+            --portal-grad-start: #1e3a8a;
+            --portal-grad-end: #2563eb;
+            --portal-accent: #2563eb;
+            --portal-light-bg: #f5f5f5;
+        }
+        body[data-portal-palette="coral"] {
+            --portal-grad-start: #d9460f;
+            --portal-grad-end: #f97316;
+            --portal-accent: #ea580c;
+        }
+        body[data-portal-palette="emerald"] {
+            --portal-grad-start: #065f46;
+            --portal-grad-end: #0d9488;
+            --portal-accent: #0d9488;
+        }
+        body {
+            background-color: var(--portal-light-bg);
+        }
+        .preview-switcher-bar {
+            background: #fffbeb;
+            border-bottom: 2px solid #f59e0b;
+            padding: 8px 0;
+        }
+        /* 1. HEADER CỔNG DỊCH VỤ (THEO ĐÚNG BỐ CỤC ẢNH THAM KHẢO NHƯNG DÀNH CHO MƯỢN SÁCH) */
+        .portal-header-wrapper {
+            background: linear-gradient(180deg, var(--portal-grad-start) 0%, var(--portal-grad-end) 100%);
+            color: #ffffff;
+            position: sticky;
+            top: 0;
+            z-index: 1030;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+        }
+        .portal-utility-bar {
+            font-size: 0.78rem;
+            padding: 6px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.16);
+        }
+        .portal-utility-bar a {
+            color: rgba(255, 255, 255, 0.92);
+            text-decoration: none;
+            transition: opacity 0.15s;
+        }
+        .portal-utility-bar a:hover { opacity: 0.8; }
+        .portal-main-bar {
+            padding: 14px 0 12px;
+        }
+        .portal-logo {
+            color: #ffffff;
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .portal-logo:hover { color: #ffffff; }
+        .portal-search-box {
+            background: #ffffff;
+            border-radius: 6px;
+            padding: 3px;
+            display: flex;
+            align-items: center;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.12);
+        }
+        .portal-search-box input {
+            border: none;
+            outline: none;
+            flex: 1;
+            padding: 8px 14px;
+            font-size: 0.92rem;
+            color: #1e293b;
+        }
+        .portal-search-box select {
+            border: none;
+            border-left: 1px solid #e2e8f0;
+            padding: 8px 12px;
+            font-size: 0.82rem;
+            color: #475569;
+            background: transparent;
+            outline: none;
+            max-width: 190px;
+        }
+        .portal-search-btn {
+            background: var(--portal-accent);
+            color: #ffffff;
+            border: none;
+            border-radius: 4px;
+            padding: 8px 22px;
+            font-weight: 600;
+            transition: opacity 0.15s;
+        }
+        .portal-search-btn:hover { opacity: 0.92; }
+        .portal-quick-tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            margin-top: 6px;
+            font-size: 0.76rem;
+        }
+        .portal-quick-tags a {
+            color: rgba(255, 255, 255, 0.9);
+            text-decoration: none;
+            cursor: pointer;
+        }
+        .portal-quick-tags a:hover { text-decoration: underline; }
+        .loan-bag-btn {
+            color: #ffffff;
+            text-decoration: none;
+            position: relative;
+            display: inline-flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 4px 10px;
+        }
+        .loan-bag-btn:hover { color: #ffffff; opacity: 0.9; }
+
+        /* 2. CỤM BANNER 2/3 TRÁI + 1/3 PHẢI XẾP CHỒNG + HÀNG ICON DỊCH VỤ NHANH */
+        .portal-hero-section {
+            background: #ffffff;
+            border-bottom: 1px solid #e5e7eb;
+            padding: 20px 0 18px;
+        }
+        .hero-left-banner {
+            height: 245px;
+            border-radius: 8px;
+            background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 55%, #0284c7 100%);
+            color: #ffffff;
+            padding: 28px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            position: relative;
+            overflow: hidden;
+        }
+        body[data-portal-palette="coral"] .hero-left-banner {
+            background: linear-gradient(135deg, #c2410c 0%, #ea580c 55%, #f59e0b 100%);
+        }
+        body[data-portal-palette="emerald"] .hero-left-banner {
+            background: linear-gradient(135deg, #065f46 0%, #059669 55%, #0d9488 100%);
+        }
+        .hero-right-stack {
+            display: flex;
+            flex-direction: column;
+            gap: 9px;
+            height: 245px;
+        }
+        .hero-right-card {
+            flex: 1;
+            border-radius: 8px;
+            padding: 16px 18px;
+            color: #ffffff;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            text-decoration: none;
+            transition: transform 0.2s;
+        }
+        .hero-right-card:hover { transform: translateY(-2px); color: #ffffff; }
+        .hero-right-top {
+            background: linear-gradient(135deg, #7c3aed 0%, #4f46e5 100%);
+        }
+        .hero-right-bottom {
+            background: linear-gradient(135deg, #0f766e 0%, #0ea5e9 100%);
+        }
+
+        /* Cụm Icon Dịch vụ nhanh ngay dưới Banner (Giống bố cục Portal tham khảo) */
+        .quick-service-strip {
+            display: flex;
+            justify-content: space-around;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 20px;
+            padding-top: 8px;
+        }
+        .service-strip-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-decoration: none;
+            color: #1e293b;
+            width: 120px;
+            text-align: center;
+            transition: transform 0.2s ease;
+        }
+        .service-strip-item:hover {
+            transform: translateY(-4px);
+            color: var(--portal-accent);
+        }
+        .service-icon-squircle {
+            width: 48px;
+            height: 48px;
+            border-radius: 14px;
+            border: 1px solid #e2e8f0;
+            background: #ffffff;
+            box-shadow: 0 3px 8px rgba(0,0,0,0.06);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.4rem;
+            margin-bottom: 6px;
+        }
+        .service-strip-label {
+            font-size: 0.78rem;
+            font-weight: 500;
+            line-height: 1.25;
+        }
+
+        /* 3. KHỐI DANH MỤC KỆ SÁCH & THỂ LOẠI (LƯỚI Ô VIỀN ĐỐI XỨNG NHƯ ẢNH THAM KHẢO) */
+        .portal-section-card {
+            background: #ffffff;
+            border-radius: 8px;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.05);
+            margin-bottom: 22px;
+            overflow: hidden;
+        }
+        .portal-section-header {
+            padding: 16px 20px;
+            border-bottom: 1px solid #f1f5f9;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .portal-section-title {
+            font-size: 0.98rem;
+            font-weight: 700;
+            color: #64748b;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin: 0;
+        }
+        .category-matrix {
+            display: grid;
+            grid-template-columns: repeat(8, 1fr);
+        }
+        @media (max-width: 992px) {
+            .category-matrix { grid-template-columns: repeat(4, 1fr); }
+        }
+        @media (max-width: 576px) {
+            .category-matrix { grid-template-columns: repeat(2, 1fr); }
+        }
+        .category-cell {
+            border-right: 1px solid #f1f5f9;
+            border-bottom: 1px solid #f1f5f9;
+            padding: 18px 10px;
+            text-align: center;
+            text-decoration: none;
+            color: #1e293b;
+            transition: all 0.15s ease;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+        }
+        .category-cell:hover, .category-cell.active {
+            box-shadow: inset 0 0 0 1px var(--portal-accent);
+            background: #f8fafc;
+            color: var(--portal-accent);
+        }
+        .category-circle-icon {
+            width: 56px;
+            height: 56px;
+            border-radius: 50%;
+            background: #f1f5f9;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.55rem;
+            margin-bottom: 10px;
+        }
+        .category-cell-name {
+            font-size: 0.8rem;
+            font-weight: 500;
+            line-height: 1.3;
+        }
+
+        /* 4. THẺ SÁCH PORTAL (KHÔNG GIÁ BÁN - CHỈ CÓ TRẠNG THÁI BẢN SAO, TRUSTSCORE & NÚT ĐẶT MƯỢN) */
+        .owner-badge-lib {
+            background-color: #0d9488;
+            color: #ffffff;
+            font-weight: 700;
+            font-size: 0.7rem;
+            padding: 3px 8px;
+            border-radius: 4px;
+        }
+        .owner-badge-p2p {
+            background-color: #7c3aed;
+            color: #ffffff;
+            font-weight: 700;
+            font-size: 0.7rem;
+            padding: 3px 8px;
+            border-radius: 4px;
+        }
+        .trust-pill {
+            background: #fef3c7;
+            color: #92400e;
+            font-weight: 700;
+            font-size: 0.72rem;
+            padding: 2px 7px;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body data-portal-palette="blue">
+
+    <!-- Thanh chuyển nhanh giữa 4 Mẫu Giao diện & Chọn Tông màu Portal -->
+    <div class="preview-switcher-bar">
+        <div class="container d-flex flex-wrap justify-content-between align-items-center gap-2">
+            <div class="d-flex align-items-center gap-2 flex-wrap">
+                <span class="small fw-bold text-dark"><i class="bi bi-eye-fill text-warning me-1"></i>DUYỆT MẪU GIAO DIỆN:</span>
+                <a href="01-portal-discovery-s06.html" class="btn btn-xs btn-primary fw-bold">1. Cổng Portal (Theo ảnh mẫu)</a>
+                <a href="02-personal-shelf-tracker-s02-s03.html" class="btn btn-xs btn-outline-dark">2. Tủ sách & Tiến độ Ver07</a>
+                <a href="03-p2p-loan-condition-s09-s10.html" class="btn btn-xs btn-outline-dark">3. Mượn P2P & Ảnh Cloudinary</a>
+                <a href="04-librarian-admin-desk-s21-s22.html" class="btn btn-xs btn-outline-dark">4. Bàn Thủ thư & Admin</a>
+            </div>
+            <div class="d-flex align-items-center gap-1">
+                <span class="small text-muted me-1">Đổi màu Portal:</span>
+                <button class="btn btn-xs btn-primary" onclick="document.body.setAttribute('data-portal-palette','blue')">Xanh Học Thuật</button>
+                <button class="btn btn-xs btn-danger" style="background:#ea580c;" onclick="document.body.setAttribute('data-portal-palette','coral')">Cam Portal (Giống ảnh mẫu)</button>
+                <button class="btn btn-xs btn-success" onclick="document.body.setAttribute('data-portal-palette','emerald')">Xanh Thư Viện</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 1. HEADER CỔNG DỊCH VỤ (BỐ CỤC TƯƠNG ĐỒNG ẢNH THAM KHẢO NHƯNG 100% NGHIỆP VỤ MƯỢN SÁCH) -->
+    <header class="portal-header-wrapper">
+        <!-- Thanh điều hướng phụ trên cùng (4 Vai trò: User, Curator, Librarian, Admin) -->
+        <div class="portal-utility-bar">
+            <div class="container d-flex flex-wrap justify-content-between align-items-center gap-2">
+                <div class="d-flex align-items-center gap-3 flex-wrap">
+                    <a href="02-personal-shelf-tracker-s02-s03.html"><i class="bi bi-bookshelf me-1"></i>Kênh Chủ Tủ Sách Cá Nhân (S02)</a>
+                    <span class="opacity-50">|</span>
+                    <a href="03-p2p-loan-condition-s09-s10.html"><i class="bi bi-geo-alt me-1"></i>Trạm Kiểm Định CLB P2P (Curator - S20)</a>
+                    <span class="opacity-50">|</span>
+                    <a href="04-librarian-admin-desk-s21-s22.html"><i class="bi bi-bank me-1"></i>Bàn Thủ Thư Kho Chung (Librarian - S21)</a>
+                    <span class="opacity-50">|</span>
+                    <a href="04-librarian-admin-desk-s21-s22.html"><i class="bi bi-shield-lock me-1"></i>Quản Trị Hệ Thống (Admin - S22)</a>
+                </div>
+                <div class="d-flex align-items-center gap-3">
+                    <a href="#" onclick="updateStatusBanner(200, 'Trung tâm thông báo S18 (Web + Resend)', 'Bạn có 2 thông báo: Sách AI Engineering đã có sẵn tại kệ & Yêu cầu mượn P2P từ Minh Anh.'); return false;">
+                        <i class="bi bi-bell me-1"></i>Thông báo (2)
+                    </a>
+                    <a href="#" onclick="document.getElementById('aiChatPopup').classList.remove('d-none'); return false;">
+                        <i class="bi bi-robot me-1"></i>Trợ lý AI Gemini (S13)
+                    </a>
+                    <span class="badge bg-warning text-dark"><i class="bi bi-award-fill me-1"></i>TrustScore: 128</span>
+                    <span class="fw-bold"><i class="bi bi-person-circle me-1"></i>Nguyễn Hùng (Role: User)</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Thanh Header Chính: Logo + Thanh Tìm Kiếm Lớn + Balô Phiếu Mượn (Không có Giỏ hàng mua bán!) -->
+        <div class="portal-main-bar">
+            <div class="container">
+                <div class="row align-items-center g-3">
+                    <!-- Logo BookShare -->
+                    <div class="col-lg-3 col-md-4">
+                        <a href="01-portal-discovery-s06.html" class="portal-logo">
+                            <div class="bg-white text-primary rounded-3 d-flex align-items-center justify-content-center shadow-sm" style="width:46px; height:46px;">
+                                <i class="bi bi-book-half fs-3"></i>
+                            </div>
+                            <div>
+                                <div class="fs-4 fw-bold lh-1">BookShare</div>
+                                <small class="opacity-75" style="font-size:0.72rem;">Cổng Mượn Sách & Tủ Sách Ver07</small>
+                            </div>
+                        </a>
+                    </div>
+
+                    <!-- Thanh Tìm Kiếm Lớn + Gợi ý nhanh bên dưới (Dịch vụ S06 SearchDiscovery) -->
+                    <div class="col-lg-7 col-md-6">
+                        <form id="portalSearchForm">
+                            <div class="portal-search-box">
+                                <input type="text" id="keywordInput" placeholder="Tìm sách giấy theo Tên sách, Tác giả, ISBN (Mượn miễn phí 0đ - Không bán sách)...">
+                                <select id="sourceFilter" title="Lọc theo Nguồn sách">
+                                    <option value="all">Tất cả nguồn sách</option>
+                                    <option value="System">🏛️ Kho chung Thư viện</option>
+                                    <option value="User">🤝 Tủ sách P2P Cộng đồng</option>
+                                </select>
+                                <button type="submit" class="portal-search-btn">
+                                    <i class="bi bi-search"></i>
+                                </button>
+                            </div>
+                        </form>
+                        <div class="portal-quick-tags">
+                            <a onclick="quickSearch('Clean Code')">Clean Code</a>
+                            <a onclick="quickSearch('Domain-Driven')">Domain-Driven Design</a>
+                            <a onclick="quickSearch('Nguyễn Nhật Ánh')">Nguyễn Nhật Ánh</a>
+                            <a onclick="quickSearch('AI Engineering')">AI Engineering</a>
+                            <a onclick="quickSearch('9780132350884')">ISBN: 9780132350884</a>
+                            <a onclick="filterSourceQuick('System')">Kho ĐH CMC</a>
+                            <a onclick="filterSourceQuick('User')">Sách P2P Cầu Giấy</a>
+                        </div>
+                    </div>
+
+                    <!-- Cột Phải: Balô Phiếu Mượn Sách (Thay thế hoàn toàn Giỏ hàng thương mại) -->
+                    <div class="col-lg-2 col-md-2 text-end">
+                        <a href="03-p2p-loan-condition-s09-s10.html" class="loan-bag-btn" title="Danh sách Phiếu mượn đang hoạt động">
+                            <div class="position-relative">
+                                <i class="bi bi-journal-bookmark-fill fs-3"></i>
+                                <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-warning text-dark">2</span>
+                            </div>
+                            <span style="font-size:0.74rem;" class="fw-semibold">Phiếu Mượn</span>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- [KẾ THỪA VER07] Khung Hiển thị Mã Trạng thái & Bắt Ngoại lệ Trực tiếp trên Màn hình -->
+    <div class="container mt-3">
+        <div id="systemStatusBox" class="status-banner status-200">
+            <div class="status-banner-left">
+                <span id="statusCodeBadge" class="status-code-pill">MÃ 200</span>
+                <div class="status-text-group">
+                    <strong id="statusTitleText">Cổng dịch vụ BookShare Portal sẵn sàng (30 đầu sách • 50 bản sao vật lý)</strong>
+                    <span id="statusDetailText" class="status-detail-sub">Bố cục Portal trực quan nhưng cam kết 100% phi thương mại: Không có nút "Mua ngay", không có giỏ hàng, không hiển thị giá bán.</span>
+                </div>
+            </div>
+            <button type="button" class="status-close-btn" onclick="this.parentElement.classList.add('d-none')" title="Thu gọn">×</button>
+        </div>
+    </div>
+
+    <!-- 2. KHỐI BANNER 2/3 TRÁI + 1/3 PHẢI + HÀNG 8 ICON DỊCH VỤ NHANH (ĐÚNG BỐ CỤC ẢNH THAM KHẢO) -->
+    <section class="portal-hero-section mt-3">
+        <div class="container">
+            <div class="row g-2">
+                <!-- Banner Lớn 2/3 Bên Trái -->
+                <div class="col-lg-8">
+                    <div class="hero-left-banner shadow-sm">
+                        <div>
+                            <span class="badge bg-warning text-dark fw-bold mb-2 px-3 py-1 rounded-pill">
+                                <i class="bi bi-stars me-1"></i>CỔNG CHIA SẺ SÁCH GIẤY HỌC THUẬT & CỘNG ĐỒNG
+                            </span>
+                            <h3 class="fw-bold mb-2">MƯỢN SÁCH KHO TRƯỜNG & P2P 0 ĐỒNG</h3>
+                            <p class="mb-0 opacity-90 small" style="max-width: 540px;">
+                                Kết nối trực tiếp Thư viện Trung tâm ĐH CMC với hàng trăm tủ sách cá nhân của sinh viên. Kiểm định tình trạng sách minh bạch bằng ảnh chụp Cloudinary & mã OTP Resend.
+                            </p>
+                        </div>
+                        <div class="d-flex flex-wrap gap-2 align-items-center">
+                            <a href="02-personal-shelf-tracker-s02-s03.html" class="btn btn-light btn-sm fw-bold text-dark px-3">
+                                <i class="bi bi-graph-up-arrow text-primary me-1"></i>Theo dõi Tiến độ đọc (Ver07)
+                            </a>
+                            <a href="03-p2p-loan-condition-s09-s10.html" class="btn btn-outline-light btn-sm fw-semibold px-3">
+                                <i class="bi bi-camera me-1"></i>Xem Biên bản Ảnh P2P
+                            </a>
+                            <span class="ms-auto small opacity-75 d-none d-sm-inline">Cam kết 0% Mua bán • 100% Sách giấy thật</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 2 Banner Nhỏ Xếp Chồng 1/3 Bên Phải -->
+                <div class="col-lg-4">
+                    <div class="hero-right-stack">
+                        <a href="03-p2p-loan-condition-s09-s10.html" class="hero-right-card hero-right-top shadow-sm">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <span class="badge bg-white text-dark mb-1" style="font-size:0.68rem;">Dịch vụ S20 • Curator Hub</span>
+                                    <h6 class="fw-bold mb-1">TRẠM HẸN CLB BOOKSHARE HUB</h6>
+                                    <div class="small opacity-85">Giao nhận P2P an toàn tại ĐH CMC & Cầu Giấy</div>
+                                </div>
+                                <i class="bi bi-geo-alt-fill display-6 opacity-75"></i>
+                            </div>
+                        </a>
+                        <a href="02-personal-shelf-tracker-s02-s03.html#isbnSection" class="hero-right-card hero-right-bottom shadow-sm">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <span class="badge bg-warning text-dark mb-1" style="font-size:0.68rem;">Dịch vụ S05 & S13 • AI & ISBN</span>
+                                    <h6 class="fw-bold mb-1">QUÉT ISBN & TRỢ LÝ AI GEMINI</h6>
+                                    <div class="small opacity-85">Tự điền thông tin sách & Tư vấn chọn sách RAG</div>
+                                </div>
+                                <i class="bi bi-robot display-6 opacity-75"></i>
+                            </div>
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Hàng Icon Dịch Vụ Nhanh Ngay Dưới Banner (Giống hệt hàng Icon trong ảnh tham khảo) -->
+            <div class="quick-service-strip">
+                <a href="#bookSection" onclick="filterSourceQuick('System')" class="service-strip-item">
+                    <div class="service-icon-squircle text-primary"><i class="bi bi-bank2"></i></div>
+                    <span class="service-strip-label">Kho Sách Trường CMC (S07/S08)</span>
+                </a>
+                <a href="#bookSection" onclick="filterSourceQuick('User')" class="service-strip-item">
+                    <div class="service-icon-squircle text-purple" style="color:#7c3aed;"><i class="bi bi-people-fill"></i></div>
+                    <span class="service-strip-label">Mượn Sách P2P Cộng Đồng (S09)</span>
+                </a>
+                <a href="02-personal-shelf-tracker-s02-s03.html" class="service-strip-item">
+                    <div class="service-icon-squircle text-success"><i class="bi bi-journal-check"></i></div>
+                    <span class="service-strip-label">Tủ Sách & Tiến Độ Ver07 (S02/S03)</span>
+                </a>
+                <a href="02-personal-shelf-tracker-s02-s03.html#isbnSection" class="service-strip-item">
+                    <div class="service-icon-squircle text-info"><i class="bi bi-upc-scan"></i></div>
+                    <span class="service-strip-label">Quét Mã ISBN Tự Điền (S05)</span>
+                </a>
+                <a href="03-p2p-loan-condition-s09-s10.html#conditionSection" class="service-strip-item">
+                    <div class="service-icon-squircle text-danger"><i class="bi bi-camera-fill"></i></div>
+                    <span class="service-strip-label">Biên Bản Ảnh Cloudinary (S10)</span>
+                </a>
+                <a href="03-p2p-loan-condition-s09-s10.html" class="service-strip-item">
+                    <div class="service-icon-squircle text-warning"><i class="bi bi-geo-fill"></i></div>
+                    <span class="service-strip-label">Điểm Hẹn CLB Book Hub (S20)</span>
+                </a>
+                <a href="#" onclick="document.getElementById('aiChatPopup').classList.remove('d-none'); return false;" class="service-strip-item">
+                    <div class="service-icon-squircle text-primary"><i class="bi bi-stars"></i></div>
+                    <span class="service-strip-label">Trợ Lý AI Gemini 2.5 (S13/S14)</span>
+                </a>
+                <a href="04-librarian-admin-desk-s21-s22.html" class="service-strip-item">
+                    <div class="service-icon-squircle text-dark"><i class="bi bi-pc-display"></i></div>
+                    <span class="service-strip-label">Bàn Thủ Thư & Admin (S21/S22)</span>
+                </a>
+            </div>
+        </div>
+    </section>
+
+    <main class="container py-4">
+        <!-- 3. KHỐI DANH MỤC THỂ LOẠI & KỆ SÁCH (LƯỚI CATEGORIES NHƯ TRONG ẢNH THAM KHẢO) -->
+        <section class="portal-section-card">
+            <div class="portal-section-header">
+                <h2 class="portal-section-title"><i class="bi bi-grid me-2"></i>DANH MỤC CHUYÊN NGÀNH & KỆ SÁCH CỘNG ĐỒNG (CATEGORIES)</h2>
+                <span class="small text-muted">Bấm vào từng ô để lọc đầu sách theo danh mục</span>
+            </div>
+            <div class="category-matrix">
+                <div class="category-cell active" onclick="filterByCategory('all', this)">
+                    <div class="category-circle-icon text-primary"><i class="bi bi-collection-fill"></i></div>
+                    <div class="category-cell-name">Tất Cả Đầu Sách (30)</div>
+                </div>
+                <div class="category-cell" onclick="filterByCategory('CNTT', this)">
+                    <div class="category-circle-icon text-info"><i class="bi bi-cpu-fill"></i></div>
+                    <div class="category-cell-name">Công Nghệ Thông Tin & AI</div>
+                </div>
+                <div class="category-cell" onclick="filterByCategory('VHVN', this)">
+                    <div class="category-circle-icon text-success"><i class="bi bi-feather"></i></div>
+                    <div class="category-cell-name">Văn Học Việt Nam</div>
+                </div>
+                <div class="category-cell" onclick="filterByCategory('VHTG', this)">
+                    <div class="category-circle-icon text-warning"><i class="bi bi-globe-americas"></i></div>
+                    <div class="category-cell-name">Văn Học Kinh Điển</div>
+                </div>
+                <div class="category-cell" onclick="filterByCategory('KinhTe', this)">
+                    <div class="category-circle-icon text-danger"><i class="bi bi-graph-up-arrow"></i></div>
+                    <div class="category-cell-name">Kinh Tế & Quản Trị</div>
+                </div>
+                <div class="category-cell" onclick="filterByCategory('KyNang', this)">
+                    <div class="category-circle-icon text-primary"><i class="bi bi-lightbulb-fill"></i></div>
+                    <div class="category-cell-name">Kỹ Năng & Tư Duy</div>
+                </div>
+                <div class="category-cell" onclick="filterByCategory('UIUX', this)">
+                    <div class="category-circle-icon text-secondary"><i class="bi bi-palette-fill"></i></div>
+                    <div class="category-cell-name">Thiết Kế UI/UX & Web</div>
+                </div>
+                <div class="category-cell" onclick="filterByCategory('NgoaiNgu', this)">
+                    <div class="category-circle-icon text-success"><i class="bi bi-translate"></i></div>
+                    <div class="category-cell-name">Ngoại Ngữ & Học Thuật</div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 4. LƯỚI KỆ SÁCH TRỰC QUAN (TUYỆT ĐỐI KHÔNG CÓ NÚT MUA NGAY HAY GIÁ BÁN) -->
+        <section id="bookSection" class="portal-section-card p-4">
+            <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2 border-bottom pb-3">
+                <div>
+                    <h5 class="fw-bold mb-1">
+                        <i class="bi bi-journal-richtext text-primary me-2"></i>KỆ SÁCH GIẤY SẴN SÀNG CHO MƯỢN & XẾP HÀNG CHỜ
+                        <span class="badge bg-primary ms-2" id="resultCountBadge">6 đầu sách</span>
+                    </h5>
+                    <p class="text-muted small mb-0">Mỗi thẻ sách hiển thị rõ: <strong>Nguồn sở hữu (Kho trường / P2P)</strong> • <strong>Mã Barcode vật lý</strong> • <strong>Điểm uy tín TrustScore</strong> • <strong>Nút Đặt mượn / Đặt trước</strong>.</p>
+                </div>
+                <div class="d-flex gap-2">
+                    <button class="btn btn-sm btn-outline-primary" onclick="filterSourceQuick('all')">Tất cả nguồn</button>
+                    <button class="btn btn-sm btn-outline-success" onclick="filterSourceQuick('System')">🏛️ Kho Chung ĐH CMC</button>
+                    <button class="btn btn-sm btn-outline-secondary" onclick="filterSourceQuick('User')">🤝 Tủ Sách P2P</button>
+                </div>
+            </div>
+
+            <div class="row g-4" id="portalBookGrid"></div>
+        </section>
+    </main>
+
+    <!-- [DỊCH VỤ S13] KHUNG CHAT AI GEMINI 2.5 FLASH NỔI Ở GÓC PHẢI DƯỚI -->
+    <div id="aiFloatingWidget" class="ai-chat-widget">
+        <button type="button" id="btnToggleAIChat" class="ai-chat-fab shadow">
+            <i class="bi bi-stars fs-5"></i>
+            <span>Trợ lý AI Thủ thư (S13)</span>
+        </button>
+
+        <div id="aiChatPopup" class="ai-chat-popup shadow-lg d-none">
+            <div class="ai-chat-header text-white d-flex justify-content-between align-items-center px-3 py-2">
+                <div class="d-flex align-items-center gap-2">
+                    <i class="bi bi-robot"></i>
+                    <div>
+                        <strong class="small d-block">Trợ lý AI BookShare (Gemini 2.5)</strong>
+                        <span style="font-size: 0.68rem; opacity: 0.85;">RAG: Đã nối dữ liệu BookCopies & Loans</span>
+                    </div>
+                </div>
+                <button type="button" id="btnCloseAIChat" class="btn btn-sm text-white p-0 px-1"><i class="bi bi-x-lg"></i></button>
+            </div>
+
+            <div class="ai-chat-quick-bar px-2 py-2 border-bottom bg-body-tertiary d-flex gap-1 flex-wrap">
+                <button type="button" class="btn btn-outline-primary btn-xs ai-quick-prompt" data-prompt="Mình đang học ASP.NET Core 10 MVC thì nên mượn cuốn nào trong kho ĐH CMC?">💻 Gợi ý sách .NET</button>
+                <button type="button" class="btn btn-outline-success btn-xs ai-quick-prompt" data-prompt="Kiểm tra nhanh hạn trả sách và số trang đang đọc hiện tại của mình.">⏰ Kiểm tra hạn trả</button>
+                <button type="button" class="btn btn-outline-secondary btn-xs ai-quick-prompt" data-prompt="Quy trình mượn sách P2P và chụp ảnh tình trạng sách hoạt động thế nào?">📸 Quy định P2P</button>
+            </div>
+
+            <div id="aiChatMessages" class="ai-chat-messages p-3">
+                <div class="ai-msg ai-msg-bot">Xin chào Nguyễn Hùng! Mình là Trợ lý AI kết nối trực tiếp với Kho sách ĐH CMC và Tủ sách P2P (qua Backend <code>/api/ai-chat/send</code>, bảo mật tuyệt đối API Key). Bạn cần tìm sách theo tâm trạng/ngành học hay kiểm tra hạn trả sách?</div>
+            </div>
+
+            <form id="aiChatForm" class="ai-chat-footer border-top p-2 d-flex gap-2 bg-body">
+                <input type="text" id="aiChatInput" class="form-control form-control-sm" placeholder="Hỏi AI về sách, tóm tắt, hạn trả..." autocomplete="off">
+                <button type="submit" class="btn btn-primary btn-sm px-3"><i class="bi bi-send"></i></button>
+            </form>
+        </div>
+    </div>
+
+    <footer class="app-footer py-4 mt-4 border-top bg-white">
+        <div class="container text-center text-muted small">
+            <p class="mb-1 fw-bold">BookShare Portal – Nền tảng Quản lý Tủ sách Cá nhân, Theo dõi Đọc sách (Ver07) & Chia sẻ Sách Giấy Cộng đồng</p>
+            <p class="mb-0">Đồ án cuối kỳ môn Phát triển Ứng dụng Web • ASP.NET Core 10 MVC • 4 Cấp Phân Quyền & 22 Dịch Vụ Độc Lập</p>
+        </div>
+    </footer>
+
+    <script src="../../_reference/book-tracker-ver07/vendor/bootstrap/bootstrap.bundle.min.js"></script>
+    <script src="../../_reference/book-tracker-ver07/vendor/sweetalert2/sweetalert2.all.min.js"></script>
+    <script>
+        let currentCategory = 'all';
+        const SAMPLE_PORTAL_BOOKS = [
+            {
+                id: 1,
+                title: "Clean Code - Mã Sạch & Con Đường Lập Trình Viên Giỏi",
+                author: "Robert C. Martin",
+                isbn: "9780132350884",
+                category: "CNTT",
+                categoryName: "CNTT & AI",
+                ownerType: "System",
+                ownerName: "Thư viện Trung tâm ĐH CMC",
+                location: "Kệ CNTT-A1 (Còn 2 bản sao)",
+                barcode: "BS-SYS-0001",
+                condition: "Mới 98% (New)",
+                status: "Available",
+                trustScore: null,
+                pages: 464,
+                cover: "https://covers.openlibrary.org/b/isbn/9780132350884-L.jpg"
+            },
+            {
+                id: 2,
+                title: "Domain-Driven Design - Thiết Kế Hướng Tên Miền",
+                author: "Eric Evans",
+                isbn: "9780321125217",
+                category: "CNTT",
+                categoryName: "CNTT & AI",
+                ownerType: "User",
+                ownerName: "Trần Minh Anh (Chủ sách P2P)",
+                location: "Điểm hẹn: Trạm CLB Cầu Giấy",
+                barcode: "BS-P2P-0039",
+                condition: "Tốt (Good - Đã bọc bìa)",
+                status: "Available",
+                trustScore: 115,
+                pages: 560,
+                cover: "https://covers.openlibrary.org/b/isbn/9780321125217-L.jpg"
+            },
+            {
+                id: 7,
+                title: "AI Engineering - Xây Dựng Ứng Dụng Với Foundation Models",
+                author: "Chip Huyen",
+                isbn: "9781098166304",
+                category: "CNTT",
+                categoryName: "CNTT & AI",
+                ownerType: "System",
+                ownerName: "Kho sách Khoa CNTT (CMC)",
+                location: "Kệ AI-A1 (Đang mượn hết)",
+                barcode: "BS-SYS-0009",
+                condition: "Mới 100% (New)",
+                status: "Reserved",
+                queueCount: 2,
+                trustScore: null,
+                pages: 512,
+                cover: "https://covers.openlibrary.org/b/isbn/9781098166304-L.jpg"
+            },
+            {
+                id: 9,
+                title: "Hai Con Mèo Ngồi Bên Cửa Sổ",
+                author: "Nguyễn Nhật Ánh",
+                isbn: "9786041201118",
+                category: "VHVN",
+                categoryName: "Văn học VN",
+                ownerType: "User",
+                ownerName: "Nguyễn Hùng (Chủ sách P2P)",
+                location: "Điểm hẹn: Trạm CLB Cầu Giấy",
+                barcode: "BS-P2P-0035",
+                condition: "Tốt (Good)",
+                status: "Available",
+                trustScore: 128,
+                pages: 212,
+                cover: "https://images.unsplash.com/photo-1544947950-fa07a98d237f?w=400"
+            },
+            {
+                id: 18,
+                title: "Tư Duy Nhanh Và Chậm (Thinking, Fast and Slow)",
+                author: "Daniel Kahneman",
+                isbn: "9780374533557",
+                category: "KinhTe",
+                categoryName: "Kinh tế & Quản trị",
+                ownerType: "User",
+                ownerName: "Trần Minh Anh (Chủ sách P2P)",
+                location: "Điểm hẹn: Trạm CLB Cầu Giấy",
+                barcode: "BS-P2P-0042",
+                condition: "Mới 95% (New)",
+                status: "Available",
+                trustScore: 115,
+                pages: 612,
+                cover: "https://covers.openlibrary.org/b/isbn/9780374533557-L.jpg"
+            },
+            {
+                id: 27,
+                title: "Don't Make Me Think - Đừng Bắt Tôi Phải Nghĩ",
+                author: "Steve Krug",
+                isbn: "9780321965516",
+                category: "UIUX",
+                categoryName: "Thiết kế UI/UX",
+                ownerType: "System",
+                ownerName: "Kho sách Khoa CNTT (CMC)",
+                location: "Kệ UIUX-H1 (Sẵn sàng)",
+                barcode: "BS-SYS-0029",
+                condition: "Mới 99% (New)",
+                status: "Available",
+                trustScore: null,
+                pages: 216,
+                cover: "https://covers.openlibrary.org/b/isbn/9780321965516-L.jpg"
+            }
+        ];
+
+        function updateStatusBanner(code, title, detail) {
+            const box = document.getElementById('systemStatusBox');
+            box.classList.remove('d-none', 'status-200', 'status-300', 'status-400', 'status-500');
+            box.classList.add(code >= 500 ? 'status-500' : code >= 400 ? 'status-400' : code >= 300 ? 'status-300' : 'status-200');
+            document.getElementById('statusCodeBadge').innerText = `MÃ ${code}`;
+            document.getElementById('statusTitleText').innerText = title;
+            document.getElementById('statusDetailText').innerText = detail;
+        }
+
+        function renderBooks(list) {
+            const grid = document.getElementById('portalBookGrid');
+            document.getElementById('resultCountBadge').innerText = `${list.length} đầu sách`;
+            if (list.length === 0) {
+                grid.innerHTML = `<div class="col-12"><div class="empty-state"><i class="bi bi-search fs-1 d-block mb-2"></i>Không tìm thấy bản sao sách phù hợp tiêu chí lọc.</div></div>`;
+                updateStatusBanner(404, 'Không tìm thấy đầu sách phù hợp (Mã 404)', 'Vui lòng thử lại với từ khóa hoặc chuyên mục khác.');
+                return;
+            }
+            grid.innerHTML = list.map(b => `
+                <div class="col-md-6 col-lg-4">
+                    <div class="card book-card h-100 border shadow-sm overflow-hidden">
+                        <div class="position-relative">
+                            <img src="${b.cover}" class="book-cover w-100" alt="${b.title}" onerror="this.src='https://images.unsplash.com/photo-1544947950-fa07a98d237f?w=400'">
+                            <span class="position-absolute top-0 start-0 m-2 ${b.ownerType === 'System' ? 'owner-badge-lib' : 'owner-badge-p2p'}">
+                                ${b.ownerType === 'System' ? '<i class="bi bi-bank me-1"></i>Kho chung ĐH CMC' : '<i class="bi bi-person-heart me-1"></i>Tủ sách P2P'}
+                            </span>
+                            <span class="position-absolute top-0 end-0 m-2 badge ${b.status === 'Available' ? 'bg-success' : 'bg-warning text-dark'}">
+                                ${b.status === 'Available' ? 'Sẵn sàng mượn' : `Hàng chờ (${b.queueCount} người)`}
+                            </span>
+                        </div>
+                        <div class="card-body d-flex flex-column">
+                            <div class="d-flex justify-content-between align-items-center mb-1">
+                                <span class="badge bg-secondary bg-opacity-10 text-secondary">${b.categoryName}</span>
+                                <small class="text-muted font-monospace">ISBN: ${b.isbn}</small>
+                            </div>
+                            <h6 class="fw-bold mb-1">${b.title}</h6>
+                            <p class="text-muted small mb-2"><i class="bi bi-pen me-1"></i>${b.author} • ${b.pages} trang</p>
+
+                            <div class="p-2 rounded-3 bg-light small mb-3 border">
+                                <div class="d-flex justify-content-between mb-1">
+                                    <span class="text-muted">Nguồn cho mượn:</span>
+                                    <strong class="text-truncate ms-2">${b.ownerName}</strong>
+                                </div>
+                                ${b.trustScore ? `
+                                <div class="d-flex justify-content-between mb-1">
+                                    <span class="text-muted">Điểm uy tín Chủ sách:</span>
+                                    <span class="trust-pill"><i class="bi bi-star-fill me-1"></i>TrustScore: ${b.trustScore}</span>
+                                </div>` : ''}
+                                <div class="d-flex justify-content-between mb-1">
+                                    <span class="text-muted">Vị trí / Điểm hẹn:</span>
+                                    <span class="fw-semibold">${b.location}</span>
+                                </div>
+                                <div class="d-flex justify-content-between">
+                                    <span class="text-muted">Tình trạng & Mã vạch:</span>
+                                    <span>${b.condition} • <code>${b.barcode}</code></span>
+                                </div>
+                            </div>
+
+                            <div class="mt-auto d-flex gap-2">
+                                ${b.status === 'Available' ? `
+                                    <button class="btn btn-primary btn-sm flex-grow-1 fw-semibold" onclick="requestBorrow('${b.title}', '${b.ownerType}', '${b.barcode}')">
+                                        <i class="bi bi-journal-arrow-down me-1"></i>${b.ownerType === 'System' ? 'Đặt mượn Kho chung' : 'Mượn P2P từ Chủ sách'}
+                                    </button>
+                                ` : `
+                                    <button class="btn btn-warning btn-sm flex-grow-1 fw-semibold text-dark" onclick="reserveBook('${b.title}', ${b.queueCount})">
+                                        <i class="bi bi-hourglass-split me-1"></i>Đặt trước (Xếp hàng #${b.queueCount + 1})
+                                    </button>
+                                `}
+                                <a href="02-personal-shelf-tracker-s02-s03.html" class="btn btn-outline-secondary btn-sm" title="Lưu vào Tủ cá nhân & Theo dõi đọc">
+                                    <i class="bi bi-bookmark-plus"></i>
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function filterBooks() {
+            const kw = document.getElementById('keywordInput').value.trim().toLowerCase();
+            const src = document.getElementById('sourceFilter').value;
+
+            const filtered = SAMPLE_PORTAL_BOOKS.filter(b => {
+                const matchKw = !kw || b.title.toLowerCase().includes(kw) || b.author.toLowerCase().includes(kw) || b.isbn.includes(kw);
+                const matchSrc = src === 'all' || b.ownerType === src;
+                const matchCat = currentCategory === 'all' || b.category === currentCategory;
+                return matchKw && matchSrc && matchCat;
+            });
+            renderBooks(filtered);
+            if (filtered.length > 0) {
+                updateStatusBanner(200, `Đã lọc tìm kiếm đa tiêu chí (S06 - Mã 200)`, `Hiển thị ${filtered.length} đầu sách sẵn sàng cho mượn.`);
+            }
+        }
+
+        function quickSearch(keyword) {
+            document.getElementById('keywordInput').value = keyword;
+            filterBooks();
+        }
+
+        function filterSourceQuick(source) {
+            document.getElementById('sourceFilter').value = source;
+            filterBooks();
+        }
+
+        function filterByCategory(cat, el) {
+            currentCategory = cat;
+            document.querySelectorAll('.category-cell').forEach(c => c.classList.remove('active'));
+            if (el) el.classList.add('active');
+            filterBooks();
+        }
+
+        function requestBorrow(title, ownerType, barcode) {
+            updateStatusBanner(200, `Khởi tạo yêu cầu mượn sách (${ownerType === 'System' ? 'S08 Kho chung' : 'S09 P2P'})`, `Đang tạo phiếu mượn bản sao ${barcode} - "${title}".`);
+            Swal.fire({
+                title: ownerType === 'System' ? 'Đặt mượn Kho chung Thư viện (S08)' : 'Gửi yêu cầu Mượn P2P (S09)',
+                html: `<div class="text-start small">
+                    <p class="mb-2"><strong>Đầu sách:</strong> ${title}</p>
+                    <p class="mb-2"><strong>Mã bản sao vật lý:</strong> <code>${barcode}</code></p>
+                    <p class="mb-2"><strong>Thời hạn mượn:</strong> 14 ngày (Hoàn toàn miễn phí - Không mua bán)</p>
+                    <p class="mb-0 text-success"><i class="bi bi-camera me-1"></i>Khi bàn giao sách tại Quầy / Trạm CLB, hệ thống sẽ chụp ảnh tình trạng (S10 Cloudinary) và xác thực OTP 6 số qua Resend.</p>
+                </div>`,
+                icon: 'info',
+                showCancelButton: true,
+                confirmButtonText: 'Gửi yêu cầu mượn ngay',
+                cancelButtonText: 'Đóng'
+            }).then(res => {
+                if (res.isConfirmed) {
+                    Swal.fire('Đã gửi yêu cầu (Mã 200)!', 'Yêu cầu mượn đã được lưu vào bảng LoanRequests.', 'success');
+                }
+            });
+        }
+
+        function reserveBook(title, currentQueue) {
+            updateStatusBanner(300, `Đặt trước sách Hot thành công (S11 - Mã 300)`, `Bạn đã được xếp vào vị trí #${currentQueue + 1} cho cuốn "${title}".`);
+            Swal.fire('Đã xếp hàng chờ (S11)!', `Bạn đang ở vị trí #${currentQueue + 1} (Ưu tiên gói Premium). Khi có sách trả về kho, hệ thống gửi email qua Resend và giữ chỗ cho bạn 48 giờ.`, 'success');
+        }
+
+        document.getElementById('portalSearchForm').addEventListener('submit', e => {
+            e.preventDefault();
+            filterBooks();
+        });
+
+        // Widget Chat AI Gemini nổi (S13)
+        const chatPopup = document.getElementById('aiChatPopup');
+        document.getElementById('btnToggleAIChat').addEventListener('click', () => chatPopup.classList.toggle('d-none'));
+        document.getElementById('btnCloseAIChat').addEventListener('click', () => chatPopup.classList.add('d-none'));
+
+        function appendChatMsg(text, isBot) {
+            const box = document.getElementById('aiChatMessages');
+            const div = document.createElement('div');
+            div.className = `ai-msg ${isBot ? 'ai-msg-bot' : 'ai-msg-user'}`;
+            div.innerText = text;
+            box.appendChild(div);
+            box.scrollTop = box.scrollHeight;
+        }
+
+        document.querySelectorAll('.ai-quick-prompt').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.getElementById('aiChatInput').value = btn.getAttribute('data-prompt');
+                document.getElementById('aiChatForm').dispatchEvent(new Event('submit'));
+            });
+        });
+
+        document.getElementById('aiChatForm').addEventListener('submit', e => {
+            e.preventDefault();
+            const input = document.getElementById('aiChatInput');
+            const msg = input.value.trim();
+            if (!msg) return;
+            appendChatMsg(msg, false);
+            input.value = '';
+
+            setTimeout(() => {
+                if (msg.toLowerCase().includes('hạn trả')) {
+                    appendChatMsg('📌 [RAG Database]: Hiện bạn đang mượn cuốn "Clean Code" (Barcode: BS-SYS-0002), còn 5 ngày nữa đến hạn trả (Phí phạt: 0đ). Tiến độ đọc cuốn "ASP.NET Core in Action" của bạn đạt 540/864 trang (62.5%).', true);
+                } else if (msg.toLowerCase().includes('p2p')) {
+                    appendChatMsg('🤝 Quy trình mượn P2P trên BookShare:\n1. Chọn sách nhãn P2P & xem TrustScore chủ sách.\n2. Chủ sách duyệt & hẹn tại Trạm CLB BookShare Hub.\n3. Chụp ảnh tình trạng sách lúc giao (S10 Cloudinary) & nhập OTP 6 số từ Resend.\n4. Hoàn trả sách và nhận +2 điểm TrustScore!', true);
+                } else {
+                    appendChatMsg('📚 Gợi ý từ Kho sách ĐH CMC & P2P cho môn ASP.NET Core 10:\n1. "Clean Code" (BS-SYS-0001 - Kệ CNTT-A1, Sẵn sàng)\n2. "Domain-Driven Design" (BS-P2P-0039 - Tủ sách Minh Anh, TrustScore 115)\nBạn có thể bấm nút "Đặt mượn" ngay trên thẻ sách!', true);
+                }
+            }, 350);
+        });
+
+        renderBooks(SAMPLE_PORTAL_BOOKS);
+    </script>
+</body>
+</html>

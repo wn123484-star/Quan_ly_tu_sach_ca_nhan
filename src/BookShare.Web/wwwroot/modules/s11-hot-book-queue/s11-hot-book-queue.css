@@ -1,0 +1,44 @@
+/* =========================================================================
+   MODULE S11: HOT BOOK QUEUE (s11-hot-book-queue.css)
+   ========================================================================= */
+
+.s11-book-item {
+    background-color: #F8FAFC;
+    border: 1px solid #E2E8F0;
+    transition: transform 0.15s ease;
+}
+
+.s11-book-item:hover {
+    transform: translateY(-2px);
+    background-color: #EFF6FF;
+    border-color: #93C5FD;
+}
+
+.s11-book-thumb {
+    width: 48px;
+    height: 68px;
+    object-fit: cover;
+    border-radius: 6px;
+    flex-shrink: 0;
+}
+
+.s11-pos-circle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    font-weight: 700;
+    font-size: 0.88rem;
+    background-color: #F1F5F9;
+    color: #334155;
+    border: 1px solid #CBD5E1;
+}
+
+.s11-pos-circle.pos-top {
+    background: linear-gradient(135deg, #F59E0B, #D97706);
+    color: #FFFFFF;
+    border-color: #D97706;
+    box-shadow: 0 4px 10px rgba(245, 158, 11, 0.35);
+}

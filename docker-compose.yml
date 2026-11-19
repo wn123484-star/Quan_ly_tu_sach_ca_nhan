@@ -1,0 +1,70 @@
+services:
+  # 1. CƠ SỞ DỮ LIỆU SQL SERVER 2022 (Bind 127.0.0.1:1437 -> 1433)
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: bookshare-sqlserver
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_SA_PASSWORD: "${SA_PASSWORD:-BookShare@2026StrongPass!}"
+      MSSQL_PID: "Express"
+    ports:
+      - "127.0.0.1:1437:1433"
+    volumes:
+      - bookshare_sql_data:/var/opt/mssql
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P \"$$MSSQL_SA_PASSWORD\" -C -Q \"SELECT 1\" || /opt/mssql-tools/bin/sqlcmd -S localhost -U sa -P \"$$MSSQL_SA_PASSWORD\" -Q \"SELECT 1\""
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+    restart: always
+
+  # 2. TỰ ĐỘNG KHỞI TẠO SCHEMA 22 BẢNG & SEED DATA (Chờ sqlserver healthy)
+  db-init:
+    image: mcr.microsoft.com/mssql-tools
+    container_name: bookshare-db-init
+    depends_on:
+      sqlserver:
+        condition: service_healthy
+    environment:
+      SA_PASSWORD: "${SA_PASSWORD:-BookShare@2026StrongPass!}"
+    volumes:
+      - ./database:/sql:ro
+    entrypoint:
+      - /bin/bash
+      - -c
+      - |
+        echo "=== [db-init] Bắt đầu nạp 01_BookShare_Schema.sql & 02_BookShare_SeedData.sql ==="
+        /opt/mssql-tools/bin/sqlcmd -S sqlserver -U sa -P "$$SA_PASSWORD" -i /sql/01_BookShare_Schema.sql
+        /opt/mssql-tools/bin/sqlcmd -S sqlserver -U sa -P "$$SA_PASSWORD" -i /sql/02_BookShare_SeedData.sql
+        echo "=== [db-init] Đã khởi tạo hoàn tất CSDL BookShareDb ==="
+    restart: "no"
+
+  # 3. ỨNG DỤNG WEB BOOKSHARE (.NET 10 MVC - Bind 127.0.0.1:5087 -> 5087)
+  bookshare-web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: bookshare-web
+    ports:
+      - "127.0.0.1:5087:5087"
+    env_file:
+      - .env
+    environment:
+      ASPNETCORE_URLS: "http://+:5087"
+      ConnectionStrings__DefaultConnection: "Server=sqlserver,1433;Database=BookShareDb;User Id=sa;Password=${SA_PASSWORD:-BookShare@2026StrongPass!};TrustServerCertificate=True;MultipleActiveResultSets=true;"
+    volumes:
+      - ./uploads:/app/wwwroot/uploads
+    depends_on:
+      sqlserver:
+        condition: service_healthy
+      db-init:
+        condition: service_completed_successfully
+    restart: always
+
+volumes:
+  bookshare_sql_data:

@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html lang="vi" data-font="priority-regular">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>[Mẫu 02] Tủ Sách Cá Nhân, Tiến Độ Đọc Ver07 & Tự Điền ISBN (S02 + S03 + S04 + S05)</title>
+    <link href="../../_reference/book-tracker-ver07/vendor/bootstrap/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="../../_reference/book-tracker-ver07/vendor/bootstrap-icons/font/bootstrap-icons.css">
+    <link rel="stylesheet" href="../../_reference/book-tracker-ver07/assets/css/style.css">
+    <script src="../../_reference/book-tracker-ver07/vendor/chartjs/chart.umd.js"></script>
+    <style>
+        body { background-color: #f8fafc; }
+        .preview-switcher-bar {
+            background: #fffbeb;
+            border-bottom: 2px solid #f59e0b;
+            padding: 8px 0;
+        }
+        .lendable-switch-box {
+            background: #f0fdf4;
+            border: 1px solid #bbf7d0;
+            border-radius: 10px;
+            padding: 8px 12px;
+        }
+        .lendable-switch-box.locked {
+            background: #f1f5f9;
+            border-color: #cbd5e1;
+        }
+        .quote-card {
+            border-left: 4px solid #2563eb;
+            background: #eff6ff;
+            border-radius: 0 12px 12px 0;
+            padding: 12px 16px;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Thanh chuyển nhanh giữa 4 Mẫu Giao diện để Duyệt -->
+    <div class="preview-switcher-bar">
+        <div class="container d-flex flex-wrap justify-content-between align-items-center gap-2">
+            <div class="small fw-bold text-dark">
+                <i class="bi bi-eye-fill text-warning me-1"></i>BỘ MẪU GIAO DIỆN DUYỆT TRƯỚC (UI PREVIEWS - CHƯA SCAFFOLD):
+            </div>
+            <div class="d-flex flex-wrap gap-1">
+                <a href="01-portal-discovery-s06.html" class="btn btn-xs btn-outline-dark">1. Cổng Portal & Tìm kiếm (S06/S13)</a>
+                <a href="02-personal-shelf-tracker-s02-s03.html" class="btn btn-xs btn-primary fw-bold">2. Tủ sách & Tiến độ Ver07 (S02/S03/S05)</a>
+                <a href="03-p2p-loan-condition-s09-s10.html" class="btn btn-xs btn-outline-dark">3. Mượn P2P & Ảnh Tình trạng (S09/S10/S20)</a>
+                <a href="04-librarian-admin-desk-s21-s22.html" class="btn btn-xs btn-outline-dark">4. Bàn Thủ thư & Admin (S19/S21/S22)</a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Navbar -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary sticky-top shadow-sm">
+        <div class="container">
+            <a class="navbar-brand fw-bold d-flex align-items-center gap-2" href="01-portal-discovery-s06.html">
+                <i class="bi bi-journal-richtext fs-4"></i>
+                <span>BookShare <span class="badge bg-light text-primary ms-1" style="font-size:0.68rem;">Kế thừa Ver07</span></span>
+            </a>
+            <div class="collapse navbar-collapse show">
+                <ul class="navbar-nav me-auto">
+                    <li class="nav-item"><a class="nav-link" href="01-portal-discovery-s06.html"><i class="bi bi-compass me-1"></i>Khám phá & Mượn sách</a></li>
+                    <li class="nav-item"><a class="nav-link active" href="02-personal-shelf-tracker-s02-s03.html"><i class="bi bi-bookshelf me-1"></i>Tủ sách & Tiến độ (Ver07)</a></li>
+                    <li class="nav-item"><a class="nav-link" href="03-p2p-loan-condition-s09-s10.html"><i class="bi bi-arrow-left-right me-1"></i>Mượn trả P2P & Điểm hẹn</a></li>
+                    <li class="nav-item"><a class="nav-link" href="04-librarian-admin-desk-s21-s22.html"><i class="bi bi-pc-display-horizontal me-1"></i>Quầy Thủ thư & Admin</a></li>
+                </ul>
+                <div class="d-flex gap-2">
+                    <button class="btn btn-outline-light btn-sm" onclick="Swal.fire('Sao lưu JSON (Kế thừa Ver07)', 'Đã xuất tệp tu-sach-ca-nhan-bookshare.json thành công!', 'success')">
+                        <i class="bi bi-download me-1"></i>Sao lưu JSON
+                    </button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Khung Trạng thái Kế thừa Ver07 -->
+    <div class="container mt-3">
+        <div id="systemStatusBox" class="status-banner status-200">
+            <div class="status-banner-left">
+                <span id="statusCodeBadge" class="status-code-pill">MÃ 200</span>
+                <div class="status-text-group">
+                    <strong id="statusTitleText">Đã đồng bộ Tủ sách cá nhân & Tiến độ đọc từ CSDL SQL Server (S02, S03, S04, S05)</strong>
+                    <span id="statusDetailText" class="status-detail-sub">Bạn có thể tự điền sách bằng mã ISBN, gạt nút cho phép mượn P2P (IsLendable) và kéo thanh trượt cập nhật số trang đọc.</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <main class="container py-4">
+        <!-- [KẾ THỪA VER07 - S03] 3 HỘP THỐNG KÊ & BIỂU ĐỒ CHART.JS -->
+        <section id="trackerSection" class="mb-4">
+            <div class="row g-3 mb-4">
+                <div class="col-md-3">
+                    <div class="card stat-card shadow-sm h-100 bg-primary bg-opacity-10 border-0">
+                        <div class="card-body d-flex align-items-center">
+                            <div class="icon-box bg-primary text-white me-3"><i class="bi bi-collection"></i></div>
+                            <div>
+                                <h6 class="text-muted mb-1 small">Tổng sách trong tủ</h6>
+                                <h3 class="mb-0 fw-bold text-primary">6 cuốn</h3>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card stat-card shadow-sm h-100 bg-success bg-opacity-10 border-0">
+                        <div class="card-body d-flex align-items-center">
+                            <div class="icon-box bg-success text-white me-3"><i class="bi bi-check2-all"></i></div>
+                            <div>
+                                <h6 class="text-muted mb-1 small">Đã đọc hoàn thành</h6>
+                                <h3 class="mb-0 fw-bold text-success">3 cuốn</h3>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card stat-card shadow-sm h-100 bg-warning bg-opacity-10 border-0">
+                        <div class="card-body d-flex align-items-center">
+                            <div class="icon-box bg-warning text-dark me-3"><i class="bi bi-book-half"></i></div>
+                            <div>
+                                <h6 class="text-muted mb-1 small">Đang đọc dở</h6>
+                                <h3 class="mb-0 fw-bold text-warning">2 cuốn</h3>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card stat-card shadow-sm h-100 bg-info bg-opacity-10 border-0">
+                        <div class="card-body d-flex align-items-center">
+                            <div class="icon-box bg-info text-white me-3"><i class="bi bi-share-fill"></i></div>
+                            <div>
+                                <h6 class="text-muted mb-1 small">Đang mở cho mượn P2P</h6>
+                                <h3 class="mb-0 fw-bold text-info" id="lendableCountStat">5 bản sao</h3>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row g-4">
+                <div class="col-lg-5">
+                    <div class="card shadow-sm border-0 rounded-4 h-100">
+                        <div class="card-body p-4 text-center">
+                            <h6 class="fw-bold mb-3"><i class="bi bi-pie-chart-fill text-primary me-2"></i>Tỷ lệ Hoàn thành & Mức độ Ưu tiên (Kế thừa Ver07)</h6>
+                            <div style="max-height: 210px;" class="d-flex justify-content-center">
+                                <canvas id="ver07DoughnutChart"></canvas>
+                            </div>
+                            <div class="mt-3 pt-3 border-top d-flex justify-content-around small text-muted">
+                                <span>Ưu tiên Cao: <strong class="text-danger">4</strong></span>
+                                <span>Trung bình: <strong class="text-primary">2</strong></span>
+                                <span>Mục tiêu năm: <strong class="text-success">18/25 cuốn (72%)</strong></span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-lg-7">
+                    <div class="card shadow-sm border-0 rounded-4 h-100">
+                        <div class="card-body p-4">
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <h6 class="fw-bold mb-0"><i class="bi bi-bar-chart-line-fill text-success me-2"></i>Thống kê Số Trang Đọc Theo Tháng (S03 ReadingTracker)</h6>
+                                <span class="badge bg-success bg-opacity-10 text-success">Trung bình 42 trang/ngày</span>
+                            </div>
+                            <div style="height: 210px;">
+                                <canvas id="monthlyPagesChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- [DỊCH VỤ S05] TỰ ĐỘNG ĐIỀN THÔNG TIN ĐẦU SÁCH KHI NHẬP MÃ VẠCH ISBN -->
+        <section id="isbnSection" class="card shadow-sm border-0 rounded-4 mb-4 bg-body-tertiary">
+            <div class="card-body p-4">
+                <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+                    <h5 class="fw-bold mb-0">
+                        <i class="bi bi-upc-scan text-primary me-2"></i>S05. Thêm Sách Vào Tủ Cá Nhân Qua Mã Vạch ISBN (Auto-Catalog)
+                    </h5>
+                    <div class="d-flex gap-2">
+                        <button type="button" class="btn btn-xs btn-outline-primary" onclick="fillDemoIsbn('9780132350884')">Thử ISBN: Clean Code</button>
+                        <button type="button" class="btn btn-xs btn-outline-success" onclick="fillDemoIsbn('9781098166304')">Thử ISBN: AI Engineering</button>
+                    </div>
+                </div>
+                <div class="row g-3 align-items-end">
+                    <div class="col-md-3">
+                        <label class="form-label small fw-bold">1. Nhập / Quét mã ISBN-13</label>
+                        <div class="input-group">
+                            <input type="text" id="isbnInput" class="form-control" value="9780132350884" placeholder="978...">
+                            <button class="btn btn-primary" type="button" onclick="lookupIsbn()"><i class="bi bi-magic me-1"></i>Tự điền</button>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label small text-muted">Tên đầu sách (Tự điền)</label>
+                        <input type="text" id="autoTitle" class="form-control" value="Clean Code - Mã Sạch">
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label small text-muted">Tác giả</label>
+                        <input type="text" id="autoAuthor" class="form-control" value="Robert C. Martin">
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label small text-muted">Số trang & NXB</label>
+                        <input type="text" id="autoMeta" class="form-control" value="464 trang • NXB Dân Trí">
+                    </div>
+                    <div class="col-md-2">
+                        <button type="button" class="btn btn-success w-100 fw-semibold" onclick="Swal.fire('Đã thêm vào Kệ sách (S02)!', 'Hệ thống đã sinh mã Barcode BS-P2P-0051 và thêm vào bảng BookCopies & ShelfItems.', 'success')">
+                            <i class="bi bi-plus-lg me-1"></i>Lưu vào Tủ
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- [DỊCH VỤ S02 + S03 + S04] DANH SÁCH KỆ SÁCH CÁ NHÂN + BẬT/TẮT ISLENDABLE + THANH TRƯỢT SỐ TRANG -->
+        <section>
+            <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+                <h4 class="fw-bold mb-0"><i class="bi bi-bookshelf text-primary me-2"></i>S02 & S03. Kệ Sách Cá Nhân & Theo Dõi Số Trang Đọc</h4>
+                <div class="btn-group btn-group-sm">
+                    <button class="btn btn-primary active">Tất cả kệ (6)</button>
+                    <button class="btn btn-outline-primary">Đang đọc học kỳ này (2)</button>
+                    <button class="btn btn-outline-primary">Sẵn sàng cho mượn P2P (5)</button>
+                    <button class="btn btn-outline-primary">Yêu thích nhất (2)</button>
+                </div>
+            </div>
+
+            <div class="row g-4" id="personalShelfGrid">
+                <!-- Sách 1: ASP.NET Core in Action -->
+                <div class="col-lg-6">
+                    <div class="card border-0 shadow-sm rounded-4 h-100">
+                        <div class="card-body p-4">
+                            <div class="d-flex gap-3">
+                                <img src="https://covers.openlibrary.org/b/isbn/9781633438620-L.jpg" style="width:95px; height:140px; object-fit:cover;" class="rounded-3 shadow-sm" alt="Cover">
+                                <div class="flex-grow-1">
+                                    <div class="d-flex justify-content-between align-items-start">
+                                        <span class="badge bg-warning text-dark rounded-pill">Đang đọc • Ưu tiên Cao</span>
+                                        <code class="small">BS-P2P-0034</code>
+                                    </div>
+                                    <h6 class="fw-bold mt-2 mb-1">ASP.NET Core in Action (Third Edition)</h6>
+                                    <p class="text-muted small mb-2">Andrew Lock • Hạn đọc dự kiến: 30/11/2026</p>
+
+                                    <!-- Thanh trượt cập nhật trang đọc S03 -->
+                                    <div class="bg-body-tertiary p-2 rounded-3 mb-2">
+                                        <div class="d-flex justify-content-between small fw-bold mb-1">
+                                            <span>Tiến độ đọc: <span id="pageLabel1" class="text-primary">540</span> / 864 trang</span>
+                                            <span id="percentLabel1" class="badge bg-primary">62.5%</span>
+                                        </div>
+                                        <input type="range" class="form-range" min="0" max="864" value="540" oninput="updateProgress(1, this.value, 864)">
+                                    </div>
+
+                                    <!-- Công tắc IsLendable (S02) -->
+                                    <div class="lendable-switch-box locked d-flex justify-content-between align-items-center" id="lendBox1">
+                                        <div class="small">
+                                            <i class="bi bi-share me-1"></i><strong>Cho phép mượn P2P (<code>IsLendable</code>):</strong>
+                                            <span id="lendStatus1" class="text-muted">Đang tạm khóa (Vì bạn đang đọc)</span>
+                                        </div>
+                                        <div class="form-check form-switch mb-0">
+                                            <input class="form-check-input" type="checkbox" role="switch" onchange="toggleLendable(1, this.checked)">
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Ghi chú & Trích dẫn theo trang (S04 BookNotesQuotes) -->
+                            <div class="mt-3 pt-3 border-top">
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <span class="small fw-bold text-primary"><i class="bi bi-chat-quote-fill me-1"></i>S04. Ghi chú & Trích dẫn tâm đắc (2 ghi chú):</span>
+                                    <button class="btn btn-xs btn-outline-primary" onclick="addQuotePrompt('ASP.NET Core in Action')"><i class="bi bi-plus-circle me-1"></i>Thêm trích dẫn trang</button>
+                                </div>
+                                <div class="quote-card small">
+                                    <div class="fw-bold text-dark">"Controllers should be thin; business logic belongs in encapsulated application services." <span class="badge bg-primary ms-1">Trang 142</span></div>
+                                    <div class="text-muted mt-1">💡 Ghi chú: Áp dụng ngay cho đồ án BookShare — Controller không bao giờ gọi thẳng DbContext!</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Sách 2: Clean Code (Đã đọc xong & Đang mở cho mượn P2P) -->
+                <div class="col-lg-6">
+                    <div class="card border-0 shadow-sm rounded-4 h-100">
+                        <div class="card-body p-4">
+                            <div class="d-flex gap-3">
+                                <img src="https://covers.openlibrary.org/b/isbn/9780132350884-L.jpg" style="width:95px; height:140px; object-fit:cover;" class="rounded-3 shadow-sm" alt="Cover">
+                                <div class="flex-grow-1">
+                                    <div class="d-flex justify-content-between align-items-start">
+                                        <span class="badge bg-success rounded-pill">Đã đọc xong (100%) • ⭐⭐⭐⭐⭐</span>
+                                        <code class="small">BS-P2P-0033</code>
+                                    </div>
+                                    <h6 class="fw-bold mt-2 mb-1">Clean Code - Mã Sạch & Con Đường Lập Trình Viên Giỏi</h6>
+                                    <p class="text-muted small mb-2">Robert C. Martin • Đã hoàn thành: 25/10/2026</p>
+
+                                    <!-- Thanh trượt cập nhật trang đọc S03 -->
+                                    <div class="bg-body-tertiary p-2 rounded-3 mb-2">
+                                        <div class="d-flex justify-content-between small fw-bold mb-1">
+                                            <span>Tiến độ đọc: <span id="pageLabel2" class="text-success">464</span> / 464 trang</span>
+                                            <span id="percentLabel2" class="badge bg-success">100%</span>
+                                        </div>
+                                        <input type="range" class="form-range" min="0" max="464" value="464" oninput="updateProgress(2, this.value, 464)">
+                                    </div>
+
+                                    <!-- Công tắc IsLendable (S02) -->
+                                    <div class="lendable-switch-box d-flex justify-content-between align-items-center" id="lendBox2">
+                                        <div class="small">
+                                            <i class="bi bi-share-fill text-success me-1"></i><strong>Cho phép mượn P2P (<code>IsLendable</code>):</strong>
+                                            <span id="lendStatus2" class="text-success fw-semibold">Đang mở cho cộng đồng mượn</span>
+                                        </div>
+                                        <div class="form-check form-switch mb-0">
+                                            <input class="form-check-input" type="checkbox" role="switch" checked onchange="toggleLendable(2, this.checked)">
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Ghi chú & Trích dẫn theo trang (S04 BookNotesQuotes) -->
+                            <div class="mt-3 pt-3 border-top">
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <span class="small fw-bold text-primary"><i class="bi bi-chat-quote-fill me-1"></i>S04. Ghi chú & Trích dẫn tâm đắc:</span>
+                                    <a href="03-p2p-loan-condition-s09-s10.html" class="btn btn-xs btn-warning text-dark fw-bold"><i class="bi bi-bell-fill me-1"></i>Có 1 yêu cầu mượn từ Minh Anh</a>
+                                </div>
+                                <div class="quote-card small">
+                                    <div class="fw-bold text-dark">"Clean code always looks like it was written by someone who cares." <span class="badge bg-primary ms-1">Trang 54</span></div>
+                                    <div class="text-muted mt-1">💡 Ghi chú: Tách 22 dịch vụ ra 22 bộ file .cshtml + .css + .js độc lập giúp code cực kỳ sạch.</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <script src="../../_reference/book-tracker-ver07/vendor/bootstrap/bootstrap.bundle.min.js"></script>
+    <script src="../../_reference/book-tracker-ver07/vendor/sweetalert2/sweetalert2.all.min.js"></script>
+    <script>
+        // Vẽ biểu đồ tròn kế thừa Ver07 & biểu đồ cột tiến độ đọc
+        document.addEventListener('DOMContentLoaded', () => {
+            new Chart(document.getElementById('ver07DoughnutChart'), {
+                type: 'doughnut',
+                data: {
+                    labels: ['Đã đọc xong (3)', 'Đang đọc (2)', 'Muốn đọc (1)'],
+                    datasets: [{
+                        data: [3, 2, 1],
+                        backgroundColor: ['#198754', '#ffc107', '#0d6efd'],
+                        borderWidth: 0
+                    }]
+                },
+                options: { cutout: '68%', plugins: { legend: { position: 'bottom' } } }
+            });
+
+            new Chart(document.getElementById('monthlyPagesChart'), {
+                type: 'bar',
+                data: {
+                    labels: ['Tháng 6', 'Tháng 7', 'Tháng 8', 'Tháng 9', 'Tháng 10', 'Tháng 11'],
+                    datasets: [{
+                        label: 'Số trang sách đã đọc',
+                        data: [620, 780, 910, 1050, 1240, 1380],
+                        backgroundColor: '#2563eb',
+                        borderRadius: 8
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } }
+                }
+            });
+        });
+
+        function updateProgress(id, current, total) {
+            const pct = ((current / total) * 100).toFixed(1);
+            document.getElementById(`pageLabel${id}`).innerText = current;
+            document.getElementById(`percentLabel${id}`).innerText = `${pct}%`;
+        }
+
+        function toggleLendable(id, checked) {
+            const box = document.getElementById(`lendBox${id}`);
+            const status = document.getElementById(`lendStatus${id}`);
+            if (checked) {
+                box.classList.remove('locked');
+                status.className = 'text-success fw-semibold';
+                status.innerText = 'Đang mở cho cộng đồng mượn';
+            } else {
+                box.classList.add('locked');
+                status.className = 'text-muted';
+                status.innerText = 'Đang tạm khóa (Chỉ mình tôi xem)';
+            }
+        }
+
+        function fillDemoIsbn(isbn) {
+            document.getElementById('isbnInput').value = isbn;
+            lookupIsbn();
+        }
+
+        function lookupIsbn() {
+            const isbn = document.getElementById('isbnInput').value.trim();
+            if (isbn === '9781098166304') {
+                document.getElementById('autoTitle').value = 'AI Engineering - Building Applications';
+                document.getElementById('autoAuthor').value = 'Chip Huyen';
+                document.getElementById('autoMeta').value = '512 trang • O\'Reilly (2025)';
+            } else {
+                document.getElementById('autoTitle').value = 'Clean Code - Mã Sạch';
+                document.getElementById('autoAuthor').value = 'Robert C. Martin';
+                document.getElementById('autoMeta').value = '464 trang • NXB Dân Trí';
+            }
+            Swal.fire('Đã tra cứu ISBN thành công (S05)!', `Đã tự động điền thông tin đầu sách cho mã ISBN ${isbn}.`, 'success');
+        }
+
+        function addQuotePrompt(bookTitle) {
+            Swal.fire({
+                title: `Thêm Trích dẫn & Ghi chú (${bookTitle})`,
+                html: `
+                    <input class="form-control mb-2" placeholder="Số trang (VD: 215)" type="number">
+                    <textarea class="form-control mb-2" rows="2" placeholder="Câu trích dẫn tâm đắc trong sách..."></textarea>
+                    <textarea class="form-control" rows="2" placeholder="Cảm nhận / bài học rút ra của bạn..."></textarea>
+                `,
+                confirmButtonText: 'Lưu vào BookNotes (S04)',
+                showCancelButton: true
+            });
+        }
+    </script>
+</body>
+</html>

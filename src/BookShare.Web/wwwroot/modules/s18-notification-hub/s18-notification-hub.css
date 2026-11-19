@@ -1,0 +1,57 @@
+/* =========================================================================
+   S18: NOTIFICATION HUB & RESEND EMAIL STYLES
+   ========================================================================= */
+.s18-hero {
+    background: linear-gradient(135deg, #ffffff 0%, #f0f9ff 100%);
+    border-left: 6px solid #0284c7 !important;
+}
+
+.s18-counter-box {
+    background: #eff6ff;
+    border: 1px solid #bfdbfe;
+    border-radius: 12px;
+    padding: 10px 16px;
+    text-align: center;
+    min-width: 110px;
+}
+
+.s18-counter-box span {
+    display: block;
+    font-size: 0.75rem;
+    color: #1e40af;
+}
+
+.s18-counter-box strong {
+    font-size: 1.4rem;
+    color: #1e3a8a;
+}
+
+.s18-counter-resend {
+    background: #ecfdf5;
+    border-color: #a7f3d0;
+}
+
+.s18-counter-resend span {
+    color: #065f46;
+}
+
+.s18-counter-resend strong {
+    color: #047857;
+}
+
+.s18-notif-card {
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 14px 16px;
+    transition: background-color 0.2s ease;
+}
+
+.s18-notif-card.is-unread {
+    background-color: #f8fafc;
+    border-left: 4px solid #2563eb;
+}
+
+.s18-notif-card.is-read {
+    background-color: #ffffff;
+    opacity: 0.85;
+}

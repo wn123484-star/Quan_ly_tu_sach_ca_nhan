@@ -1,0 +1,84 @@
+/* =========================================================================
+   MODULE S04: BOOK NOTES & QUOTES (s04-book-notes-quotes.css)
+   ========================================================================= */
+
+.s04-filter-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    padding: 0.45rem 0.9rem;
+    border-radius: 999px;
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: #334155;
+    background-color: #F8FAFC;
+    border: 1px solid #E2E8F0;
+    text-decoration: none;
+    transition: all 0.2s ease;
+}
+
+.s04-filter-pill:hover {
+    background-color: #EFF6FF;
+    color: #1D4ED8;
+    border-color: #BFDBFE;
+}
+
+.s04-filter-pill.active {
+    background-color: #1D4ED8;
+    color: #FFFFFF;
+    border-color: #1D4ED8;
+    font-weight: 700;
+}
+
+.s04-editor-card {
+    top: 90px;
+    border: 1px solid #E2E8F0 !important;
+}
+
+.s04-quote-textarea {
+    font-style: italic;
+    background-color: #FFFBEB;
+    border-color: #FDE68A;
+}
+
+.s04-quote-textarea:focus {
+    background-color: #FFFFFF;
+    border-color: #F59E0B;
+}
+
+.s04-note-card {
+    border: 1px solid #E2E8F0;
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.s04-note-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 24px rgba(15, 23, 42, 0.07) !important;
+}
+
+.s04-book-mini-cover {
+    width: 52px;
+    height: 74px;
+    object-fit: cover;
+    border-radius: 8px;
+    flex-shrink: 0;
+}
+
+.s04-quote-box {
+    margin: 0;
+    padding: 0.85rem 1.15rem;
+    border-left: 4px solid #1D4ED8;
+    background: linear-gradient(90deg, #EFF6FF 0%, #F8FAFC 100%);
+    border-radius: 0 12px 12px 0;
+    font-style: italic;
+    color: #1E3A8A;
+    font-size: 0.95rem;
+}
+
+.s04-note-body {
+    background-color: #F8FAFC;
+    border-radius: 10px;
+    padding: 0.85rem 1rem;
+    font-size: 0.92rem;
+    line-height: 1.55;
+}
