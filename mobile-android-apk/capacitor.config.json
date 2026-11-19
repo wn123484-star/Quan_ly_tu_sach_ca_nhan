@@ -1,0 +1,26 @@
+{
+  "appId": "cloud.castletech.bookshare",
+  "appName": "BookShare Mobile",
+  "webDir": "www",
+  "bundledWebRuntime": false,
+  "server": {
+    "url": "https://bookshare.castle-tech.cloud/MobileApp",
+    "cleartext": false,
+    "androidScheme": "https",
+    "allowNavigation": [
+      "bookshare.castle-tech.cloud",
+      "*.castle-tech.cloud"
+    ]
+  },
+  "android": {
+    "allowMixedContent": false,
+    "captureInput": true,
+    "webContentsDebuggingEnabled": true
+  },
+  "plugins": {
+    "LocalNotifications": {
+      "smallIcon": "ic_stat_icon_config_sample",
+      "iconColor": "#2563EB"
+    }
+  }
+}

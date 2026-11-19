@@ -1,0 +1,22 @@
+{
+  "name": "bookshare-mobile-apk",
+  "version": "1.0.0",
+  "private": true,
+  "description": "[BS-MOBILE-APK] Bo dong goi Capacitor Android APK chinh thuc cho BookShare Mobile Super-App",
+  "scripts": {
+    "cap:add": "npx cap add android",
+    "cap:sync": "npx cap sync android",
+    "cap:open": "npx cap open android",
+    "apk:debug": "cd android && ./gradlew assembleDebug",
+    "apk:release": "cd android && ./gradlew assembleRelease"
+  },
+  "dependencies": {
+    "@capacitor/android": "^6.2.0",
+    "@capacitor/camera": "^6.1.0",
+    "@capacitor/core": "^6.2.0",
+    "@capacitor/local-notifications": "^6.1.1"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^6.2.0"
+  }
+}

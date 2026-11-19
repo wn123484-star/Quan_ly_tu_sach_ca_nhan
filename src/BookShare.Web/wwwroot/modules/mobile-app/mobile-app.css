@@ -1,0 +1,194 @@
+/* =========================================================================
+   [BS-MOBILE-SUPERAPP] BOOKSHARE MOBILE SUPER-APP 5 TAB STYLES
+   ========================================================================= */
+
+.mapp-body {
+    margin: 0;
+    padding: 0;
+    background: linear-gradient(180deg, #0b1120 0%, #172554 100%);
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+}
+
+.mapp-frame {
+    width: 100%;
+    max-width: 520px;
+    min-height: 100vh;
+    background: var(--portal-light-bg, #f1f5f9);
+    color: var(--portal-text, #0f172a);
+    display: flex;
+    flex-direction: column;
+    position: relative;
+    box-shadow: 0 0 48px rgba(0, 0, 0, 0.42);
+}
+
+.mapp-topbar {
+    position: sticky;
+    top: 0;
+    z-index: 1020;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 14px;
+    color: #ffffff;
+    background: linear-gradient(135deg, var(--portal-grad-deep, #060d1f) 0%, var(--portal-grad-mid, #1e3a8a) 100%);
+    border-bottom: 1px solid rgba(56, 189, 248, 0.35);
+}
+
+.mapp-logo-pill {
+    width: 34px;
+    height: 34px;
+    border-radius: 10px;
+    background: #ffffff;
+    color: #1d4ed8;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.15rem;
+}
+
+.mapp-toast {
+    position: fixed;
+    top: 64px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 1060;
+    width: min(460px, calc(100vw - 24px));
+    padding: 10px 14px;
+    border-radius: 12px;
+    background: #0f172a;
+    color: #f8fafc;
+    font-size: 0.84rem;
+    font-weight: 600;
+    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.35);
+    border-left: 5px solid #38bdf8;
+}
+
+.mapp-toast.is-error { border-left-color: #ef4444; }
+.mapp-toast.is-success { border-left-color: #22c55e; }
+
+.mapp-content {
+    flex: 1;
+    padding: 14px 14px 86px;
+    overflow-y: auto;
+}
+
+.mapp-pane {
+    display: none;
+}
+
+.mapp-pane.active {
+    display: block;
+}
+
+.mapp-card-hero,
+.mapp-wallet-3d {
+    border-radius: 18px;
+    padding: 16px;
+    color: #ffffff;
+    background: linear-gradient(135deg, #060d1f 0%, #0f172a 48%, #1e3a8a 85%, #2563eb 100%);
+    border: 1.5px solid rgba(56, 189, 248, 0.48);
+    box-shadow: 0 14px 30px rgba(6, 13, 31, 0.28);
+}
+
+.mapp-pomo-box {
+    text-align: center;
+    padding: 14px;
+    border-radius: 16px;
+    background: rgba(37, 99, 235, 0.06);
+    border: 1.5px dashed rgba(37, 99, 235, 0.32);
+}
+
+.mapp-camera-box {
+    width: 100%;
+    min-height: 220px;
+    border-radius: 14px;
+    overflow: hidden;
+    background: #0f172a;
+}
+
+.mapp-chat-log {
+    height: 210px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 10px;
+    border-radius: 12px;
+    background: var(--portal-surface-2, #f8fafc);
+    border: 1px solid var(--portal-border, #cbd5e1);
+}
+
+.mapp-bottom-nav {
+    position: fixed;
+    bottom: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 100%;
+    max-width: 520px;
+    height: 68px;
+    z-index: 1030;
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    align-items: center;
+    background: var(--portal-surface, #ffffff);
+    border-top: 1px solid var(--portal-border, #cbd5e1);
+    box-shadow: 0 -6px 24px rgba(15, 23, 42, 0.12);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+.mapp-nav-item {
+    position: relative;
+    border: none;
+    background: transparent;
+    color: #64748b;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    font-size: 0.68rem;
+    font-weight: 700;
+    cursor: pointer;
+    padding: 4px 0;
+}
+
+.mapp-nav-item i {
+    font-size: 1.18rem;
+}
+
+.mapp-nav-item.active {
+    color: var(--portal-accent, #2563eb);
+}
+
+.mapp-nav-qr .mapp-qr-fab {
+    width: 50px;
+    height: 50px;
+    margin-top: -22px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #1d4ed8, #0284c7);
+    color: #ffffff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.35rem;
+    box-shadow: 0 8px 20px rgba(37, 99, 235, 0.45);
+    border: 3px solid var(--portal-surface, #ffffff);
+}
+
+.mapp-nav-badge {
+    position: absolute;
+    top: 4px;
+    right: 18px;
+    min-width: 16px;
+    height: 16px;
+    padding: 0 4px;
+    border-radius: 999px;
+    background: #ef4444;
+    color: #fff;
+    font-size: 0.62rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}

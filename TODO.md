@@ -44,8 +44,8 @@ Nhánh sao lưu dự phòng: `backup/pre-turbo-rental`
 - [x] Gắn Google reCAPTCHA v3 (`[BS-SEC-RECAPTCHA]`) cho đầy đủ: `S01` (Register, Login, SendOtp), `S06` (QuickRequestLoan), `S08` (CreateRequest), `S09` (CreateP2PRequest).
 
 ## GIAI ĐOẠN 7: Mobile Super-App (`/MobileApp`) & Bộ Đóng Gói Android APK
-- [ ] Xây dựng `MobileAppController`, `Views/MobileApp/Index.cshtml`, `wwwroot/modules/mobile-app/mobile-app.css` & `mobile-app.js` với 5 Tab đáy màn hình (Trang Chủ, Đọc Sách Studio, Quét QR đa năng `html5-qrcode`, Ví Pay 3D, Thông Báo & Chat) + đăng nhập/đăng xuất đồng bộ Cookie (`[BS-MOBILE-SUPERAPP]`).
-- [ ] Tạo bộ khung Android APK Capacitor tại `mobile-android-apk/` (`package.json`, `capacitor.config.json`, `AndroidManifest.xml`, `README_BUILD_APK.md`).
+- [x] Xây dựng `MobileAppController`, `Views/MobileApp/Index.cshtml`, `wwwroot/modules/mobile-app/mobile-app.css` & `mobile-app.js` với 5 Tab đáy màn hình (Trang Chủ, Đọc Sách Studio, Quét QR đa năng `html5-qrcode`, Ví Pay 3D, Thông Báo & Chat) + đăng nhập/đăng xuất đồng bộ Cookie (`[BS-MOBILE-SUPERAPP]`).
+- [x] Tạo bộ khung Android APK Capacitor tại `mobile-android-apk/` (`package.json`, `capacitor.config.json`, `www/index.html`, `android-template/AndroidManifest.xml`, `README_BUILD_APK.md`).
 
 ## GIAI ĐOẠN 8: Kiểm Thử Tự Động E2E, Tự Sửa Bug & Push Hoàn Chỉnh
 - [ ] Chạy `dotnet build BookShare.sln` đạt 0 Errors.

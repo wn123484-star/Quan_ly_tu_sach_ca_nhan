@@ -565,7 +565,7 @@ public class S13GeminiAiService : IS13GeminiAiService
             return (true, combinedReply, baseSession.Id, 42, "AI Copilot Action Engine", actions, emailSubject);
         }
 
-        var (okRag, replyRag, sidRag, tokensRag, modeRag) = await SendMessageWithRagAsync(currentUserId, sessionId, userMessage);
+        var (okRag, replyRag, sidRag, tokensRag, modeRag) = await SendMessageWithRagAsync(currentUserId, sessionId, clean);
         return (okRag, replyRag, sidRag, tokensRag, modeRag, actions, emailSubject);
     }
 

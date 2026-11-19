@@ -1,0 +1,429 @@
+@model BookShare.Web.Models.ViewModels.MobileAppPageViewModel
+@inject Microsoft.AspNetCore.Antiforgery.IAntiforgery Antiforgery
+@{
+    Layout = null;
+    var csrfToken = Antiforgery.GetAndStoreTokens(Context).RequestToken;
+}
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+    <meta name="csrf-token" content="@csrfToken" />
+    <meta name="theme-color" content="#0f172a" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <title>BookShare Mobile Super-App</title>
+    <link rel="manifest" href="~/manifest.json" />
+    <link rel="stylesheet" href="~/vendor/bootstrap/bootstrap.min.css" />
+    <link rel="stylesheet" href="~/vendor/bootstrap-icons/font/bootstrap-icons.css" />
+    <link rel="stylesheet" href="~/css/core-theme.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/modules/mobile-app/mobile-app.css" asp-append-version="true" />
+    <script>
+        (function () {
+            try {
+                var t = localStorage.getItem('bookshare_theme') || 'light';
+                document.documentElement.setAttribute('data-bs-theme', t);
+            } catch (e) { }
+        })();
+    </script>
+</head>
+<body class="mapp-body" data-portal-palette="blue">
+    <!-- [BS-MOBILE-SUPERAPP] KHUNG MOBILE SUPER-APP 5 TAB ĐỒNG BỘ COOKIE AUTH VỚI WEB PC -->
+    <div class="mapp-frame">
+        <!-- Header mỏng trên cùng của App -->
+        <header class="mapp-topbar">
+            <div class="d-flex align-items-center gap-2">
+                <div class="mapp-logo-pill"><i class="bi bi-book-half"></i></div>
+                <div>
+                    <div class="fw-bold lh-1" style="font-size:0.96rem;">BookShare Mobile</div>
+                    <div class="opacity-75" style="font-size:0.68rem;">@(Model.IsAuthenticated ? $"{Model.FullName} • {Model.Role}" : "Chế độ Khách • Chạm để đăng nhập")</div>
+                </div>
+            </div>
+            <div class="d-flex align-items-center gap-2">
+                <button type="button" id="mappBtnTheme" class="btn btn-xs btn-outline-light rounded-pill px-2" title="Chuyển Sáng / Tối">
+                    <i class="bi bi-moon-stars-fill"></i>
+                </button>
+                <a href="/" class="btn btn-xs btn-info text-dark fw-bold rounded-pill px-2" title="Quay về cổng Web PC">
+                    <i class="bi bi-laptop"></i> Web
+                </a>
+            </div>
+        </header>
+
+        <!-- Toast trạng thái nổi gọn trong Mobile App -->
+        <div id="mappToast" class="mapp-toast d-none" role="status" aria-live="polite"></div>
+
+        <!-- NỘI DUNG 5 TAB -->
+        <main class="mapp-content">
+            <!-- ==================== TAB 1: TRANG CHỦ (THẺ THƯ VIỆN + SÁCH ĐANG THUÊ) ==================== -->
+            <section class="mapp-pane active" data-pane="home">
+                <!-- Thẻ Thư Viện Số -->
+                <div class="mapp-card-hero mb-3">
+                    <div class="d-flex justify-content-between align-items-start mb-2">
+                        <div>
+                            <span class="badge bg-info text-dark fw-bold mb-1">THẺ THƯ VIỆN &amp; THUÊ SÁCH SỐ</span>
+                            <h5 class="fw-bold mb-0">@Model.FullName</h5>
+                            <div class="small opacity-75">@(string.IsNullOrEmpty(Model.Email) ? "Chưa đăng nhập phiên chính thức" : Model.Email)</div>
+                        </div>
+                        <span class="badge bg-warning text-dark fw-bold">⭐ @Model.TrustScore đ</span>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center pt-2 mt-2 border-top border-light border-opacity-25 small">
+                        <span>💳 Ví Pay: <strong id="mappHomeBal">@Model.Wallet.Balance.ToString("N0")đ</strong></span>
+                        <span>🔥 Streak: <strong>@Model.Studio.ReadingStreakDays ngày</strong></span>
+                        <span>Vai trò: <strong>@Model.Role</strong></span>
+                    </div>
+                </div>
+
+                <!-- Đăng nhập / Đăng xuất nhanh ngay trên Mobile App -->
+                <div class="bs-card mb-3 p-3">
+                    @if (Model.IsAuthenticated)
+                    {
+                        <div class="d-flex justify-content-between align-items-center gap-2">
+                            <div class="small">
+                                <span class="badge bg-success me-1">Đang đăng nhập</span>
+                                <strong>@Model.FullName</strong> (Đồng bộ Cookie Web PC)
+                            </div>
+                            <button type="button" id="mappBtnSignOut" class="btn btn-xs btn-outline-danger fw-bold">Đăng xuất</button>
+                        </div>
+                    }
+                    else
+                    {
+                        <h6 class="fw-bold small mb-2"><i class="bi bi-person-lock text-primary me-1"></i>Đăng Nhập Nhanh BookShare Mobile</h6>
+                        <form id="mappLoginForm" class="d-flex flex-column gap-2">
+                            <input type="email" id="mappEmail" class="bs-input py-1" placeholder="Email (VD: nguyenhung@cmc.edu.vn)" value="nguyenhung@cmc.edu.vn" required />
+                            <input type="password" id="mappPass" class="bs-input py-1" placeholder="Mật khẩu (BookShare@123)" value="BookShare@123" required />
+                            <button type="submit" class="bs-btn bs-btn-primary w-100 py-1">Đăng Nhập &amp; Đồng Bộ Cookie</button>
+                        </form>
+                        @if (Model.DemoAccounts.Any())
+                        {
+                            <div class="d-flex flex-wrap gap-1 mt-2">
+                                @foreach (var acc in Model.DemoAccounts)
+                                {
+                                    <button type="button" class="btn btn-xs btn-outline-secondary js-mapp-demo" data-email="@acc.Email">@acc.Role</button>
+                                }
+                            </div>
+                        }
+                    }
+                </div>
+
+                <!-- Danh sách sách đang thuê / mượn -->
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <h6 class="fw-bold mb-0"><i class="bi bi-journal-bookmark-fill text-primary me-1"></i>Sách Đang Thuê &amp; Mượn (@Model.ActiveRentals.Count)</h6>
+                    <a href="/S06SearchDiscovery" class="small text-decoration-none fw-semibold">+ Thuê thêm</a>
+                </div>
+
+                @if (!Model.ActiveRentals.Any())
+                {
+                    <div class="bs-card text-center py-4 mb-3">
+                        <div class="fs-2 mb-1">📚</div>
+                        <div class="fw-bold small">Bạn chưa có sách đang thuê nào</div>
+                        <div class="small bs-muted mb-2">Khám phá kho sách miễn phí 0đ &amp; thuê P2P cọc Escrow an toàn!</div>
+                        <a href="/S06SearchDiscovery" class="bs-btn bs-btn-primary py-1">Khám phá ngay</a>
+                    </div>
+                }
+                else
+                {
+                    <div class="d-flex flex-column gap-2 mb-3">
+                        @foreach (var r in Model.ActiveRentals)
+                        {
+                            int daysLeft = r.DueDate.HasValue ? Math.Max(0, (int)Math.Ceiling((r.DueDate.Value - DateTime.UtcNow).TotalDays)) : 0;
+                            <div class="bs-card p-3">
+                                <div class="d-flex justify-content-between align-items-start gap-2">
+                                    <div>
+                                        <span class="bs-badge bs-badge-info mb-1">@r.LoanType • @r.Barcode</span>
+                                        <div class="fw-bold small">@r.BookTitle</div>
+                                        <div class="small bs-muted">Hạn trả: <strong>@(r.DueDate?.ToString("dd/MM/yyyy") ?? "-")</strong> (còn @daysLeft ngày)</div>
+                                    </div>
+                                    <button type="button" class="btn btn-xs btn-primary js-mapp-open-studio" data-book-id="@r.BookId">Đọc ngay</button>
+                                </div>
+                                <div class="d-flex justify-content-between align-items-center mt-2 pt-2 border-top small">
+                                    <span>Phí: <strong>@r.RentalFeeTotal.ToString("N0")đ</strong> • Cọc: <strong>@r.DepositHeld.ToString("N0")đ</strong></span>
+                                    <span class="badge @(r.EscrowStatus == "Held" ? "bg-warning text-dark" : "bg-success")">@r.EscrowStatus</span>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                }
+
+                <div class="row g-2">
+                    <div class="col-6"><a href="/S08LibraryLoanFlow" class="bs-card d-block text-center text-decoration-none p-2 small fw-bold">🏛️ Thuê Kho Trường</a></div>
+                    <div class="col-6"><a href="/S09P2PLoanFlow" class="bs-card d-block text-center text-decoration-none p-2 small fw-bold">🤝 Thuê P2P Escrow</a></div>
+                </div>
+            </section>
+
+            <!-- ==================== TAB 2: ĐỌC SÁCH (READING STUDIO IM LẶNG) ==================== -->
+            <section class="mapp-pane" data-pane="reading">
+                <div class="bs-card p-3 mb-3">
+                    <div class="d-flex justify-content-between align-items-center mb-1">
+                        <span class="bs-badge bs-badge-success">POMODORO IM LẶNG • KỊP HẠN THUÊ</span>
+                        <span class="fw-bold text-warning small" id="mappStreakBadge">🔥 @Model.Studio.ReadingStreakDays ngày</span>
+                    </div>
+                    <h6 class="fw-bold mb-1" id="mappStudioTitle">@Model.Studio.BookTitle</h6>
+                    <div class="small bs-muted mb-2">
+                        Tiến độ: <strong id="mappStudioPage">@Model.Studio.CurrentPage</strong> / <strong>@Model.Studio.TotalPages</strong> trang • Tốc độ: <strong id="mappStudioSpeed">@Model.Studio.PagesPerHour tr/giờ</strong>
+                    </div>
+
+                    @if (Model.Studio.ActiveLoanId.HasValue)
+                    {
+                        <div class="p-2 rounded-3 bg-warning bg-opacity-10 border border-warning small fw-bold mb-2">
+                            ⏳ Còn @Model.Studio.DaysRemainingUntilDue ngày hạn thuê &rarr; Cần đọc tối thiểu <span class="text-danger">@Model.Studio.RequiredPagesPerDay trang/ngày</span>!
+                        </div>
+                        @if (Model.Studio.CanQuickRenew)
+                        {
+                            <button type="button" id="mappBtnQuickRenew" class="bs-btn bs-btn-outline w-100 py-1 mb-2" data-loan-id="@Model.Studio.ActiveLoanId.Value">
+                                🔄 Gia hạn nhanh +7 ngày
+                            </button>
+                        }
+                    }
+
+                    <div class="mapp-pomo-box my-2">
+                        <div id="mappPomoDigits" class="display-5 fw-bold font-monospace">25:00</div>
+                        <div id="mappPomoState" class="small bs-muted mb-2">Im lặng hoàn toàn — không phát âm thanh</div>
+                        <div class="d-flex justify-content-center gap-1 mb-2">
+                            <button type="button" class="btn btn-xs btn-outline-primary js-mpomo-preset" data-mins="25">25p</button>
+                            <button type="button" class="btn btn-xs btn-outline-primary js-mpomo-preset" data-mins="50">50p</button>
+                            <button type="button" id="mappPomoStart" class="btn btn-xs btn-primary fw-bold px-3">▶ Chạy</button>
+                            <button type="button" id="mappPomoPause" class="btn btn-xs btn-outline-secondary">⏸ Dừng</button>
+                        </div>
+                    </div>
+
+                    <form id="mappLogSessionForm" class="row g-2 align-items-end">
+                        <input type="hidden" id="mappStudioBookId" value="@Model.Studio.SelectedBookId" />
+                        <div class="col-5">
+                            <label class="bs-label">Phút đọc</label>
+                            <input type="number" id="mappSessMins" class="bs-input py-1" value="25" min="1" max="240" required />
+                        </div>
+                        <div class="col-4">
+                            <label class="bs-label">+Trang</label>
+                            <input type="number" id="mappSessPages" class="bs-input py-1" value="15" min="0" max="500" required />
+                        </div>
+                        <div class="col-3">
+                            <button type="submit" class="bs-btn bs-btn-primary w-100 py-1">Lưu</button>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- Voice-to-Quote -->
+                <div class="bs-card p-3 mb-3">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <h6 class="fw-bold small mb-0">🎙️ Voice-to-Quote (vi-VN)</h6>
+                        <button type="button" id="mappBtnVoice" class="btn btn-xs btn-outline-primary fw-bold">🎤 Nói</button>
+                    </div>
+                    <form id="mappVoiceForm" class="d-flex flex-column gap-2">
+                        <textarea id="mappVoiceText" class="bs-textarea py-1" rows="2" placeholder="Đọc to câu trích dẫn từ sách giấy đang thuê..." required></textarea>
+                        <button type="submit" class="bs-btn bs-btn-outline py-1">💾 Lưu Trích Dẫn Vào Sổ Tay</button>
+                    </form>
+                </div>
+
+                <a href="/S03ReadingTracker/Studio?bookId=@Model.Studio.SelectedBookId" class="bs-btn bs-btn-primary w-100">
+                    📖 Mở Reading Studio Toàn Màn Hình &amp; Flashcards
+                </a>
+            </section>
+
+            <!-- ==================== TAB 3: QUÉT QR ĐA NĂNG (CAMERA HTML5-QRCODE) ==================== -->
+            <section class="mapp-pane" data-pane="scan">
+                <div class="bs-card p-3 mb-3">
+                    <span class="bs-badge bs-badge-info mb-1">1 CAMERA ĐA NĂNG • HTML5-QRCODE</span>
+                    <h6 class="fw-bold mb-1">📷 Quét QR Đăng Nhập PC, ISBN &amp; Barcode Sách</h6>
+                    <p class="small bs-muted mb-2">
+                        Tự động nhận diện: <code>BSQR-*</code> (Duyệt đăng nhập Web PC), <code>978*/979*</code> (Tra cứu ISBN), và <code>BS-*</code> (Mở bản sao sách thuê).
+                    </p>
+
+                    <div id="mappQrReader" class="mapp-camera-box mb-2">
+                        <div class="text-center text-white opacity-75 small py-5">
+                            <i class="bi bi-camera-video fs-1 d-block mb-1"></i>
+                            Bấm "Bật Camera Quét QR" để bắt đầu
+                        </div>
+                    </div>
+
+                    <div class="d-flex gap-2 mb-3">
+                        <button type="button" id="mappBtnStartCam" class="bs-btn bs-btn-primary flex-fill py-2">
+                            <i class="bi bi-qr-code-scan"></i>Bật Camera Quét QR
+                        </button>
+                        <button type="button" id="mappBtnStopCam" class="bs-btn bs-btn-outline py-2 d-none">Tắt Cam</button>
+                    </div>
+
+                    <!-- Nhập mã thủ công khi không có camera trên máy ảo / Desktop -->
+                    <form id="mappManualScanForm" class="input-group input-group-sm mb-2">
+                        <input type="text" id="mappManualCode" class="form-control font-monospace" placeholder="Hoặc dán mã BSQR-..., ISBN, BS-SYS-..." required />
+                        <button type="submit" class="btn btn-primary fw-bold">Xử Lý Mã</button>
+                    </form>
+                    <div id="mappScanResult" class="small bs-muted">Chưa có mã nào được quét.</div>
+                </div>
+
+                <!-- Chụp ảnh kiểm định tình trạng sách (Hộ chiếu ảnh) -->
+                <div class="bs-card p-3">
+                    <h6 class="fw-bold small mb-1"><i class="bi bi-shield-check text-success me-1"></i>Chụp Ảnh Hộ Chiếu Kiểm Định Sách</h6>
+                    <p class="small bs-muted mb-2">Chụp ảnh bìa &amp; gáy sách lúc giao/nhận để bảo vệ quyền lợi hoàn cọc 100% Escrow.</p>
+                    <a href="/S10ConditionReport" class="bs-btn bs-btn-outline w-100 py-1">
+                        📸 Mở Hộ Chiếu Kiểm Định Tình Trạng Sách
+                    </a>
+                </div>
+            </section>
+
+            <!-- ==================== TAB 4: VÍ PAY 3D (NẠP DEMO + THANH TOÁN QR PIN) ==================== -->
+            <section class="mapp-pane" data-pane="wallet">
+                <div class="mapp-wallet-3d mb-3">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <span class="badge bg-info text-dark fw-bold">BOOKSHARE PAY 3D</span>
+                        <span class="small opacity-75 font-monospace">HMAC-SHA512</span>
+                    </div>
+                    <div class="small opacity-75">Số dư khả dụng</div>
+                    <div class="fs-2 fw-bold mb-1" id="mappWalletBal" style="color:#38bdf8;">@Model.Wallet.Balance.ToString("N0") VNĐ</div>
+                    <div class="d-flex justify-content-between small opacity-85 pt-2 border-top border-light border-opacity-25">
+                        <span>🛡️ Cọc giữ: <strong id="mappWalletEscrow">@Model.Wallet.EscrowHeldTotal.ToString("N0")đ</strong></span>
+                        <span class="font-monospace">@Model.Wallet.MaskedCardNumber</span>
+                    </div>
+                </div>
+
+                <div class="bs-card p-3 mb-3">
+                    <h6 class="fw-bold small mb-2"><i class="bi bi-cash-coin text-success me-1"></i>Nạp Tiền Demo Thoải Mái</h6>
+                    <div class="d-flex flex-wrap gap-1 mb-2">
+                        <button type="button" class="btn btn-xs btn-outline-primary fw-bold js-mapp-topup" data-amount="50000">+50K</button>
+                        <button type="button" class="btn btn-xs btn-outline-primary fw-bold js-mapp-topup" data-amount="200000">+200K</button>
+                        <button type="button" class="btn btn-xs btn-outline-primary fw-bold js-mapp-topup" data-amount="500000">+500K</button>
+                        <button type="button" class="btn btn-xs btn-outline-success fw-bold js-mapp-topup" data-amount="1000000">+1.000K</button>
+                    </div>
+                    <form id="mappCustomTopUpForm" class="input-group input-group-sm">
+                        <input type="number" id="mappTopUpAmt" class="form-control fw-bold" value="250000" min="1000" step="10000" required />
+                        <button type="submit" class="btn btn-success fw-bold">Nạp Ngay</button>
+                    </form>
+                </div>
+
+                <div class="bs-card p-3 mb-3">
+                    <h6 class="fw-bold small mb-2"><i class="bi bi-lock-fill text-primary me-1"></i>Thanh Toán QR 2 Bước + Mã PIN (Mặc định: 123456)</h6>
+                    <form id="mappPayQrForm" class="d-flex flex-column gap-2">
+                        <div class="row g-2">
+                            <div class="col-6">
+                                <input type="number" id="mappPayAmt" class="bs-input py-1" value="20000" min="1000" placeholder="Số tiền" required />
+                            </div>
+                            <div class="col-6">
+                                <input type="password" id="mappPayPin" class="bs-input py-1 font-monospace" value="123456" maxlength="6" placeholder="PIN 6 số" required />
+                            </div>
+                        </div>
+                        <input type="text" id="mappPayRef" class="bs-input py-1 font-monospace" placeholder="Mã giao dịch QR (chống trừ lặp)" />
+                        <button type="submit" class="bs-btn bs-btn-primary w-100 py-1">Xác Nhận Thanh Toán QR</button>
+                    </form>
+                </div>
+
+                <div class="bs-card p-3">
+                    <h6 class="fw-bold small mb-2">📜 Sao Kê Gần Nhất</h6>
+                    <div id="mappTxList" class="d-flex flex-column gap-2 small">
+                        @foreach (var tx in Model.Wallet.RecentTransactions.Take(6))
+                        {
+                            <div class="d-flex justify-content-between align-items-center border-bottom pb-1">
+                                <div>
+                                    <span class="badge bg-secondary">@tx.TransactionType</span>
+                                    <div class="bs-muted" style="font-size:0.72rem;">@tx.CreatedAt.ToString("dd/MM HH:mm") • @tx.PaymentGateway</div>
+                                </div>
+                                <strong class="text-primary">@tx.Amount.ToString("N0")đ</strong>
+                            </div>
+                        }
+                    </div>
+                </div>
+            </section>
+
+            <!-- ==================== TAB 5: THÔNG BÁO, AI COPILOT, CHAT THỦ THƯ & GIAO DIỆN ==================== -->
+            <section class="mapp-pane" data-pane="hub">
+                <div class="bs-card p-3 mb-3">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <h6 class="fw-bold small mb-0">🤖 AI Copilot Hành Động &amp; Chat Thủ Thư</h6>
+                        <div class="btn-group btn-group-sm">
+                            <button type="button" id="mappChatTabAi" class="btn btn-primary py-0 px-2">AI Copilot</button>
+                            <button type="button" id="mappChatTabStaff" class="btn btn-outline-secondary py-0 px-2">Thủ Thư</button>
+                        </div>
+                    </div>
+
+                    <div id="mappAiChatBox" class="mapp-chat-log mb-2">
+                        <div class="ai-msg ai-msg-bot">Xin chào! Hãy ra lệnh cho AI Copilot: <em>"Bật chế độ tối"</em>, <em>"Đổi theme Emerald"</em>, <em>"Gửi mail nhắc hạn"</em>...</div>
+                    </div>
+                    <form id="mappAiChatForm" class="d-flex gap-1">
+                        <input type="text" id="mappAiInput" class="bs-input py-1" placeholder="Nhập lệnh AI Copilot..." required />
+                        <button type="submit" class="bs-btn bs-btn-primary py-1 px-3"><i class="bi bi-send"></i></button>
+                    </form>
+
+                    <div id="mappStaffChatWrap" class="d-none">
+                        <div id="mappStaffChatBox" class="mapp-chat-log mb-2">
+                            <div class="small text-muted text-center">Đang tải tin nhắn Thủ thư...</div>
+                        </div>
+                        <form id="mappStaffChatForm" class="d-flex gap-1">
+                            <input type="text" id="mappStaffInput" class="bs-input py-1" placeholder="Nhắn trực tiếp Thủ thư..." required />
+                            <button type="submit" class="bs-btn bs-btn-primary py-1 px-3"><i class="bi bi-send-fill"></i></button>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- 7 Bảng màu Doanh Nghiệp + Bật Thông Báo Đẩy Web Notification -->
+                <div class="bs-card p-3 mb-3">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <h6 class="fw-bold small mb-0">🎨 Chủ Đề &amp; Thông Báo Đẩy</h6>
+                        <button type="button" id="mappBtnNotifPerm" class="btn btn-xs btn-outline-primary">🔔 Bật Đẩy</button>
+                    </div>
+                    <div class="d-flex flex-wrap gap-1">
+                        <button type="button" class="btn btn-xs btn-outline-primary js-mapp-palette" data-palette="blue">Sapphire</button>
+                        <button type="button" class="btn btn-xs btn-outline-dark js-mapp-palette" data-palette="midnight">Midnight</button>
+                        <button type="button" class="btn btn-xs btn-outline-info js-mapp-palette" data-palette="ocean">Ocean</button>
+                        <button type="button" class="btn btn-xs btn-outline-success js-mapp-palette" data-palette="emerald">Emerald</button>
+                        <button type="button" class="btn btn-xs btn-outline-secondary js-mapp-palette" data-palette="royal">Royal</button>
+                        <button type="button" class="btn btn-xs btn-outline-warning js-mapp-palette" data-palette="obsidian">Obsidian</button>
+                        <button type="button" class="btn btn-xs btn-outline-secondary js-mapp-palette" data-palette="ivory">Ivory</button>
+                    </div>
+                </div>
+
+                <!-- Danh sách thông báo -->
+                <div class="bs-card p-3">
+                    <h6 class="fw-bold small mb-2">🔔 Thông Báo Hệ Thống (@Model.UnreadNotificationsCount chưa đọc)</h6>
+                    <div class="d-flex flex-column gap-2 small">
+                        @if (!Model.Notifications.Any())
+                        {
+                            <div class="bs-muted text-center py-2">Hiện chưa có thông báo mới.</div>
+                        }
+                        else
+                        {
+                            @foreach (var n in Model.Notifications.Take(5))
+                            {
+                                <div class="p-2 rounded-3 border bg-body-tertiary">
+                                    <div class="fw-bold">@n.Title</div>
+                                    <div class="bs-muted" style="font-size:0.76rem;">@n.Content</div>
+                                </div>
+                            }
+                        }
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <!-- THANH ĐIỀU HƯỚNG 5 TAB DƯỚI ĐÁY MÀN HÌNH (NÚT QUÉT QR NỔI Ở GIỮA) -->
+        <nav class="mapp-bottom-nav" aria-label="Điều hướng 5 Tab BookShare Mobile">
+            <button type="button" class="mapp-nav-item active" data-tab="home">
+                <i class="bi bi-house-door-fill"></i>
+                <span>Trang Chủ</span>
+            </button>
+            <button type="button" class="mapp-nav-item" data-tab="reading">
+                <i class="bi bi-book-half"></i>
+                <span>Đọc Sách</span>
+            </button>
+            <button type="button" class="mapp-nav-item mapp-nav-qr" data-tab="scan" aria-label="Quét QR">
+                <span class="mapp-qr-fab"><i class="bi bi-qr-code-scan"></i></span>
+                <span>Quét QR</span>
+            </button>
+            <button type="button" class="mapp-nav-item" data-tab="wallet">
+                <i class="bi bi-wallet2"></i>
+                <span>Ví Pay</span>
+            </button>
+            <button type="button" class="mapp-nav-item" data-tab="hub">
+                <i class="bi bi-bell-fill"></i>
+                <span>Thông Báo</span>
+                @if (Model.UnreadNotificationsCount > 0)
+                {
+                    <span class="mapp-nav-badge">@Model.UnreadNotificationsCount</span>
+                }
+            </button>
+        </nav>
+    </div>
+
+    <script src="~/vendor/bootstrap/bootstrap.bundle.min.js"></script>
+    <script src="~/vendor/sweetalert2/sweetalert2.all.min.js"></script>
+    <script type="module" src="~/modules/mobile-app/mobile-app.js" asp-append-version="true"></script>
+</body>
+</html>
