@@ -169,7 +169,7 @@ BEGIN
         CONSTRAINT [PK_OtpVerifications] PRIMARY KEY CLUSTERED ([Id] ASC),
         CONSTRAINT [FK_OtpVerifications_AspNetUsers] FOREIGN KEY ([UserId])
             REFERENCES [dbo].[AspNetUsers] ([Id]) ON DELETE SET NULL,
-        CONSTRAINT [CK_OtpVerifications_Purpose] CHECK ([Purpose] IN (N'Register', N'ResetPassword', N'VerifyLoan'))
+        CONSTRAINT [CK_OtpVerifications_Purpose] CHECK ([Purpose] IN (N'Register', N'ResetPassword', N'VerifyLoan', N'VerifyNotificationEmail'))
     );
     CREATE NONCLUSTERED INDEX [IX_OtpVerifications_Email_Purpose]
         ON [dbo].[OtpVerifications]([Email] ASC, [Purpose] ASC, [IsUsed] ASC);

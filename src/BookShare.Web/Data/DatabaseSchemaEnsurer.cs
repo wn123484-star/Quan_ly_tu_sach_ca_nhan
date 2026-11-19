@@ -54,6 +54,16 @@ public static class DatabaseSchemaEnsurer
                     CHECK ([PaymentGateway] IN (N'VNPaySandbox', N'MoMoSandbox', N'BookSharePay'));
             END",
 
+            // 3b. [BS-SEC-OTP] Mở rộng CHECK constraint trên OtpVerifications để hỗ trợ VerifyNotificationEmail
+            @"
+            IF OBJECT_ID(N'[dbo].[OtpVerifications]', N'U') IS NOT NULL
+            BEGIN
+                IF EXISTS (SELECT 1 FROM sys.check_constraints WHERE name = N'CK_OtpVerifications_Purpose')
+                    ALTER TABLE [dbo].[OtpVerifications] DROP CONSTRAINT [CK_OtpVerifications_Purpose];
+                ALTER TABLE [dbo].[OtpVerifications] WITH NOCHECK ADD CONSTRAINT [CK_OtpVerifications_Purpose]
+                    CHECK ([Purpose] IN (N'Register', N'ResetPassword', N'VerifyLoan', N'VerifyNotificationEmail'));
+            END",
+
             // 4. Tạo bảng QrLoginSessions
             @"
             IF OBJECT_ID(N'[dbo].[QrLoginSessions]', N'U') IS NULL

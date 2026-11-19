@@ -48,6 +48,6 @@ Nhánh sao lưu dự phòng: `backup/pre-turbo-rental`
 - [x] Tạo bộ khung Android APK Capacitor tại `mobile-android-apk/` (`package.json`, `capacitor.config.json`, `www/index.html`, `android-template/AndroidManifest.xml`, `README_BUILD_APK.md`).
 
 ## GIAI ĐOẠN 8: Kiểm Thử Tự Động E2E, Tự Sửa Bug & Push Hoàn Chỉnh
-- [ ] Chạy `dotnet build BookShare.sln` đạt 0 Errors.
-- [ ] Tạo & chạy `scripts/run-e2e-verify.ps1` và `scripts/run-e2e-verify.sh` kiểm thử đầy đủ 7 kịch bản (22 trang + MobileApp 200 OK, Thuê->Escrow->Hoàn cọc, QR Cross-Login, Ví Pay + PIN + chống trừ lặp, AI Copilot + OTP subject, RBAC 403, Không Web Audio API).
-- [ ] Xác minh 100% PASS, cập nhật toàn bộ `[x]` vào `TODO.md`, commit & push lên `feat/bookshare-rental-mobile-turbo`.
+- [x] Chạy `dotnet build BookShare.sln` đạt 0 Errors.
+- [x] Tạo & chạy `scripts/run-e2e-verify.ps1` và `scripts/run-e2e-verify.sh` kiểm thử đầy đủ 7 kịch bản (25 trang Web + MobileApp 200 OK, Thuê->Escrow->Hoàn cọc 100%, QR Cross-Login, Ví Pay + PIN + chống trừ lặp, AI Copilot + OTP subject, RBAC 403, Không Web Audio API) — đạt **63 PASS / 0 FAIL**.
+- [x] Xác minh 100% PASS, cập nhật toàn bộ `[x]` vào `TODO.md`, commit & push lên `feat/bookshare-rental-mobile-turbo`.
