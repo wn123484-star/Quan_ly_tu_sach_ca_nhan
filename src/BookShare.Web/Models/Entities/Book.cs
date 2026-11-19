@@ -34,4 +34,6 @@ public partial class Book
     public virtual ICollection<ReadingProgress> ReadingProgresses { get; set; } = new List<ReadingProgress>();
 
     public virtual ICollection<Reservation> Reservations { get; set; } = new List<Reservation>();
+
+    public virtual ICollection<ReadingSession> ReadingSessions { get; set; } = new List<ReadingSession>();
 }

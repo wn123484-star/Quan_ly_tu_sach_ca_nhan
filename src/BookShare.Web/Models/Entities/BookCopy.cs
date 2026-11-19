@@ -25,6 +25,11 @@ public partial class BookCopy
 
     public bool IsLendable { get; set; }
 
+    // [BS-RULE-RENTAL-COLUMNS] Phí thuê theo ngày (0 = miễn phí) & Tiền cọc bảo lãnh Escrow
+    public decimal DailyRentalFee { get; set; }
+
+    public decimal DepositAmount { get; set; }
+
     public DateTime CreatedAt { get; set; }
 
     public virtual Book Book { get; set; } = null!;

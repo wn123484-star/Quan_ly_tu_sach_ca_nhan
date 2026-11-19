@@ -411,5 +411,54 @@ BEGIN
 END
 GO
 
-PRINT N'=== ĐÃ NẠP THÀNH CÔNG DỮ LIỆU MẪU (4 ROLES, 30 ĐẦU SÁCH, 50 BẢN SAO) CHO BOOKSHAREDB ===';
+/* =========================================================================================
+   12. [BS-RULE-SEED-RENTAL-WALLET] NẠP PHÍ THUÊ SÁCH MẪU, VÍ BẢO LÃNH & READING SESSIONS
+   ========================================================================================= */
+-- Sách Kho chung cơ bản (System): giữ 0đ miễn phí; sách Hot/chuyên sâu (Id 3, 6, 7, 15, 24, 51..55): phí thuê 2.000đ/ngày + cọc 50.000đ
+UPDATE [dbo].[BookCopies]
+SET [DailyRentalFee] = 2000, [DepositAmount] = 50000
+WHERE [OwnerType] = N'System' AND [Id] IN (3, 6, 7, 15, 24, 51, 52, 53, 54, 55);
+
+-- Bản sao P2P Cộng đồng: Phí thuê 2.000đ - 3.000đ/ngày + Tiền cọc bảo lãnh Escrow 50.000đ
+UPDATE [dbo].[BookCopies]
+SET [DailyRentalFee] = CASE WHEN [Id] % 2 = 0 THEN 3000 ELSE 2000 END,
+    [DepositAmount]  = 50000
+WHERE [OwnerType] = N'User';
+
+-- Cập nhật tài chính Escrow mẫu cho hợp đồng P2P #2
+UPDATE [dbo].[Loans]
+SET [RentalFeeTotal] = 20000, [DepositHeld] = 50000, [EscrowStatus] = N'Held'
+WHERE [Id] = 2 AND [EscrowStatus] = N'None';
+GO
+
+-- Khởi tạo Ví Bảo Lãnh BookShare Pay cho các tài khoản (PIN mặc định: 123456)
+IF OBJECT_ID(N'[dbo].[UserWallets]', N'U') IS NOT NULL
+BEGIN
+    INSERT INTO [dbo].[UserWallets] ([UserId], [Balance], [PinHash])
+    SELECT u.[Id], 500000, N'8d969eef6ecad3c29a3a629280e686cf0c3f5d5a86aff3ca12020c923adc6c92'
+    FROM [dbo].[AspNetUsers] u
+    WHERE NOT EXISTS (SELECT 1 FROM [dbo].[UserWallets] w WHERE w.[UserId] = u.[Id]);
+END
+GO
+
+-- Dữ liệu mẫu phiên đọc Pomodoro (ReadingSessions) & tin nhắn chào từ Thủ thư (SupportChatMessages)
+IF OBJECT_ID(N'[dbo].[ReadingSessions]', N'U') IS NOT NULL AND NOT EXISTS (SELECT 1 FROM [dbo].[ReadingSessions])
+BEGIN
+    INSERT INTO [dbo].[ReadingSessions] ([UserId], [BookId], [DurationMinutes], [PagesRead], [SessionDate])
+    VALUES
+        (N'u-user-01', 6, 50, 28, DATEADD(DAY, -2, CAST(SYSUTCDATETIME() AS DATE))),
+        (N'u-user-01', 6, 25, 16, DATEADD(DAY, -1, CAST(SYSUTCDATETIME() AS DATE))),
+        (N'u-user-01', 1, 25, 18, CAST(SYSUTCDATETIME() AS DATE));
+END
+GO
+
+IF OBJECT_ID(N'[dbo].[SupportChatMessages]', N'U') IS NOT NULL AND NOT EXISTS (SELECT 1 FROM [dbo].[SupportChatMessages])
+BEGIN
+    INSERT INTO [dbo].[SupportChatMessages] ([SenderUserId], [ReceiverUserId], [Channel], [MessageText], [IsRead])
+    VALUES
+        (N'u-librarian-01', N'u-user-01', N'Librarian', N'Chào Nguyễn Hùng! Thủ thư ĐH CMC luôn sẵn sàng hỗ trợ gia hạn sách thuê, kiểm định hộ chiếu ảnh hoặc giải đáp phí cọc Escrow của bạn.', 0);
+END
+GO
+
+PRINT N'=== ĐÃ NẠP THÀNH CÔNG DỮ LIỆU MẪU (4 ROLES, 30 ĐẦU SÁCH, 50+ BẢN SAO, PHÍ THUÊ & VÍ ESCROW) CHO BOOKSHAREDB ===';
 GO

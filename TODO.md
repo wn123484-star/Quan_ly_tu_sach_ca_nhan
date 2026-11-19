@@ -16,10 +16,10 @@ Nhánh sao lưu dự phòng: `backup/pre-turbo-rental`
 - [x] Xác nhận `docker-compose.yml` mount `./database:/sql:ro` cho `bookshare-web` (`[BS-RULE-DOCKER-SEEDER]`).
 
 ## GIAI ĐOẠN 2: Mở Rộng CSDL SQL Server (Database-First + Auto-Ensure An Toàn)
-- [ ] Cập nhật `database/01_BookShare_Schema.sql`: mở rộng `BookCopies` (`DailyRentalFee`, `DepositAmount`), `Loans` (`RentalFeeTotal`, `DepositHeld`, `EscrowStatus`), thêm 4 bảng mới (`QrLoginSessions`, `UserWallets`, `ReadingSessions`, `SupportChatMessages`).
-- [ ] Cập nhật `Models/Entities/` & `Data/BookShareDbContext.cs` khớp tuyệt đối schema mới.
-- [ ] Tạo `DatabaseSchemaEnsurer` và gọi tự động trong `Program.cs` (`IF OBJECT_ID / COL_LENGTH IS NULL`) để VPS không bao giờ lỗi thiếu cột/bảng.
-- [ ] Cập nhật `database/02_BookShare_SeedData.sql`: nạp sẵn phí thuê, cọc Escrow & ví mẫu cho tài khoản demo.
+- [x] Cập nhật `database/01_BookShare_Schema.sql`: mở rộng `BookCopies` (`DailyRentalFee`, `DepositAmount`), `Loans` (`RentalFeeTotal`, `DepositHeld`, `EscrowStatus`), thêm 4 bảng mới (`QrLoginSessions`, `UserWallets`, `ReadingSessions`, `SupportChatMessages`).
+- [x] Cập nhật `Models/Entities/` & `Data/BookShareDbContext.cs` khớp tuyệt đối schema mới.
+- [x] Tạo `DatabaseSchemaEnsurer` và gọi tự động trong `Program.cs` (`IF OBJECT_ID / COL_LENGTH IS NULL`) để VPS không bao giờ lỗi thiếu cột/bảng.
+- [x] Cập nhật `database/02_BookShare_SeedData.sql`: nạp sẵn phí thuê, cọc Escrow & ví mẫu cho tài khoản demo.
 
 ## GIAI ĐOẠN 3: Nâng Cấp Giao Diện Chuyên Nghiệp (Header Thấp Khóa Cứng + Auto-Hide Banner)
 - [ ] Thiết kế lại Header siêu gọn (~72px–84px Desktop), khóa cố định `position: fixed !important` kèm `#bsHeaderFixedSpacer` đo tự động bằng `ResizeObserver`, gắn nút `📱 Mobile App` (`[BS-UI-HEADER]`).

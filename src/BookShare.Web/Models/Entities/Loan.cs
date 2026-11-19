@@ -19,6 +19,13 @@ public partial class Loan
 
     public decimal FineAmount { get; set; }
 
+    // [BS-RULE-ESCROW-COLUMNS] Tài chính hợp đồng thuê & Trạng thái cọc Escrow
+    public decimal RentalFeeTotal { get; set; }
+
+    public decimal DepositHeld { get; set; }
+
+    public string EscrowStatus { get; set; } = "None";
+
     public string Status { get; set; } = null!;
 
     public virtual ICollection<ConditionReport> ConditionReports { get; set; } = new List<ConditionReport>();

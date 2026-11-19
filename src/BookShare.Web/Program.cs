@@ -152,6 +152,9 @@ builder.Services.Configure<ForwardedHeadersOptions>(options =>
 
 var app = builder.Build();
 
+// [BS-RULE-SCHEMA-ENSURER] Tự động đồng bộ cột & 4 bảng mở rộng an toàn trên cả VPS Docker và LocalDB
+await DatabaseSchemaEnsurer.EnsureExtendedSchemaAsync(app.Services);
+
 app.UseForwardedHeaders();
 
 if (!app.Environment.IsDevelopment())

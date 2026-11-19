@@ -88,4 +88,15 @@ public partial class AspNetUser
     public virtual ICollection<Transaction> Transactions { get; set; } = new List<Transaction>();
 
     public virtual ICollection<AspNetRole> Roles { get; set; } = new List<AspNetRole>();
+
+    // [BS-RULE-SCHEMA-V2] Điều hướng tới 4 bảng nghiệp vụ mới
+    public virtual UserWallet? UserWallet { get; set; }
+
+    public virtual ICollection<QrLoginSession> ApprovedQrLoginSessions { get; set; } = new List<QrLoginSession>();
+
+    public virtual ICollection<ReadingSession> ReadingSessions { get; set; } = new List<ReadingSession>();
+
+    public virtual ICollection<SupportChatMessage> SentSupportMessages { get; set; } = new List<SupportChatMessage>();
+
+    public virtual ICollection<SupportChatMessage> ReceivedSupportMessages { get; set; } = new List<SupportChatMessage>();
 }

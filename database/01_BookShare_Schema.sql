@@ -253,10 +253,13 @@ BEGIN
         [LibraryId]   INT               NULL,     -- Khác NULL nếu thuộc Kho chung hoặc gửi tại Trạm CLB
         [OwnerUserId] NVARCHAR(450)     NULL,     -- Khác NULL nếu thuộc Chủ sách cá nhân (P2P)
         [ShelfLocation] NVARCHAR(80)    NULL,     -- Vị trí kệ trong thư viện (VD: Kệ A2 - Tầng 2)
-        [Condition]   NVARCHAR(20)      NOT NULL CONSTRAINT [DF_BookCopies_Condition] DEFAULT (N'Good'),
-        [Status]      NVARCHAR(20)      NOT NULL CONSTRAINT [DF_BookCopies_Status] DEFAULT (N'Available'),
-        [IsLendable]  BIT               NOT NULL CONSTRAINT [DF_BookCopies_IsLendable] DEFAULT (1),
-        [CreatedAt]   DATETIME2(7)      NOT NULL CONSTRAINT [DF_BookCopies_CreatedAt] DEFAULT (SYSUTCDATETIME()),
+        [Condition]      NVARCHAR(20)      NOT NULL CONSTRAINT [DF_BookCopies_Condition] DEFAULT (N'Good'),
+        [Status]         NVARCHAR(20)      NOT NULL CONSTRAINT [DF_BookCopies_Status] DEFAULT (N'Available'),
+        [IsLendable]     BIT               NOT NULL CONSTRAINT [DF_BookCopies_IsLendable] DEFAULT (1),
+        -- [BS-RULE-RENTAL-COLUMNS] Mô hình Lai: 0đ = Miễn phí, >0 = Phí thuê theo ngày + Tiền cọc bảo lãnh Escrow
+        [DailyRentalFee] DECIMAL(18,2)     NOT NULL CONSTRAINT [DF_BookCopies_DailyRentalFee] DEFAULT (0),
+        [DepositAmount]  DECIMAL(18,2)     NOT NULL CONSTRAINT [DF_BookCopies_DepositAmount] DEFAULT (0),
+        [CreatedAt]      DATETIME2(7)      NOT NULL CONSTRAINT [DF_BookCopies_CreatedAt] DEFAULT (SYSUTCDATETIME()),
         CONSTRAINT [PK_BookCopies] PRIMARY KEY CLUSTERED ([Id] ASC),
         CONSTRAINT [UQ_BookCopies_Barcode] UNIQUE ([Barcode]),
         CONSTRAINT [FK_BookCopies_Books] FOREIGN KEY ([BookId])
@@ -267,7 +270,8 @@ BEGIN
             REFERENCES [dbo].[AspNetUsers] ([Id]) ON DELETE NO ACTION,
         CONSTRAINT [CK_BookCopies_OwnerType] CHECK ([OwnerType] IN (N'System', N'User')),
         CONSTRAINT [CK_BookCopies_Condition] CHECK ([Condition] IN (N'New', N'Good', N'Fair', N'Worn')),
-        CONSTRAINT [CK_BookCopies_Status] CHECK ([Status] IN (N'Available', N'Reserved', N'Borrowed', N'InTransit', N'Lost', N'Damaged'))
+        CONSTRAINT [CK_BookCopies_Status] CHECK ([Status] IN (N'Available', N'Reserved', N'Borrowed', N'InTransit', N'Lost', N'Damaged')),
+        CONSTRAINT [CK_BookCopies_RentalAmounts] CHECK ([DailyRentalFee] >= 0 AND [DepositAmount] >= 0)
     );
     CREATE NONCLUSTERED INDEX [IX_BookCopies_BookId_Status] ON [dbo].[BookCopies]([BookId] ASC, [Status] ASC, [IsLendable] ASC);
     CREATE NONCLUSTERED INDEX [IX_BookCopies_OwnerUserId] ON [dbo].[BookCopies]([OwnerUserId] ASC);
@@ -413,15 +417,20 @@ BEGIN
         [StartDate]     DATETIME2(7)      NOT NULL CONSTRAINT [DF_Loans_StartDate] DEFAULT (SYSUTCDATETIME()),
         [DueDate]       DATETIME2(7)      NOT NULL,
         [ReturnDate]    DATETIME2(7)      NULL,
-        [RenewCount]    INT               NOT NULL CONSTRAINT [DF_Loans_RenewCount] DEFAULT (0),
-        [FineAmount]    DECIMAL(18,2)     NOT NULL CONSTRAINT [DF_Loans_FineAmount] DEFAULT (0),
-        [Status]        NVARCHAR(20)      NOT NULL CONSTRAINT [DF_Loans_Status] DEFAULT (N'Active'),
+        [RenewCount]     INT               NOT NULL CONSTRAINT [DF_Loans_RenewCount] DEFAULT (0),
+        [FineAmount]     DECIMAL(18,2)     NOT NULL CONSTRAINT [DF_Loans_FineAmount] DEFAULT (0),
+        -- [BS-RULE-ESCROW-COLUMNS] Tài chính hợp đồng thuê & Trạng thái bảo lãnh cọc Escrow
+        [RentalFeeTotal] DECIMAL(18,2)     NOT NULL CONSTRAINT [DF_Loans_RentalFeeTotal] DEFAULT (0),
+        [DepositHeld]    DECIMAL(18,2)     NOT NULL CONSTRAINT [DF_Loans_DepositHeld] DEFAULT (0),
+        [EscrowStatus]   NVARCHAR(30)      NOT NULL CONSTRAINT [DF_Loans_EscrowStatus] DEFAULT (N'None'),
+        [Status]         NVARCHAR(20)      NOT NULL CONSTRAINT [DF_Loans_Status] DEFAULT (N'Active'),
         CONSTRAINT [PK_Loans] PRIMARY KEY CLUSTERED ([Id] ASC),
         CONSTRAINT [UQ_Loans_LoanRequestId] UNIQUE ([LoanRequestId]),
         CONSTRAINT [FK_Loans_LoanRequests] FOREIGN KEY ([LoanRequestId])
             REFERENCES [dbo].[LoanRequests] ([Id]) ON DELETE NO ACTION,
         CONSTRAINT [CK_Loans_RenewCount] CHECK ([RenewCount] >= 0 AND [RenewCount] <= 3),
         CONSTRAINT [CK_Loans_FineAmount] CHECK ([FineAmount] >= 0),
+        CONSTRAINT [CK_Loans_EscrowStatus] CHECK ([EscrowStatus] IN (N'None', N'Held', N'ReleasedToLender', N'RefundedToBorrower', N'Deducted')),
         CONSTRAINT [CK_Loans_Status] CHECK ([Status] IN (N'Active', N'Returned', N'Overdue', N'Disputed', N'Lost'))
     );
     CREATE NONCLUSTERED INDEX [IX_Loans_Status_DueDate] ON [dbo].[Loans]([Status] ASC, [DueDate] ASC);
@@ -548,8 +557,8 @@ BEGIN
             REFERENCES [dbo].[AspNetUsers] ([Id]) ON DELETE NO ACTION,
         CONSTRAINT [FK_Transactions_Loans] FOREIGN KEY ([LoanId])
             REFERENCES [dbo].[Loans] ([Id]) ON DELETE SET NULL,
-        CONSTRAINT [CK_Transactions_Type] CHECK ([TransactionType] IN (N'Membership', N'Fine', N'SimulatedDeposit')),
-        CONSTRAINT [CK_Transactions_Gateway] CHECK ([PaymentGateway] IN (N'VNPaySandbox', N'MoMoSandbox')),
+        CONSTRAINT [CK_Transactions_Type] CHECK ([TransactionType] IN (N'Membership', N'Fine', N'SimulatedDeposit', N'WalletTopUp', N'RentalFee', N'DepositHold', N'DepositRefund', N'LenderPayout', N'QrPay', N'RenewalFee')),
+        CONSTRAINT [CK_Transactions_Gateway] CHECK ([PaymentGateway] IN (N'VNPaySandbox', N'MoMoSandbox', N'BookSharePay')),
         CONSTRAINT [CK_Transactions_Status] CHECK ([PaymentStatus] IN (N'Pending', N'Completed', N'Failed', N'Refunded')),
         CONSTRAINT [CK_Transactions_Amount] CHECK ([Amount] >= 0)
     );
@@ -642,5 +651,91 @@ BEGIN
 END
 GO
 
-PRINT N'=== ĐÃ KHỞI TẠO THÀNH CÔNG SCHEMA CSDL BOOKSHAREDB (CHUẨN SCAFFOLD .NET 10) ===';
+/* =========================================================================================
+   KHỐI 6: MỞ RỘNG MÔ HÌNH THUÊ SÁCH, VÍ BẢO LÃNH, QR CROSS-LOGIN, READING STUDIO & CHAT THỦ THƯ
+   [BS-RULE-SCHEMA-V2] 4 Bảng Nghiệp Vụ Mới
+   ========================================================================================= */
+
+-- 25. Bảng QrLoginSessions (Phiên đăng nhập chéo Mobile -> Web PC bằng Camera QR - [BS-QRLOGIN-DB])
+IF OBJECT_ID(N'[dbo].[QrLoginSessions]', N'U') IS NULL
+BEGIN
+    CREATE TABLE [dbo].[QrLoginSessions] (
+        [Id]               INT IDENTITY(1,1) NOT NULL,
+        [Token]            NVARCHAR(100)     NOT NULL,
+        [Status]           NVARCHAR(20)      NOT NULL CONSTRAINT [DF_QrLoginSessions_Status] DEFAULT (N'Pending'),
+        [ApprovedByUserId] NVARCHAR(450)     NULL,
+        [ExpiresAt]        DATETIME2(7)      NOT NULL,
+        [CreatedAt]        DATETIME2(7)      NOT NULL CONSTRAINT [DF_QrLoginSessions_CreatedAt] DEFAULT (SYSUTCDATETIME()),
+        CONSTRAINT [PK_QrLoginSessions] PRIMARY KEY CLUSTERED ([Id] ASC),
+        CONSTRAINT [UQ_QrLoginSessions_Token] UNIQUE ([Token]),
+        CONSTRAINT [FK_QrLoginSessions_AspNetUsers] FOREIGN KEY ([ApprovedByUserId])
+            REFERENCES [dbo].[AspNetUsers] ([Id]) ON DELETE SET NULL,
+        CONSTRAINT [CK_QrLoginSessions_Status] CHECK ([Status] IN (N'Pending', N'Approved', N'Claimed', N'Expired'))
+    );
+    CREATE NONCLUSTERED INDEX [IX_QrLoginSessions_Token_Status] ON [dbo].[QrLoginSessions]([Token] ASC, [Status] ASC);
+END
+GO
+
+-- 26. Bảng UserWallets (Ví Bảo Lãnh BookShare Pay & Escrow - [BS-WALLET-DB])
+IF OBJECT_ID(N'[dbo].[UserWallets]', N'U') IS NULL
+BEGIN
+    CREATE TABLE [dbo].[UserWallets] (
+        [Id]        INT IDENTITY(1,1) NOT NULL,
+        [UserId]    NVARCHAR(450)     NOT NULL,
+        [Balance]   DECIMAL(18,2)     NOT NULL CONSTRAINT [DF_UserWallets_Balance] DEFAULT (0),
+        [PinHash]   NVARCHAR(128)     NOT NULL CONSTRAINT [DF_UserWallets_PinHash] DEFAULT (N'8d969eef6ecad3c29a3a629280e686cf0c3f5d5a86aff3ca12020c923adc6c92'),
+        [UpdatedAt] DATETIME2(7)      NOT NULL CONSTRAINT [DF_UserWallets_UpdatedAt] DEFAULT (SYSUTCDATETIME()),
+        CONSTRAINT [PK_UserWallets] PRIMARY KEY CLUSTERED ([Id] ASC),
+        CONSTRAINT [UQ_UserWallets_UserId] UNIQUE ([UserId]),
+        CONSTRAINT [FK_UserWallets_AspNetUsers] FOREIGN KEY ([UserId])
+            REFERENCES [dbo].[AspNetUsers] ([Id]) ON DELETE CASCADE,
+        CONSTRAINT [CK_UserWallets_Balance] CHECK ([Balance] >= 0)
+    );
+END
+GO
+
+-- 27. Bảng ReadingSessions (Nhật ký phiên tập trung Pomodoro & Tốc độ đọc - [BS-READING-DB])
+IF OBJECT_ID(N'[dbo].[ReadingSessions]', N'U') IS NULL
+BEGIN
+    CREATE TABLE [dbo].[ReadingSessions] (
+        [Id]              INT IDENTITY(1,1) NOT NULL,
+        [UserId]          NVARCHAR(450)     NOT NULL,
+        [BookId]          INT               NOT NULL,
+        [DurationMinutes] INT               NOT NULL CONSTRAINT [DF_ReadingSessions_Duration] DEFAULT (25),
+        [PagesRead]       INT               NOT NULL CONSTRAINT [DF_ReadingSessions_Pages] DEFAULT (0),
+        [SessionDate]     DATE              NOT NULL CONSTRAINT [DF_ReadingSessions_Date] DEFAULT (CAST(SYSUTCDATETIME() AS DATE)),
+        [CreatedAt]       DATETIME2(7)      NOT NULL CONSTRAINT [DF_ReadingSessions_CreatedAt] DEFAULT (SYSUTCDATETIME()),
+        CONSTRAINT [PK_ReadingSessions] PRIMARY KEY CLUSTERED ([Id] ASC),
+        CONSTRAINT [FK_ReadingSessions_AspNetUsers] FOREIGN KEY ([UserId])
+            REFERENCES [dbo].[AspNetUsers] ([Id]) ON DELETE CASCADE,
+        CONSTRAINT [FK_ReadingSessions_Books] FOREIGN KEY ([BookId])
+            REFERENCES [dbo].[Books] ([Id]) ON DELETE CASCADE,
+        CONSTRAINT [CK_ReadingSessions_Positive] CHECK ([DurationMinutes] > 0 AND [PagesRead] >= 0)
+    );
+    CREATE NONCLUSTERED INDEX [IX_ReadingSessions_UserId_Date] ON [dbo].[ReadingSessions]([UserId] ASC, [SessionDate] DESC);
+END
+GO
+
+-- 28. Bảng SupportChatMessages (Chat trực tiếp Thủ thư / Chủ sách - [BS-AGENT-AI-CHAT-DB])
+IF OBJECT_ID(N'[dbo].[SupportChatMessages]', N'U') IS NULL
+BEGIN
+    CREATE TABLE [dbo].[SupportChatMessages] (
+        [Id]             INT IDENTITY(1,1) NOT NULL,
+        [SenderUserId]   NVARCHAR(450)     NOT NULL,
+        [ReceiverUserId] NVARCHAR(450)     NULL,
+        [Channel]        NVARCHAR(30)      NOT NULL CONSTRAINT [DF_SupportChatMessages_Channel] DEFAULT (N'Librarian'),
+        [MessageText]    NVARCHAR(2000)    NOT NULL,
+        [IsRead]         BIT               NOT NULL CONSTRAINT [DF_SupportChatMessages_IsRead] DEFAULT (0),
+        [CreatedAt]      DATETIME2(7)      NOT NULL CONSTRAINT [DF_SupportChatMessages_CreatedAt] DEFAULT (SYSUTCDATETIME()),
+        CONSTRAINT [PK_SupportChatMessages] PRIMARY KEY CLUSTERED ([Id] ASC),
+        CONSTRAINT [FK_SupportChatMessages_Sender] FOREIGN KEY ([SenderUserId])
+            REFERENCES [dbo].[AspNetUsers] ([Id]) ON DELETE NO ACTION,
+        CONSTRAINT [FK_SupportChatMessages_Receiver] FOREIGN KEY ([ReceiverUserId])
+            REFERENCES [dbo].[AspNetUsers] ([Id]) ON DELETE NO ACTION
+    );
+    CREATE NONCLUSTERED INDEX [IX_SupportChatMessages_Channel_CreatedAt] ON [dbo].[SupportChatMessages]([Channel] ASC, [CreatedAt] DESC);
+END
+GO
+
+PRINT N'=== ĐÃ KHỞI TẠO THÀNH CÔNG SCHEMA CSDL BOOKSHAREDB (CHUẨN SCAFFOLD .NET 10 + RENTAL/WALLET/MOBILE) ===';
 GO

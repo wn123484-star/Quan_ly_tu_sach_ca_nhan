@@ -260,6 +260,9 @@ public class S22AdminAnalyticsService : IS22AdminAnalyticsService
                 string cleanMode = string.IsNullOrWhiteSpace(actionMode) ? "SeedSampleData" : actionMode.Trim();
 
                 const string clearTransactionsSql = @"
+                    IF OBJECT_ID(N'[dbo].[SupportChatMessages]', N'U') IS NOT NULL DELETE FROM [dbo].[SupportChatMessages];
+                    IF OBJECT_ID(N'[dbo].[ReadingSessions]', N'U') IS NOT NULL DELETE FROM [dbo].[ReadingSessions];
+                    IF OBJECT_ID(N'[dbo].[QrLoginSessions]', N'U') IS NOT NULL DELETE FROM [dbo].[QrLoginSessions];
                     DELETE FROM [dbo].[AiChatMessages];
                     DELETE FROM [dbo].[AiChatSessions];
                     DELETE FROM [dbo].[Notifications];

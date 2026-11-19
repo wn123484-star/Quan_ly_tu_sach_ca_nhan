@@ -64,6 +64,15 @@ public partial class BookShareDbContext : DbContext
 
     public virtual DbSet<Transaction> Transactions { get; set; }
 
+    // [BS-RULE-SCHEMA-V2] 4 DbSet mới cho QR Cross-Login, Ví Bảo Lãnh, Reading Studio & Chat Thủ Thư
+    public virtual DbSet<QrLoginSession> QrLoginSessions { get; set; }
+
+    public virtual DbSet<UserWallet> UserWallets { get; set; }
+
+    public virtual DbSet<ReadingSession> ReadingSessions { get; set; }
+
+    public virtual DbSet<SupportChatMessage> SupportChatMessages { get; set; }
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<AiChatMessage>(entity =>
@@ -222,6 +231,8 @@ public partial class BookShareDbContext : DbContext
                 .HasDefaultValue("Good", "DF_BookCopies_Condition");
             entity.Property(e => e.CreatedAt).HasDefaultValueSql("(sysutcdatetime())", "DF_BookCopies_CreatedAt");
             entity.Property(e => e.IsLendable).HasDefaultValue(true, "DF_BookCopies_IsLendable");
+            entity.Property(e => e.DailyRentalFee).HasColumnType("decimal(18, 2)").HasDefaultValue(0m, "DF_BookCopies_DailyRentalFee");
+            entity.Property(e => e.DepositAmount).HasColumnType("decimal(18, 2)").HasDefaultValue(0m, "DF_BookCopies_DepositAmount");
             entity.Property(e => e.OwnerType).HasMaxLength(20);
             entity.Property(e => e.ShelfLocation).HasMaxLength(80);
             entity.Property(e => e.Status)
@@ -343,6 +354,9 @@ public partial class BookShareDbContext : DbContext
             entity.HasIndex(e => e.LoanRequestId, "UQ_Loans_LoanRequestId").IsUnique();
 
             entity.Property(e => e.FineAmount).HasColumnType("decimal(18, 2)");
+            entity.Property(e => e.RentalFeeTotal).HasColumnType("decimal(18, 2)").HasDefaultValue(0m, "DF_Loans_RentalFeeTotal");
+            entity.Property(e => e.DepositHeld).HasColumnType("decimal(18, 2)").HasDefaultValue(0m, "DF_Loans_DepositHeld");
+            entity.Property(e => e.EscrowStatus).HasMaxLength(30).HasDefaultValue("None", "DF_Loans_EscrowStatus");
             entity.Property(e => e.StartDate).HasDefaultValueSql("(sysutcdatetime())", "DF_Loans_StartDate");
             entity.Property(e => e.Status)
                 .HasMaxLength(20)
@@ -555,6 +569,78 @@ public partial class BookShareDbContext : DbContext
                 .HasForeignKey(d => d.UserId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("FK_Transactions_AspNetUsers");
+        });
+
+        // [BS-RULE-SCHEMA-V2] Cấu hình EF Core cho 4 bảng nghiệp vụ mới
+        modelBuilder.Entity<QrLoginSession>(entity =>
+        {
+            entity.HasIndex(e => e.Token, "UQ_QrLoginSessions_Token").IsUnique();
+            entity.HasIndex(e => new { e.Token, e.Status }, "IX_QrLoginSessions_Token_Status");
+
+            entity.Property(e => e.Token).HasMaxLength(100);
+            entity.Property(e => e.Status).HasMaxLength(20).HasDefaultValue("Pending", "DF_QrLoginSessions_Status");
+            entity.Property(e => e.ApprovedByUserId).HasMaxLength(450);
+            entity.Property(e => e.CreatedAt).HasDefaultValueSql("(sysutcdatetime())", "DF_QrLoginSessions_CreatedAt");
+
+            entity.HasOne(d => d.ApprovedByUser).WithMany(p => p.ApprovedQrLoginSessions)
+                .HasForeignKey(d => d.ApprovedByUserId)
+                .OnDelete(DeleteBehavior.SetNull)
+                .HasConstraintName("FK_QrLoginSessions_AspNetUsers");
+        });
+
+        modelBuilder.Entity<UserWallet>(entity =>
+        {
+            entity.HasIndex(e => e.UserId, "UQ_UserWallets_UserId").IsUnique();
+
+            entity.Property(e => e.UserId).HasMaxLength(450);
+            entity.Property(e => e.Balance).HasColumnType("decimal(18, 2)").HasDefaultValue(0m, "DF_UserWallets_Balance");
+            entity.Property(e => e.PinHash).HasMaxLength(128).HasDefaultValue("8d969eef6ecad3c29a3a629280e686cf0c3f5d5a86aff3ca12020c923adc6c92", "DF_UserWallets_PinHash");
+            entity.Property(e => e.UpdatedAt).HasDefaultValueSql("(sysutcdatetime())", "DF_UserWallets_UpdatedAt");
+
+            entity.HasOne(d => d.User).WithOne(p => p.UserWallet)
+                .HasForeignKey<UserWallet>(d => d.UserId)
+                .HasConstraintName("FK_UserWallets_AspNetUsers");
+        });
+
+        modelBuilder.Entity<ReadingSession>(entity =>
+        {
+            entity.HasIndex(e => new { e.UserId, e.SessionDate }, "IX_ReadingSessions_UserId_Date").IsDescending(false, true);
+
+            entity.Property(e => e.UserId).HasMaxLength(450);
+            entity.Property(e => e.DurationMinutes).HasDefaultValue(25, "DF_ReadingSessions_Duration");
+            entity.Property(e => e.PagesRead).HasDefaultValue(0, "DF_ReadingSessions_Pages");
+            entity.Property(e => e.SessionDate).HasDefaultValueSql("(cast(sysutcdatetime() as date))", "DF_ReadingSessions_Date");
+            entity.Property(e => e.CreatedAt).HasDefaultValueSql("(sysutcdatetime())", "DF_ReadingSessions_CreatedAt");
+
+            entity.HasOne(d => d.User).WithMany(p => p.ReadingSessions)
+                .HasForeignKey(d => d.UserId)
+                .HasConstraintName("FK_ReadingSessions_AspNetUsers");
+
+            entity.HasOne(d => d.Book).WithMany(p => p.ReadingSessions)
+                .HasForeignKey(d => d.BookId)
+                .HasConstraintName("FK_ReadingSessions_Books");
+        });
+
+        modelBuilder.Entity<SupportChatMessage>(entity =>
+        {
+            entity.HasIndex(e => new { e.Channel, e.CreatedAt }, "IX_SupportChatMessages_Channel_CreatedAt").IsDescending(false, true);
+
+            entity.Property(e => e.SenderUserId).HasMaxLength(450);
+            entity.Property(e => e.ReceiverUserId).HasMaxLength(450);
+            entity.Property(e => e.Channel).HasMaxLength(30).HasDefaultValue("Librarian", "DF_SupportChatMessages_Channel");
+            entity.Property(e => e.MessageText).HasMaxLength(2000);
+            entity.Property(e => e.IsRead).HasDefaultValue(false, "DF_SupportChatMessages_IsRead");
+            entity.Property(e => e.CreatedAt).HasDefaultValueSql("(sysutcdatetime())", "DF_SupportChatMessages_CreatedAt");
+
+            entity.HasOne(d => d.SenderUser).WithMany(p => p.SentSupportMessages)
+                .HasForeignKey(d => d.SenderUserId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_SupportChatMessages_Sender");
+
+            entity.HasOne(d => d.ReceiverUser).WithMany(p => p.ReceivedSupportMessages)
+                .HasForeignKey(d => d.ReceiverUserId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_SupportChatMessages_Receiver");
         });
 
         OnModelCreatingPartial(modelBuilder);
