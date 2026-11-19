@@ -27,9 +27,9 @@ Nhánh sao lưu dự phòng: `backup/pre-turbo-rental`
 - [x] Hoàn thiện CSS Doanh nghiệp `.bs-*` cho `S13`, `S14`, `S15`, chuẩn hóa 7 Theme Doanh nghiệp (gồm Warm Ivory Paper), thêm bộ chọn mật độ kệ sách (3 Cột / 4 Cột / Danh sách) + Clean Empty State cho `Home` và `S06` (`[BS-UI-ENTERPRISE]`).
 
 ## GIAI ĐOẠN 4: Nghiệp Vụ Thuê Sách Khép Kín, Ví Bảo Lãnh & QR Cross-Login
-- [ ] Luồng Thuê Sách & Escrow (`S02`, `S06`, `S08`, `S09`, `S12`): thiết lập phí thuê/ngày & tiền cọc, bộ tính tổng 7/14/30 ngày, khóa cọc Escrow khi giao sách, hoàn 100% cọc & giải ngân phí thuê khi trả nguyên vẹn, modal Phiếu Hợp Đồng Thuê Điện Tử kèm QR/Barcode in A5/80mm (`[BS-RENTAL-FLOW]`).
-- [ ] Ví Bảo Lãnh BookShare Pay (`S17` + API `/api/mobile/wallet/*`): `summary`, `topup` không giới hạn + HMAC-SHA512, `pay-qr` 2 bước + mã PIN 6 số (mặc định `123456`) + chống trừ lặp, `change-pin`, Thẻ Ví 3D (`[BS-WALLET-PAY]`).
-- [ ] QR Cross-Login (`Mobile -> Web PC`): API `/api/mobile/qr-login/init`, `status`, `approve`, `/S01AuthOtpGoogle/ClaimQrLogin` (chống dùng lại 2 lần) + khung quét QR 180s polling 2s ngay trên trang đăng nhập `S01` (`[BS-QRLOGIN-BRIDGE]`).
+- [x] Luồng Thuê Sách & Escrow (`S02`, `S06`, `S08`, `S09`, `S12`): thiết lập phí thuê/ngày & tiền cọc, bộ tính tổng 7/14/30 ngày, khóa cọc Escrow khi giao sách, hoàn 100% cọc & giải ngân phí thuê khi trả nguyên vẹn, modal Phiếu Hợp Đồng Thuê Điện Tử kèm QR/Barcode in A5/80mm (`[BS-RENTAL-FLOW]`).
+- [x] Ví Bảo Lãnh BookShare Pay (`S17` + API `/api/mobile/wallet/*`): `summary`, `topup` không giới hạn + HMAC-SHA512, `pay-qr` 2 bước + mã PIN 6 số (mặc định `123456`) + chống trừ lặp, `change-pin`, Thẻ Ví 3D (`[BS-WALLET-PAY]`).
+- [x] QR Cross-Login (`Mobile -> Web PC`): API `/api/mobile/qr-login/init`, `status`, `approve`, `/S01AuthOtpGoogle/ClaimQrLogin` (chống dùng lại 2 lần) + khung quét QR 180s polling 2s ngay trên trang đăng nhập `S01` (`[BS-QRLOGIN-BRIDGE]`).
 
 ## GIAI ĐOẠN 5: Reading Studio Bổ Trợ Thuê Sách (Tuyệt Đối Không Âm Thanh)
 - [ ] Xây dựng `/S03ReadingTracker/Studio?bookId=...` và API `/api/mobile/reading/log-session` (`[BS-READING-STUDIO]`):

@@ -201,6 +201,9 @@ public class S06DiscoveredCopyDto
     public string Condition { get; set; } = "Good";
     public string Status { get; set; } = "Available";
     public int QueueCount { get; set; }
+    // [BS-RENTAL-FLOW] Thông tin phí thuê/ngày & cọc bảo lãnh Escrow
+    public decimal DailyRentalFee { get; set; }
+    public decimal DepositAmount { get; set; }
 }
 
 public class QuickLoanRequestDto

@@ -136,6 +136,33 @@
                                 <span>Tiếp tục nhanh bằng tài khoản Google OAuth 2.0</span>
                             </button>
                         </form>
+
+                        <!-- [BS-QRLOGIN-BRIDGE] Quét QR Đăng Nhập Nhanh Bằng App BookShare (180s + Polling 2s) -->
+                        <div class="p-3 rounded-4 border mb-3 bg-light" id="s01QrLoginCard">
+                            <div class="d-flex flex-wrap align-items-center justify-content-between gap-3">
+                                <div class="d-flex align-items-center gap-3">
+                                    <div class="bg-white p-2 rounded-3 border shadow-sm text-center" style="width:118px; min-height:118px;">
+                                        <img id="s01QrImage" src="" alt="Mã QR Đăng Nhập Nhanh BookShare" class="img-fluid rounded d-none" style="width:100px; height:100px;" />
+                                        <div id="s01QrPlaceholder" class="d-flex flex-column align-items-center justify-content-center text-muted" style="height:100px; font-size:0.72rem;">
+                                            <i class="bi bi-qr-code-scan fs-2 text-primary"></i>
+                                            <span>Bấm tạo QR</span>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <span class="badge bg-primary mb-1"><i class="bi bi-phone-fill me-1"></i>QR Cross-Login (Mobile &rarr; PC)</span>
+                                        <h6 class="fw-bold mb-1 small">Quét QR Đăng Nhập Nhanh Bằng App BookShare</h6>
+                                        <p class="small text-muted mb-1" id="s01QrStatusText">Mở <a href="/MobileApp" class="fw-bold">BookShare Mobile App</a> &rarr; Tab <strong>Quét QR</strong> để đăng nhập Web PC không cần mật khẩu.</p>
+                                        <div class="d-flex align-items-center gap-2 flex-wrap">
+                                            <code id="s01QrTokenDisplay" class="small text-primary">Chưa khởi tạo</code>
+                                            <span id="s01QrCountdown" class="badge bg-secondary d-none">180s</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <button type="button" id="btnRefreshQrLogin" class="btn btn-sm btn-outline-primary fw-bold">
+                                    <i class="bi bi-arrow-clockwise me-1"></i>Tạo / Làm mới QR
+                                </button>
+                            </div>
+                        </div>
                         <div class="p-3 rounded-3 bg-light border d-flex flex-wrap justify-content-between align-items-center gap-2 small">
                             <div>
                                 <i class="bi bi-envelope-check-fill text-primary me-1"></i>

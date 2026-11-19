@@ -13,17 +13,20 @@ public class S01AuthOtpGoogleController : Controller
     private readonly IS01AuthOtpService _authService;
     private readonly IResendEmailService _resendOtpService;
     private readonly IRecaptchaService _recaptchaService;
+    private readonly IQrLoginService _qrLoginService;
     private readonly IConfiguration _config;
 
     public S01AuthOtpGoogleController(
         IS01AuthOtpService authService,
         IResendEmailService resendOtpService,
         IRecaptchaService recaptchaService,
+        IQrLoginService qrLoginService,
         IConfiguration config)
     {
         _authService = authService;
         _resendOtpService = resendOtpService;
         _recaptchaService = recaptchaService;
+        _qrLoginService = qrLoginService;
         _config = config;
     }
 
@@ -271,6 +274,34 @@ public class S01AuthOtpGoogleController : Controller
         }
 
         return Ok(new { title = "Đổi mật khẩu thành công", message });
+    }
+
+    // [BS-QRLOGIN-BRIDGE] Cấp Cookie Auth 1 lần duy nhất cho trình duyệt PC sau khi Mobile App quét duyệt QR
+    [HttpPost]
+    [IgnoreAntiforgeryToken]
+    public async Task<IActionResult> ClaimQrLogin([FromBody] QrLoginTokenRequestDto? request, [FromQuery] string? token = null)
+    {
+        string effectiveToken = !string.IsNullOrWhiteSpace(request?.Token) ? request.Token : (token ?? string.Empty);
+        var (success, message, userClaims) = await _qrLoginService.ClaimSessionAsync(effectiveToken);
+        if (!success || userClaims == null)
+        {
+            return BadRequest(new { message });
+        }
+
+        await SignInCookieAsync(userClaims, isPersistent: true);
+
+        TempData["StatusCode"] = 200;
+        TempData["StatusTitle"] = $"Đăng nhập QR thành công: {userClaims.FullName} ({userClaims.PrimaryRole})";
+        TempData["StatusDetail"] = message;
+
+        return Ok(new
+        {
+            title = "Đăng nhập chéo QR thành công",
+            message,
+            fullName = userClaims.FullName,
+            role = userClaims.PrimaryRole,
+            redirectUrl = Url.Action("Index", "S02PersonalShelf") ?? "/S02PersonalShelf"
+        });
     }
 
     private async Task SignInCookieAsync(AuthUserClaimsDto userClaims, bool isPersistent)

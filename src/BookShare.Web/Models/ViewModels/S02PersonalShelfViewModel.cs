@@ -35,6 +35,9 @@ public class PersonalBookCopyDto
     public string Condition { get; set; } = "Good";
     public string Status { get; set; } = "Available";
     public bool IsLendable { get; set; }
+    // [BS-RENTAL-FLOW] Phí thuê theo ngày (0 = miễn phí) & Tiền cọc bảo lãnh Escrow
+    public decimal DailyRentalFee { get; set; }
+    public decimal DepositAmount { get; set; }
     public List<string> ShelfNames { get; set; } = new();
 }
 
@@ -65,6 +68,9 @@ public class AddBookToShelfRequestDto
     public int ShelfId { get; set; }
     public string Condition { get; set; } = "Good";
     public bool IsLendable { get; set; } = true;
+    // [BS-RENTAL-FLOW] Chủ sách tự cấu hình phí thuê/ngày (0đ miễn phí) & cọc Escrow
+    public decimal DailyRentalFee { get; set; } = 0m;
+    public decimal DepositAmount { get; set; } = 0m;
 }
 
 public class UpdateBookCopyRequestDto
@@ -72,6 +78,8 @@ public class UpdateBookCopyRequestDto
     public int BookCopyId { get; set; }
     public string Condition { get; set; } = "Good";
     public int? ShelfId { get; set; }
+    public decimal? DailyRentalFee { get; set; }
+    public decimal? DepositAmount { get; set; }
 }
 
 public class DeleteBookCopyRequestDto

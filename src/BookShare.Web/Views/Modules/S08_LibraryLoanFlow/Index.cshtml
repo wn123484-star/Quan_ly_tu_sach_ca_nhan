@@ -40,7 +40,8 @@
                         <select id="s08BookCopyId" class="form-select form-select-sm" required>
                             @foreach (var copy in Model.AvailableLibraryCopies)
                             {
-                                <option value="@copy.BookCopyId">[@copy.Barcode] @copy.Title — @copy.LibraryName (@copy.ShelfLocation)</option>
+                                var feeTag = copy.DailyRentalFee > 0 ? $"{copy.DailyRentalFee:N0}đ/ngày • Cọc {copy.DepositAmount:N0}đ" : "Miễn phí 0đ";
+                                <option value="@copy.BookCopyId" data-daily-fee="@((int)copy.DailyRentalFee)" data-deposit="@((int)copy.DepositAmount)">[@copy.Barcode] @copy.Title — @feeTag (@copy.LibraryName)</option>
                             }
                         </select>
                     </div>
@@ -49,13 +50,16 @@
                         <select id="s08DesiredDays" class="form-select form-select-sm">
                             <option value="7">7 ngày</option>
                             <option value="14" selected>14 ngày</option>
-                            <option value="21">21 ngày</option>
+                            <option value="30">30 ngày</option>
                         </select>
                     </div>
                     <div class="col-md-3">
                         <button type="submit" class="btn btn-primary btn-sm w-100 fw-bold py-2">
                             <i class="bi bi-send-plus me-1"></i>Gửi Phiếu
                         </button>
+                    </div>
+                    <div class="col-12">
+                        <div class="small text-primary fw-semibold" id="s08EscrowPreview">💰 Dự kiến tạm giữ Escrow khi nhận sách: Miễn phí 0 VNĐ</div>
                     </div>
                 </form>
             </div>
@@ -112,13 +116,28 @@
                                     Đang mượn @item.BorrowerActiveLoans / @item.BorrowerMaxQuota cuốn
                                 </span>
                             </div>
-                            <div class="d-flex justify-content-between">
+                            <div class="d-flex justify-content-between mb-1">
                                 <span class="text-muted">Thời hạn đăng ký:</span>
                                 <span>
                                     @item.DesiredDays ngày
                                     @if (item.DueDate.HasValue)
                                     {
                                         <strong class="text-primary">(Hạn trả: @item.DueDate.Value.ToString("dd/MM/yyyy"))</strong>
+                                    }
+                                </span>
+                            </div>
+                            <!-- [BS-RENTAL-FLOW] Thông tin Phí thuê & Trạng thái bảo lãnh cọc Escrow -->
+                            <div class="d-flex justify-content-between pt-1 border-top">
+                                <span class="text-muted">Phí thuê &amp; Escrow:</span>
+                                <span>
+                                    @if (item.RentalFeeTotal > 0 || item.DepositHeld > 0)
+                                    {
+                                        <strong class="text-primary">@item.RentalFeeTotal.ToString("N0")đ + Cọc @item.DepositHeld.ToString("N0")đ</strong>
+                                        <span class="badge @(item.EscrowStatus == "Held" ? "bg-warning text-dark" : item.EscrowStatus == "RefundedToBorrower" || item.EscrowStatus == "ReleasedToLender" ? "bg-success" : "bg-secondary") ms-1">@item.EscrowStatus</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge bg-success bg-opacity-10 text-success">Miễn phí 0đ</span>
                                     }
                                 </span>
                             </div>
@@ -195,6 +214,21 @@
                             {
                                 <span class="badge bg-secondary py-2 px-3">@item.RequestStatus</span>
                             }
+                            <!-- [BS-RENTAL-CONTRACT] Nút xem & in Phiếu Hợp Đồng Thuê Điện Tử kèm QR/Barcode (A5/80mm) -->
+                            <button type="button" class="btn btn-sm btn-outline-dark js-open-rental-receipt"
+                                    data-req-id="@item.LoanRequestId"
+                                    data-loan-id="@(item.LoanId?.ToString() ?? "Chờ giao")"
+                                    data-barcode="@item.Barcode"
+                                    data-title="@item.BookTitle"
+                                    data-borrower="@item.BorrowerName"
+                                    data-owner="@item.LibraryName"
+                                    data-days="@item.DesiredDays"
+                                    data-rental-fee="@((int)item.RentalFeeTotal)"
+                                    data-deposit="@((int)item.DepositHeld)"
+                                    data-escrow="@item.EscrowStatus"
+                                    data-due="@(item.DueDate?.ToString("dd/MM/yyyy") ?? "Chưa bắt đầu")">
+                                <i class="bi bi-qr-code me-1"></i>Phiếu QR
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -202,6 +236,42 @@
         }
     </div>
 </section>
+
+<!-- [BS-RENTAL-CONTRACT] Modal Phiếu Hợp Đồng Thuê Sách Điện Tử & Mã QR/Barcode (Hỗ trợ in A5 / 80mm) -->
+<div class="modal fade" id="bsRentalReceiptModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content rounded-4 border-0 shadow">
+            <div class="modal-header border-bottom">
+                <h6 class="modal-title fw-bold"><i class="bi bi-file-earmark-text text-primary me-1"></i>Phiếu Hợp Đồng Thuê Sách Điện Tử &amp; QR</h6>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body" id="bsReceiptPrintArea">
+                <div class="text-center border-bottom pb-3 mb-3">
+                    <div class="fw-bold fs-5 text-primary">BOOKSHARE E-RENTAL CONTRACT</div>
+                    <div class="small text-muted">Phiếu giao nhận &amp; bảo lãnh cọc Escrow (Khổ A5 / 80mm)</div>
+                    <img id="rcQrImg" src="" alt="QR Hợp đồng thuê sách" class="my-2 border rounded-3 p-1 bg-white" style="width:150px; height:150px;" />
+                    <div><code id="rcBarcode" class="fs-6 fw-bold text-dark">BS-SYS-0001</code></div>
+                </div>
+                <div class="small d-flex flex-column gap-1">
+                    <div class="d-flex justify-content-between"><span class="text-muted">Mã Phiếu / Hợp đồng:</span><strong id="rcRef">#1</strong></div>
+                    <div class="d-flex justify-content-between"><span class="text-muted">Đầu sách vật lý:</span><strong id="rcTitle">-</strong></div>
+                    <div class="d-flex justify-content-between"><span class="text-muted">Đơn vị / Chủ sách:</span><strong id="rcOwner">-</strong></div>
+                    <div class="d-flex justify-content-between"><span class="text-muted">Người thuê:</span><strong id="rcBorrower">-</strong></div>
+                    <div class="d-flex justify-content-between"><span class="text-muted">Thời hạn / Hạn trả:</span><strong id="rcDue">-</strong></div>
+                    <div class="d-flex justify-content-between border-top pt-2 mt-1"><span class="text-muted">Tổng phí thuê:</span><strong id="rcFee" class="text-primary">0đ</strong></div>
+                    <div class="d-flex justify-content-between"><span class="text-muted">Tiền cọc Escrow (Hoàn 100%):</span><strong id="rcDeposit" class="text-success">0đ</strong></div>
+                    <div class="d-flex justify-content-between"><span class="text-muted">Trạng thái Escrow:</span><span id="rcEscrow" class="badge bg-info text-dark">None</span></div>
+                </div>
+            </div>
+            <div class="modal-footer border-top">
+                <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">Đóng</button>
+                <button type="button" class="btn btn-sm btn-primary fw-bold" id="btnPrintRentalReceipt">
+                    <i class="bi bi-printer-fill me-1"></i>In Phiếu (A5 / 80mm)
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
 
 @section Scripts {
     <script type="module" src="~/modules/s08-library-loan-flow/s08-library-loan-flow.js" asp-append-version="true"></script>

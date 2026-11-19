@@ -20,21 +20,42 @@ document.addEventListener('DOMContentLoaded', () => {
         bsModal = new window.bootstrap.Modal(modalEl);
     }
 
-    // 1. Mở hộp thoại đăng ký mượn sách vật lý
+    let currentDailyFee = 0;
+    let currentDeposit = 0;
+    const fmtVnd = (n) => `${Number(n || 0).toLocaleString('vi-VN')} VNĐ`;
+    const updateRentalCalculator = () => {
+        const days = parseInt(loanDesiredDays?.value || '14', 10) || 14;
+        const rentalTotal = currentDailyFee * days;
+        const grand = rentalTotal + currentDeposit;
+        const elDays = document.getElementById('calcDaysLabel');
+        const elFee = document.getElementById('calcRentalFeeTotal');
+        const elDep = document.getElementById('calcDepositTotal');
+        const elGrand = document.getElementById('calcGrandTotal');
+        if (elDays) elDays.innerText = String(days);
+        if (elFee) elFee.innerText = rentalTotal > 0 ? `${fmtVnd(rentalTotal)} (${fmtVnd(currentDailyFee)}/ngày)` : 'Miễn phí 0 VNĐ';
+        if (elDep) elDep.innerText = fmtVnd(currentDeposit);
+        if (elGrand) elGrand.innerText = grand > 0 ? fmtVnd(grand) : 'Miễn phí 0 VNĐ';
+    };
+    loanDesiredDays?.addEventListener('change', updateRentalCalculator);
+
+    // 1. Mở hộp thoại đăng ký thuê / mượn sách vật lý
     document.querySelectorAll('.js-open-loan-modal').forEach(btn => {
         btn.addEventListener('click', () => {
             const copyId = btn.getAttribute('data-copy-id') || '';
             const barcode = btn.getAttribute('data-barcode') || '';
             const title = btn.getAttribute('data-title') || '';
             const owner = btn.getAttribute('data-owner') || '';
+            currentDailyFee = parseFloat(btn.getAttribute('data-daily-fee') || '0') || 0;
+            currentDeposit = parseFloat(btn.getAttribute('data-deposit') || '0') || 0;
 
             if (copyIdInput) copyIdInput.value = copyId;
             if (modalBookTitle) modalBookTitle.innerText = title;
             if (modalBarcode) modalBarcode.innerText = barcode;
             if (modalOwnerName) modalOwnerName.innerText = owner;
             if (loanRequestNote) {
-                loanRequestNote.value = `Đăng ký mượn bản sao [${barcode}] - ${title}. Cam kết bảo quản sách tốt và trả đúng hạn.`;
+                loanRequestNote.value = `Đăng ký thuê/mượn bản sao [${barcode}] - ${title}. Cam kết bảo quản sách tốt và trả đúng hạn.`;
             }
+            updateRentalCalculator();
 
             if (bsModal) {
                 bsModal.show();

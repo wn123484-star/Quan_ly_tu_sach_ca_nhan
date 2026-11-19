@@ -84,6 +84,8 @@ public class S02PersonalShelfService : IS02PersonalShelfService
             Condition = c.Condition,
             Status = c.Status,
             IsLendable = c.IsLendable,
+            DailyRentalFee = c.DailyRentalFee,
+            DepositAmount = c.DepositAmount,
             ShelfNames = c.ShelfItems.Select(si => si.Shelf.Name).ToList()
         }).ToList();
 
@@ -193,6 +195,8 @@ public class S02PersonalShelfService : IS02PersonalShelfService
             Condition = condition,
             Status = "Available",
             IsLendable = request.IsLendable,
+            DailyRentalFee = Math.Max(0m, request.DailyRentalFee),
+            DepositAmount = Math.Max(0m, request.DepositAmount),
             CreatedAt = DateTime.UtcNow
         };
 
@@ -240,6 +244,16 @@ public class S02PersonalShelfService : IS02PersonalShelfService
         if (allowedConditions.Contains(request.Condition))
         {
             copy.Condition = request.Condition;
+        }
+
+        if (request.DailyRentalFee.HasValue)
+        {
+            copy.DailyRentalFee = Math.Max(0m, request.DailyRentalFee.Value);
+        }
+
+        if (request.DepositAmount.HasValue)
+        {
+            copy.DepositAmount = Math.Max(0m, request.DepositAmount.Value);
         }
 
         if (request.ShelfId.HasValue && request.ShelfId.Value > 0)

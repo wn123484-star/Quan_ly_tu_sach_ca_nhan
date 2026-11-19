@@ -26,6 +26,9 @@ public class S08AvailableLibraryCopyDto
     public string LibraryName { get; set; } = string.Empty;
     public string ShelfLocation { get; set; } = string.Empty;
     public int? LibraryId { get; set; }
+    // [BS-RENTAL-FLOW] Phí thuê/ngày & Cọc Escrow
+    public decimal DailyRentalFee { get; set; }
+    public decimal DepositAmount { get; set; }
 }
 
 public class S08LibraryLoanItemDto
@@ -55,6 +58,12 @@ public class S08LibraryLoanItemDto
     public DateTime? DueDate { get; set; }
     public DateTime? ReturnDate { get; set; }
     public string? RequestNote { get; set; }
+    // [BS-RENTAL-FLOW] Tài chính thuê sách & Trạng thái bảo lãnh Escrow
+    public decimal DailyRentalFee { get; set; }
+    public decimal DepositAmount { get; set; }
+    public decimal RentalFeeTotal { get; set; }
+    public decimal DepositHeld { get; set; }
+    public string EscrowStatus { get; set; } = "None";
 }
 
 public class CreateLibraryLoanRequestDto
@@ -62,6 +71,8 @@ public class CreateLibraryLoanRequestDto
     public int BookCopyId { get; set; }
     public int DesiredDays { get; set; } = 14;
     public string? RequestNote { get; set; }
+    // [BS-SEC-RECAPTCHA] Token reCAPTCHA v3
+    public string? RecaptchaToken { get; set; }
 }
 
 public class ApproveRejectLibraryLoanDto
@@ -109,6 +120,9 @@ public class S09AvailableP2PCopyDto
     public string OwnerUserId { get; set; } = string.Empty;
     public string OwnerName { get; set; } = string.Empty;
     public int OwnerTrustScore { get; set; }
+    // [BS-RENTAL-FLOW] Phí thuê/ngày & Cọc Escrow P2P
+    public decimal DailyRentalFee { get; set; }
+    public decimal DepositAmount { get; set; }
 }
 
 public class S09P2PLoanItemDto
@@ -140,6 +154,12 @@ public class S09P2PLoanItemDto
     public DateTime? DueDate { get; set; }
     public DateTime? ReturnDate { get; set; }
     public string? RequestNote { get; set; }
+    // [BS-RENTAL-FLOW] Tài chính thuê P2P & Escrow
+    public decimal DailyRentalFee { get; set; }
+    public decimal DepositAmount { get; set; }
+    public decimal RentalFeeTotal { get; set; }
+    public decimal DepositHeld { get; set; }
+    public string EscrowStatus { get; set; } = "None";
 }
 
 public class CreateP2PLoanRequestDto
@@ -148,6 +168,8 @@ public class CreateP2PLoanRequestDto
     public int PickupHubId { get; set; } = 3;
     public int DesiredDays { get; set; } = 14;
     public string? RequestNote { get; set; }
+    // [BS-SEC-RECAPTCHA] Token reCAPTCHA v3
+    public string? RecaptchaToken { get; set; }
 }
 
 public class ApproveP2PLoanDto

@@ -74,6 +74,8 @@ document.addEventListener('DOMContentLoaded', () => {
             const shelfId = parseInt(document.getElementById('selectShelfId')?.value || '0', 10);
             const condition = document.getElementById('selectCondition')?.value || 'Good';
             const isLendable = document.getElementById('checkIsLendable')?.checked ?? true;
+            const dailyRentalFee = parseFloat(document.getElementById('inputDailyRentalFee')?.value || '0') || 0;
+            const depositAmount = parseFloat(document.getElementById('inputDepositAmount')?.value || '0') || 0;
 
             if (!bookId) {
                 showSystemStatus(400, 'Chưa chọn đầu sách (Mã 400)', 'Vui lòng chọn một đầu sách để thêm vào tủ sách cá nhân.');
@@ -82,7 +84,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const res = await apiFetch('/S02PersonalShelf/AddBookToShelf', {
                 method: 'POST',
-                body: { bookId, shelfId, condition, isLendable }
+                body: { bookId, shelfId, condition, isLendable, dailyRentalFee, depositAmount }
             });
 
             if (res.ok) {
@@ -97,10 +99,12 @@ document.addEventListener('DOMContentLoaded', () => {
             const bookCopyId = parseInt(btn.getAttribute('data-copy-id') || '0', 10);
             const condition = document.getElementById(`editCond-${bookCopyId}`)?.value || 'Good';
             const shelfId = parseInt(document.getElementById(`editShelf-${bookCopyId}`)?.value || '0', 10);
+            const dailyRentalFee = parseFloat(document.getElementById(`editFee-${bookCopyId}`)?.value || '0') || 0;
+            const depositAmount = parseFloat(document.getElementById(`editDep-${bookCopyId}`)?.value || '0') || 0;
 
             const res = await apiFetch('/S02PersonalShelf/UpdateCopy', {
                 method: 'POST',
-                body: { bookCopyId, condition, shelfId: shelfId > 0 ? shelfId : null }
+                body: { bookCopyId, condition, shelfId: shelfId > 0 ? shelfId : null, dailyRentalFee, depositAmount }
             });
 
             if (res.ok) {

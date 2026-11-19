@@ -34,17 +34,26 @@
                     <i class="bi bi-people-fill me-1"></i>Gửi Yêu Cầu Mượn Sách P2P Từ Chủ Tủ Sách Cá Nhân
                 </h6>
                 <form id="s09CreateP2PForm" class="row g-2 align-items-end">
-                    <div class="col-md-6">
-                        <label class="form-label small text-muted mb-1">Bản sao P2P đang mở cho mượn</label>
+                    <div class="col-md-5">
+                        <label class="form-label small text-muted mb-1">Bản sao P2P đang mở cho thuê / mượn</label>
                         <select id="s09BookCopyId" class="form-select form-select-sm" required>
                             @foreach (var c in Model.AvailableP2PCopies)
                             {
-                                <option value="@c.BookCopyId">[@c.Barcode] @c.Title — Chủ sách: @c.OwnerName (Trust: @c.OwnerTrustScore)</option>
+                                var feeTag = c.DailyRentalFee > 0 ? $"{c.DailyRentalFee:N0}đ/ng • Cọc {c.DepositAmount:N0}đ" : "Miễn phí 0đ";
+                                <option value="@c.BookCopyId" data-daily-fee="@((int)c.DailyRentalFee)" data-deposit="@((int)c.DepositAmount)">[@c.Barcode] @c.Title — @feeTag (@c.OwnerName)</option>
                             }
                         </select>
                     </div>
-                    <div class="col-md-4">
-                        <label class="form-label small text-muted mb-1">Điểm hẹn giao nhận (Hub/CLB)</label>
+                    <div class="col-md-2">
+                        <label class="form-label small text-muted mb-1">Số ngày</label>
+                        <select id="s09DesiredDays" class="form-select form-select-sm">
+                            <option value="7">7 ngày</option>
+                            <option value="14" selected>14 ngày</option>
+                            <option value="30">30 ngày</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label small text-muted mb-1">Điểm hẹn giao nhận (Hub)</label>
                         <select id="s09PickupHubId" class="form-select form-select-sm">
                             @foreach (var h in Model.PickupHubs)
                             {
@@ -54,8 +63,11 @@
                     </div>
                     <div class="col-md-2">
                         <button type="submit" class="btn btn-primary btn-sm w-100 fw-bold py-2">
-                            <i class="bi bi-send-check me-1"></i>Mượn P2P
+                            <i class="bi bi-send-check me-1"></i>Thuê P2P
                         </button>
+                    </div>
+                    <div class="col-12">
+                        <div class="small text-primary fw-semibold" id="s09EscrowPreview">💰 Dự kiến tạm giữ Escrow P2P: Đang tính...</div>
                     </div>
                 </form>
             </div>
@@ -118,13 +130,28 @@
                                     <span class="badge bg-success"><i class="bi bi-shield-check me-1"></i>@item.BorrowerTrustScore đ</span>
                                 </span>
                             </div>
-                            <div class="d-flex justify-content-between">
-                                <span class="text-muted">Thời hạn mượn:</span>
+                            <div class="d-flex justify-content-between mb-1">
+                                <span class="text-muted">Thời hạn thuê:</span>
                                 <span>
                                     @item.DesiredDays ngày
                                     @if (item.DueDate.HasValue)
                                     {
                                         <strong class="text-primary">(Hạn: @item.DueDate.Value.ToString("dd/MM/yyyy"))</strong>
+                                    }
+                                </span>
+                            </div>
+                            <!-- [BS-RENTAL-FLOW] Thông tin Phí thuê & Cọc Escrow P2P -->
+                            <div class="d-flex justify-content-between pt-1 border-top">
+                                <span class="text-muted">Phí thuê &amp; Escrow:</span>
+                                <span>
+                                    @if (item.RentalFeeTotal > 0 || item.DepositHeld > 0)
+                                    {
+                                        <strong class="text-primary">@item.RentalFeeTotal.ToString("N0")đ + Cọc @item.DepositHeld.ToString("N0")đ</strong>
+                                        <span class="badge @(item.EscrowStatus == "Held" ? "bg-warning text-dark" : item.EscrowStatus == "ReleasedToLender" || item.EscrowStatus == "RefundedToBorrower" ? "bg-success" : "bg-secondary") ms-1">@item.EscrowStatus</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge bg-success bg-opacity-10 text-success">Miễn phí 0đ</span>
                                     }
                                 </span>
                             </div>
@@ -200,6 +227,22 @@
                             {
                                 <span class="badge bg-secondary py-2 px-3">@item.RequestStatus</span>
                             }
+                            <!-- [BS-RENTAL-CONTRACT] Nút xem & in Phiếu Hợp Đồng Thuê P2P Điện Tử kèm QR -->
+                            <button type="button" class="btn btn-sm btn-outline-dark js-open-p2p-receipt"
+                                    data-req-id="@item.LoanRequestId"
+                                    data-loan-id="@(item.LoanId?.ToString() ?? "Chờ giao")"
+                                    data-barcode="@item.Barcode"
+                                    data-title="@item.BookTitle"
+                                    data-borrower="@item.BorrowerName"
+                                    data-owner="@item.OwnerName"
+                                    data-hub="@item.PickupHubName"
+                                    data-days="@item.DesiredDays"
+                                    data-rental-fee="@((int)item.RentalFeeTotal)"
+                                    data-deposit="@((int)item.DepositHeld)"
+                                    data-escrow="@item.EscrowStatus"
+                                    data-due="@(item.DueDate?.ToString("dd/MM/yyyy") ?? "Chưa bắt đầu")">
+                                <i class="bi bi-qr-code me-1"></i>Phiếu QR
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -207,6 +250,43 @@
         }
     </div>
 </section>
+
+<!-- [BS-RENTAL-CONTRACT] Modal Phiếu Hợp Đồng Thuê P2P Điện Tử & Mã QR/Barcode (In A5 / 80mm) -->
+<div class="modal fade" id="bsP2PReceiptModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content rounded-4 border-0 shadow">
+            <div class="modal-header border-bottom">
+                <h6 class="modal-title fw-bold"><i class="bi bi-file-earmark-check text-primary me-1"></i>Phiếu Hợp Đồng Thuê Sách P2P &amp; Escrow</h6>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="text-center border-bottom pb-3 mb-3">
+                    <div class="fw-bold fs-5 text-primary">BOOKSHARE P2P E-CONTRACT</div>
+                    <div class="small text-muted">Giao nhận tại Trạm CLB/Hub • Bảo lãnh cọc 100%</div>
+                    <img id="p2pRcQrImg" src="" alt="QR Hợp đồng P2P" class="my-2 border rounded-3 p-1 bg-white" style="width:150px; height:150px;" />
+                    <div><code id="p2pRcBarcode" class="fs-6 fw-bold text-dark">BS-P2P</code></div>
+                </div>
+                <div class="small d-flex flex-column gap-1">
+                    <div class="d-flex justify-content-between"><span class="text-muted">Mã Phiếu / Loan:</span><strong id="p2pRcRef">-</strong></div>
+                    <div class="d-flex justify-content-between"><span class="text-muted">Sách vật lý:</span><strong id="p2pRcTitle">-</strong></div>
+                    <div class="d-flex justify-content-between"><span class="text-muted">Chủ sách (Lender):</span><strong id="p2pRcOwner">-</strong></div>
+                    <div class="d-flex justify-content-between"><span class="text-muted">Người thuê (Borrower):</span><strong id="p2pRcBorrower">-</strong></div>
+                    <div class="d-flex justify-content-between"><span class="text-muted">Điểm hẹn Hub:</span><strong id="p2pRcHub">-</strong></div>
+                    <div class="d-flex justify-content-between"><span class="text-muted">Thời hạn / Hạn trả:</span><strong id="p2pRcDue">-</strong></div>
+                    <div class="d-flex justify-content-between border-top pt-2 mt-1"><span class="text-muted">Phí thuê giải ngân chủ sách:</span><strong id="p2pRcFee" class="text-primary">0đ</strong></div>
+                    <div class="d-flex justify-content-between"><span class="text-muted">Tiền cọc Escrow (Hoàn 100%):</span><strong id="p2pRcDeposit" class="text-success">0đ</strong></div>
+                    <div class="d-flex justify-content-between"><span class="text-muted">Trạng thái Escrow:</span><span id="p2pRcEscrow" class="badge bg-info text-dark">None</span></div>
+                </div>
+            </div>
+            <div class="modal-footer border-top">
+                <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">Đóng</button>
+                <button type="button" class="btn btn-sm btn-primary fw-bold" id="btnPrintP2PReceipt">
+                    <i class="bi bi-printer-fill me-1"></i>In Phiếu (A5 / 80mm)
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
 
 @section Scripts {
     <script type="module" src="~/modules/s09-p2p-loan-flow/s09-p2p-loan-flow.js" asp-append-version="true"></script>

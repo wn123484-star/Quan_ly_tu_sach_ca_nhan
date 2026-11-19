@@ -9,10 +9,12 @@ namespace BookShare.Web.Services.Implementations;
 public class S08LibraryLoanService : IS08LibraryLoanService
 {
     private readonly BookShareDbContext _db;
+    private readonly IWalletService _walletService;
 
-    public S08LibraryLoanService(BookShareDbContext db)
+    public S08LibraryLoanService(BookShareDbContext db, IWalletService walletService)
     {
         _db = db;
+        _walletService = walletService;
     }
 
     public async Task<S08LibraryLoanPageViewModel> GetLibraryLoanFlowAsync(string currentUserId, string currentUserRole)
@@ -48,7 +50,9 @@ public class S08LibraryLoanService : IS08LibraryLoanService
                 Author = bc.Book.Author,
                 LibraryName = bc.Library != null ? bc.Library.Name : "Thư viện Đại học CMC",
                 ShelfLocation = bc.ShelfLocation ?? "Kệ A1 - Tầng 2",
-                LibraryId = bc.LibraryId
+                LibraryId = bc.LibraryId,
+                DailyRentalFee = bc.DailyRentalFee,
+                DepositAmount = bc.DepositAmount
             })
             .ToListAsync();
 
@@ -107,7 +111,12 @@ public class S08LibraryLoanService : IS08LibraryLoanService
                 StartDate = lr.Loan?.StartDate,
                 DueDate = lr.Loan?.DueDate,
                 ReturnDate = lr.Loan?.ReturnDate,
-                RequestNote = lr.RequestNote
+                RequestNote = lr.RequestNote,
+                DailyRentalFee = lr.BookCopy.DailyRentalFee,
+                DepositAmount = lr.BookCopy.DepositAmount,
+                RentalFeeTotal = lr.Loan?.RentalFeeTotal ?? (lr.BookCopy.DailyRentalFee * lr.DesiredDays),
+                DepositHeld = lr.Loan?.DepositHeld ?? lr.BookCopy.DepositAmount,
+                EscrowStatus = lr.Loan?.EscrowStatus ?? "None"
             };
         }).ToList();
 
@@ -297,6 +306,20 @@ public class S08LibraryLoanService : IS08LibraryLoanService
         }
 
         var now = DateTime.UtcNow;
+        decimal expectedRentalFee = loanReq.BookCopy.DailyRentalFee * loanReq.DesiredDays;
+        decimal expectedDeposit = loanReq.BookCopy.DepositAmount;
+        decimal totalEscrowNeeded = expectedRentalFee + expectedDeposit;
+
+        // [BS-RENTAL-FLOW] Kiểm tra số dư Ví trước khi khởi tạo hợp đồng thuê có phí/cọc Escrow
+        if (totalEscrowNeeded > 0m)
+        {
+            var borrowerWallet = await _walletService.EnsureWalletAsync(loanReq.BorrowerId);
+            if (borrowerWallet.Balance < totalEscrowNeeded)
+            {
+                return (false, $"Số dư Ví người thuê ({borrowerWallet.Balance:N0} VNĐ) chưa đủ tạm giữ Escrow {totalEscrowNeeded:N0} VNĐ (Phí thuê {expectedRentalFee:N0}đ + Cọc {expectedDeposit:N0}đ). Vui lòng nạp thêm tại Ví BookShare Pay!");
+            }
+        }
+
         var newLoan = new Loan
         {
             LoanRequestId = loanReq.Id,
@@ -304,12 +327,21 @@ public class S08LibraryLoanService : IS08LibraryLoanService
             DueDate = now.AddDays(loanReq.DesiredDays),
             RenewCount = 0,
             FineAmount = 0,
+            RentalFeeTotal = expectedRentalFee,
+            DepositHeld = expectedDeposit,
+            EscrowStatus = "None",
             Status = "Active"
         };
 
         loanReq.BookCopy.Status = "Borrowed";
         _db.Loans.Add(newLoan);
         await _db.SaveChangesAsync();
+
+        var (_, escrowMsg) = await _walletService.HoldEscrowForLoanAsync(
+            loanReq.BorrowerId,
+            newLoan,
+            expectedRentalFee,
+            expectedDeposit);
 
         // Tự động tạo biên bản ảnh lúc giao (Handover) mặc định nếu chưa có
         _db.ConditionReports.Add(new ConditionReport
@@ -324,7 +356,7 @@ public class S08LibraryLoanService : IS08LibraryLoanService
         });
         await _db.SaveChangesAsync();
 
-        return (true, $"Đã xác nhận giao sách tại Thư viện! Khởi tạo hợp đồng Loan #{newLoan.Id}, trạng thái bản sao [{loanReq.BookCopy.Barcode}] -> 'Borrowed' (Hạn trả: {newLoan.DueDate:dd/MM/yyyy}).");
+        return (true, $"Đã xác nhận giao sách tại Thư viện! Khởi tạo hợp đồng Loan #{newLoan.Id}, trạng thái [{loanReq.BookCopy.Barcode}] -> 'Borrowed' (Hạn trả: {newLoan.DueDate:dd/MM/yyyy}). {escrowMsg}");
     }
 
     public async Task<(bool Success, string Message)> ConfirmReturnLibraryLoanAsync(
@@ -418,7 +450,13 @@ public class S08LibraryLoanService : IS08LibraryLoanService
 
         await _db.SaveChangesAsync();
 
-        return (true, $"Đã xác nhận trả sách [{loanReq.BookCopy.Barcode}] thành công! Trạng thái kho: '{loanReq.BookCopy.Status}'.{queueNotice}");
+        // [BS-RENTAL-FLOW] Quyết toán bảo lãnh Escrow khi trả sách Kho chung (Hoàn 100% cọc khi nguyên vẹn)
+        var (_, escrowSettleMsg) = await _walletService.SettleEscrowOnReturnAsync(
+            loanReq.Loan,
+            loanReq.ApproverId,
+            isDamaged);
+
+        return (true, $"Đã xác nhận trả sách [{loanReq.BookCopy.Barcode}] thành công! Trạng thái kho: '{loanReq.BookCopy.Status}'.{escrowSettleMsg}{queueNotice}");
     }
 
     public async Task<(bool Success, string Message)> CancelLibraryLoanRequestAsync(

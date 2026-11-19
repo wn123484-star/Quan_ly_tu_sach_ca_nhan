@@ -11,11 +11,13 @@ namespace BookShare.Web.Services.Implementations;
 public class S12LoanRenewalFineService : IS12LoanRenewalFineService
 {
     private readonly BookShareDbContext _db;
+    private readonly IWalletService _walletService;
     private const decimal DailyFineRateVnd = 5000m; // 5.000đ / ngày quá hạn (Phí phạt hành chính thư viện, không phải bán sách)
 
-    public S12LoanRenewalFineService(BookShareDbContext db)
+    public S12LoanRenewalFineService(BookShareDbContext db, IWalletService walletService)
     {
         _db = db;
+        _walletService = walletService;
     }
 
     public async Task<S12LoanRenewalFinePageViewModel> GetLoanRenewalFinePageAsync(string currentUserId)
@@ -132,12 +134,25 @@ public class S12LoanRenewalFineService : IS12LoanRenewalFineService
             return (false, $"Từ chối gia hạn: Đầu sách \"{loan.LoanRequest.BookCopy.Book.Title}\" đang có độc giả xếp hàng đặt trước trong Hàng chờ Sách Hot.", null, loan.RenewCount);
         }
 
+        // [BS-RENTAL-FLOW] Nếu sách thuê có phí/ngày -> Trừ phí gia hạn 7 ngày từ Ví BookShare Pay
+        decimal renewalFee = loan.LoanRequest.BookCopy.DailyRentalFee * 7m;
+        string feeMsg = string.Empty;
+        if (renewalFee > 0m)
+        {
+            var (feeOk, msg) = await _walletService.ChargeRenewalFeeAsync(loan.LoanRequest.BorrowerId, loan, renewalFee);
+            if (!feeOk)
+            {
+                return (false, msg, null, loan.RenewCount);
+            }
+            feeMsg = msg;
+        }
+
         loan.RenewCount += 1;
         loan.DueDate = loan.DueDate.AddDays(7);
 
         await _db.SaveChangesAsync();
 
-        return (true, $"Đã gia hạn hợp đồng Loan #{loan.Id} ([{loan.LoanRequest.BookCopy.Barcode}]) thêm +7 ngày! Lần gia hạn: {loan.RenewCount}/2 — Hạn trả mới: {loan.DueDate:dd/MM/yyyy}.", loan.DueDate, loan.RenewCount);
+        return (true, $"Đã gia hạn hợp đồng Loan #{loan.Id} ([{loan.LoanRequest.BookCopy.Barcode}]) thêm +7 ngày! Lần gia hạn: {loan.RenewCount}/2 — Hạn trả mới: {loan.DueDate:dd/MM/yyyy}.{feeMsg}", loan.DueDate, loan.RenewCount);
     }
 
     public async Task<(bool Success, string Message, decimal FineAmount, int TransactionId)> AssessOverdueFineAsync(

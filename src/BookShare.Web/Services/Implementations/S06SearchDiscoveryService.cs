@@ -149,7 +149,9 @@ public class S06SearchDiscoveryService : IS06SearchDiscoveryService
             ShelfLocation = bc.ShelfLocation ?? "Kệ mở",
             Condition = bc.Condition,
             Status = bc.Status,
-            QueueCount = bc.Book.Reservations.Count(r => r.Status == "Waiting")
+            QueueCount = bc.Book.Reservations.Count(r => r.Status == "Waiting"),
+            DailyRentalFee = bc.DailyRentalFee,
+            DepositAmount = bc.DepositAmount
         }).ToList();
 
         filter.Page = currentPage;

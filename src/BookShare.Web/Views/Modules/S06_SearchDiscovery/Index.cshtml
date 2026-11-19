@@ -208,23 +208,35 @@ else
                                 <span class="text-muted"><i class="bi bi-geo-alt-fill text-danger me-1"></i>Khu vực / Vị trí:</span>
                                 <span class="text-dark">@item.AreaAddress (@item.ShelfLocation)</span>
                             </div>
-                            <div class="d-flex justify-content-between">
-                                <span class="text-muted"><i class="bi bi-shield-fill-check text-success me-1"></i>Điểm uy tín & Độ mới:</span>
+                            <div class="d-flex justify-content-between mb-1">
+                                <span class="text-muted"><i class="bi bi-shield-fill-check text-success me-1"></i>Điểm uy tín &amp; Độ mới:</span>
                                 <span>
                                     <strong class="text-success">@item.TrustScore điểm</strong> •
                                     <span class="badge bg-white text-dark border">@item.Condition</span>
                                 </span>
                             </div>
+                            <!-- [BS-RENTAL-FLOW] Hiển thị rõ Phí thuê theo ngày & Tiền cọc bảo lãnh Escrow -->
+                            <div class="d-flex justify-content-between pt-1 border-top">
+                                <span class="text-muted"><i class="bi bi-wallet2 text-primary me-1"></i>Phí thuê &amp; Cọc Escrow:</span>
+                                @if (item.DailyRentalFee > 0 || item.DepositAmount > 0)
+                                {
+                                    <strong class="text-primary">@item.DailyRentalFee.ToString("N0")đ/ngày • Cọc @item.DepositAmount.ToString("N0")đ</strong>
+                                }
+                                else
+                                {
+                                    <span class="badge bg-success">🎁 Miễn phí 0đ</span>
+                                }
+                            </div>
                         </div>
                     </div>
 
-                    <!-- Thanh trạng thái & Nút Gửi Yêu Cầu Mượn (Không có nút Mua hay giá tiền) -->
+                    <!-- Thanh trạng thái & Nút Gửi Yêu Cầu Thuê / Mượn -->
                     <div class="pt-3 border-top d-flex justify-content-between align-items-center gap-2">
                         <div>
                             @if (item.Status == "Available")
                             {
                                 <span class="badge bg-success bg-opacity-10 text-success fw-bold px-2 py-1">
-                                    <i class="bi bi-check-circle-fill me-1"></i>Sẵn sàng cho mượn
+                                    <i class="bi bi-check-circle-fill me-1"></i>Sẵn sàng
                                 </span>
                             }
                             else
@@ -241,8 +253,10 @@ else
                                 data-barcode="@item.Barcode"
                                 data-title="@item.Title"
                                 data-owner="@item.OwnerName"
-                                data-owner-type="@item.OwnerType">
-                            <i class="bi bi-journal-arrow-up me-1"></i>Gửi Yêu Cầu Mượn
+                                data-owner-type="@item.OwnerType"
+                                data-daily-fee="@((int)item.DailyRentalFee)"
+                                data-deposit="@((int)item.DepositAmount)">
+                            <i class="bi bi-journal-arrow-up me-1"></i>@(item.DailyRentalFee > 0 ? "Thuê Sách Ngay" : "Gửi Yêu Cầu Mượn")
                         </button>
                     </div>
                 </div>
@@ -343,11 +357,11 @@ else
 
                     <div class="row g-3 mb-3">
                         <div class="col-md-5">
-                            <label class="form-label small fw-bold text-secondary">Số ngày mượn dự kiến</label>
+                            <label class="form-label small fw-bold text-secondary">Số ngày thuê / mượn</label>
                             <select id="loanDesiredDays" class="form-select">
                                 <option value="7">7 ngày (1 tuần)</option>
                                 <option value="14" selected>14 ngày (Tiêu chuẩn)</option>
-                                <option value="21">21 ngày (3 tuần)</option>
+                                <option value="30">30 ngày (1 tháng)</option>
                             </select>
                         </div>
                         <div class="col-md-7">
@@ -358,6 +372,22 @@ else
                                     <option value="@hub.Id">@hub.Name</option>
                                 }
                             </select>
+                        </div>
+                    </div>
+
+                    <!-- [BS-RENTAL-FLOW] Bộ tính tổng tạm giữ Escrow tự động theo số ngày (7 / 14 / 30 ngày) -->
+                    <div class="p-3 rounded-3 border mb-3 small" style="background: rgba(37, 99, 235, 0.06);">
+                        <div class="d-flex justify-content-between mb-1">
+                            <span class="text-muted">Phí thuê dự kiến (<span id="calcDaysLabel">14</span> ngày):</span>
+                            <strong id="calcRentalFeeTotal" class="text-primary">0 VNĐ</strong>
+                        </div>
+                        <div class="d-flex justify-content-between mb-1">
+                            <span class="text-muted">Tiền cọc bảo lãnh Escrow (Hoàn 100% khi trả nguyên vẹn):</span>
+                            <strong id="calcDepositTotal">0 VNĐ</strong>
+                        </div>
+                        <div class="d-flex justify-content-between pt-2 border-top">
+                            <span class="fw-bold">Tổng tạm giữ Ví BookShare Pay khi nhận sách:</span>
+                            <strong id="calcGrandTotal" class="text-success fs-6">0 VNĐ</strong>
                         </div>
                     </div>
 

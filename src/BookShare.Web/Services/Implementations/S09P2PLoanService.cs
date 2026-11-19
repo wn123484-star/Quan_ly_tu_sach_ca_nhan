@@ -9,10 +9,12 @@ namespace BookShare.Web.Services.Implementations;
 public class S09P2PLoanService : IS09P2PLoanService
 {
     private readonly BookShareDbContext _db;
+    private readonly IWalletService _walletService;
 
-    public S09P2PLoanService(BookShareDbContext db)
+    public S09P2PLoanService(BookShareDbContext db, IWalletService walletService)
     {
         _db = db;
+        _walletService = walletService;
     }
 
     public async Task<S09P2PLoanPageViewModel> GetP2PLoanFlowAsync(string currentUserId)
@@ -48,7 +50,9 @@ public class S09P2PLoanService : IS09P2PLoanService
                 Author = bc.Book.Author,
                 OwnerUserId = bc.OwnerUserId ?? "u-user-02",
                 OwnerName = bc.OwnerUser != null ? bc.OwnerUser.FullName : "Chủ sách P2P",
-                OwnerTrustScore = bc.OwnerUser != null ? bc.OwnerUser.TrustScore : 100
+                OwnerTrustScore = bc.OwnerUser != null ? bc.OwnerUser.TrustScore : 100,
+                DailyRentalFee = bc.DailyRentalFee,
+                DepositAmount = bc.DepositAmount
             })
             .ToListAsync();
 
@@ -93,7 +97,12 @@ public class S09P2PLoanService : IS09P2PLoanService
             StartDate = lr.Loan?.StartDate,
             DueDate = lr.Loan?.DueDate,
             ReturnDate = lr.Loan?.ReturnDate,
-            RequestNote = lr.RequestNote
+            RequestNote = lr.RequestNote,
+            DailyRentalFee = lr.BookCopy.DailyRentalFee,
+            DepositAmount = lr.BookCopy.DepositAmount,
+            RentalFeeTotal = lr.Loan?.RentalFeeTotal ?? (lr.BookCopy.DailyRentalFee * lr.DesiredDays),
+            DepositHeld = lr.Loan?.DepositHeld ?? lr.BookCopy.DepositAmount,
+            EscrowStatus = lr.Loan?.EscrowStatus ?? "None"
         }).ToList();
 
         return new S09P2PLoanPageViewModel
@@ -272,6 +281,19 @@ public class S09P2PLoanService : IS09P2PLoanService
                 return (false, "Sách P2P này đã được xác nhận bàn giao trước đó.");
             }
 
+            // [BS-RENTAL-FLOW] Khóa bảo lãnh Escrow (Phí thuê + Tiền cọc) từ Ví người thuê trước khi tạo hợp đồng P2P
+            decimal expectedRentalFee = loanReq.BookCopy.DailyRentalFee * loanReq.DesiredDays;
+            decimal expectedDeposit = loanReq.BookCopy.DepositAmount;
+            decimal totalEscrowNeeded = expectedRentalFee + expectedDeposit;
+            if (totalEscrowNeeded > 0m)
+            {
+                var borrowerWallet = await _walletService.EnsureWalletAsync(loanReq.BorrowerId);
+                if (borrowerWallet.Balance < totalEscrowNeeded)
+                {
+                    return (false, $"Số dư Ví người thuê ({borrowerWallet.Balance:N0} VNĐ) chưa đủ tạm giữ Escrow {totalEscrowNeeded:N0} VNĐ (Phí thuê {expectedRentalFee:N0}đ + Cọc {expectedDeposit:N0}đ). Vui lòng nạp thêm tại Ví BookShare Pay!");
+                }
+            }
+
             loanReq.Status = "Approved";
             loanReq.BookCopy.Status = "Borrowed";
 
@@ -282,11 +304,14 @@ public class S09P2PLoanService : IS09P2PLoanService
                 DueDate = now.AddDays(loanReq.DesiredDays),
                 RenewCount = 0,
                 FineAmount = 0,
+                RentalFeeTotal = expectedRentalFee,
+                DepositHeld = expectedDeposit,
+                EscrowStatus = "None",
                 Status = "Active"
             };
             _db.Loans.Add(newLoan);
 
-            // Thưởng hạn mức mượn (+1 LendQuotaBonus) và +3 TrustScore cho chủ sách khi cho mượn P2P thành công!
+            // Thưởng hạn mức mượn (+1 LendQuotaBonus) và +3 TrustScore cho chủ sách khi cho thuê/mượn P2P thành công!
             if (loanReq.BookCopy.OwnerUser != null)
             {
                 loanReq.BookCopy.OwnerUser.LendQuotaBonus += 1;
@@ -294,6 +319,12 @@ public class S09P2PLoanService : IS09P2PLoanService
             }
 
             await _db.SaveChangesAsync();
+
+            var (_, escrowMsg) = await _walletService.HoldEscrowForLoanAsync(
+                loanReq.BorrowerId,
+                newLoan,
+                expectedRentalFee,
+                expectedDeposit);
 
             _db.ConditionReports.Add(new ConditionReport
             {
@@ -309,7 +340,7 @@ public class S09P2PLoanService : IS09P2PLoanService
 
             string ownerName = loanReq.BookCopy.OwnerUser?.FullName ?? "Chủ sách";
             int newBonus = loanReq.BookCopy.OwnerUser?.LendQuotaBonus ?? 1;
-            return (true, $"Hai bên đã xác nhận giao nhận sách P2P [{loanReq.BookCopy.Barcode}] -> 'Borrowed'! Chủ sách {ownerName} được cộng thưởng +1 Hạn mức mượn (LendQuotaBonus = +{newBonus}) và +3 TrustScore.");
+            return (true, $"Hai bên đã xác nhận giao nhận sách P2P [{loanReq.BookCopy.Barcode}] -> 'Borrowed'! Chủ sách {ownerName} nhận +1 Hạn mức (LendQuotaBonus = +{newBonus}) và +3 TrustScore. {escrowMsg}");
         }
 
         if (request.Stage == "Returned")
@@ -336,7 +367,14 @@ public class S09P2PLoanService : IS09P2PLoanService
             });
 
             await _db.SaveChangesAsync();
-            return (true, $"Đã xác nhận hoàn trả sách P2P [{loanReq.BookCopy.Barcode}] về tủ chủ sách ('Available')! Người mượn {loanReq.Borrower.FullName} được cộng +2 TrustScore.");
+
+            // [BS-RENTAL-FLOW] Hoàn 100% cọc Escrow cho người thuê & Giải ngân Phí thuê về Ví chủ sách P2P!
+            var (_, settleMsg) = await _walletService.SettleEscrowOnReturnAsync(
+                loanReq.Loan,
+                loanReq.BookCopy.OwnerUserId,
+                isDamaged: false);
+
+            return (true, $"Đã xác nhận hoàn trả sách P2P [{loanReq.BookCopy.Barcode}] về tủ chủ sách ('Available')! Người thuê {loanReq.Borrower.FullName} được cộng +2 TrustScore.{settleMsg}");
         }
 
         return (false, "Trạng thái chuyển tiếp P2P không hợp lệ.");

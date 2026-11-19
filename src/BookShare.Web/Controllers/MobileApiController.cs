@@ -1,0 +1,126 @@
+using System.Security.Claims;
+using BookShare.Web.Models.ViewModels;
+using BookShare.Web.Services.Interfaces;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+
+namespace BookShare.Web.Controllers;
+
+/// <summary>
+/// [BS-WALLET-PAY] &amp; [BS-QRLOGIN-BRIDGE] API dùng chung cho Web Portal &amp; BookShare Mobile Super-App (/MobileApp).
+/// Tuân thủ kiến trúc 3 tầng: Controller -> IWalletService / IQrLoginService -> DbContext.
+/// </summary>
+[ApiController]
+[Route("api/mobile")]
+public class MobileApiController : ControllerBase
+{
+    private readonly IWalletService _walletService;
+    private readonly IQrLoginService _qrLoginService;
+
+    public MobileApiController(
+        IWalletService walletService,
+        IQrLoginService qrLoginService)
+    {
+        _walletService = walletService;
+        _qrLoginService = qrLoginService;
+    }
+
+    // ==================== 1. VÍ BẢO LÃNH BOOKSHARE PAY ====================
+
+    [HttpGet("wallet/summary")]
+    public async Task<IActionResult> WalletSummary()
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "u-user-01";
+        var summary = await _walletService.GetWalletSummaryAsync(userId);
+        return Ok(summary);
+    }
+
+    [HttpPost("wallet/topup")]
+    public async Task<IActionResult> WalletTopUp([FromBody] WalletTopUpRequestDto request)
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "u-user-01";
+        var (success, message, newBalance, txId, hmac) = await _walletService.TopUpDemoAsync(userId, request);
+        if (!success)
+        {
+            return BadRequest(new { message });
+        }
+
+        return Ok(new
+        {
+            title = "Nạp tiền Ví BookShare Pay thành công",
+            message,
+            balance = newBalance,
+            transactionId = txId,
+            hmacSignature = hmac
+        });
+    }
+
+    [HttpPost("wallet/pay-qr")]
+    public async Task<IActionResult> WalletPayQr([FromBody] WalletPayQrRequestDto request)
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "u-user-01";
+        var (success, message, newBalance, txId, hmac) = await _walletService.PayQrWithPinAsync(userId, request);
+        if (!success)
+        {
+            return BadRequest(new { message, balance = newBalance });
+        }
+
+        return Ok(new
+        {
+            title = "Thanh toán QR bằng PIN thành công",
+            message,
+            balance = newBalance,
+            transactionId = txId,
+            hmacSignature = hmac
+        });
+    }
+
+    [HttpPost("wallet/change-pin")]
+    public async Task<IActionResult> WalletChangePin([FromBody] WalletChangePinRequestDto request)
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "u-user-01";
+        var (success, message) = await _walletService.ChangePinAsync(userId, request);
+        if (!success)
+        {
+            return BadRequest(new { message });
+        }
+
+        return Ok(new { title = "Đổi mã PIN Ví Pay thành công", message });
+    }
+
+    // ==================== 2. QR CROSS-LOGIN (MOBILE -> WEB PC) ====================
+
+    [HttpPost("qr-login/init")]
+    public async Task<IActionResult> QrLoginInit()
+    {
+        var data = await _qrLoginService.InitSessionAsync();
+        return Ok(data);
+    }
+
+    [HttpGet("qr-login/status")]
+    public async Task<IActionResult> QrLoginStatus([FromQuery] string token)
+    {
+        var data = await _qrLoginService.GetStatusAsync(token);
+        return Ok(data);
+    }
+
+    // [BS-RBAC-QRLOGIN] Bắt buộc thiết bị Mobile đã đăng nhập mới có quyền duyệt mã QR
+    [HttpPost("qr-login/approve")]
+    [Authorize]
+    public async Task<IActionResult> QrLoginApprove([FromBody] QrLoginTokenRequestDto request)
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (string.IsNullOrWhiteSpace(userId))
+        {
+            return StatusCode(StatusCodes.Status403Forbidden, new { message = "Vui lòng đăng nhập trên Mobile App trước khi duyệt mã QR." });
+        }
+
+        var (success, message) = await _qrLoginService.ApproveSessionAsync(request.Token, userId);
+        if (!success)
+        {
+            return BadRequest(new { message });
+        }
+
+        return Ok(new { title = "Đã duyệt đăng nhập Web PC bằng QR", message });
+    }
+}

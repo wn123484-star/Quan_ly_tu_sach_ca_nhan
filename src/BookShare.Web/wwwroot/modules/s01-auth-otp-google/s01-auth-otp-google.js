@@ -195,4 +195,92 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
     }
+
+    // 7. [BS-QRLOGIN-BRIDGE] Quét QR Đăng Nhập Nhanh (Init -> Countdown 180s -> Polling 2s -> ClaimQrLogin)
+    const btnRefreshQr = document.getElementById('btnRefreshQrLogin');
+    const qrImg = document.getElementById('s01QrImage');
+    const qrPlaceholder = document.getElementById('s01QrPlaceholder');
+    const qrTokenDisplay = document.getElementById('s01QrTokenDisplay');
+    const qrCountdown = document.getElementById('s01QrCountdown');
+    const qrStatusText = document.getElementById('s01QrStatusText');
+
+    let qrPollTimer = null;
+    let qrTickTimer = null;
+    let currentQrToken = '';
+    let qrSecondsLeft = 0;
+
+    const stopQrTimers = () => {
+        if (qrPollTimer) { clearInterval(qrPollTimer); qrPollTimer = null; }
+        if (qrTickTimer) { clearInterval(qrTickTimer); qrTickTimer = null; }
+    };
+
+    const startQrLoginSession = async () => {
+        if (!btnRefreshQr) return;
+        stopQrTimers();
+        if (qrStatusText) qrStatusText.innerText = 'Đang tạo phiên QR đăng nhập an toàn (hiệu lực 180 giây)...';
+
+        const res = await apiFetch('/api/mobile/qr-login/init', { method: 'POST', button: btnRefreshQr });
+        if (!res.ok || !res.data?.token) return;
+
+        currentQrToken = res.data.token;
+        qrSecondsLeft = res.data.expiresInSeconds || 180;
+        if (qrTokenDisplay) qrTokenDisplay.innerText = currentQrToken;
+        if (qrCountdown) {
+            qrCountdown.classList.remove('d-none', 'bg-danger');
+            qrCountdown.classList.add('bg-primary');
+            qrCountdown.innerText = `${qrSecondsLeft}s`;
+        }
+        if (qrImg) {
+            qrImg.src = `https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${encodeURIComponent(currentQrToken)}`;
+            qrImg.classList.remove('d-none');
+        }
+        if (qrPlaceholder) qrPlaceholder.classList.add('d-none');
+        if (qrStatusText) qrStatusText.innerText = 'Đang chờ thiết bị Mobile BookShare quét & xác nhận duyệt...';
+
+        qrTickTimer = setInterval(() => {
+            qrSecondsLeft = Math.max(0, qrSecondsLeft - 1);
+            if (qrCountdown) qrCountdown.innerText = `${qrSecondsLeft}s`;
+            if (qrSecondsLeft <= 0) {
+                stopQrTimers();
+                if (qrCountdown) {
+                    qrCountdown.classList.remove('bg-primary');
+                    qrCountdown.classList.add('bg-danger');
+                    qrCountdown.innerText = 'Hết hạn';
+                }
+                if (qrStatusText) qrStatusText.innerText = 'Mã QR đã hết hiệu lực. Bấm "Tạo / Làm mới QR" để lấy mã mới.';
+            }
+        }, 1000);
+
+        qrPollTimer = setInterval(async () => {
+            if (!currentQrToken) return;
+            try {
+                const r = await fetch(`/api/mobile/qr-login/status?token=${encodeURIComponent(currentQrToken)}`, {
+                    headers: { Accept: 'application/json' },
+                    credentials: 'same-origin'
+                });
+                if (!r.ok) return;
+                const st = await r.json();
+                if (st.status === 'Approved') {
+                    stopQrTimers();
+                    if (qrStatusText) qrStatusText.innerText = `Đã duyệt bởi ${st.approvedUserName || 'Mobile App'}! Đang đăng nhập Web PC...`;
+                    const claim = await apiFetch('/S01AuthOtpGoogle/ClaimQrLogin', {
+                        method: 'POST',
+                        body: { token: currentQrToken },
+                        button: null
+                    });
+                    if (claim.ok && claim.data?.redirectUrl) {
+                        window.location.href = claim.data.redirectUrl;
+                    }
+                } else if (st.status === 'Expired') {
+                    stopQrTimers();
+                    if (qrStatusText) qrStatusText.innerText = 'Phiên QR đã hết hạn. Vui lòng bấm làm mới mã QR.';
+                }
+            } catch { /* thử lại ở vòng poll tiếp theo */ }
+        }, 2000);
+    };
+
+    if (btnRefreshQr) {
+        btnRefreshQr.addEventListener('click', startQrLoginSession);
+        startQrLoginSession();
+    }
 });
