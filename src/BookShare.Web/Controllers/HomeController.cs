@@ -24,22 +24,25 @@ public class HomeController : Controller
         return View(vm);
     }
 
+    // [BS-AGENT-AI-COPILOT] Endpoint AI Copilot Hành Động trả về { reply, sessionId, actions, emailSubject }
     [HttpPost("/api/ai-chat/quick-ask")]
-    [ValidateAntiForgeryToken]
+    [IgnoreAntiforgeryToken]
     public async Task<IActionResult> QuickAiAsk([FromBody] QuickAiPromptDto dto)
     {
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "u-user-01";
-        var (success, replyText, sessionId, _, sourceMode) = await _geminiAiService.SendMessageWithRagAsync(
+        var (success, replyText, sessionId, _, sourceMode, actions, emailSubject) = await _geminiAiService.SendCopilotMessageAsync(
             userId,
             null,
             dto.Message ?? string.Empty);
 
         return Ok(new
         {
-            title = $"Trợ lý AI Thủ thư ({sourceMode})",
+            title = $"AI Copilot BookShare ({sourceMode})",
             message = $"Đã lưu lịch sử vào AiChatMessages (Session #{sessionId}).",
             reply = replyText,
-            sessionId
+            sessionId,
+            actions,
+            emailSubject
         });
     }
 

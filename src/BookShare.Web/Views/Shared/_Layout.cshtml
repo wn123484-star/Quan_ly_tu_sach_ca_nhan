@@ -282,38 +282,68 @@
         @RenderBody()
     </main>
 
-    <!-- 4. WIDGET TRỢ LÝ AI GEMINI NỔI Ở GÓC PHẢI DƯỚI (S13) -->
+    <!-- 4. [BS-AGENT-AI-COPILOT] DUAL-TAB CHAT HUB NỔI: TRỢ LÝ AI COPILOT HÀNH ĐỘNG & CHAT THỦ THƯ -->
     <div id="aiFloatingWidget" class="ai-chat-widget">
         <button type="button" id="btnToggleAIChat" class="ai-chat-fab shadow" aria-expanded="false" aria-controls="aiChatPopup">
             <i class="bi bi-stars fs-5" aria-hidden="true"></i>
-            <span>Trợ Lý AI Thủ Thư</span>
+            <span>AI Copilot &amp; Thủ Thư</span>
         </button>
 
-        <div id="aiChatPopup" class="ai-chat-popup shadow-lg d-none" role="dialog" aria-label="Trợ lý AI BookShare">
+        <div id="aiChatPopup" class="ai-chat-popup shadow-lg d-none" role="dialog" aria-label="AI Copilot & Chat Thủ thư BookShare">
             <div class="ai-chat-header text-white d-flex justify-content-between align-items-center px-3 py-2">
                 <div class="d-flex align-items-center gap-2">
                     <i class="bi bi-robot"></i>
                     <div>
-                        <strong class="small d-block">Trợ lý AI BookShare (Gemini 2.5)</strong>
-                        <span style="font-size: 0.68rem; opacity: 0.85;">RAG: Kết nối trực tiếp SQL Server BookShareDb</span>
+                        <strong class="small d-block">BookShare Chat Hub (Copilot + Thủ Thư)</strong>
+                        <span style="font-size: 0.68rem; opacity: 0.85;">Thực thi lệnh trực tiếp &amp; Hỗ trợ trực tuyến SQL Server</span>
                     </div>
                 </div>
-                <button type="button" id="btnCloseAIChat" class="btn btn-sm text-white p-0 px-1" aria-label="Đóng trợ lý AI"><i class="bi bi-x-lg" aria-hidden="true"></i></button>
+                <button type="button" id="btnCloseAIChat" class="btn btn-sm text-white p-0 px-1" aria-label="Đóng hộp thoại"><i class="bi bi-x-lg" aria-hidden="true"></i></button>
             </div>
 
-            <div class="px-2 py-2 border-bottom bg-body-tertiary d-flex gap-1 flex-wrap">
-                <button type="button" class="btn btn-outline-primary btn-xs ai-quick-prompt" data-prompt="Gợi ý sách sẵn sàng cho mượn trong kho ĐH CMC.">📚 Gợi ý sách sẵn có</button>
-                <button type="button" class="btn btn-outline-success btn-xs ai-quick-prompt" data-prompt="Kiểm tra tiến độ đọc và hạn trả sách hiện tại của mình.">⏰ Kiểm tra tiến độ & hạn trả</button>
+            <!-- Thanh chuyển 2 Tab: AI Copilot vs Chat Thủ Thư -->
+            <div class="d-flex border-bottom bg-body-tertiary p-1 gap-1">
+                <button type="button" id="btnTabAiCopilot" class="btn btn-xs btn-primary flex-fill fw-bold">🤖 Trợ Lý AI Copilot</button>
+                <button type="button" id="btnTabSupportChat" class="btn btn-xs btn-outline-secondary flex-fill fw-bold">👩‍🏫 Chat Thủ Thư</button>
             </div>
 
-            <div id="aiChatWidgetMessages" class="ai-chat-messages p-3" role="log" aria-live="polite">
-                <div class="ai-msg ai-msg-bot">Xin chào! Mình là Trợ lý AI kết nối trực tiếp với CSDL BookShareDb. Bạn cần tìm sách mượn miễn phí hay kiểm tra tiến độ đọc hiện tại?</div>
+            <!-- TAB 1: TRỢ LÝ AI COPILOT HÀNH ĐỘNG -->
+            <div id="paneAiCopilot" class="d-flex flex-column flex-grow-1 overflow-hidden">
+                <div class="px-2 py-2 border-bottom bg-body-tertiary d-flex gap-1 flex-wrap">
+                    <button type="button" class="btn btn-outline-primary btn-xs ai-quick-prompt" data-prompt="Bật chế độ tối và đổi theme sang Emerald">🌙 Đổi giao diện Tối + Emerald</button>
+                    <button type="button" class="btn btn-outline-success btn-xs ai-quick-prompt" data-prompt="Gửi email nhắc hạn trả sách cho mình nhé">📧 Gửi Mail nhắc hạn</button>
+                    <button type="button" class="btn btn-outline-warning btn-xs ai-quick-prompt" data-prompt="Mở Reading Studio giúp mình">⏱️ Mở Studio</button>
+                </div>
+
+                <div id="aiChatWidgetMessages" class="ai-chat-messages p-3" role="log" aria-live="polite">
+                    <div class="ai-msg ai-msg-bot">Xin chào! Mình là <strong>AI Copilot BookShare</strong>. Bạn có thể ra lệnh trực tiếp như: <em>"Bật chế độ tối"</em>, <em>"Đổi theme Emerald"</em>, <em>"Gửi email nhắc hạn"</em>, <em>"Cập nhật trang 150"</em> hoặc <em>"Mở Ví Pay"</em>!</div>
+                </div>
+
+                <form id="aiChatWidgetForm" class="border-top p-2 d-flex gap-2 bg-white">
+                    <input type="text" id="aiChatWidgetInput" class="form-control form-control-sm" placeholder="Ra lệnh cho AI Copilot (đổi theme, gửi mail, tìm sách)..." autocomplete="off" aria-label="Câu lệnh cho AI Copilot" />
+                    <button type="submit" class="btn btn-primary btn-sm px-3" aria-label="Gửi lệnh"><i class="bi bi-send" aria-hidden="true"></i></button>
+                </form>
             </div>
 
-            <form id="aiChatWidgetForm" class="border-top p-2 d-flex gap-2 bg-white">
-                <input type="text" id="aiChatWidgetInput" class="form-control form-control-sm" placeholder="Nhập câu hỏi cho Gemini AI..." autocomplete="off" aria-label="Câu hỏi cho trợ lý AI" />
-                <button type="submit" class="btn btn-primary btn-sm px-3" aria-label="Gửi câu hỏi"><i class="bi bi-send" aria-hidden="true"></i></button>
-            </form>
+            <!-- TAB 2: CHAT TRỰC TIẾP THỦ THƯ / CHỦ SÁCH (POLLING 10S) -->
+            <div id="paneSupportChat" class="d-none flex-column flex-grow-1 overflow-hidden">
+                <div class="px-2 py-1 border-bottom bg-body-tertiary d-flex align-items-center justify-content-between gap-2">
+                    <select id="supportChatChannel" class="form-select form-select-sm py-0" style="font-size:0.76rem;">
+                        <option value="Librarian">🏛️ Kênh Thủ Thư Thư Viện</option>
+                        <option value="Owner">🤝 Kênh Chủ Sách P2P</option>
+                    </select>
+                    <span class="badge bg-success" style="font-size:0.65rem;">Live 10s</span>
+                </div>
+
+                <div id="supportChatMessages" class="ai-chat-messages p-3" role="log" aria-live="polite">
+                    <div class="small text-muted text-center">Đang tải hội thoại trực tiếp...</div>
+                </div>
+
+                <form id="supportChatForm" class="border-top p-2 d-flex gap-2 bg-white">
+                    <input type="text" id="supportChatInput" class="form-control form-control-sm" placeholder="Nhắn trực tiếp Thủ thư / Chủ sách..." autocomplete="off" aria-label="Tin nhắn tới Thủ thư" />
+                    <button type="submit" class="btn btn-success btn-sm px-3" aria-label="Gửi tin nhắn"><i class="bi bi-send-fill" aria-hidden="true"></i></button>
+                </form>
+            </div>
         </div>
     </div>
 

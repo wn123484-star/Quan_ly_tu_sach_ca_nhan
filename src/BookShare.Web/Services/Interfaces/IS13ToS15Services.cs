@@ -11,6 +11,12 @@ public interface IS13GeminiAiService
         int? sessionId,
         string userMessage);
 
+    // [BS-AGENT-AI-COPILOT] Trợ lý AI Copilot Hành Động trả về danh sách actions[] thực thi trực tiếp
+    Task<(bool Success, string ReplyText, int SessionId, int PromptTokens, string SourceMode, List<AiCopilotActionDto> Actions, string? EmailSubject)> SendCopilotMessageAsync(
+        string currentUserId,
+        int? sessionId,
+        string userMessage);
+
         Task<(bool Success, string Message, int SessionId)> CreateSessionAsync(
             string currentUserId,
             string title);

@@ -8,10 +8,14 @@ namespace BookShare.Web.Controllers;
 public class S08LibraryLoanFlowController : Controller
 {
     private readonly IS08LibraryLoanService _libraryLoanService;
+    private readonly IRecaptchaService _recaptchaService;
 
-    public S08LibraryLoanFlowController(IS08LibraryLoanService libraryLoanService)
+    public S08LibraryLoanFlowController(
+        IS08LibraryLoanService libraryLoanService,
+        IRecaptchaService recaptchaService)
     {
         _libraryLoanService = libraryLoanService;
+        _recaptchaService = recaptchaService;
     }
 
     [HttpGet]
@@ -27,6 +31,14 @@ public class S08LibraryLoanFlowController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> CreateRequest([FromBody] CreateLibraryLoanRequestDto request)
     {
+        // [BS-SEC-RECAPTCHA] Bảo vệ tạo phiếu thuê/mượn Kho chung bằng Google reCAPTCHA v3
+        var remoteIp = HttpContext.Connection.RemoteIpAddress?.ToString();
+        var (captchaOk, _, captchaMsg) = await _recaptchaService.VerifyTokenAsync(request.RecaptchaToken, "library_loan", remoteIp);
+        if (!captchaOk)
+        {
+            return StatusCode(StatusCodes.Status403Forbidden, new { message = captchaMsg });
+        }
+
         var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "u-user-01";
         var (success, message) = await _libraryLoanService.CreateLibraryLoanRequestAsync(currentUserId, request);
         if (!success)

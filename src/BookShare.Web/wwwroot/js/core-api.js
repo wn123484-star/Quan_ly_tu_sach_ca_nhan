@@ -858,6 +858,34 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
+    // [BS-AGENT-AI-COPILOT] Bộ thực thi hành động từ AI Copilot trên trình duyệt
+    const executeCopilotActions = (actions) => {
+        if (!Array.isArray(actions) || !actions.length) return;
+        for (const act of actions) {
+            const type = act?.type || act?.Type || '';
+            const val = act?.value || act?.Value || '';
+            if (type === 'SET_DARK_MODE' && (val === 'dark' || val === 'light')) {
+                document.documentElement.setAttribute('data-bs-theme', val);
+                try { localStorage.setItem('bookshare_theme', val); } catch { }
+                const toggleBtn = document.getElementById('btnThemeToggle');
+                if (toggleBtn) {
+                    const isDark = val === 'dark';
+                    toggleBtn.setAttribute('aria-pressed', String(isDark));
+                    toggleBtn.innerHTML = isDark
+                        ? '<i class="bi bi-sun-fill" aria-hidden="true"></i><span>Sáng</span>'
+                        : '<i class="bi bi-moon-stars-fill" aria-hidden="true"></i><span>Tối</span>';
+                }
+                applyChartTheme(val === 'dark');
+            } else if (type === 'SET_THEME' && val) {
+                document.body.setAttribute('data-portal-palette', val);
+                try { localStorage.setItem('bookshare_palette', val); } catch { }
+                syncPaletteMenuState(val);
+            } else if (type === 'NAVIGATE' && val.startsWith('/')) {
+                setTimeout(() => { window.location.href = val; }, 900);
+            }
+        }
+    };
+
     if (chatForm && chatInput) {
         chatForm.addEventListener('submit', async (e) => {
             e.preventDefault();
@@ -880,6 +908,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 typing.remove();
                 if (res.ok && res.data && res.data.reply) {
                     appendWidgetMsg(res.data.reply, true);
+                    executeCopilotActions(res.data.actions);
                 } else {
                     appendWidgetMsg('Trợ lý AI: Bạn có thể tra cứu sách trong **Kho chung ĐH CMC** hoặc kiểm tra tiến độ đọc tại mục **Tiến Độ Đọc Sách**.', true);
                 }
@@ -890,4 +919,79 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
     }
+
+    // [BS-AGENT-AI-CHAT] Dual-Tab Switcher & Live Support Chat Polling 10s (SupportChatMessages)
+    const btnTabAi = document.getElementById('btnTabAiCopilot');
+    const btnTabSup = document.getElementById('btnTabSupportChat');
+    const paneAi = document.getElementById('paneAiCopilot');
+    const paneSup = document.getElementById('paneSupportChat');
+    const supList = document.getElementById('supportChatMessages');
+    const supForm = document.getElementById('supportChatForm');
+    const supInput = document.getElementById('supportChatInput');
+    const supChannel = document.getElementById('supportChatChannel');
+    let supPollTimer = null;
+
+    const loadSupportMessages = async () => {
+        if (!supList) return;
+        const ch = supChannel?.value || 'Librarian';
+        try {
+            const res = await fetch(`/api/mobile/support-chat/messages?channel=${encodeURIComponent(ch)}`, {
+                headers: { Accept: 'application/json' },
+                credentials: 'same-origin'
+            });
+            if (!res.ok) return;
+            const list = await res.json();
+            if (!Array.isArray(list) || !list.length) {
+                supList.innerHTML = '<div class="small text-muted text-center py-3">Chưa có tin nhắn. Hãy nhắn trực tiếp cho Thủ thư hoặc Chủ sách!</div>';
+                return;
+            }
+            supList.innerHTML = list.map(m => `
+                <div class="ai-msg ${m.isMine ? 'ai-msg-user' : 'ai-msg-bot'}">
+                    <div style="font-size:0.68rem;opacity:0.8;margin-bottom:2px;"><strong>${escapeHtml(m.senderName)}</strong> (${escapeHtml(m.senderRole)})</div>
+                    <div>${escapeHtml(m.messageText)}</div>
+                </div>`).join('');
+            supList.scrollTop = supList.scrollHeight;
+        } catch { /* bỏ qua lỗi mạng tạm */ }
+    };
+
+    const switchChatTab = (tab) => {
+        const isAi = tab === 'ai';
+        paneAi?.classList.toggle('d-none', !isAi);
+        paneAi?.classList.toggle('d-flex', isAi);
+        paneSup?.classList.toggle('d-none', isAi);
+        paneSup?.classList.toggle('d-flex', !isAi);
+        btnTabAi?.classList.toggle('btn-primary', isAi);
+        btnTabAi?.classList.toggle('btn-outline-secondary', !isAi);
+        btnTabSup?.classList.toggle('btn-primary', !isAi);
+        btnTabSup?.classList.toggle('btn-outline-secondary', isAi);
+        if (!isAi) {
+            loadSupportMessages();
+            if (!supPollTimer) {
+                supPollTimer = setInterval(() => {
+                    if (!chatPopup?.classList.contains('d-none') && !paneSup?.classList.contains('d-none')) {
+                        loadSupportMessages();
+                    }
+                }, 10000);
+            }
+        }
+    };
+
+    btnTabAi?.addEventListener('click', () => switchChatTab('ai'));
+    btnTabSup?.addEventListener('click', () => switchChatTab('support'));
+    supChannel?.addEventListener('change', loadSupportMessages);
+
+    supForm?.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const messageText = supInput?.value.trim() || '';
+        if (!messageText) return;
+        const channel = supChannel?.value || 'Librarian';
+        supInput.value = '';
+        const res = await apiFetch('/api/mobile/support-chat/send', {
+            method: 'POST',
+            body: { channel, messageText }
+        });
+        if (res.ok) {
+            await loadSupportMessages();
+        }
+    });
 });

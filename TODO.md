@@ -38,10 +38,10 @@ Nhánh sao lưu dự phòng: `backup/pre-turbo-rental`
   - [x] Voice-to-Quote (`SpeechRecognition` `vi-VN`) lưu `BookNotes`, Quote Flashcards lật thẻ, chế độ nền Sepia / Sáng / Đêm & chỉnh cỡ chữ `A- / A / A+`.
 
 ## GIAI ĐOẠN 6: AI Copilot Hành Động, Chat Thủ Thư & Google reCAPTCHA v3
-- [ ] Nâng cấp `S13GeminiAiService` & `/api/ai-chat/quick-ask` trả về `{ reply, sessionId, actions: [...] }` hỗ trợ `SET_DARK_MODE`, `SET_THEME`, `SEND_EMAIL`, `UPDATE_PROGRESS`, `NAVIGATE` (`[BS-AGENT-AI-COPILOT]`).
-- [ ] Kiểm tra & đảm bảo tiêu đề Email OTP tại `ResendEmailService` tuyệt đối KHÔNG lộ mã OTP 6 chữ số (`[BS-SEC-OTP]`).
-- [ ] Nâng cấp Widget Chat nổi thành 2 Tab: **🤖 Trợ Lý AI Copilot** & **👩‍🏫 Chat Thủ Thư / Chủ Sách** (bảng `SupportChatMessages`, polling 10s, hỗ trợ Thủ thư/Admin trả lời).
-- [ ] Gắn Google reCAPTCHA v3 (`[BS-SEC-RECAPTCHA]`) cho đầy đủ: `S01` (Register, Login, SendOtp), `S06` (QuickRequestLoan), `S08` (CreateRequest), `S09` (CreateP2PRequest).
+- [x] Nâng cấp `S13GeminiAiService` & `/api/ai-chat/quick-ask` trả về `{ reply, sessionId, actions: [...] }` hỗ trợ `SET_DARK_MODE`, `SET_THEME`, `SEND_EMAIL`, `UPDATE_PROGRESS`, `NAVIGATE` (`[BS-AGENT-AI-COPILOT]`).
+- [x] Kiểm tra & đảm bảo tiêu đề Email OTP tại `ResendEmailService` tuyệt đối KHÔNG lộ mã OTP 6 chữ số (`[BS-SEC-OTP]`).
+- [x] Nâng cấp Widget Chat nổi thành 2 Tab: **🤖 Trợ Lý AI Copilot** & **👩‍🏫 Chat Thủ Thư / Chủ Sách** (bảng `SupportChatMessages`, polling 10s, hỗ trợ Thủ thư/Admin trả lời).
+- [x] Gắn Google reCAPTCHA v3 (`[BS-SEC-RECAPTCHA]`) cho đầy đủ: `S01` (Register, Login, SendOtp), `S06` (QuickRequestLoan), `S08` (CreateRequest), `S09` (CreateP2PRequest).
 
 ## GIAI ĐOẠN 7: Mobile Super-App (`/MobileApp`) & Bộ Đóng Gói Android APK
 - [ ] Xây dựng `MobileAppController`, `Views/MobileApp/Index.cshtml`, `wwwroot/modules/mobile-app/mobile-app.css` & `mobile-app.js` với 5 Tab đáy màn hình (Trang Chủ, Đọc Sách Studio, Quét QR đa năng `html5-qrcode`, Ví Pay 3D, Thông Báo & Chat) + đăng nhập/đăng xuất đồng bộ Cookie (`[BS-MOBILE-SUPERAPP]`).

@@ -8,10 +8,14 @@ namespace BookShare.Web.Controllers;
 public class S09P2PLoanFlowController : Controller
 {
     private readonly IS09P2PLoanService _p2pLoanService;
+    private readonly IRecaptchaService _recaptchaService;
 
-    public S09P2PLoanFlowController(IS09P2PLoanService p2pLoanService)
+    public S09P2PLoanFlowController(
+        IS09P2PLoanService p2pLoanService,
+        IRecaptchaService recaptchaService)
     {
         _p2pLoanService = p2pLoanService;
+        _recaptchaService = recaptchaService;
     }
 
     [HttpGet]
@@ -26,6 +30,14 @@ public class S09P2PLoanFlowController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> CreateRequest([FromBody] CreateP2PLoanRequestDto request)
     {
+        // [BS-SEC-RECAPTCHA] Bảo vệ gửi yêu cầu thuê/mượn P2P bằng Google reCAPTCHA v3
+        var remoteIp = HttpContext.Connection.RemoteIpAddress?.ToString();
+        var (captchaOk, _, captchaMsg) = await _recaptchaService.VerifyTokenAsync(request.RecaptchaToken, "p2p_loan", remoteIp);
+        if (!captchaOk)
+        {
+            return StatusCode(StatusCodes.Status403Forbidden, new { message = captchaMsg });
+        }
+
         var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "u-user-01";
         var (success, message) = await _p2pLoanService.CreateP2PLoanRequestAsync(currentUserId, request);
         if (!success)

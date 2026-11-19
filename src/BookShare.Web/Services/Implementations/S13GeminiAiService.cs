@@ -1,5 +1,6 @@
 using System.Text;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using BookShare.Web.Data;
 using BookShare.Web.Models.Entities;
 using BookShare.Web.Models.ViewModels;
@@ -14,15 +15,18 @@ public class S13GeminiAiService : IS13GeminiAiService
     private readonly BookShareDbContext _db;
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly IConfiguration _config;
+    private readonly IResendEmailService _resendEmailService;
 
     public S13GeminiAiService(
         BookShareDbContext db,
         IHttpClientFactory httpClientFactory,
-        IConfiguration config)
+        IConfiguration config,
+        IResendEmailService resendEmailService)
     {
         _db = db;
         _httpClientFactory = httpClientFactory;
         _config = config;
+        _resendEmailService = resendEmailService;
     }
 
     public async Task<S13GeminiAssistantPageViewModel> GetAssistantPageAsync(string currentUserId, int? sessionId = null)
@@ -384,6 +388,185 @@ public class S13GeminiAiService : IS13GeminiAiService
         await _db.SaveChangesAsync();
 
         return (true, replyText, session.Id, promptTokens, sourceMode);
+    }
+
+    // [BS-AGENT-AI-COPILOT] Bộ phân tích hành động thực thi trực tiếp (SET_DARK_MODE, SET_THEME, SEND_EMAIL, UPDATE_PROGRESS, NAVIGATE)
+    public async Task<(bool Success, string ReplyText, int SessionId, int PromptTokens, string SourceMode, List<AiCopilotActionDto> Actions, string? EmailSubject)> SendCopilotMessageAsync(
+        string currentUserId,
+        int? sessionId,
+        string userMessage)
+    {
+        var actions = new List<AiCopilotActionDto>();
+        var actionNotes = new List<string>();
+        string? emailSubject = null;
+
+        string clean = (userMessage ?? string.Empty).Trim();
+        string lower = clean.ToLowerInvariant();
+
+        // 1. Hành động SET_DARK_MODE
+        if (lower.Contains("chế độ tối") || lower.Contains("dark mode") || lower.Contains("giao diện tối") || lower.Contains("bật tối"))
+        {
+            actions.Add(new AiCopilotActionDto { Type = "SET_DARK_MODE", Value = "dark", Label = "Đã chuyển sang Chế độ Tối (Dark Mode)" });
+            actionNotes.Add("🌙 Đã kích hoạt **Chế độ Tối (Dark Mode)** ngay trên giao diện của bạn.");
+        }
+        else if (lower.Contains("chế độ sáng") || lower.Contains("light mode") || lower.Contains("giao diện sáng") || lower.Contains("bật sáng"))
+        {
+            actions.Add(new AiCopilotActionDto { Type = "SET_DARK_MODE", Value = "light", Label = "Đã chuyển sang Chế độ Sáng (Light Mode)" });
+            actionNotes.Add("☀️ Đã chuyển giao diện về **Chế độ Sáng (Light Mode)**.");
+        }
+
+        // 2. Hành động SET_THEME (7 bảng màu Doanh nghiệp)
+        var themeMap = new (string[] Keywords, string Key, string Name)[]
+        {
+            (new[] { "emerald", "lục bảo", "xanh lá" }, "emerald", "Emerald Library"),
+            (new[] { "midnight", "cyber", "xanh đêm" }, "midnight", "Midnight Cyber"),
+            (new[] { "ocean", "đại dương" }, "ocean", "Ocean Blue"),
+            (new[] { "royal", "tím", "indigo" }, "royal", "Royal Indigo"),
+            (new[] { "obsidian", "vàng đen", "kim tước", "gold" }, "obsidian", "Obsidian Gold"),
+            (new[] { "ivory", "giấy kem", "sepia", "paper" }, "ivory", "Warm Ivory Paper"),
+            (new[] { "sapphire", "mặc định" }, "blue", "Executive Sapphire")
+        };
+        if (lower.Contains("theme") || lower.Contains("giao diện") || lower.Contains("màu") || lower.Contains("đổi nền"))
+        {
+            foreach (var (keywords, key, name) in themeMap)
+            {
+                if (keywords.Any(k => lower.Contains(k)))
+                {
+                    actions.Add(new AiCopilotActionDto { Type = "SET_THEME", Value = key, Label = $"Đã đổi bảng màu sang {name}" });
+                    actionNotes.Add($"🎨 Đã đổi chủ đề giao diện sang **{name}** (`{key}`).");
+                    break;
+                }
+            }
+        }
+
+        // 3. Hành động SEND_EMAIL (Nhắc hạn trả sách hoặc Gửi OTP bảo mật không lộ số 6 chữ số ở tiêu đề)
+        if (lower.Contains("gửi email") || lower.Contains("gửi mail") || lower.Contains("gửi otp") || lower.Contains("nhắc hạn qua mail"))
+        {
+            var user = await _db.AspNetUsers.AsNoTracking().FirstOrDefaultAsync(u => u.Id == currentUserId);
+            string targetEmail = user?.Email ?? "nguyenhung@cmc.edu.vn";
+
+            if (lower.Contains("otp"))
+            {
+                // [BS-SEC-OTP] Tiêu đề Email OTP tuyệt đối không chứa mã 6 chữ số
+                emailSubject = "[BookShare] Mã xác thực bảo mật tài khoản của bạn";
+                var (ok, msg, _) = await _resendEmailService.GenerateAndSendOtpAsync(targetEmail, "VerifyNotificationEmail", currentUserId);
+                actions.Add(new AiCopilotActionDto { Type = "SEND_EMAIL", Value = targetEmail, Label = ok ? "Đã gửi OTP bảo mật" : "Gửi OTP thất bại" });
+                actionNotes.Add($"🔐 {msg}");
+            }
+            else
+            {
+                emailSubject = "[BookShare] Nhắc hạn trả sách & Lộ trình đọc kịp hạn";
+                var (_, _, note) = await _resendEmailService.SendNotificationEmailAsync(
+                    targetEmail,
+                    emailSubject,
+                    $"<h3>Xin chào {user?.FullName ?? "Độc giả BookShare"}</h3><p>Đây là thư nhắc hạn trả sách và tổng hợp tiến độ đọc được kích hoạt trực tiếp từ <strong>AI Copilot BookShare</strong>.</p>");
+
+                _db.Notifications.Add(new Notification
+                {
+                    UserId = currentUserId,
+                    Title = emailSubject,
+                    Content = $"AI Copilot đã gửi thư nhắc hạn tới {targetEmail}.",
+                    Type = "DueReminder",
+                    IsRead = false,
+                    EmailSentViaResend = true,
+                    CreatedAt = DateTime.UtcNow
+                });
+                await _db.SaveChangesAsync();
+
+                actions.Add(new AiCopilotActionDto { Type = "SEND_EMAIL", Value = targetEmail, Label = "Đã gửi Email nhắc hạn qua Resend" });
+                actionNotes.Add($"📧 {note}");
+            }
+        }
+
+        // 4. Hành động UPDATE_PROGRESS (VD: "cập nhật trang 250", "đọc tới trang 180")
+        var pageMatch = Regex.Match(lower, @"(?:cập nhật|đọc tới|đến|sang)\s*(?:trang|page)\s*(\d+)");
+        if (pageMatch.Success && int.TryParse(pageMatch.Groups[1].Value, out int targetPage))
+        {
+            var latestRp = await _db.ReadingProgresses
+                .Include(rp => rp.Book)
+                .Where(rp => rp.UserId == currentUserId)
+                .OrderByDescending(rp => rp.UpdatedAt)
+                .FirstOrDefaultAsync();
+
+            if (latestRp != null)
+            {
+                latestRp.CurrentPage = Math.Clamp(targetPage, 0, latestRp.TotalPages);
+                latestRp.Status = latestRp.CurrentPage >= latestRp.TotalPages ? "Completed" : (latestRp.CurrentPage > 0 ? "Reading" : "WantToRead");
+                latestRp.UpdatedAt = DateTime.UtcNow;
+                await _db.SaveChangesAsync();
+
+                actions.Add(new AiCopilotActionDto { Type = "UPDATE_PROGRESS", Value = latestRp.CurrentPage.ToString(), Label = $"Đã cập nhật trang {latestRp.CurrentPage}/{latestRp.TotalPages}" });
+                actionNotes.Add($"📖 Đã cập nhật tiến độ cuốn **{latestRp.Book.Title}** lên trang **{latestRp.CurrentPage}/{latestRp.TotalPages}** trong SQL Server!");
+            }
+        }
+
+        // 5. Hành động NAVIGATE
+        var navMap = new (string[] Keywords, string Url, string Name)[]
+        {
+            (new[] { "mở mobile", "mobile app", "ứng dụng di động" }, "/MobileApp", "BookShare Mobile Super-App"),
+            (new[] { "mở ví", "ví pay", "nạp tiền", "s17" }, "/S17SandboxPayment", "Ví Bảo Lãnh BookShare Pay"),
+            (new[] { "mở reading studio", "pomodoro", "phòng đọc" }, "/S03ReadingTracker/Studio", "Reading Studio (Pomodoro Im Lặng)"),
+            (new[] { "mở tủ sách", "tủ sách cá nhân" }, "/S02PersonalShelf", "Tủ Sách Cá Nhân"),
+            (new[] { "mở thuê sách", "mở tìm kiếm", "thuê sách p2p" }, "/S06SearchDiscovery", "Cổng Tìm Kiếm & Thuê Sách")
+        };
+        foreach (var (keywords, url, name) in navMap)
+        {
+            if (keywords.Any(k => lower.Contains(k)))
+            {
+                actions.Add(new AiCopilotActionDto { Type = "NAVIGATE", Value = url, Label = $"Điều hướng tới {name}" });
+                actionNotes.Add($"🧭 Đang mở nhanh **{name}** (`{url}`)...");
+                break;
+            }
+        }
+
+        // Nếu đã có hành động cụ thể thì trả lời tức thì (vẫn lưu lịch sử vào AiChatMessages), còn không thì chạy RAG chuẩn
+        if (actionNotes.Any())
+        {
+            var baseSession = await _db.AiChatSessions
+                .Where(s => s.UserId == currentUserId)
+                .OrderByDescending(s => s.UpdatedAt)
+                .FirstOrDefaultAsync();
+            if (baseSession == null)
+            {
+                baseSession = new AiChatSession
+                {
+                    UserId = currentUserId,
+                    Title = "AI Copilot Hành Động",
+                    ModelName = _config["Gemini:Model"] ?? "gemini-2.5-flash",
+                    CreatedAt = DateTime.UtcNow,
+                    UpdatedAt = DateTime.UtcNow
+                };
+                _db.AiChatSessions.Add(baseSession);
+                await _db.SaveChangesAsync();
+            }
+
+            string combinedReply = string.Join("\n", actionNotes);
+            _db.AiChatMessages.Add(new AiChatMessage
+            {
+                SessionId = baseSession.Id,
+                UserId = currentUserId,
+                Sender = "User",
+                MessageText = clean,
+                PromptTokens = Math.Max(8, clean.Length / 3),
+                CreatedAt = DateTime.UtcNow
+            });
+            _db.AiChatMessages.Add(new AiChatMessage
+            {
+                SessionId = baseSession.Id,
+                UserId = currentUserId,
+                Sender = "Gemini",
+                MessageText = combinedReply,
+                PromptTokens = 42,
+                CreatedAt = DateTime.UtcNow
+            });
+            baseSession.UpdatedAt = DateTime.UtcNow;
+            await _db.SaveChangesAsync();
+
+            return (true, combinedReply, baseSession.Id, 42, "AI Copilot Action Engine", actions, emailSubject);
+        }
+
+        var (okRag, replyRag, sidRag, tokensRag, modeRag) = await SendMessageWithRagAsync(currentUserId, sessionId, userMessage);
+        return (okRag, replyRag, sidRag, tokensRag, modeRag, actions, emailSubject);
     }
 
     private static string BuildSmartSqlRagFallback(

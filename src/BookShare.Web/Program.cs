@@ -109,6 +109,8 @@ builder.Services.AddScoped<IRecaptchaService, RecaptchaService>();
 // [BS-WALLET-PAY] & [BS-QRLOGIN-BRIDGE] Đăng ký Ví Bảo Lãnh Escrow & QR Cross-Login
 builder.Services.AddScoped<IWalletService, WalletService>();
 builder.Services.AddScoped<IQrLoginService, QrLoginService>();
+// [BS-AGENT-AI-CHAT] Đăng ký dịch vụ Chat trực tiếp Thủ thư & Chủ sách
+builder.Services.AddScoped<ISupportChatService, SupportChatService>();
 builder.Services.AddScoped<IResendEmailService, ResendEmailService>();
 builder.Services.AddScoped<IS01AuthOtpService, S01AuthOtpService>();
 builder.Services.AddScoped<IS02PersonalShelfService, S02PersonalShelfService>();

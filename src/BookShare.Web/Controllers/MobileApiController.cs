@@ -18,17 +18,20 @@ public class MobileApiController : ControllerBase
     private readonly IQrLoginService _qrLoginService;
     private readonly IS03ReadingTrackerService _readingService;
     private readonly IS12LoanRenewalFineService _renewalService;
+    private readonly ISupportChatService _supportChatService;
 
     public MobileApiController(
         IWalletService walletService,
         IQrLoginService qrLoginService,
         IS03ReadingTrackerService readingService,
-        IS12LoanRenewalFineService renewalService)
+        IS12LoanRenewalFineService renewalService,
+        ISupportChatService supportChatService)
     {
         _walletService = walletService;
         _qrLoginService = qrLoginService;
         _readingService = readingService;
         _renewalService = renewalService;
+        _supportChatService = supportChatService;
     }
 
     // ==================== 1. VÍ BẢO LÃNH BOOKSHARE PAY ====================
@@ -185,5 +188,30 @@ public class MobileApiController : ControllerBase
         }
 
         return Ok(new { title = "Gia hạn thuê sách thành công (+7 ngày)", message, newDueDate, newRenewCount });
+    }
+
+    // ==================== 4. [BS-AGENT-AI-CHAT] CHAT TRỰC TIẾP THỦ THƯ / CHỦ SÁCH ====================
+
+    [HttpGet("support-chat/messages")]
+    public async Task<IActionResult> SupportChatMessages([FromQuery] string channel = "Librarian")
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "u-user-01";
+        var role = User.FindFirstValue(ClaimTypes.Role) ?? "User";
+        var list = await _supportChatService.GetMessagesAsync(userId, role, channel);
+        return Ok(list);
+    }
+
+    [HttpPost("support-chat/send")]
+    public async Task<IActionResult> SupportChatSend([FromBody] SendSupportChatRequestDto request)
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "u-user-01";
+        var role = User.FindFirstValue(ClaimTypes.Role) ?? "User";
+        var (success, message, saved) = await _supportChatService.SendMessageAsync(userId, role, request);
+        if (!success)
+        {
+            return BadRequest(new { message });
+        }
+
+        return Ok(new { title = "Đã gửi tin nhắn trực tiếp", message, data = saved });
     }
 }

@@ -76,6 +76,7 @@ public class ResendEmailService : IResendEmailService
                 {
                     from = fromEmail,
                     to = new[] { normalizedEmail },
+                    // [BS-SEC-OTP] Tiêu đề Email bảo mật tuyệt đối KHÔNG chứa mã OTP 6 chữ số
                     subject = "[BookShare] Mã xác thực bảo mật tài khoản của bạn",
                     html = $"<div style='font-family:Roboto,sans-serif;padding:20px;border:1px solid #e2e8f0;border-radius:12px;'>" +
                            $"<h2 style='color:#1e3a8a;'>BookShare - Xác Minh Bảo Mật</h2>" +
