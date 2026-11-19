@@ -47,6 +47,7 @@ public class S19DisputeResolutionController : Controller
         });
     }
 
+    // [RBAC-GUARD] Chỉ Admin mới có quyền Trọng tài ban hành phán quyết tranh chấp
     [HttpPost]
     [ValidateAntiForgeryToken]
     [Authorize(Roles = "Admin")]

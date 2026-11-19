@@ -8,10 +8,14 @@ namespace BookShare.Web.Controllers;
 public class S06SearchDiscoveryController : Controller
 {
     private readonly IS06SearchDiscoveryService _searchService;
+    private readonly IRecaptchaService _recaptchaService;
 
-    public S06SearchDiscoveryController(IS06SearchDiscoveryService searchService)
+    public S06SearchDiscoveryController(
+        IS06SearchDiscoveryService searchService,
+        IRecaptchaService recaptchaService)
     {
         _searchService = searchService;
+        _recaptchaService = recaptchaService;
     }
 
     // API gợi ý tức thì (Autocomplete) cho thanh tìm kiếm: top 5 đầu sách khớp nhất
@@ -83,6 +87,18 @@ public class S06SearchDiscoveryController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> QuickRequestLoan([FromBody] QuickLoanRequestDto request)
     {
+        // [BOT-GUARD] Xác thực Google reCAPTCHA v3 chống bot spam phiếu mượn sách
+        var remoteIp = HttpContext.Connection.RemoteIpAddress?.ToString();
+        var (captchaOk, _, captchaMsg) = await _recaptchaService.VerifyTokenAsync(request.RecaptchaToken, "quick_loan", remoteIp);
+        if (!captchaOk)
+        {
+            return StatusCode(StatusCodes.Status403Forbidden, new
+            {
+                title = "Chặn spam tạo phiếu mượn (reCAPTCHA v3)",
+                message = captchaMsg
+            });
+        }
+
         var borrowerUserId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "u-user-01";
         var (success, message, loanRequestId) = await _searchService.CreateQuickLoanRequestAsync(borrowerUserId, request);
 

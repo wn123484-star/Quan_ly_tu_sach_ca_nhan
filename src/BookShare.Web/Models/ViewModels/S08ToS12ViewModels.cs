@@ -32,6 +32,7 @@ public class S08LibraryLoanItemDto
 {
     public int LoanRequestId { get; set; }
     public int? LoanId { get; set; }
+    public int BookId { get; set; }
     public int BookCopyId { get; set; }
     public string Barcode { get; set; } = string.Empty;
     public string BookTitle { get; set; } = string.Empty;
@@ -114,6 +115,7 @@ public class S09P2PLoanItemDto
 {
     public int LoanRequestId { get; set; }
     public int? LoanId { get; set; }
+    public int BookId { get; set; }
     public int BookCopyId { get; set; }
     public string Barcode { get; set; } = string.Empty;
     public string BookTitle { get; set; } = string.Empty;

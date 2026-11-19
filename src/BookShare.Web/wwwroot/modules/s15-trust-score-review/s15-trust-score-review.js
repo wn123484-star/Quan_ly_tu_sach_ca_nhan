@@ -7,12 +7,43 @@ document.addEventListener('DOMContentLoaded', () => {
     const formSubmitReview = document.getElementById('formSubmitReview');
     const btnSubmitReview = document.getElementById('btnSubmitReview');
 
-    // 1. Chuyển đổi đối tượng đánh giá (User vs Book)
-    targetTypeSelect?.addEventListener('change', () => {
-        const isUser = targetTypeSelect.value === 'User';
+    // [FEAT-LOGIC] Tự động nạp ngữ cảnh từ nút "⭐ Đánh giá lượt mượn này" (S08/S09 -> S15)
+    const queryParams = new URLSearchParams(window.location.search);
+    const linkedLoanIdRaw = queryParams.get('loanId');
+    const linkedLoanId = linkedLoanIdRaw && /^\d+$/.test(linkedLoanIdRaw) ? parseInt(linkedLoanIdRaw, 10) : null;
+    const preTargetType = queryParams.get('targetType');
+    const preTargetId = queryParams.get('targetId');
+
+    const syncTargetVisibility = () => {
+        const isUser = (targetTypeSelect?.value || 'User') === 'User';
         if (userTargetGroup) userTargetGroup.style.display = isUser ? 'block' : 'none';
         if (bookTargetGroup) bookTargetGroup.style.display = isUser ? 'none' : 'block';
-    });
+    };
+
+    if (preTargetType === 'Book' || preTargetType === 'User') {
+        if (targetTypeSelect) targetTypeSelect.value = preTargetType;
+    }
+    syncTargetVisibility();
+
+    if (preTargetId) {
+        const selectEl = (targetTypeSelect?.value || 'User') === 'User'
+            ? document.getElementById('reviewTargetUserId')
+            : document.getElementById('reviewTargetBookId');
+        if (selectEl && [...selectEl.options].some(opt => opt.value === preTargetId)) {
+            selectEl.value = preTargetId;
+        }
+    }
+
+    if (linkedLoanId && formSubmitReview) {
+        const notice = document.createElement('div');
+        notice.className = 'bs-badge bs-badge-info';
+        notice.innerText = `🔗 Đang đánh giá gắn với Hợp đồng mượn #${linkedLoanId}`;
+        formSubmitReview.prepend(notice);
+        document.getElementById('reviewComment')?.focus();
+    }
+
+    // 1. Chuyển đổi đối tượng đánh giá (User vs Book)
+    targetTypeSelect?.addEventListener('change', syncTargetVisibility);
 
     // 2. Gửi đánh giá 2 chiều lên Server
     formSubmitReview?.addEventListener('submit', async (e) => {
@@ -34,6 +65,7 @@ document.addEventListener('DOMContentLoaded', () => {
             body: {
                 targetType,
                 targetId: String(targetId),
+                loanId: linkedLoanId,
                 rating,
                 comment
             },

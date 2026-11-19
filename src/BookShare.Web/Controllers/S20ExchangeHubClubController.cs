@@ -46,6 +46,7 @@ public class S20ExchangeHubClubController : Controller
         });
     }
 
+    // [RBAC-GUARD] Chỉ Curator hoặc Admin mới được quyền kiểm định sách thật tại Trạm CLB/Hub
     [HttpPost]
     [ValidateAntiForgeryToken]
     [Authorize(Roles = "Curator,Admin")]

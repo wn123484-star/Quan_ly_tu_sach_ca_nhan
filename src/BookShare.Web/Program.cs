@@ -104,6 +104,8 @@ builder.Services.AddAuthorization(options =>
 
 // 5. Đăng ký HttpClient & Tầng Business Services (Controller không gọi thẳng DbContext)
 builder.Services.AddHttpClient();
+// [BOT-GUARD] Đăng ký dịch vụ xác thực Google reCAPTCHA v3 (đọc ReCaptcha:SiteKey & SecretKey từ .env)
+builder.Services.AddScoped<IRecaptchaService, RecaptchaService>();
 builder.Services.AddScoped<IResendEmailService, ResendEmailService>();
 builder.Services.AddScoped<IS01AuthOtpService, S01AuthOtpService>();
 builder.Services.AddScoped<IS02PersonalShelfService, S02PersonalShelfService>();

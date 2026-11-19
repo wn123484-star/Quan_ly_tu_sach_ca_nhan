@@ -2,7 +2,7 @@
  * MODULE S06: SEARCH & DISCOVERY (s06-search-discovery.js)
  * Đóng gói ES6 Module độc lập cho dịch vụ S06
  */
-import { apiFetch, showSystemStatus } from '../../js/core-api.js';
+import { apiFetch, showSystemStatus, getRecaptchaToken } from '../../js/core-api.js';
 
 document.addEventListener('DOMContentLoaded', () => {
     const modalEl = document.getElementById('s06QuickLoanModal');
@@ -56,13 +56,16 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
 
+            // [BOT-GUARD] Đính kèm token Google reCAPTCHA v3 trước khi tạo phiếu mượn nhanh
+            const recaptchaToken = await getRecaptchaToken('quick_loan');
             const res = await apiFetch('/S06SearchDiscovery/QuickRequestLoan', {
                 method: 'POST',
                 body: {
                     bookCopyId,
                     desiredDays,
                     pickupHubId,
-                    requestNote
+                    requestNote,
+                    recaptchaToken
                 }
             });
 

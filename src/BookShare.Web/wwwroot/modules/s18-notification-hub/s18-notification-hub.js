@@ -1,4 +1,4 @@
-import { apiFetch, confirmDialog } from '../../js/core-api.js';
+import { apiFetch, confirmDialog, getRecaptchaToken } from '../../js/core-api.js';
 
 document.addEventListener('DOMContentLoaded', () => {
     // 1. Lọc nhanh theo loại thông báo trên Client
@@ -67,10 +67,12 @@ document.addEventListener('DOMContentLoaded', () => {
     btnS18SendOtp?.addEventListener('click', async () => {
         const email = s18EmailInput?.value.trim() || '';
         if (!email) return;
+        // [BOT-GUARD] Đính kèm token Google reCAPTCHA v3 khi gửi OTP xác minh Email thông báo
+        const recaptchaToken = await getRecaptchaToken('send_otp');
         const res = await apiFetch('/S01AuthOtpGoogle/SendOtp', {
             method: 'POST',
             button: btnS18SendOtp,
-            body: { email, purpose: 'VerifyNotificationEmail' }
+            body: { email, purpose: 'VerifyNotificationEmail', recaptchaToken }
         });
         if (res.ok && res.data) {
             if (res.data.devOtpCode && s18DevBanner && s18DevVal && s18OtpInput) {

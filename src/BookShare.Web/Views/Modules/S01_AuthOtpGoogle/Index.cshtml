@@ -101,9 +101,11 @@
                 <div class="tab-content">
                     <!-- TAB 1: ĐĂNG NHẬP & GOOGLE OAUTH -->
                     <div class="tab-pane fade show active" id="tabLogin" role="tabpanel">
-                        <form asp-controller="S01AuthOtpGoogle" asp-action="Login" method="post" class="mb-3">
+                        <form id="s01LoginForm" asp-controller="S01AuthOtpGoogle" asp-action="Login" method="post" class="mb-3">
                             @Html.AntiForgeryToken()
                             <input type="hidden" name="ReturnUrl" value="@Model.ReturnUrl" />
+                            <!-- [BOT-GUARD] Token Google reCAPTCHA v3 -->
+                            <input type="hidden" name="RecaptchaToken" id="loginRecaptchaToken" />
 
                             <div class="mb-3">
                                 <label class="form-label small fw-bold" for="loginEmail">Email hoặc Tên tài khoản</label>
@@ -190,8 +192,10 @@
 
                     <!-- TAB 3: ĐĂNG KÝ TÀI KHOẢN MỚI -->
                     <div class="tab-pane fade" id="tabRegister" role="tabpanel">
-                        <form asp-controller="S01AuthOtpGoogle" asp-action="Register" method="post">
+                        <form id="s01RegisterForm" asp-controller="S01AuthOtpGoogle" asp-action="Register" method="post">
                             @Html.AntiForgeryToken()
+                            <!-- [BOT-GUARD] Token Google reCAPTCHA v3 -->
+                            <input type="hidden" name="RecaptchaToken" id="registerRecaptchaToken" />
                             <div class="row g-3">
                                 <div class="col-md-6">
                                     <label class="form-label small fw-bold">Họ và tên đầy đủ</label>

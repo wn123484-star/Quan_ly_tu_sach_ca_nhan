@@ -195,6 +195,37 @@ public class S06SearchDiscoveryService : IS06SearchDiscoveryService
             return (false, "Đây là sách thuộc tủ cá nhân của chính bạn.", 0);
         }
 
+        // [FEAT-LOGIC] Luật chặn mượn thông minh đồng nhất trên Cổng Khám Phá (TrustScore < 50 / Overdue / Disputed)
+        var borrower = await _db.AspNetUsers
+            .Include(u => u.Memberships)
+            .FirstOrDefaultAsync(u => u.Id == borrowerUserId);
+
+        if (borrower != null && borrower.TrustScore < 50)
+        {
+            return (false, $"Tạm khóa quyền mượn sách mới: Điểm uy tín TrustScore hiện tại của bạn là {borrower.TrustScore}/100 (tối thiểu 50 điểm).", 0);
+        }
+
+        var nowUtc = DateTime.UtcNow;
+        int overdueCount = await _db.Loans.CountAsync(l =>
+            l.LoanRequest.BorrowerId == borrowerUserId &&
+            (l.Status == "Overdue" || (l.Status == "Active" && l.DueDate < nowUtc)));
+
+        if (overdueCount > 0)
+        {
+            return (false, $"Tạm khóa quyền mượn sách mới: Bạn đang có {overdueCount} hợp đồng quá hạn (Overdue) chưa hoàn trả. Vui lòng hoàn trả sách trước khi mượn thêm.", 0);
+        }
+
+        int openDisputeCount = await _db.Disputes.CountAsync(d =>
+            d.Loan.LoanRequest.BorrowerId == borrowerUserId &&
+            (d.Status == "Open" || d.Status == "UnderReview"));
+        bool hasDisputedLoan = await _db.Loans.AnyAsync(l =>
+            l.LoanRequest.BorrowerId == borrowerUserId && l.Status == "Disputed");
+
+        if (openDisputeCount > 0 || hasDisputedLoan)
+        {
+            return (false, "Tạm khóa quyền mượn sách mới: Bạn đang có hồ sơ tranh chấp / khiếu nại (Disputed) chưa được giải quyết xong.", 0);
+        }
+
         var existingPending = await _db.LoanRequests
             .AnyAsync(lr => lr.BookCopyId == copy.Id && lr.BorrowerId == borrowerUserId && lr.Status == "Pending");
 

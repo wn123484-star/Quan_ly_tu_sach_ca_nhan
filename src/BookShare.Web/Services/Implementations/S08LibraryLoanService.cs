@@ -85,6 +85,7 @@ public class S08LibraryLoanService : IS08LibraryLoanService
             {
                 LoanRequestId = lr.Id,
                 LoanId = lr.Loan?.Id,
+                BookId = lr.BookCopy.BookId,
                 BookCopyId = lr.BookCopyId,
                 Barcode = lr.BookCopy.Barcode,
                 BookTitle = lr.BookCopy.Book.Title,
@@ -145,6 +146,33 @@ public class S08LibraryLoanService : IS08LibraryLoanService
         var user = await _db.AspNetUsers
             .Include(u => u.Memberships)
             .FirstOrDefaultAsync(u => u.Id == currentUserId);
+
+        // [FEAT-LOGIC] Luật chặn mượn thông minh: TrustScore < 50, đang có sách quá hạn (Overdue) hoặc tranh chấp mở (Disputed)
+        if (user != null && user.TrustScore < 50)
+        {
+            return (false, $"Tạm khóa quyền mượn sách mới: Điểm uy tín TrustScore của bạn hiện là {user.TrustScore}/100 (yêu cầu tối thiểu 50 điểm). Vui lòng hoàn tất các nghĩa vụ mượn trả và nhận đánh giá tích cực để khôi phục quyền mượn.");
+        }
+
+        var nowUtc = DateTime.UtcNow;
+        int overdueCount = await _db.Loans.CountAsync(l =>
+            l.LoanRequest.BorrowerId == currentUserId &&
+            (l.Status == "Overdue" || (l.Status == "Active" && l.DueDate < nowUtc)));
+
+        if (overdueCount > 0)
+        {
+            return (false, $"Tạm khóa quyền mượn sách mới: Bạn đang có {overdueCount} hợp đồng mượn quá hạn (Overdue) chưa hoàn trả. Vui lòng trả sách quá hạn và hoàn tất phí phạt trước khi tạo phiếu mượn mới.");
+        }
+
+        int openDisputeCount = await _db.Disputes.CountAsync(d =>
+            d.Loan.LoanRequest.BorrowerId == currentUserId &&
+            (d.Status == "Open" || d.Status == "UnderReview"));
+        bool hasDisputedLoan = await _db.Loans.AnyAsync(l =>
+            l.LoanRequest.BorrowerId == currentUserId && l.Status == "Disputed");
+
+        if (openDisputeCount > 0 || hasDisputedLoan)
+        {
+            return (false, "Tạm khóa quyền mượn sách mới: Tài khoản của bạn đang có hồ sơ tranh chấp / khiếu nại (Disputed) chưa được giải quyết xong. Vui lòng hoàn tất xử lý tranh chấp tại mục Trọng Tài Tranh Chấp trước khi mượn thêm.");
+        }
 
         int maxQuota = (user?.Memberships.Where(m => m.IsActive).Select(m => m.MaxConcurrentLoans).DefaultIfEmpty(2).Max() ?? 2)
                        + (user?.LendQuotaBonus ?? 0);

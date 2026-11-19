@@ -58,6 +58,7 @@ public class S21LibrarianDeskController : Controller
         });
     }
 
+    // [RBAC-GUARD] Chỉ Thủ thư (Librarian) hoặc Admin mới được nhập lô bản sao kho chung
     [HttpPost]
     [ValidateAntiForgeryToken]
     [Authorize(Roles = "Librarian,Admin")]

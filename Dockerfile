@@ -26,6 +26,9 @@ RUN mkdir -p /app/wwwroot/uploads/conditions
 # Sao chép bản dựng đã publish từ Stage 1
 COPY --from=build /app/publish .
 
+# [FEAT-LOGIC] Sao chép thư mục kịch bản database/ vào runtime image để tính năng SQL Seeder của Admin luôn sẵn sàng trên VPS
+COPY ["database/", "./database/"]
+
 # Cố định cổng nội bộ 5087 phục vụ Nginx Reverse Proxy
 ENV ASPNETCORE_URLS=http://+:5087
 ENV ASPNETCORE_ENVIRONMENT=Production

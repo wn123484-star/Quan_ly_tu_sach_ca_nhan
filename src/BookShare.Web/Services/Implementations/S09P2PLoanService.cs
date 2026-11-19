@@ -69,6 +69,7 @@ public class S09P2PLoanService : IS09P2PLoanService
         {
             LoanRequestId = lr.Id,
             LoanId = lr.Loan?.Id,
+            BookId = lr.BookCopy.BookId,
             BookCopyId = lr.BookCopyId,
             Barcode = lr.BookCopy.Barcode,
             BookTitle = lr.BookCopy.Book.Title,
@@ -124,6 +125,51 @@ public class S09P2PLoanService : IS09P2PLoanService
         if (!copy.IsLendable || copy.Status != "Available")
         {
             return (false, $"Bản sao [{copy.Barcode}] hiện không ở trạng thái sẵn sàng cho mượn P2P.");
+        }
+
+        if (copy.OwnerUserId == currentUserId)
+        {
+            return (false, "Bạn không thể tự tạo yêu cầu mượn sách thuộc tủ sách cá nhân của chính mình.");
+        }
+
+        // [FEAT-LOGIC] Luật chặn mượn thông minh P2P: TrustScore < 50, đang có hợp đồng quá hạn (Overdue) hoặc tranh chấp mở (Disputed)
+        var borrower = await _db.AspNetUsers
+            .Include(u => u.Memberships)
+            .FirstOrDefaultAsync(u => u.Id == currentUserId);
+
+        if (borrower != null && borrower.TrustScore < 50)
+        {
+            return (false, $"Tạm khóa quyền mượn P2P mới: Điểm uy tín TrustScore của bạn hiện là {borrower.TrustScore}/100 (yêu cầu tối thiểu 50 điểm để bảo vệ chủ sách cộng đồng).");
+        }
+
+        var nowUtc = DateTime.UtcNow;
+        int overdueCount = await _db.Loans.CountAsync(l =>
+            l.LoanRequest.BorrowerId == currentUserId &&
+            (l.Status == "Overdue" || (l.Status == "Active" && l.DueDate < nowUtc)));
+
+        if (overdueCount > 0)
+        {
+            return (false, $"Tạm khóa quyền mượn P2P mới: Bạn đang có {overdueCount} hợp đồng mượn quá hạn (Overdue) chưa hoàn trả. Vui lòng hoàn trả sách đúng hạn trước khi gửi yêu cầu mượn mới.");
+        }
+
+        int openDisputeCount = await _db.Disputes.CountAsync(d =>
+            d.Loan.LoanRequest.BorrowerId == currentUserId &&
+            (d.Status == "Open" || d.Status == "UnderReview"));
+        bool hasDisputedLoan = await _db.Loans.AnyAsync(l =>
+            l.LoanRequest.BorrowerId == currentUserId && l.Status == "Disputed");
+
+        if (openDisputeCount > 0 || hasDisputedLoan)
+        {
+            return (false, "Tạm khóa quyền mượn P2P mới: Tài khoản của bạn đang có hồ sơ tranh chấp / khiếu nại (Disputed) chưa được giải quyết xong. Vui lòng hoàn tất giải quyết tranh chấp trước khi mượn sách mới.");
+        }
+
+        int maxQuota = (borrower?.Memberships.Where(m => m.IsActive).Select(m => m.MaxConcurrentLoans).DefaultIfEmpty(2).Max() ?? 2)
+                       + (borrower?.LendQuotaBonus ?? 0);
+        int currentActive = await _db.Loans
+            .CountAsync(l => l.LoanRequest.BorrowerId == currentUserId && l.Status == "Active");
+        if (currentActive >= maxQuota)
+        {
+            return (false, $"Bạn đang mượn {currentActive}/{maxQuota} cuốn (đạt trần hạn mức hiện tại). Vui lòng hoàn trả sách hoặc cho mượn sách P2P để nhận thêm +1 hạn mức.");
         }
 
         int days = Math.Clamp(request.DesiredDays, 3, 30);

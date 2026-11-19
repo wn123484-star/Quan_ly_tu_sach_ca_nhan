@@ -1,4 +1,5 @@
 @inject Microsoft.AspNetCore.Antiforgery.IAntiforgery Antiforgery
+@inject BookShare.Web.Services.Interfaces.IRecaptchaService RecaptchaService
 @{
     var antiForgeryToken = Antiforgery.GetAndStoreTokens(Context).RequestToken;
     var isAuthenticated = User.Identity?.IsAuthenticated ?? false;
@@ -23,6 +24,12 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="csrf-token" content="@antiForgeryToken" />
+    @if (RecaptchaService.IsEnabled)
+    {
+        <!-- [BOT-GUARD] Google reCAPTCHA v3 chạy ngầm (Score-based) khi đã cấu hình khóa trong .env -->
+        <meta name="recaptcha-site-key" content="@RecaptchaService.SiteKey" />
+        <script src="https://www.google.com/recaptcha/api.js?render=@RecaptchaService.SiteKey" async defer></script>
+    }
     <title>@ViewData["Title"] - BookShare Portal (.NET 10 MVC)</title>
 
     <!-- Áp Dark Mode trước khi vẽ trang để không bị chớp nền trắng -->

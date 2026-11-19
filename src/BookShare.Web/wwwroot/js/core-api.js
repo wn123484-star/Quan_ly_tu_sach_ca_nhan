@@ -43,6 +43,25 @@ export function getCsrfToken() {
     return input ? input.value : '';
 }
 
+// [BOT-GUARD] Lấy token Google reCAPTCHA v3 chạy ngầm (Smart Bypass nếu chưa bật SiteKey)
+export async function getRecaptchaToken(action = 'submit') {
+    const siteKey = document.querySelector('meta[name="recaptcha-site-key"]')?.getAttribute('content')?.trim();
+    if (!siteKey || typeof window.grecaptcha === 'undefined') {
+        return '';
+    }
+    try {
+        return await new Promise((resolve) => {
+            window.grecaptcha.ready(() => {
+                window.grecaptcha.execute(siteKey, { action })
+                    .then((token) => resolve(token || ''))
+                    .catch(() => resolve(''));
+            });
+        });
+    } catch {
+        return '';
+    }
+}
+
 // ---------- Toast & Hộp thoại xác nhận (SweetAlert2, thay alert()/confirm() của trình duyệt) ----------
 
 function swalThemeOptions() {
@@ -615,7 +634,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     window.showSystemStatus = showSystemStatus;
     window.apiFetch = apiFetch;
-    window.BookShareUI = { toast, confirmDialog, celebrate, loadScript, renderMarkdown, renderSkeleton, openBarcodeScanner, trustTier, CDN };
+    window.BookShareUI = { toast, confirmDialog, celebrate, loadScript, renderMarkdown, renderSkeleton, openBarcodeScanner, trustTier, getRecaptchaToken, CDN };
 
     initThemeToggle();
     initAccessibility();
@@ -744,7 +763,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (res.ok && res.data && res.data.reply) {
                     appendWidgetMsg(res.data.reply, true);
                 } else {
-                    appendWidgetMsg('Trợ lý AI: Bạn có thể tra cứu sách trong **Kho chung ĐH CMC** hoặc kiểm tra tiến độ đọc tại dịch vụ **S03 ReadingTracker**.', true);
+                    appendWidgetMsg('Trợ lý AI: Bạn có thể tra cứu sách trong **Kho chung ĐH CMC** hoặc kiểm tra tiến độ đọc tại mục **Tiến Độ Đọc Sách**.', true);
                 }
             } finally {
                 typing.remove();

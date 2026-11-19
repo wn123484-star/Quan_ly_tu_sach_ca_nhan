@@ -2,9 +2,29 @@
  * MODULE S01: AUTH + OTP RESEND + GOOGLE OAUTH (s01-auth-otp-google.js)
  * Đóng gói ES6 Module độc lập cho dịch vụ S01
  */
-import { apiFetch, showSystemStatus } from '../../js/core-api.js';
+import { apiFetch, showSystemStatus, getRecaptchaToken } from '../../js/core-api.js';
 
 document.addEventListener('DOMContentLoaded', () => {
+    // [BOT-GUARD] Tự động gắn token Google reCAPTCHA v3 trước khi submit Form Đăng nhập / Đăng ký
+    const bindRecaptchaForm = (formId, tokenInputId, actionName) => {
+        const form = document.getElementById(formId);
+        const tokenInput = document.getElementById(tokenInputId);
+        if (!form || !tokenInput) return;
+
+        form.addEventListener('submit', async (e) => {
+            const siteKey = document.querySelector('meta[name="recaptcha-site-key"]')?.getAttribute('content')?.trim();
+            if (!siteKey || form.dataset.recaptchaSubmitted === '1') {
+                return;
+            }
+            e.preventDefault();
+            tokenInput.value = await getRecaptchaToken(actionName);
+            form.dataset.recaptchaSubmitted = '1';
+            form.submit();
+        });
+    };
+
+    bindRecaptchaForm('s01LoginForm', 'loginRecaptchaToken', 'login');
+    bindRecaptchaForm('s01RegisterForm', 'registerRecaptchaToken', 'register');
     // 1. Điền nhanh tài khoản mẫu 4 Roles để test ngay
     document.querySelectorAll('[data-demo-email]').forEach(btn => {
         btn.addEventListener('click', () => {
@@ -79,9 +99,11 @@ document.addEventListener('DOMContentLoaded', () => {
             btnSendOtp.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Đang gửi OTP...';
 
             try {
+                // [BOT-GUARD] Đính kèm token reCAPTCHA v3 khi gửi mã OTP
+                const recaptchaToken = await getRecaptchaToken('send_otp');
                 const res = await apiFetch('/S01AuthOtpGoogle/SendOtp', {
                     method: 'POST',
-                    body: { email, purpose }
+                    body: { email, purpose, recaptchaToken }
                 });
 
                 if (res.ok && res.data) {

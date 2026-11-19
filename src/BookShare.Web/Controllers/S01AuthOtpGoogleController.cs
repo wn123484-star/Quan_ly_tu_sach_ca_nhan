@@ -12,15 +12,18 @@ public class S01AuthOtpGoogleController : Controller
 {
     private readonly IS01AuthOtpService _authService;
     private readonly IResendEmailService _resendOtpService;
+    private readonly IRecaptchaService _recaptchaService;
     private readonly IConfiguration _config;
 
     public S01AuthOtpGoogleController(
         IS01AuthOtpService authService,
         IResendEmailService resendOtpService,
+        IRecaptchaService recaptchaService,
         IConfiguration config)
     {
         _authService = authService;
         _resendOtpService = resendOtpService;
+        _recaptchaService = recaptchaService;
         _config = config;
     }
 
@@ -36,6 +39,17 @@ public class S01AuthOtpGoogleController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Login(LoginInputModel input)
     {
+        // [BOT-GUARD] Xác thực Google reCAPTCHA v3 cho luồng Đăng nhập (Smart Bypass nếu chưa điền key)
+        var remoteIp = HttpContext.Connection.RemoteIpAddress?.ToString();
+        var (captchaOk, _, captchaMsg) = await _recaptchaService.VerifyTokenAsync(input.RecaptchaToken, "login", remoteIp);
+        if (!captchaOk)
+        {
+            TempData["StatusCode"] = 403;
+            TempData["StatusTitle"] = "Chặn truy cập bất thường (reCAPTCHA v3)";
+            TempData["StatusDetail"] = captchaMsg;
+            return RedirectToAction(nameof(Index), new { returnUrl = input.ReturnUrl });
+        }
+
         var result = await _authService.AuthenticateAsync(input.Email, input.Password);
         if (!result.Success || result.UserClaims == null)
         {
@@ -63,6 +77,17 @@ public class S01AuthOtpGoogleController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Register(RegisterInputModel input)
     {
+        // [BOT-GUARD] Xác thực Google reCAPTCHA v3 cho luồng Đăng ký tài khoản
+        var remoteIp = HttpContext.Connection.RemoteIpAddress?.ToString();
+        var (captchaOk, _, captchaMsg) = await _recaptchaService.VerifyTokenAsync(input.RecaptchaToken, "register", remoteIp);
+        if (!captchaOk)
+        {
+            TempData["StatusCode"] = 403;
+            TempData["StatusTitle"] = "Chặn đăng ký tự động (reCAPTCHA v3)";
+            TempData["StatusDetail"] = captchaMsg;
+            return RedirectToAction(nameof(Index));
+        }
+
         var result = await _authService.RegisterUserAsync(input);
         if (!result.Success || result.UserClaims == null)
         {
@@ -95,6 +120,18 @@ public class S01AuthOtpGoogleController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> SendOtp([FromBody] SendOtpRequestDto request)
     {
+        // [BOT-GUARD] Xác thực Google reCAPTCHA v3 chống spam gửi Email OTP qua Resend
+        var remoteIp = HttpContext.Connection.RemoteIpAddress?.ToString();
+        var (captchaOk, _, captchaMsg) = await _recaptchaService.VerifyTokenAsync(request.RecaptchaToken, "send_otp", remoteIp);
+        if (!captchaOk)
+        {
+            return StatusCode(StatusCodes.Status403Forbidden, new
+            {
+                title = "Chặn spam gửi OTP (reCAPTCHA v3)",
+                message = captchaMsg
+            });
+        }
+
         var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
         var (success, message, devOtpCode) = await _resendOtpService.GenerateAndSendOtpAsync(
             request.Email,

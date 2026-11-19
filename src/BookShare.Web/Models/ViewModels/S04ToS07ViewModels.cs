@@ -209,6 +209,8 @@ public class QuickLoanRequestDto
     public int DesiredDays { get; set; } = 14;
     public int? PickupHubId { get; set; } = 3;
     public string? RequestNote { get; set; }
+    // [BOT-GUARD] Token Google reCAPTCHA v3
+    public string? RecaptchaToken { get; set; }
 }
 
 /* =========================================================================

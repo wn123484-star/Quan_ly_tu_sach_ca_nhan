@@ -34,6 +34,8 @@ public class LoginInputModel
     public string Password { get; set; } = string.Empty;
     public bool RememberMe { get; set; } = true;
     public string? ReturnUrl { get; set; }
+    // [BOT-GUARD] Token Google reCAPTCHA v3
+    public string? RecaptchaToken { get; set; }
 }
 
 public class RegisterInputModel
@@ -43,12 +45,16 @@ public class RegisterInputModel
     public string Password { get; set; } = string.Empty;
     public string? Address { get; set; }
     public string SelectedRole { get; set; } = "User";
+    // [BOT-GUARD] Token Google reCAPTCHA v3
+    public string? RecaptchaToken { get; set; }
 }
 
 public class SendOtpRequestDto
 {
     public string Email { get; set; } = string.Empty;
     public string Purpose { get; set; } = "VerifyLoan";
+    // [BOT-GUARD] Token Google reCAPTCHA v3
+    public string? RecaptchaToken { get; set; }
 }
 
 public class VerifyOtpRequestDto

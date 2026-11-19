@@ -127,6 +127,7 @@ public class S22AdminAnalyticsController : Controller
         });
     }
 
+    // [RBAC-GUARD] Chỉ Admin mới được nạp/làm sạch dữ liệu mẫu CSDL
     [HttpPost]
     [ValidateAntiForgeryToken]
     [Authorize(Roles = "Admin")]

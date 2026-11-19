@@ -89,81 +89,191 @@
 
 <!-- LƯỚI KỆ SÁCH TRỰC QUAN TỪ SQL SERVER (KHÔNG CÓ GIÁ BÁN HAY NÚT MUA NGAY) -->
 <section class="card border-0 shadow-sm rounded-4 p-4 bg-white">
-    <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2 border-bottom pb-3">
+    <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-3 border-bottom pb-3">
         <div>
             <h5 class="fw-bold mb-1">
                 <i class="bi bi-journal-richtext text-primary me-2"></i>Kệ Sách Đang Mở Cho Mượn Từ CSDL BookShareDb
                 <span class="badge bg-primary ms-2">@Model.BookCards.Count bản sao</span>
             </h5>
-            <p class="text-muted small mb-0">Hiển thị trực tiếp từ bảng <code>Books</code> & <code>BookCopies</code> (Tách biệt Kho chung Thư viện <code>System</code> và Tủ sách P2P <code>User</code>).</p>
+            <p class="text-muted small mb-0">Hiển thị trực tiếp từ bảng <code>Books</code> &amp; <code>BookCopies</code> (Tách biệt Kho chung Thư viện <code>System</code> và Tủ sách P2P <code>User</code>).</p>
         </div>
-        <div class="d-flex gap-2">
-            <a asp-controller="Home" asp-action="Index" asp-route-source="all" class="btn btn-sm @(Model.SourceFilter == "all" ? "btn-primary" : "btn-outline-primary")">Tất cả</a>
-            <a asp-controller="Home" asp-action="Index" asp-route-source="System" class="btn btn-sm @(Model.SourceFilter == "System" ? "btn-success" : "btn-outline-success")">🏛️ Kho Chung ĐH CMC</a>
-            <a asp-controller="Home" asp-action="Index" asp-route-source="User" class="btn btn-sm @(Model.SourceFilter == "User" ? "btn-secondary" : "btn-outline-secondary")">🤝 Tủ Sách P2P</a>
+        <div class="d-flex flex-wrap align-items-center gap-2">
+            <!-- [UI-ENTERPRISE] Thanh chuyển đổi mật độ kệ sách (3 Cột Rộng / 4 Cột Tiêu chuẩn / Danh sách ngang) -->
+            <div class="bs-density-bar" role="group" aria-label="Chọn mật độ hiển thị kệ sách">
+                <button type="button" class="bs-density-btn active" data-shelf-density="3" aria-pressed="true" title="Hiển thị 3 cột rộng">
+                    <i class="bi bi-grid-3x2-gap-fill" aria-hidden="true"></i><span>3 Cột Rộng</span>
+                </button>
+                <button type="button" class="bs-density-btn" data-shelf-density="4" aria-pressed="false" title="Hiển thị 4 cột tiêu chuẩn">
+                    <i class="bi bi-grid-fill" aria-hidden="true"></i><span>4 Cột</span>
+                </button>
+                <button type="button" class="bs-density-btn" data-shelf-density="list" aria-pressed="false" title="Hiển thị dạng danh sách ngang">
+                    <i class="bi bi-view-list" aria-hidden="true"></i><span>Danh Sách</span>
+                </button>
+            </div>
+
+            <div class="d-flex gap-1 flex-wrap">
+                <a asp-controller="Home" asp-action="Index" asp-route-source="all" class="btn btn-sm @(Model.SourceFilter == "all" ? "btn-primary" : "btn-outline-primary")">Tất cả</a>
+                <a asp-controller="Home" asp-action="Index" asp-route-source="System" class="btn btn-sm @(Model.SourceFilter == "System" ? "btn-success" : "btn-outline-success")">🏛️ Kho Chung ĐH CMC</a>
+                <a asp-controller="Home" asp-action="Index" asp-route-source="User" class="btn btn-sm @(Model.SourceFilter == "User" ? "btn-secondary" : "btn-outline-secondary")">🤝 Tủ Sách P2P</a>
+            </div>
         </div>
     </div>
 
-    <div class="row g-4">
-        @foreach (var b in Model.BookCards)
-        {
-            <div class="col-md-6 col-lg-4">
-                <div class="card book-card tilt-3d h-100 border shadow-sm overflow-hidden">
-                    <div class="position-relative">
-                        <img src="@(string.IsNullOrEmpty(b.CoverImageUrl) ? "https://images.unsplash.com/photo-1544947950-fa07a98d237f?w=400" : b.CoverImageUrl)"
-                             class="book-cover w-100 lazy-blur" alt="Bìa sách @b.Title" loading="lazy" decoding="async"
-                             onerror="this.src='https://images.unsplash.com/photo-1544947950-fa07a98d237f?w=400'" />
-                        <span class="position-absolute top-0 start-0 m-2 @(b.OwnerType == "System" ? "owner-badge-lib" : "owner-badge-p2p")">
-                            @(b.OwnerType == "System" ? "🏛️ Kho chung ĐH CMC" : "🤝 Tủ sách P2P")
-                        </span>
-                        <span class="position-absolute top-0 end-0 m-2 badge @(b.Status == "Available" ? "bg-success" : "bg-warning text-dark")">
-                            @(b.Status == "Available" ? "Sẵn sàng mượn" : $"Đang mượn / Hàng chờ ({b.QueueCount})")
-                        </span>
-                    </div>
-                    <div class="card-body d-flex flex-column">
-                        <div class="d-flex justify-content-between align-items-center mb-1">
-                            <span class="badge bg-secondary bg-opacity-10 text-secondary">@b.CategoryName</span>
-                            <small class="text-muted font-monospace">ISBN: @b.ISBN</small>
+    @if (!Model.BookCards.Any())
+    {
+        <!-- [UI-ENTERPRISE] Empty State chuyên nghiệp khi CSDL ở chế độ Trắng hoặc bộ lọc không có kết quả -->
+        <div class="bs-empty-state my-2" role="status">
+            <div class="bs-empty-icon">
+                <i class="bi @(Model.TotalBooksCount == 0 ? "bi-database-add" : "bi-search")" aria-hidden="true"></i>
+            </div>
+            @if (Model.TotalBooksCount == 0)
+            {
+                <span class="bs-badge bs-badge-info mb-2">
+                    <i class="bi bi-stars" aria-hidden="true"></i>CHẾ ĐỘ CƠ SỞ DỮ LIỆU TRẮNG (CLEAN STATE)
+                </span>
+                <h4>Kho sách hiện chưa có đầu sách hoặc bản sao vật lý nào</h4>
+                <p class="bs-muted">
+                    Hệ thống đang ở trạng thái CSDL Trắng (không có dữ liệu giả). Quản trị viên có thể nạp ngay bộ dữ liệu mẫu chuẩn từ tệp SQL <code>02_BookShare_SeedData.sql</code> trong Trung tâm Quản trị, hoặc bắt đầu nhập sách mới bằng mã ISBN.
+                </p>
+                <div class="d-flex flex-wrap justify-content-center gap-2">
+                    <a asp-controller="S22AdminAnalytics" asp-action="Index" class="bs-btn bs-btn-primary">
+                        <i class="bi bi-database-fill-up" aria-hidden="true"></i>Tới Trung Tâm Quản Trị Nạp Dữ Liệu Mẫu SQL
+                    </a>
+                    <a asp-controller="S05IsbnAutoCatalog" asp-action="Index" class="bs-btn bs-btn-outline">
+                        <i class="bi bi-upc-scan" aria-hidden="true"></i>Quét Mã ISBN Thêm Sách Mới
+                    </a>
+                </div>
+            }
+            else
+            {
+                <span class="bs-badge bs-badge-warning mb-2">
+                    <i class="bi bi-funnel" aria-hidden="true"></i>KHÔNG TÌM THẤY BẢN SAO KHỚP BỘ LỌC
+                </span>
+                <h4>Chưa có bản sao sách nào khớp với điều kiện tìm kiếm hiện tại</h4>
+                <p class="bs-muted">
+                    Hãy thử xóa bộ lọc nguồn sách / thể loại hoặc chuyển sang công cụ Tìm kiếm Đa tiêu chí để mở rộng phạm vi tra cứu trong toàn bộ @Model.TotalBooksCount đầu sách.
+                </p>
+                <div class="d-flex flex-wrap justify-content-center gap-2">
+                    <a asp-controller="Home" asp-action="Index" class="bs-btn bs-btn-primary">
+                        <i class="bi bi-arrow-counterclockwise" aria-hidden="true"></i>Xem Toàn Bộ Kệ Sách
+                    </a>
+                    <a asp-controller="S06SearchDiscovery" asp-action="Index" class="bs-btn bs-btn-outline">
+                        <i class="bi bi-funnel-fill" aria-hidden="true"></i>Mở Bộ Lọc Đa Tiêu Chí
+                    </a>
+                </div>
+            }
+        </div>
+    }
+    else
+    {
+        <div id="homeBookShelfGrid" class="row g-4 bs-shelf-grid is-density-3">
+            @foreach (var b in Model.BookCards)
+            {
+                <div class="col-md-6 col-lg-4 bs-book-col">
+                    <div class="card book-card tilt-3d h-100 border shadow-sm overflow-hidden">
+                        <div class="position-relative bs-book-cover-wrap">
+                            <img src="@(string.IsNullOrEmpty(b.CoverImageUrl) ? "https://images.unsplash.com/photo-1544947950-fa07a98d237f?w=400" : b.CoverImageUrl)"
+                                 class="book-cover w-100 lazy-blur" alt="Bìa sách @b.Title" loading="lazy" decoding="async"
+                                 onerror="this.src='https://images.unsplash.com/photo-1544947950-fa07a98d237f?w=400'" />
+                            <span class="position-absolute top-0 start-0 m-2 @(b.OwnerType == "System" ? "owner-badge-lib" : "owner-badge-p2p")">
+                                @(b.OwnerType == "System" ? "🏛️ Kho chung ĐH CMC" : "🤝 Tủ sách P2P")
+                            </span>
+                            <span class="position-absolute top-0 end-0 m-2 badge @(b.Status == "Available" ? "bg-success" : "bg-warning text-dark")">
+                                @(b.Status == "Available" ? "Sẵn sàng mượn" : $"Đang mượn / Hàng chờ ({b.QueueCount})")
+                            </span>
                         </div>
-                        <h6 class="fw-bold mb-1">@b.Title</h6>
-                        <p class="text-muted small mb-2"><i class="bi bi-pen me-1"></i>@b.Author • @b.PageCount trang</p>
-
-                        <div class="p-2 rounded-3 bg-light small mb-3 border">
-                            <div class="d-flex justify-content-between mb-1">
-                                <span class="text-muted">Nguồn sách:</span>
-                                <strong class="text-truncate ms-2">@b.OwnerDisplayName</strong>
+                        <div class="card-body d-flex flex-column">
+                            <div class="d-flex justify-content-between align-items-center mb-1 gap-2">
+                                <span class="badge bg-secondary bg-opacity-10 text-secondary">@b.CategoryName</span>
+                                <small class="text-muted font-monospace">ISBN: @b.ISBN</small>
                             </div>
-                            @if (b.OwnerTrustScore.HasValue)
-                            {
+                            <h6 class="fw-bold mb-1">@b.Title</h6>
+                            <p class="text-muted small mb-2"><i class="bi bi-pen me-1"></i>@b.Author • @b.PageCount trang</p>
+
+                            <div class="p-2 rounded-3 bg-light small mb-3 border">
                                 <div class="d-flex justify-content-between mb-1">
-                                    <span class="text-muted">Điểm uy tín P2P:</span>
-                                    <span class="trust-pill"><i class="bi bi-star-fill me-1"></i>TrustScore: @b.OwnerTrustScore</span>
+                                    <span class="text-muted">Nguồn sách:</span>
+                                    <strong class="text-truncate ms-2">@b.OwnerDisplayName</strong>
                                 </div>
-                            }
-                            <div class="d-flex justify-content-between mb-1">
-                                <span class="text-muted">Vị trí kệ / Hub:</span>
-                                <span class="fw-semibold">@b.LocationDisplay</span>
+                                @if (b.OwnerTrustScore.HasValue)
+                                {
+                                    <div class="d-flex justify-content-between mb-1">
+                                        <span class="text-muted">Điểm uy tín P2P:</span>
+                                        <span class="trust-pill"><i class="bi bi-star-fill me-1"></i>TrustScore: @b.OwnerTrustScore</span>
+                                    </div>
+                                }
+                                <div class="d-flex justify-content-between mb-1">
+                                    <span class="text-muted">Vị trí kệ / Hub:</span>
+                                    <span class="fw-semibold">@b.LocationDisplay</span>
+                                </div>
+                                <div class="d-flex justify-content-between">
+                                    <span class="text-muted">Tình trạng &amp; Mã vạch:</span>
+                                    <span>@b.Condition • <code>@b.Barcode</code></span>
+                                </div>
                             </div>
-                            <div class="d-flex justify-content-between">
-                                <span class="text-muted">Tình trạng & Mã vạch:</span>
-                                <span>@b.Condition • <code>@b.Barcode</code></span>
-                            </div>
-                        </div>
 
-                        <div class="mt-auto d-flex gap-2">
-                            <a asp-controller="S06SearchDiscovery" asp-action="Index" asp-route-keyword="@b.Barcode" class="btn btn-primary btn-sm flex-grow-1 fw-semibold">
-                                <i class="bi bi-journal-arrow-down me-1"></i>@(b.OwnerType == "System" ? "Mượn Kho chung (0đ)" : "Mượn P2P (0đ)")
-                            </a>
-                            <a asp-controller="S03ReadingTracker" asp-action="Index" class="btn btn-outline-secondary btn-sm" title="Theo dõi tiến độ đọc">
-                                <i class="bi bi-graph-up-arrow"></i>
-                            </a>
-                            <a asp-controller="S04BookNotesQuotes" asp-action="Index" asp-route-bookId="@b.BookId" class="btn btn-outline-primary btn-sm" title="Sổ tay Ghi chú &amp; Trích dẫn">
-                                <i class="bi bi-journal-richtext"></i>
-                            </a>
+                            <div class="mt-auto d-flex gap-2">
+                                <a asp-controller="S06SearchDiscovery" asp-action="Index" asp-route-keyword="@b.Barcode" class="btn btn-primary btn-sm flex-grow-1 fw-semibold">
+                                    <i class="bi bi-journal-arrow-down me-1"></i>@(b.OwnerType == "System" ? "Mượn Kho chung (0đ)" : "Mượn P2P (0đ)")
+                                </a>
+                                <a asp-controller="S03ReadingTracker" asp-action="Index" class="btn btn-outline-secondary btn-sm" title="Theo dõi tiến độ đọc">
+                                    <i class="bi bi-graph-up-arrow"></i>
+                                </a>
+                                <a asp-controller="S04BookNotesQuotes" asp-action="Index" asp-route-bookId="@b.BookId" class="btn btn-outline-primary btn-sm" title="Sổ tay Ghi chú &amp; Trích dẫn">
+                                    <i class="bi bi-journal-richtext"></i>
+                                </a>
+                            </div>
                         </div>
                     </div>
                 </div>
-            </div>
-        }
-    </div>
+            }
+        </div>
+    }
 </section>
+
+@section Scripts {
+    <script>
+        // [UI-ENTERPRISE] Điều khiển mật độ hiển thị kệ sách Trang Chủ (3 Cột / 4 Cột / Danh sách)
+        (function () {
+            const grid = document.getElementById('homeBookShelfGrid');
+            const buttons = document.querySelectorAll('[data-shelf-density]');
+            if (!grid || !buttons.length) return;
+
+            const STORAGE_KEY = 'bookshare_home_shelf_density';
+            const applyDensity = (mode) => {
+                const validMode = ['3', '4', 'list'].includes(mode) ? mode : '3';
+                grid.classList.remove('is-density-3', 'is-density-4', 'is-density-list');
+                grid.classList.add(`is-density-${validMode}`);
+
+                grid.querySelectorAll('.bs-book-col').forEach((col) => {
+                    col.classList.remove('col-md-6', 'col-lg-4', 'col-sm-6', 'col-lg-3', 'col-12');
+                    if (validMode === '4') {
+                        col.classList.add('col-sm-6', 'col-lg-3');
+                    } else if (validMode === 'list') {
+                        col.classList.add('col-12');
+                    } else {
+                        col.classList.add('col-md-6', 'col-lg-4');
+                    }
+                });
+
+                buttons.forEach((btn) => {
+                    const active = btn.getAttribute('data-shelf-density') === validMode;
+                    btn.classList.toggle('active', active);
+                    btn.setAttribute('aria-pressed', String(active));
+                });
+
+                try { localStorage.setItem(STORAGE_KEY, validMode); } catch { }
+            };
+
+            let saved = '3';
+            try { saved = localStorage.getItem(STORAGE_KEY) || '3'; } catch { }
+            applyDensity(saved);
+
+            buttons.forEach((btn) => {
+                btn.addEventListener('click', () => {
+                    applyDensity(btn.getAttribute('data-shelf-density') || '3');
+                });
+            });
+        })();
+    </script>
+}

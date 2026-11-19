@@ -872,3 +872,449 @@ img.lazy-blur.is-loaded {
         transition-duration: 0.01ms !important;
     }
 }
+
+/* ==========================================================================
+   6. [UI-ENTERPRISE] ENTERPRISE SAPPHIRE & GLASSMORPHISM DESIGN SYSTEM (.bs-*)
+      Chuẩn hóa giao diện S13, S14, S15, Trang Chủ (Density Switcher & Empty State)
+      & Khống chế Sticky Header Offset tránh che nội dung đầu trang
+   ========================================================================== */
+
+html {
+    scroll-padding-top: 165px;
+}
+
+/* [UI-ENTERPRISE] Tránh các thẻ .sticky-top bên trong <main> bị thanh .portal-header-wrapper che khuất khi cuộn */
+main .sticky-top:not(thead) {
+    top: 162px !important;
+    z-index: 1015;
+}
+
+@media (max-width: 768px) {
+    html {
+        scroll-padding-top: 24px;
+    }
+    main .sticky-top:not(thead) {
+        top: 16px !important;
+    }
+}
+
+/* 6.1 Enterprise Card (Glassmorphism Sapphire Surface) */
+.bs-card {
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.96) 0%, rgba(248, 250, 252, 0.94) 100%);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    color: var(--portal-text);
+    border: 1px solid rgba(203, 213, 225, 0.9);
+    border-radius: 16px;
+    padding: 1.25rem 1.4rem;
+    box-shadow: 0 10px 30px rgba(15, 23, 42, 0.06), 0 1px 2px rgba(15, 23, 42, 0.04);
+    transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+.bs-card:hover {
+    border-color: rgba(37, 99, 235, 0.35);
+    box-shadow: 0 14px 36px rgba(30, 58, 138, 0.09), 0 2px 6px rgba(15, 23, 42, 0.05);
+}
+
+/* 6.2 Enterprise Form Controls (.bs-label, .bs-input, .bs-select, .bs-textarea, .bs-muted) */
+.bs-label {
+    display: block;
+    font-size: 0.79rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    color: #1e293b;
+    margin-bottom: 0.38rem;
+}
+
+.bs-muted {
+    color: #64748b;
+    line-height: 1.5;
+}
+
+.bs-input,
+.bs-select,
+.bs-textarea {
+    display: block;
+    width: 100%;
+    padding: 0.6rem 0.85rem;
+    font-size: 0.9rem;
+    font-family: inherit;
+    line-height: 1.45;
+    color: #0f172a;
+    background-color: #ffffff;
+    border: 1.5px solid #cbd5e1;
+    border-radius: 10px;
+    outline: none;
+    transition: border-color 0.18s ease, box-shadow 0.18s ease, background-color 0.18s ease;
+}
+
+.bs-input::placeholder,
+.bs-textarea::placeholder {
+    color: #94a3b8;
+}
+
+.bs-input:hover,
+.bs-select:hover,
+.bs-textarea:hover {
+    border-color: #94a3b8;
+}
+
+.bs-input:focus,
+.bs-select:focus,
+.bs-textarea:focus {
+    border-color: var(--portal-accent);
+    box-shadow: 0 0 0 3.5px rgba(37, 99, 235, 0.18);
+    background-color: #ffffff;
+}
+
+.bs-textarea {
+    resize: vertical;
+    min-height: 86px;
+}
+
+.bs-select {
+    cursor: pointer;
+    padding-right: 2rem;
+}
+
+/* 6.3 Enterprise Badges (.bs-badge & Variants) */
+.bs-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.32rem;
+    padding: 0.28rem 0.72rem;
+    border-radius: 999px;
+    font-size: 0.74rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    line-height: 1.25;
+    border: 1px solid transparent;
+    white-space: nowrap;
+}
+
+.bs-badge-info {
+    background: linear-gradient(135deg, rgba(219, 234, 254, 0.95), rgba(224, 242, 254, 0.95));
+    color: #1e40af;
+    border-color: rgba(59, 130, 246, 0.35);
+}
+
+.bs-badge-success {
+    background: linear-gradient(135deg, rgba(220, 252, 231, 0.95), rgba(209, 250, 229, 0.95));
+    color: #166534;
+    border-color: rgba(34, 197, 94, 0.35);
+}
+
+.bs-badge-warning {
+    background: linear-gradient(135deg, rgba(254, 243, 199, 0.96), rgba(254, 249, 195, 0.96));
+    color: #92400e;
+    border-color: rgba(245, 158, 11, 0.42);
+}
+
+.bs-badge-danger {
+    background: linear-gradient(135deg, rgba(254, 226, 226, 0.96), rgba(255, 228, 230, 0.96));
+    color: #991b1b;
+    border-color: rgba(239, 68, 68, 0.38);
+}
+
+/* 6.4 Enterprise Buttons (.bs-btn, .bs-btn-primary, .bs-btn-outline) */
+.bs-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.45rem;
+    padding: 0.56rem 1.05rem;
+    border-radius: 10px;
+    font-size: 0.86rem;
+    font-weight: 700;
+    line-height: 1.3;
+    text-decoration: none;
+    cursor: pointer;
+    border: 1.5px solid transparent;
+    transition: transform 0.16s ease, box-shadow 0.18s ease, background 0.18s ease, border-color 0.18s ease, color 0.18s ease;
+    white-space: nowrap;
+}
+
+.bs-btn:disabled {
+    opacity: 0.65;
+    cursor: not-allowed;
+    transform: none !important;
+}
+
+.bs-btn-primary {
+    background: linear-gradient(135deg, var(--portal-grad-mid) 0%, var(--portal-accent) 100%);
+    color: #ffffff;
+    border-color: rgba(29, 78, 216, 0.6);
+    box-shadow: 0 6px 16px rgba(37, 99, 235, 0.25);
+}
+
+.bs-btn-primary:hover,
+.bs-btn-primary:focus {
+    color: #ffffff;
+    transform: translateY(-1px);
+    box-shadow: 0 10px 22px rgba(37, 99, 235, 0.34);
+    filter: brightness(1.06);
+}
+
+.bs-btn-outline {
+    background: rgba(255, 255, 255, 0.85);
+    color: #1e3a8a;
+    border-color: rgba(37, 99, 235, 0.38);
+}
+
+.bs-btn-outline:hover,
+.bs-btn-outline:focus {
+    background: rgba(37, 99, 235, 0.08);
+    color: #1d4ed8;
+    border-color: var(--portal-accent);
+    transform: translateY(-1px);
+}
+
+/* 6.5 Dark Mode Full Compatibility cho toàn bộ hệ .bs-* & S13/S14/S15 */
+[data-bs-theme="dark"] .bs-card {
+    background: linear-gradient(180deg, rgba(30, 41, 59, 0.92) 0%, rgba(15, 23, 42, 0.95) 100%);
+    border-color: rgba(71, 85, 105, 0.72);
+    box-shadow: 0 12px 32px rgba(2, 6, 23, 0.45);
+}
+
+[data-bs-theme="dark"] .bs-card:hover {
+    border-color: rgba(56, 189, 248, 0.45);
+    box-shadow: 0 16px 38px rgba(2, 6, 23, 0.55);
+}
+
+[data-bs-theme="dark"] .bs-label {
+    color: #e2e8f0;
+}
+
+[data-bs-theme="dark"] .bs-muted {
+    color: #94a3b8;
+}
+
+[data-bs-theme="dark"] .bs-input,
+[data-bs-theme="dark"] .bs-select,
+[data-bs-theme="dark"] .bs-textarea {
+    background-color: #0f172a;
+    color: #f1f5f9;
+    border-color: #334155;
+}
+
+[data-bs-theme="dark"] .bs-input::placeholder,
+[data-bs-theme="dark"] .bs-textarea::placeholder {
+    color: #64748b;
+}
+
+[data-bs-theme="dark"] .bs-input:focus,
+[data-bs-theme="dark"] .bs-select:focus,
+[data-bs-theme="dark"] .bs-textarea:focus {
+    background-color: #0f172a;
+    border-color: var(--portal-accent-glow);
+    box-shadow: 0 0 0 3.5px rgba(56, 189, 248, 0.2);
+}
+
+[data-bs-theme="dark"] .bs-select option {
+    background-color: #0f172a;
+    color: #f1f5f9;
+}
+
+[data-bs-theme="dark"] .bs-badge-info {
+    background: rgba(30, 64, 175, 0.35);
+    color: #93c5fd;
+    border-color: rgba(96, 165, 250, 0.42);
+}
+
+[data-bs-theme="dark"] .bs-badge-success {
+    background: rgba(20, 83, 45, 0.42);
+    color: #86efac;
+    border-color: rgba(74, 222, 128, 0.38);
+}
+
+[data-bs-theme="dark"] .bs-badge-warning {
+    background: rgba(120, 53, 15, 0.45);
+    color: #fde68a;
+    border-color: rgba(251, 191, 36, 0.42);
+}
+
+[data-bs-theme="dark"] .bs-badge-danger {
+    background: rgba(127, 29, 29, 0.45);
+    color: #fca5a5;
+    border-color: rgba(248, 113, 113, 0.42);
+}
+
+[data-bs-theme="dark"] .bs-btn-outline {
+    background: rgba(15, 23, 42, 0.65);
+    color: #93c5fd;
+    border-color: rgba(96, 165, 250, 0.4);
+}
+
+[data-bs-theme="dark"] .bs-btn-outline:hover {
+    background: rgba(37, 99, 235, 0.25);
+    color: #e0f2fe;
+    border-color: #38bdf8;
+}
+
+[data-bs-theme="dark"] .s13-kpi,
+[data-bs-theme="dark"] .s13-rag-book,
+[data-bs-theme="dark"] .s14-ai-reason,
+[data-bs-theme="dark"] .s15-leader-row,
+[data-bs-theme="dark"] .s15-pill {
+    background-color: var(--portal-surface-2) !important;
+    border-color: var(--portal-border) !important;
+    color: var(--portal-text) !important;
+}
+
+[data-bs-theme="dark"] .s13-kpi strong,
+[data-bs-theme="dark"] .s13-session-item strong,
+[data-bs-theme="dark"] .s14-stat-box strong,
+[data-bs-theme="dark"] .s14-ai-reason strong,
+[data-bs-theme="dark"] .s15-review-comment,
+[data-bs-theme="dark"] .s15-my-score strong {
+    color: #f1f5f9 !important;
+}
+
+[data-bs-theme="dark"] .s13-kpi span,
+[data-bs-theme="dark"] .s13-session-item small,
+[data-bs-theme="dark"] .s13-rag-book small,
+[data-bs-theme="dark"] .s14-stat-box span,
+[data-bs-theme="dark"] .s14-ai-reason p,
+[data-bs-theme="dark"] .s15-leader-info small,
+[data-bs-theme="dark"] .s15-leader-score small,
+[data-bs-theme="dark"] .s15-review-foot,
+[data-bs-theme="dark"] .s15-my-score span,
+[data-bs-theme="dark"] .s15-my-score small {
+    color: #94a3b8 !important;
+}
+
+[data-bs-theme="dark"] .s14-advice-output {
+    background: rgba(30, 58, 138, 0.28) !important;
+    border-color: rgba(96, 165, 250, 0.4) !important;
+    color: #dbeafe !important;
+}
+
+[data-bs-theme="dark"] .s14-match-pill {
+    background: rgba(55, 48, 163, 0.4) !important;
+    border-color: rgba(129, 140, 248, 0.45) !important;
+    color: #c7d2fe !important;
+}
+
+[data-bs-theme="dark"] .s15-pill.active {
+    background: var(--portal-accent) !important;
+    border-color: var(--portal-accent) !important;
+    color: #ffffff !important;
+}
+
+/* 6.6 [UI-ENTERPRISE] Thanh chọn mật độ kệ sách (3 Cột / 4 Cột / Danh sách ngang) */
+.bs-density-bar {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px;
+    border-radius: 12px;
+    background: var(--portal-surface-2);
+    border: 1px solid var(--portal-border);
+}
+
+.bs-density-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    border: none;
+    background: transparent;
+    color: #475569;
+    font-size: 0.78rem;
+    font-weight: 700;
+    padding: 5px 11px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.16s ease;
+    white-space: nowrap;
+}
+
+.bs-density-btn:hover {
+    color: var(--portal-accent);
+    background: rgba(37, 99, 235, 0.08);
+}
+
+.bs-density-btn.active {
+    background: linear-gradient(135deg, var(--portal-grad-mid), var(--portal-accent));
+    color: #ffffff;
+    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.28);
+}
+
+[data-bs-theme="dark"] .bs-density-btn {
+    color: #cbd5e1;
+}
+
+[data-bs-theme="dark"] .bs-density-btn.active {
+    color: #ffffff;
+}
+
+/* Mật độ 4 cột: ảnh bìa gọn hơn một chút để cân đối tỷ lệ */
+.bs-shelf-grid.is-density-4 .book-cover {
+    height: 185px;
+}
+
+/* Mật độ Danh sách ngang (Horizontal List View) */
+.bs-shelf-grid.is-density-list .bs-book-col {
+    flex: 0 0 100%;
+    max-width: 100%;
+    width: 100%;
+}
+
+@media (min-width: 768px) {
+    .bs-shelf-grid.is-density-list .book-card {
+        flex-direction: row;
+        align-items: stretch;
+    }
+
+    .bs-shelf-grid.is-density-list .bs-book-cover-wrap {
+        flex: 0 0 220px;
+        max-width: 220px;
+    }
+
+    .bs-shelf-grid.is-density-list .book-cover {
+        height: 100%;
+        min-height: 230px;
+    }
+}
+
+/* 6.7 [UI-ENTERPRISE] Empty State Chuyên nghiệp (Khi CSDL Trắng hoặc Bộ lọc Trống) */
+.bs-empty-state {
+    position: relative;
+    overflow: hidden;
+    text-align: center;
+    padding: 3.25rem 1.75rem;
+    border-radius: 20px;
+    border: 1.5px dashed rgba(37, 99, 235, 0.38);
+    background: radial-gradient(circle at top center, rgba(37, 99, 235, 0.08), transparent 62%),
+                linear-gradient(180deg, rgba(248, 250, 252, 0.95), rgba(241, 245, 249, 0.85));
+}
+
+[data-bs-theme="dark"] .bs-empty-state {
+    border-color: rgba(56, 189, 248, 0.35);
+    background: radial-gradient(circle at top center, rgba(56, 189, 248, 0.12), transparent 65%),
+                linear-gradient(180deg, rgba(30, 41, 59, 0.85), rgba(15, 23, 42, 0.92));
+}
+
+.bs-empty-icon {
+    width: 78px;
+    height: 78px;
+    margin: 0 auto 1.1rem;
+    border-radius: 22px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2.2rem;
+    color: #ffffff;
+    background: linear-gradient(135deg, #0f172a 0%, #1e3a8a 52%, #2563eb 100%);
+    box-shadow: 0 14px 28px rgba(30, 58, 138, 0.28);
+}
+
+.bs-empty-state h4 {
+    font-weight: 800;
+    margin-bottom: 0.5rem;
+}
+
+.bs-empty-state p {
+    max-width: 580px;
+    margin: 0 auto 1.4rem;
+    font-size: 0.92rem;
+}

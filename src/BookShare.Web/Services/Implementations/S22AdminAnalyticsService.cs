@@ -307,13 +307,14 @@ public class S22AdminAnalyticsService : IS22AdminAnalyticsService
                     return (true, "Đã làm sạch toàn bộ dữ liệu mẫu! Hệ thống hiện ở trạng thái CSDL Trắng (chỉ giữ lại 4 Roles gốc, 8 Thể loại, 3 Điểm trạm và tài khoản Quản trị viên).");
                 }
 
+                // [FEAT-LOGIC] Ưu tiên volume mount /sql (Docker VPS), dự phòng thư mục database/ đóng gói trong image và Local
                 var candidatePaths = new[]
                 {
+                    "/sql/02_BookShare_SeedData.sql",
                     Path.Combine(Directory.GetCurrentDirectory(), "database", "02_BookShare_SeedData.sql"),
                     Path.Combine(Directory.GetCurrentDirectory(), "..", "..", "database", "02_BookShare_SeedData.sql"),
                     Path.Combine(AppContext.BaseDirectory, "database", "02_BookShare_SeedData.sql"),
-                    Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..", "database", "02_BookShare_SeedData.sql"),
-                    "/sql/02_BookShare_SeedData.sql"
+                    Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..", "database", "02_BookShare_SeedData.sql")
                 };
 
                 string? resolvedSqlPath = candidatePaths.FirstOrDefault(File.Exists);

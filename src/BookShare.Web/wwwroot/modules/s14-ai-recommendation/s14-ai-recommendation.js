@@ -1,4 +1,4 @@
-import { apiFetch } from '../../js/core-api.js';
+import { apiFetch, getRecaptchaToken } from '../../js/core-api.js';
 
 document.addEventListener('DOMContentLoaded', () => {
     const formGenerateCustomRec = document.getElementById('formGenerateCustomRec');
@@ -30,12 +30,15 @@ document.addEventListener('DOMContentLoaded', () => {
             const title = btn.getAttribute('data-title') || 'Sách';
             if (!bookCopyId) return;
 
+            // [BOT-GUARD] Đính kèm token Google reCAPTCHA v3 trước khi tạo phiếu mượn từ gợi ý AI
+            const recaptchaToken = await getRecaptchaToken('quick_loan');
             const res = await apiFetch('/S06SearchDiscovery/QuickRequestLoan', {
                 method: 'POST',
                 body: {
                     bookCopyId,
                     desiredDays: 14,
-                    requestNote: `Đăng ký mượn từ Gợi ý Sách AI cho cuốn "${title}"`
+                    requestNote: `Đăng ký mượn từ Gợi ý Sách AI cho cuốn "${title}"`,
+                    recaptchaToken
                 },
                 button: btn
             });

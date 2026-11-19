@@ -173,12 +173,22 @@
                             }
                             else if (item.LoanStatus == "Returned")
                             {
+                                var reviewTargetType = Model.CurrentUserId == item.BorrowerId ? "Book" : "User";
+                                var reviewTargetId = Model.CurrentUserId == item.BorrowerId ? item.BookId.ToString() : item.BorrowerId;
                                 <span class="badge bg-success py-2 px-3">
                                     <i class="bi bi-check-all me-1"></i>Đã hoàn trả (@(item.ReturnDate?.ToString("dd/MM/yyyy") ?? "Hoàn tất"))
                                 </span>
                                 <a asp-controller="S10ConditionReport" asp-action="Index" asp-route-loanId="@item.LoanId"
                                    class="btn btn-sm btn-outline-primary">
                                     <i class="bi bi-shield-check me-1"></i>Hộ Chiếu Kiểm Định
+                                </a>
+                                <!-- [FEAT-LOGIC] Khép kín vòng đời Mượn -> Trả -> Đánh giá 2 chiều & Cộng TrustScore -->
+                                <a asp-controller="S15TrustScoreReview" asp-action="Index"
+                                   asp-route-loanId="@item.LoanId"
+                                   asp-route-targetType="@reviewTargetType"
+                                   asp-route-targetId="@reviewTargetId"
+                                   class="btn btn-sm btn-warning text-dark fw-bold">
+                                    ⭐ Đánh giá lượt mượn này
                                 </a>
                             }
                             else
