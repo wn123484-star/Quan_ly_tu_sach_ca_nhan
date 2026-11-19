@@ -108,6 +108,30 @@ body[data-portal-palette="coral"] {
     --portal-accent-glow: #fb923c;
 }
 
+/* [BS-UI-ENTERPRISE] Giao diện giấy sách ấm Warm Ivory Paper */
+body[data-portal-palette="ivory"] {
+    --portal-grad-deep: #292524;
+    --portal-grad-start: #44403c;
+    --portal-grad-mid: #78350f;
+    --portal-grad-end: #b45309;
+    --portal-accent: #b45309;
+    --portal-accent-glow: #f59e0b;
+    --portal-light-bg: #f8f4ec;
+    --portal-surface: #fffdf8;
+    --portal-surface-2: #f4eee1;
+    --portal-text: #1c1917;
+    --portal-border: #dfd3be;
+}
+
+[data-bs-theme="dark"] body[data-portal-palette="ivory"],
+[data-bs-theme="dark"][data-portal-palette="ivory"] {
+    --portal-light-bg: #141210;
+    --portal-surface: #1f1b18;
+    --portal-surface-2: #292420;
+    --portal-text: #f5efe6;
+    --portal-border: #443c35;
+}
+
 body {
     font-family: var(--bs-font-sans-serif);
     background-color: var(--portal-light-bg);
@@ -122,15 +146,129 @@ main {
     flex: 1;
 }
 
-/* 1. PORTAL HEADER & GIANT SEARCH BAR */
-.portal-header-wrapper {
+/* 1. [BS-UI-HEADER] PORTAL HEADER SIÊU GỌN KHÓA CỐ ĐỊNH (POSITION: FIXED ~76-82PX DESKTOP) */
+:root {
+    --bs-header-height: 82px;
+}
+
+.portal-header-wrapper,
+.bs-fixed-header {
     background: linear-gradient(135deg, var(--portal-grad-deep) 0%, var(--portal-grad-start) 48%, var(--portal-grad-mid) 100%);
     color: #ffffff;
-    position: sticky;
+    position: fixed !important;
     top: 0;
-    z-index: 1030;
+    left: 0;
+    right: 0;
+    width: 100%;
+    z-index: 1045;
     border-bottom: 1.5px solid rgba(56, 189, 248, 0.35);
-    box-shadow: 0 10px 28px rgba(6, 13, 31, 0.32);
+    box-shadow: 0 6px 22px rgba(6, 13, 31, 0.3);
+}
+
+.bs-header-spacer {
+    height: var(--bs-header-height, 82px);
+    flex-shrink: 0;
+    width: 100%;
+}
+
+.bs-header-row-top {
+    padding: 4px 0 !important;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.14);
+}
+
+.bs-header-row-search {
+    padding: 5px 0 6px !important;
+}
+
+.portal-logo-compact {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: #ffffff;
+    text-decoration: none;
+    font-size: 0.94rem;
+    letter-spacing: -0.01em;
+}
+
+.portal-logo-compact:hover {
+    color: #7dd3fc;
+}
+
+.portal-logo-icon {
+    width: 24px;
+    height: 24px;
+    border-radius: 7px;
+    background: #ffffff;
+    color: #1d4ed8;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.85rem;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.18);
+}
+
+.bs-compact-search {
+    padding: 2px 3px !important;
+    border-radius: 8px !important;
+}
+
+.bs-compact-search input {
+    padding: 4px 10px !important;
+    font-size: 0.84rem !important;
+}
+
+.bs-compact-search select {
+    padding: 4px 8px !important;
+    font-size: 0.78rem !important;
+    max-width: 155px !important;
+}
+
+.bs-compact-search .portal-search-btn {
+    padding: 4px 14px !important;
+    font-size: 0.84rem !important;
+}
+
+/* [BS-UI-STATUS-AUTOHIDE] Dock nổi thông báo báo mã tự ẩn có thanh tiến độ đếm ngược */
+.bs-status-dock {
+    position: fixed;
+    top: calc(var(--bs-header-height, 82px) + 10px);
+    right: 18px;
+    z-index: 1040;
+    width: min(500px, calc(100vw - 24px));
+    pointer-events: none;
+}
+
+.bs-status-dock .status-banner {
+    pointer-events: auto;
+    position: relative;
+    overflow: hidden;
+    padding: 9px 14px 12px;
+    box-shadow: 0 12px 30px rgba(15, 23, 42, 0.18);
+    opacity: 1;
+    transform: translateY(0);
+    transition: opacity 0.35s ease, transform 0.35s ease;
+}
+
+.bs-status-dock .status-banner.is-fading {
+    opacity: 0;
+    transform: translateY(-8px);
+}
+
+.status-progress-track {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 3px;
+    background: rgba(15, 23, 42, 0.1);
+}
+
+.status-progress-bar {
+    height: 100%;
+    width: 100%;
+    background: currentColor;
+    opacity: 0.55;
+    transform-origin: left center;
 }
 
 .bs-domain-nav-bar {
@@ -143,10 +281,10 @@ main {
 .bs-domain-dropdown .dropdown-toggle {
     display: inline-flex;
     align-items: center;
-    gap: 6px;
-    padding: 5px 12px;
+    gap: 5px;
+    padding: 3px 10px;
     border-radius: 999px;
-    font-size: 0.78rem;
+    font-size: 0.76rem;
     font-weight: 700;
     color: #f8fafc !important;
     background: rgba(30, 58, 138, 0.45);
@@ -880,21 +1018,25 @@ img.lazy-blur.is-loaded {
    ========================================================================== */
 
 html {
-    scroll-padding-top: 165px;
+    scroll-padding-top: calc(var(--bs-header-height, 84px) + 16px);
 }
 
-/* [UI-ENTERPRISE] Tránh các thẻ .sticky-top bên trong <main> bị thanh .portal-header-wrapper che khuất khi cuộn */
+/* [BS-UI-HEADER] Tránh các thẻ .sticky-top bên trong <main> bị Header cố định che khuất khi cuộn */
 main .sticky-top:not(thead) {
-    top: 162px !important;
+    top: calc(var(--bs-header-height, 84px) + 14px) !important;
     z-index: 1015;
 }
 
 @media (max-width: 768px) {
+    .portal-header-wrapper,
+    .bs-fixed-header {
+        position: fixed !important;
+    }
     html {
-        scroll-padding-top: 24px;
+        scroll-padding-top: calc(var(--bs-header-height, 108px) + 12px);
     }
     main .sticky-top:not(thead) {
-        top: 16px !important;
+        top: calc(var(--bs-header-height, 108px) + 12px) !important;
     }
 }
 

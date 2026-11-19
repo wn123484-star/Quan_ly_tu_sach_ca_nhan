@@ -112,6 +112,121 @@ export async function confirmDialog({ title, text, confirmText = 'Đồng ý', c
     return result.isConfirmed;
 }
 
+// [BS-UI-STATUS-AUTOHIDE] Quản lý đếm ngược tự ẩn cho #systemStatusBox (tạm dừng khi hover)
+const statusTimerState = {
+    timerId: null,
+    fadeId: null,
+    remainingMs: 0,
+    startedAt: 0,
+    paused: false
+};
+
+function clearStatusTimers() {
+    if (statusTimerState.timerId) {
+        clearTimeout(statusTimerState.timerId);
+        statusTimerState.timerId = null;
+    }
+    if (statusTimerState.fadeId) {
+        clearTimeout(statusTimerState.fadeId);
+        statusTimerState.fadeId = null;
+    }
+}
+
+function scheduleStatusAutoHide(durationMs) {
+    const box = document.getElementById('systemStatusBox');
+    const bar = document.getElementById('statusProgressBar');
+    if (!box) return;
+
+    clearStatusTimers();
+    statusTimerState.remainingMs = durationMs;
+    statusTimerState.startedAt = Date.now();
+    statusTimerState.paused = false;
+
+    box.classList.remove('hidden-banner', 'd-none', 'is-fading');
+    if (bar) {
+        bar.style.transition = 'none';
+        bar.style.transform = 'scaleX(1)';
+        void bar.offsetWidth;
+        bar.style.transition = `transform ${durationMs}ms linear`;
+        bar.style.transform = 'scaleX(0)';
+    }
+
+    statusTimerState.timerId = setTimeout(() => {
+        box.classList.add('is-fading');
+        statusTimerState.fadeId = setTimeout(() => {
+            box.classList.add('hidden-banner');
+            box.classList.remove('is-fading');
+        }, 350);
+    }, durationMs);
+}
+
+function initStatusAutoHide() {
+    const box = document.getElementById('systemStatusBox');
+    const bar = document.getElementById('statusProgressBar');
+    if (!box) return;
+
+    box.addEventListener('mouseenter', () => {
+        if (!statusTimerState.timerId || statusTimerState.paused) return;
+        const elapsed = Date.now() - statusTimerState.startedAt;
+        statusTimerState.remainingMs = Math.max(400, statusTimerState.remainingMs - elapsed);
+        statusTimerState.paused = true;
+        clearStatusTimers();
+        if (bar) {
+            const curTransform = getComputedStyle(bar).transform;
+            bar.style.transition = 'none';
+            bar.style.transform = curTransform;
+        }
+    });
+
+    box.addEventListener('mouseleave', () => {
+        if (!statusTimerState.paused) return;
+        statusTimerState.paused = false;
+        const rem = Math.max(500, statusTimerState.remainingMs);
+        statusTimerState.startedAt = Date.now();
+        if (bar) {
+            bar.style.transition = `transform ${rem}ms linear`;
+            bar.style.transform = 'scaleX(0)';
+        }
+        statusTimerState.timerId = setTimeout(() => {
+            box.classList.add('is-fading');
+            statusTimerState.fadeId = setTimeout(() => {
+                box.classList.add('hidden-banner');
+                box.classList.remove('is-fading');
+            }, 350);
+        }, rem);
+    });
+
+    const isFlash = box.dataset.flash === '1';
+    if (!isFlash) {
+        scheduleStatusAutoHide(2000);
+    } else {
+        const code = parseInt((document.getElementById('statusCodeBadge')?.innerText || '').replace(/\D/g, ''), 10) || 200;
+        scheduleStatusAutoHide(code >= 400 ? 6000 : 4000);
+    }
+}
+
+// [BS-UI-HEADER] Tự động đồng bộ chiều cao đệm #bsHeaderFixedSpacer theo ResizeObserver
+function initFixedHeaderSpacer() {
+    const header = document.getElementById('bsFixedHeader');
+    const spacer = document.getElementById('bsHeaderFixedSpacer');
+    if (!header || !spacer) return;
+
+    const syncHeight = () => {
+        const h = Math.ceil(header.getBoundingClientRect().height);
+        if (h > 0) {
+            spacer.style.height = `${h}px`;
+            document.documentElement.style.setProperty('--bs-header-height', `${h}px`);
+        }
+    };
+
+    syncHeight();
+    if (typeof ResizeObserver !== 'undefined') {
+        const ro = new ResizeObserver(syncHeight);
+        ro.observe(header);
+    }
+    window.addEventListener('resize', syncHeight);
+}
+
 export function showSystemStatus(code, title, detail, { silent = false } = {}) {
     const box = document.getElementById('systemStatusBox');
     const badge = document.getElementById('statusCodeBadge');
@@ -119,7 +234,7 @@ export function showSystemStatus(code, title, detail, { silent = false } = {}) {
     const detailEl = document.getElementById('statusDetailText');
 
     if (box && badge && titleEl && detailEl) {
-        box.classList.remove('hidden-banner', 'd-none', 'status-200', 'status-300', 'status-400', 'status-404', 'status-500');
+        box.classList.remove('hidden-banner', 'd-none', 'is-fading', 'status-200', 'status-300', 'status-400', 'status-404', 'status-500');
         let cls = 'status-200';
         if (code >= 500) cls = 'status-500';
         else if (code === 404) cls = 'status-404';
@@ -130,6 +245,7 @@ export function showSystemStatus(code, title, detail, { silent = false } = {}) {
         badge.innerText = `MÃ ${code}`;
         titleEl.innerText = title;
         detailEl.innerText = detail || '';
+        scheduleStatusAutoHide(code >= 400 ? 6000 : 4000);
     }
 
     if (!silent) toast(code, title, detail);
@@ -636,6 +752,8 @@ document.addEventListener('DOMContentLoaded', () => {
     window.apiFetch = apiFetch;
     window.BookShareUI = { toast, confirmDialog, celebrate, loadScript, renderMarkdown, renderSkeleton, openBarcodeScanner, trustTier, getRecaptchaToken, CDN };
 
+    initFixedHeaderSpacer();
+    initStatusAutoHide();
     initThemeToggle();
     initAccessibility();
     initMobileTables();

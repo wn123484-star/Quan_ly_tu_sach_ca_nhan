@@ -83,6 +83,34 @@ document.addEventListener('DOMContentLoaded', () => {
     if (keywordInput) {
         initAutocomplete(keywordInput);
     }
+
+    // 4. [BS-UI-ENTERPRISE] Chuyển đổi mật độ lưới sách S06 (3 Cột / 4 Cột / Danh sách)
+    const s06Grid = document.getElementById('s06ResultsGrid');
+    const densityBtns = document.querySelectorAll('[data-s06-density]');
+    if (s06Grid && densityBtns.length) {
+        const key = 'bookshare_s06_density';
+        const applyS06Density = (mode) => {
+            const m = ['3', '4', 'list'].includes(mode) ? mode : '3';
+            s06Grid.classList.remove('is-density-3', 'is-density-4', 'is-density-list');
+            s06Grid.classList.add(`is-density-${m}`);
+            s06Grid.querySelectorAll('.bs-s06-col').forEach(col => {
+                col.classList.remove('col-xl-4', 'col-md-6', 'col-xl-3', 'col-sm-6', 'col-12');
+                if (m === '4') col.classList.add('col-xl-3', 'col-sm-6');
+                else if (m === 'list') col.classList.add('col-12');
+                else col.classList.add('col-xl-4', 'col-md-6');
+            });
+            densityBtns.forEach(btn => {
+                const active = btn.getAttribute('data-s06-density') === m;
+                btn.classList.toggle('active', active);
+                btn.setAttribute('aria-pressed', String(active));
+            });
+            try { localStorage.setItem(key, m); } catch { }
+        };
+        let saved = '3';
+        try { saved = localStorage.getItem(key) || '3'; } catch { }
+        applyS06Density(saved);
+        densityBtns.forEach(btn => btn.addEventListener('click', () => applyS06Density(btn.getAttribute('data-s06-density') || '3')));
+    }
 });
 
 function debounce(fn, delay = 300) {

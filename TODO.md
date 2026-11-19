@@ -22,9 +22,9 @@ Nhánh sao lưu dự phòng: `backup/pre-turbo-rental`
 - [x] Cập nhật `database/02_BookShare_SeedData.sql`: nạp sẵn phí thuê, cọc Escrow & ví mẫu cho tài khoản demo.
 
 ## GIAI ĐOẠN 3: Nâng Cấp Giao Diện Chuyên Nghiệp (Header Thấp Khóa Cứng + Auto-Hide Banner)
-- [ ] Thiết kế lại Header siêu gọn (~72px–84px Desktop), khóa cố định `position: fixed !important` kèm `#bsHeaderFixedSpacer` đo tự động bằng `ResizeObserver`, gắn nút `📱 Mobile App` (`[BS-UI-HEADER]`).
-- [ ] Nâng cấp `#systemStatusBox` tự động ẩn sau 2s (mặc định) / 4s (200/300) / 6s (400/500), tạm dừng khi hover, có thanh tiến độ đếm ngược (`[BS-UI-STATUS-AUTOHIDE]`).
-- [ ] Hoàn thiện CSS Doanh nghiệp `.bs-*` cho `S13`, `S14`, `S15`, chuẩn hóa 7 Theme Doanh nghiệp (gồm Warm Ivory Paper), thêm bộ chọn mật độ kệ sách (3 Cột / 4 Cột / Danh sách) + Clean Empty State cho `Home` và `S06` (`[BS-UI-ENTERPRISE]`).
+- [x] Thiết kế lại Header siêu gọn (~72px–84px Desktop), khóa cố định `position: fixed !important` kèm `#bsHeaderFixedSpacer` đo tự động bằng `ResizeObserver`, gắn nút `📱 Mobile App` (`[BS-UI-HEADER]`).
+- [x] Nâng cấp `#systemStatusBox` tự động ẩn sau 2s (mặc định) / 4s (200/300) / 6s (400/500), tạm dừng khi hover, có thanh tiến độ đếm ngược (`[BS-UI-STATUS-AUTOHIDE]`).
+- [x] Hoàn thiện CSS Doanh nghiệp `.bs-*` cho `S13`, `S14`, `S15`, chuẩn hóa 7 Theme Doanh nghiệp (gồm Warm Ivory Paper), thêm bộ chọn mật độ kệ sách (3 Cột / 4 Cột / Danh sách) + Clean Empty State cho `Home` và `S06` (`[BS-UI-ENTERPRISE]`).
 
 ## GIAI ĐOẠN 4: Nghiệp Vụ Thuê Sách Khép Kín, Ví Bảo Lãnh & QR Cross-Login
 - [ ] Luồng Thuê Sách & Escrow (`S02`, `S06`, `S08`, `S09`, `S12`): thiết lập phí thuê/ngày & tiền cọc, bộ tính tổng 7/14/30 ngày, khóa cọc Escrow khi giao sách, hoàn 100% cọc & giải ngân phí thuê khi trả nguyên vẹn, modal Phiếu Hợp Đồng Thuê Điện Tử kèm QR/Barcode in A5/80mm (`[BS-RENTAL-FLOW]`).

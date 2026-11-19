@@ -130,26 +130,53 @@
     </form>
 </section>
 
-<!-- 2. LƯỚI KẾT QUẢ BẢN SAO SÁCH VẬT LÝ & NÚT GỬI YÊU CẦU MƯỢN -->
+<!-- 2. LƯỚI KẾT QUẢ BẢN SAO SÁCH VẬT LÝ & NÚT GỬI YÊU CẦU THUÊ / MƯỢN -->
 @if (!Model.Results.Any())
 {
-    <div class="card border-0 shadow-sm rounded-4 p-5 text-center bg-white" data-skeleton-target="grid">
-        <i class="bi bi-search-heart fs-1 text-muted mb-2"></i>
-        <h6 class="fw-bold">Không tìm thấy bản sao sách nào khớp điều kiện</h6>
-        <p class="text-muted small mb-3">Hãy thử nới lỏng bộ lọc khu vực hoặc từ khóa tìm kiếm.</p>
-        <div>
-            <a asp-controller="S06SearchDiscovery" asp-action="Index" class="btn btn-outline-primary btn-sm rounded-pill px-4">
-                Hiển thị toàn bộ kho sách
+    <!-- [BS-UI-ENTERPRISE] Clean Empty State cho Cổng Tìm Kiếm -->
+    <div class="bs-empty-state my-2" data-skeleton-target="grid" role="status">
+        <div class="bs-empty-icon">
+            <i class="bi bi-search-heart" aria-hidden="true"></i>
+        </div>
+        <span class="bs-badge bs-badge-info mb-2">KHÔNG CÓ BẢN SAO KHỚP BỘ LỌC</span>
+        <h4>Không tìm thấy bản sao sách giấy nào phù hợp</h4>
+        <p class="bs-muted">
+            Hãy thử nới lỏng bộ lọc khu vực / từ khóa, hoặc nếu CSDL đang ở trạng thái Trắng, Quản trị viên có thể nạp ngay dữ liệu mẫu SQL chuẩn tại Trung tâm Quản trị.
+        </p>
+        <div class="d-flex flex-wrap justify-content-center gap-2">
+            <a asp-controller="S06SearchDiscovery" asp-action="Index" class="bs-btn bs-btn-primary">
+                <i class="bi bi-arrow-counterclockwise"></i>Hiển thị toàn bộ kho sách
+            </a>
+            <a asp-controller="S22AdminAnalytics" asp-action="Index" class="bs-btn bs-btn-outline">
+                <i class="bi bi-database-fill-up"></i>Quản trị nạp dữ liệu mẫu
             </a>
         </div>
     </div>
 }
 else
 {
-    <div class="row g-4" data-skeleton-target="grid" aria-live="polite">
+    <!-- [BS-UI-ENTERPRISE] Thanh chọn mật độ kệ sách cho Cổng Tìm Kiếm S06 (3 Cột / 4 Cột / Danh sách) -->
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+        <div class="small text-muted">
+            Hiển thị <strong>@Model.Results.Count</strong> / <strong>@Model.TotalItems</strong> bản sao sách giấy (Mô hình Lai: Miễn phí 0đ &amp; Thuê Escrow).
+        </div>
+        <div class="bs-density-bar" role="group" aria-label="Chọn mật độ lưới kết quả">
+            <button type="button" class="bs-density-btn active" data-s06-density="3" aria-pressed="true">
+                <i class="bi bi-grid-3x2-gap-fill"></i><span>3 Cột</span>
+            </button>
+            <button type="button" class="bs-density-btn" data-s06-density="4" aria-pressed="false">
+                <i class="bi bi-grid-fill"></i><span>4 Cột</span>
+            </button>
+            <button type="button" class="bs-density-btn" data-s06-density="list" aria-pressed="false">
+                <i class="bi bi-view-list"></i><span>Danh Sách</span>
+            </button>
+        </div>
+    </div>
+
+    <div id="s06ResultsGrid" class="row g-4 bs-shelf-grid is-density-3" data-skeleton-target="grid" aria-live="polite">
         @foreach (var item in Model.Results)
         {
-            <div class="col-xl-4 col-md-6">
+            <div class="col-xl-4 col-md-6 bs-s06-col">
                 <div class="s06-copy-card tilt-3d h-100 p-4 bg-white rounded-4 shadow-sm d-flex flex-column justify-content-between">
                     <div>
                         <div class="d-flex justify-content-between align-items-center mb-2">
