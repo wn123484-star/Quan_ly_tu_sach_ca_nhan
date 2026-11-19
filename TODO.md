@@ -1,44 +1,53 @@
-# TODO - Kế Hoạch Hoàn Thiện Kiến Trúc, Giao Diện & Bảo Mật BookShare
+# TODO - KẾ HOẠCH NÂNG CẤP TOÀN DIỆN BOOKSHARE TURBO MODE (GIAI ĐOẠN 0 ➔ 8)
 
-Theo dõi tiến độ thực thi 5 pha hoàn thiện hệ thống BookShare (.NET 10 ASP.NET Core MVC + EF Core SQL Server).
+Nhánh phát triển: `feat/bookshare-rental-mobile-turbo`  
+Nhánh sao lưu dự phòng: `backup/pre-turbo-rental`
 
 ---
 
-## PHA 1: Vá Hạ tầng Docker & SQL Seeder
-- [x] Kiểm tra `S22AdminAnalyticsService` và cách tìm đường dẫn tệp SQL mẫu (`02_BookShare_SeedData.sql`) để bảo đảm tương thích cả Docker (`/sql` & `/app/database`) và môi trường Local.
-- [x] Cập nhật `docker-compose.yml`: mount thêm `- ./database:/sql:ro` vào service `bookshare-web`.
-- [x] Cập nhật `Dockerfile` (và kiểm tra `.dockerignore`): sao chép thư mục `database/` vào image final (`/app/database` hoặc `/sql`) để nút "Nạp Dữ Liệu Mẫu Chuẩn Từ Tệp SQL" hoạt động 100% trên VPS.
+## GIAI ĐOẠN 0: An Toàn Git — Backup & Tạo Nhánh Mới
+- [x] Kiểm tra `.gitignore` bảo vệ `.env` và `appsettings.*.local.json` khỏi bị commit lên GitHub.
+- [x] Tạo nhánh dự phòng `backup/pre-turbo-rental` và đẩy lên GitHub.
+- [x] Tạo & chuyển sang nhánh `feat/bookshare-rental-mobile-turbo` và đẩy lên GitHub.
 
-## PHA 2: Nâng cấp Giao diện Chuẩn Doanh nghiệp (Enterprise UI)
-- [x] Rà soát đầy đủ toàn bộ class `.bs-*` đang được dùng ở `S13`, `S14`, `S15` và các trang liên quan.
-- [x] Bổ sung hệ thống CSS Enterprise Sapphire & Glassmorphism cho `.bs-card`, `.bs-input`, `.bs-select`, `.bs-textarea`, `.bs-badge`, `.bs-badge-info`, `.bs-badge-success`, `.bs-badge-warning`, `.bs-badge-danger`, `.bs-btn`, `.bs-btn-primary`, `.bs-btn-outline`, `.bs-label`, `.bs-muted` trong `src/BookShare.Web/wwwroot/css/core-theme.css`, tương thích cả Light Mode & Dark Mode.
-- [x] Nâng cấp `Views/Home/Index.cshtml`:
-  - [x] Thêm thanh chọn mật độ hiển thị kệ sách (3 Cột Rộng / 4 Cột Tiêu chuẩn / Danh sách ngang) với lưu trạng thái `localStorage`.
-  - [x] Thêm Empty State chuyên nghiệp khi kho sách đang trống (kèm nút dẫn sang trang Quản trị để Admin nạp dữ liệu mẫu).
-- [x] Rà soát toàn bộ `Views/` (bao gồm `_Layout.cshtml` và 22 phân hệ):
-  - [x] Đảm bảo thanh Header cố định không che khuất nội dung đầu trang hoặc các thẻ `.sticky-top` bên trong `main`.
-  - [x] Đảm bảo không còn sót nhãn kỹ thuật `S01`–`S22` hay `Ver07` trên giao diện hiển thị người dùng.
+## GIAI ĐOẠN 1: Cập Nhật Luật (`docs/RULES.md`), Tạo `TODO.md` & Mã Truy Vết
+- [x] Cập nhật `docs/RULES.md` sang Mô hình Lai (Thư viện miễn phí 0đ & Cho thuê sách giấy vật lý Escrow) + Quy chuẩn Mã Truy Vết `[BS-*]`.
+- [x] Tạo `TODO.md` theo dõi toàn bộ 8 Giai đoạn.
+- [x] Xác nhận `docker-compose.yml` mount `./database:/sql:ro` cho `bookshare-web` (`[BS-RULE-DOCKER-SEEDER]`).
 
-## PHA 3: Khép kín Chuỗi Logic Nghiệp vụ Thực tế
-- [x] Trong `S08LibraryLoanService.cs`: bổ sung `[FEAT-LOGIC]` chặn độc giả tạo phiếu mượn mới nếu đang có hợp đồng quá hạn (`Overdue`), đang có tranh chấp mở (`Disputed`), hoặc `TrustScore < 50`, trả về thông báo lý do rõ ràng.
-- [x] Trong `S09P2PLoanService.cs`: bổ sung `[FEAT-LOGIC]` chặn độc giả tạo phiếu mượn mới nếu đang có hợp đồng quá hạn (`Overdue`), đang có tranh chấp mở (`Disputed`), hoặc `TrustScore < 50`, trả về thông báo lý do rõ ràng.
-- [x] Rà soát các luồng tạo mượn khác (`S06SearchDiscoveryService.CreateQuickLoanRequestAsync`) để đảm bảo cùng áp dụng luật chặn mượn nhất quán.
-- [x] Cập nhật giao diện `S08` và `S09`: với các đơn đã hoàn trả (`Returned`), bổ sung nút liên kết nhanh `"⭐ Đánh giá lượt mượn này"` dẫn thẳng sang `/S15TrustScoreReview` (kèm tự động nạp `loanId`, `targetType`, `targetId` ở `s15-trust-score-review.js`) để khép kín vòng đời Mượn ➔ Trả ➔ Đánh giá ➔ Cộng TrustScore.
+## GIAI ĐOẠN 2: Mở Rộng CSDL SQL Server (Database-First + Auto-Ensure An Toàn)
+- [ ] Cập nhật `database/01_BookShare_Schema.sql`: mở rộng `BookCopies` (`DailyRentalFee`, `DepositAmount`), `Loans` (`RentalFeeTotal`, `DepositHeld`, `EscrowStatus`), thêm 4 bảng mới (`QrLoginSessions`, `UserWallets`, `ReadingSessions`, `SupportChatMessages`).
+- [ ] Cập nhật `Models/Entities/` & `Data/BookShareDbContext.cs` khớp tuyệt đối schema mới.
+- [ ] Tạo `DatabaseSchemaEnsurer` và gọi tự động trong `Program.cs` (`IF OBJECT_ID / COL_LENGTH IS NULL`) để VPS không bao giờ lỗi thiếu cột/bảng.
+- [ ] Cập nhật `database/02_BookShare_SeedData.sql`: nạp sẵn phí thuê, cọc Escrow & ví mẫu cho tài khoản demo.
 
-## PHA 4: Tích hợp Chống Bot Google reCAPTCHA v3 (Qua `.env`)
-- [x] Tạo `IRecaptchaService` và `RecaptchaService` (đăng ký DI trong `Program.cs`) đọc `ReCaptcha:SiteKey` và `ReCaptcha:SecretKey` từ cấu hình `.env`.
-- [x] Triển khai cơ chế Smart Bypass: nếu Key để trống ➔ tự động bỏ qua (test Local mượt mà); nếu có Key thật ➔ POST `https://www.google.com/recaptcha/api/siteverify`, yêu cầu `success == true` và `score >= 0.5`.
-- [x] Nhúng script Google reCAPTCHA v3 (khi có `SiteKey`) ở Frontend (`_Layout.cshtml` + `core-api.js`) và gắn `[BOT-GUARD]` cho các điểm nóng:
-  - [x] Đăng ký tài khoản (`S01AuthOtpGoogle/Register`)
-  - [x] Đăng nhập (`S01AuthOtpGoogle/Login`)
-  - [x] Gửi mã OTP (`S01AuthOtpGoogle/SendOtp` & caller từ `S18`)
-  - [x] Tạo phiếu mượn nhanh (`S06SearchDiscovery/QuickRequestLoan` & caller từ `S14`)
+## GIAI ĐOẠN 3: Nâng Cấp Giao Diện Chuyên Nghiệp (Header Thấp Khóa Cứng + Auto-Hide Banner)
+- [ ] Thiết kế lại Header siêu gọn (~72px–84px Desktop), khóa cố định `position: fixed !important` kèm `#bsHeaderFixedSpacer` đo tự động bằng `ResizeObserver`, gắn nút `📱 Mobile App` (`[BS-UI-HEADER]`).
+- [ ] Nâng cấp `#systemStatusBox` tự động ẩn sau 2s (mặc định) / 4s (200/300) / 6s (400/500), tạm dừng khi hover, có thanh tiến độ đếm ngược (`[BS-UI-STATUS-AUTOHIDE]`).
+- [ ] Hoàn thiện CSS Doanh nghiệp `.bs-*` cho `S13`, `S14`, `S15`, chuẩn hóa 7 Theme Doanh nghiệp (gồm Warm Ivory Paper), thêm bộ chọn mật độ kệ sách (3 Cột / 4 Cột / Danh sách) + Clean Empty State cho `Home` và `S06` (`[BS-UI-ENTERPRISE]`).
 
-## PHA 5: Kiểm thử Tự động (Auto-Test Tìm Bug) & Báo cáo
-- [x] Chạy `dotnet build src/BookShare.Web/BookShare.Web.csproj` đạt 0 Errors.
-- [x] Tạo script `scripts/smoke_test.py` kiểm tra tự động:
-  - [x] Lớp 1: Kiểm tra biên dịch (`dotnet build`), Docker mount & quét mã nguồn không còn nhãn `S01`–`S22` / `Ver07` trên UI.
-  - [x] Lớp 2: Quét GET Trang chủ & toàn bộ 22 trang phân hệ đảm bảo HTTP 200 OK (0 lỗi HTTP 500).
-  - [x] Lớp 3: Kiểm thử bảo mật RBAC — gọi POST các API nhạy cảm (`S22AdminAnalytics/ManageSampleData`, `S21LibrarianDesk/BatchImportCopies`, `S19DisputeResolution/ResolveDispute`, `S20ExchangeHubClub/VerifyPhysicalBook`) khi chưa đăng nhập (cả không CSRF lẫn có CSRF), xác nhận bị chặn 403 Forbidden đúng chuẩn.
-- [x] Thực thi `scripts/smoke_test.py --autostart --skip-build` xác minh toàn bộ 3 lớp đạt 100% (0 lỗi).
-- [x] Cập nhật toàn bộ `[x]` vào `TODO.md` và tổng hợp báo cáo kết quả.
+## GIAI ĐOẠN 4: Nghiệp Vụ Thuê Sách Khép Kín, Ví Bảo Lãnh & QR Cross-Login
+- [ ] Luồng Thuê Sách & Escrow (`S02`, `S06`, `S08`, `S09`, `S12`): thiết lập phí thuê/ngày & tiền cọc, bộ tính tổng 7/14/30 ngày, khóa cọc Escrow khi giao sách, hoàn 100% cọc & giải ngân phí thuê khi trả nguyên vẹn, modal Phiếu Hợp Đồng Thuê Điện Tử kèm QR/Barcode in A5/80mm (`[BS-RENTAL-FLOW]`).
+- [ ] Ví Bảo Lãnh BookShare Pay (`S17` + API `/api/mobile/wallet/*`): `summary`, `topup` không giới hạn + HMAC-SHA512, `pay-qr` 2 bước + mã PIN 6 số (mặc định `123456`) + chống trừ lặp, `change-pin`, Thẻ Ví 3D (`[BS-WALLET-PAY]`).
+- [ ] QR Cross-Login (`Mobile -> Web PC`): API `/api/mobile/qr-login/init`, `status`, `approve`, `/S01AuthOtpGoogle/ClaimQrLogin` (chống dùng lại 2 lần) + khung quét QR 180s polling 2s ngay trên trang đăng nhập `S01` (`[BS-QRLOGIN-BRIDGE]`).
+
+## GIAI ĐOẠN 5: Reading Studio Bổ Trợ Thuê Sách (Tuyệt Đối Không Âm Thanh)
+- [ ] Xây dựng `/S03ReadingTracker/Studio?bookId=...` và API `/api/mobile/reading/log-session` (`[BS-READING-STUDIO]`):
+  - [ ] Pomodoro im lặng (25p / 50p / Tùy chỉnh) lưu `ReadingSessions` & cộng trang `ReadingProgresses`.
+  - [ ] Đo tốc độ đọc (trang/giờ), chuỗi Streak 🔥, lộ trình kịp hạn thuê (`DueDate`) & nút gia hạn nhanh +7 ngày.
+  - [ ] Voice-to-Quote (`SpeechRecognition` `vi-VN`) lưu `BookNotes`, Quote Flashcards lật thẻ, chế độ nền Sepia / Sáng / Đêm & chỉnh cỡ chữ `A- / A / A+`.
+
+## GIAI ĐOẠN 6: AI Copilot Hành Động, Chat Thủ Thư & Google reCAPTCHA v3
+- [ ] Nâng cấp `S13GeminiAiService` & `/api/ai-chat/quick-ask` trả về `{ reply, sessionId, actions: [...] }` hỗ trợ `SET_DARK_MODE`, `SET_THEME`, `SEND_EMAIL`, `UPDATE_PROGRESS`, `NAVIGATE` (`[BS-AGENT-AI-COPILOT]`).
+- [ ] Kiểm tra & đảm bảo tiêu đề Email OTP tại `ResendEmailService` tuyệt đối KHÔNG lộ mã OTP 6 chữ số (`[BS-SEC-OTP]`).
+- [ ] Nâng cấp Widget Chat nổi thành 2 Tab: **🤖 Trợ Lý AI Copilot** & **👩‍🏫 Chat Thủ Thư / Chủ Sách** (bảng `SupportChatMessages`, polling 10s, hỗ trợ Thủ thư/Admin trả lời).
+- [ ] Gắn Google reCAPTCHA v3 (`[BS-SEC-RECAPTCHA]`) cho đầy đủ: `S01` (Register, Login, SendOtp), `S06` (QuickRequestLoan), `S08` (CreateRequest), `S09` (CreateP2PRequest).
+
+## GIAI ĐOẠN 7: Mobile Super-App (`/MobileApp`) & Bộ Đóng Gói Android APK
+- [ ] Xây dựng `MobileAppController`, `Views/MobileApp/Index.cshtml`, `wwwroot/modules/mobile-app/mobile-app.css` & `mobile-app.js` với 5 Tab đáy màn hình (Trang Chủ, Đọc Sách Studio, Quét QR đa năng `html5-qrcode`, Ví Pay 3D, Thông Báo & Chat) + đăng nhập/đăng xuất đồng bộ Cookie (`[BS-MOBILE-SUPERAPP]`).
+- [ ] Tạo bộ khung Android APK Capacitor tại `mobile-android-apk/` (`package.json`, `capacitor.config.json`, `AndroidManifest.xml`, `README_BUILD_APK.md`).
+
+## GIAI ĐOẠN 8: Kiểm Thử Tự Động E2E, Tự Sửa Bug & Push Hoàn Chỉnh
+- [ ] Chạy `dotnet build BookShare.sln` đạt 0 Errors.
+- [ ] Tạo & chạy `scripts/run-e2e-verify.ps1` và `scripts/run-e2e-verify.sh` kiểm thử đầy đủ 7 kịch bản (22 trang + MobileApp 200 OK, Thuê->Escrow->Hoàn cọc, QR Cross-Login, Ví Pay + PIN + chống trừ lặp, AI Copilot + OTP subject, RBAC 403, Không Web Audio API).
+- [ ] Xác minh 100% PASS, cập nhật toàn bộ `[x]` vào `TODO.md`, commit & push lên `feat/bookshare-rental-mobile-turbo`.

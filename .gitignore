@@ -2,6 +2,12 @@
 .env
 .env.local
 .env.*.local
+**/appsettings.*.local.json
+
+# Mobile APK build artifacts
+mobile-android-apk/node_modules/
+mobile-android-apk/android/build/
+mobile-android-apk/android/app/build/
 
 # .NET Build Results
 [Dd]ebug/

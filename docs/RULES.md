@@ -4,13 +4,34 @@ Tài liệu này là **Hiến pháp Kỹ thuật** bắt buộc áp dụng cho t
 
 ---
 
-## 1. Quy tắc Nghiệp vụ Bất khả Xâm phạm (Domain Guardrails)
+## 1. Quy tắc Nghiệp vụ Bất khả Xâm phạm (Domain Guardrails) `[BS-RULE-HYBRID-RENTAL]`
 
-1. **Cấm tuyệt đối mô hình Thương mại điện tử mua bán sách:**
-   - Giao diện và cơ sở dữ liệu **KHÔNG ĐƯỢC PHÉP** có: Giá bán sách (`Price`), nút `"Mua ngay"`, nút `"Thêm vào giỏ hàng"`, trang Giỏ hàng (`ShoppingCart`), hay hóa đơn mua đứt sách.
-   - Các nút hành động trên thẻ sách chỉ được phép là: `"Đặt mượn Kho chung"`, `"Mượn P2P từ Chủ sách"`, `"Xếp hàng chờ ( Đặt trước )"`, `"Lưu vào Tủ sách"`, hoặc `"Cập nhật trang đọc"`.
-2. **Chỉ chia sẻ Sách Giấy vật lý:**
-   - Cấm mọi chức năng upload tệp PDF/EPUB/MOBI. Mọi bản sao sách (`BookCopies`) đều là sách giấy có mã vạch (`Barcode`), tình trạng vật lý (`Condition`: `New`, `Good`, `Fair`, `Worn`) và biên bản ảnh chụp thực tế (`ConditionReports`).
+1. **Mô hình Lai: Thư Viện Miễn Phí (0đ) & Nền Tảng Cho Thuê Sách Giấy Vật Lý (Escrow):**
+   - BookShare vận hành mô hình kết hợp giữa **Mượn Sách Miễn Phí (0đ)** tại Kho chung Thư viện / chia sẻ cộng đồng và **Cho Thuê Sách Giấy Vật Lý** có **Phí Thuê Theo Ngày (`DailyRentalFee`)** + **Tiền Cọc Bảo Lãnh Escrow (`DepositAmount`)** + **Hoàn Cọc 100% Khi Trả Sách Nguyên Vẹn (`EscrowStatus = ReleasedToLender / RefundedToBorrower`)**.
+   - **Cấm tuyệt đối mô hình Thương mại điện tử bán đứt sách:** Giao diện và cơ sở dữ liệu **KHÔNG ĐƯỢC PHÉP** có: Giá bán đứt sách (`SalePrice`), nút `"Mua ngay"`, nút `"Thêm vào giỏ hàng"`, trang Giỏ hàng mua đứt (`ShoppingCart`), hay hóa đơn chuyển quyền sở hữu sách.
+   - Các nút hành động trên thẻ sách chỉ được phép là: `"Đặt mượn / Thuê Kho chung"`, `"Thuê / Mượn P2P từ Chủ sách"`, `"Xếp hàng chờ (Đặt trước)"`, `"Lưu vào Tủ sách"`, `"Vào Reading Studio"`, hoặc `"Cập nhật trang đọc"`.
+2. **Chỉ chia sẻ & cho thuê Sách Giấy vật lý — Tuyệt đối không âm thanh ở Reading Studio:**
+   - Cấm mọi chức năng upload tệp PDF/EPUB/MOBI vi phạm bản quyền. Mọi bản sao sách (`BookCopies`) đều là sách giấy có mã vạch (`Barcode`), tình trạng vật lý (`Condition`: `New`, `Good`, `Fair`, `Worn`) và biên bản ảnh chụp thực tế (`ConditionReports`).
+   - Reading Studio (`S03` & `/MobileApp`) tập trung tuyệt đối vào tốc độ đọc kịp hạn thuê, Pomodoro im lặng, trích dẫn giọng nói và Flashcard — **TUYỆT ĐỐI KHÔNG tích hợp bộ tạo âm thanh hay Web Audio API**.
+
+---
+
+## 1.5. Hệ Thống Ghi Chú & Mã Truy Vết Chi Tiết (Code Traceability Matrix)
+
+Mọi khối mã nguồn mới hoặc chỉnh sửa bắt buộc gắn mã truy vết chuẩn để giảng viên và kỹ sư tra cứu tức thì bằng `Ctrl+Shift+F`:
+
+| Tiền tố Mã Truy Vết | Phạm vi & Nghiệp vụ Áp dụng |
+| :--- | :--- |
+| `[BS-RULE-*]` | Quy tắc nghiệp vụ thuê sách, tính phí, bảo lãnh cọc Escrow, Docker Seeder |
+| `[BS-RENTAL-*]` | Luồng thuê sách, phiếu hợp đồng thuê điện tử QR/Barcode, giải ngân doanh thu chủ sách |
+| `[BS-WALLET-*]` | Ví Bảo Lãnh BookShare Pay, nạp tiền demo, thanh toán 2 bước + mã PIN + chữ ký HMAC-SHA512 |
+| `[BS-MOBILE-*]` | Mobile Super-App (`/MobileApp`), giao diện 5 Tab đáy màn hình, bộ khung Android APK Capacitor |
+| `[BS-QRLOGIN-*]` | Camera quét QR đăng nhập chéo không mật khẩu (Mobile -> Web PC) |
+| `[BS-READING-*]` | Reading Studio (Pomodoro im lặng, đo tốc độ đọc kịp hạn thuê, Voice-to-Quote, Flashcard) |
+| `[BS-AGENT-AI-*]` | Trợ lý AI Copilot Hành Động (`actions[]`) & Chat trực tiếp Thủ thư / Chủ sách |
+| `[BS-UI-*]` | Header thấp khóa cố định (`position: fixed`), Thông báo báo mã tự ẩn, CSS `.bs-*`, 7 Theme Doanh nghiệp |
+| `[BS-RBAC-*]` | Phân quyền 4 cấp (`User`, `Curator`, `Librarian`, `Admin`) & chốt chặn chống IDOR |
+| `[BS-SEC-*]` | Google reCAPTCHA v3, OTP bảo mật không lộ số 6 chữ số lên tiêu đề Email, chống CSRF |
 
 ---
 

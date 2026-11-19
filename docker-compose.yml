@@ -59,7 +59,7 @@ services:
       ConnectionStrings__DefaultConnection: "Server=sqlserver,1433;Database=BookShareDb;User Id=sa;Password=${SA_PASSWORD:-BookShare@2026StrongPass!};TrustServerCertificate=True;MultipleActiveResultSets=true;"
     volumes:
       - ./uploads:/app/wwwroot/uploads
-      # [FEAT-LOGIC] Mount thư mục kịch bản SQL ở chế độ chỉ đọc để Admin nạp dữ liệu mẫu trực tiếp từ Web
+      # [BS-RULE-DOCKER-SEEDER] Mount thư mục kịch bản SQL ở chế độ chỉ đọc để Admin nạp dữ liệu mẫu trực tiếp từ Web
       - ./database:/sql:ro
     depends_on:
       sqlserver:
