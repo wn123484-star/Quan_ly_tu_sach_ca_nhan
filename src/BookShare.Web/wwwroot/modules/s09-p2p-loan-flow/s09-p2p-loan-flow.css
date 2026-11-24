@@ -1,0 +1,35 @@
+/* =========================================================================
+   MODULE S09: P2P LOAN FLOW (s09-p2p-loan-flow.css)
+   ========================================================================= */
+
+.s09-badge-pill {
+    background-color: var(--portal-surface-2);
+    border: 1px solid var(--portal-border);
+    border-radius: 999px;
+    padding: 0.35rem 0.9rem;
+    font-size: 0.83rem;
+}
+
+.s09-create-box {
+    background: linear-gradient(135deg, #F0FDF4 0%, var(--portal-surface-2) 100%);
+    border: 1px dashed #34D399;
+}
+
+.s09-p2p-card {
+    background-color: var(--portal-surface);
+    border: 1.5px solid var(--portal-border);
+    border-left: 5px solid #2563EB;
+    transition: transform 0.18s ease, box-shadow 0.18s ease;
+}
+
+.s09-p2p-card:hover {
+    box-shadow: 0 8px 20px rgba(15, 23, 42, 0.06);
+}
+
+.s09-cover-thumb {
+    width: 54px;
+    height: 76px;
+    object-fit: cover;
+    border-radius: 8px;
+    flex-shrink: 0;
+}

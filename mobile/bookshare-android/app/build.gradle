@@ -1,0 +1,50 @@
+plugins {
+    id 'com.android.application'
+}
+
+def rawBaseUrl = project.findProperty("BOOKSHARE_BASE_URL") ?: System.getenv("BOOKSHARE_BASE_URL") ?: "http://10.0.2.2:5087"
+def normalizedBaseUrl = rawBaseUrl.toString().trim().replaceAll("/+\$", "")
+if (normalizedBaseUrl.isEmpty()) {
+    normalizedBaseUrl = "http://10.0.2.2:5087"
+}
+def escapedBaseUrl = normalizedBaseUrl.replace("\"", "\\\"")
+
+android {
+    namespace "vn.bookshare.mobile"
+    compileSdk 34
+
+    defaultConfig {
+        applicationId "vn.bookshare.mobile"
+        minSdk 26
+        targetSdk 34
+        versionCode 3
+        versionName "3.0.0"
+
+        buildConfigField "String", "BASE_URL", "\"${escapedBaseUrl}\""
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+
+    buildFeatures {
+        buildConfig true
+    }
+}
+
+dependencies {
+    implementation 'androidx.appcompat:appcompat:1.7.0'
+    implementation 'androidx.webkit:webkit:1.11.0'
+    implementation 'androidx.browser:browser:1.8.0'
+    implementation 'androidx.swiperefreshlayout:swiperefreshlayout:1.1.0'
+    implementation 'androidx.work:work-runtime:2.9.1'
+    implementation 'com.google.android.material:material:1.12.0'
+}

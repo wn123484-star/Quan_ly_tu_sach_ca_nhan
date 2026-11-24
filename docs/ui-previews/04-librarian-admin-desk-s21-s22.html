@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="vi" data-font="priority-regular">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>[Mẫu 04] Bàn Thủ Thư Quét Barcode & Dashboard Admin Hangfire (S19 + S21 + S22)</title>
+    <link href="../../_reference/book-tracker-ver07/vendor/bootstrap/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="../../_reference/book-tracker-ver07/vendor/bootstrap-icons/font/bootstrap-icons.css">
+    <link rel="stylesheet" href="../../_reference/book-tracker-ver07/assets/css/style.css">
+    <script src="../../_reference/book-tracker-ver07/vendor/chartjs/chart.umd.js"></script>
+    <style>
+        body { background-color: #f8fafc; }
+        .preview-switcher-bar {
+            background: #fffbeb;
+            border-bottom: 2px solid #f59e0b;
+            padding: 8px 0;
+        }
+        .scanner-box {
+            background: linear-gradient(135deg, #0f172a, #1e293b);
+            color: #ffffff;
+            border-radius: 18px;
+            padding: 20px;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Thanh chuyển nhanh giữa 4 Mẫu Giao diện để Duyệt -->
+    <div class="preview-switcher-bar">
+        <div class="container d-flex flex-wrap justify-content-between align-items-center gap-2">
+            <div class="small fw-bold text-dark">
+                <i class="bi bi-eye-fill text-warning me-1"></i>BỘ MẪU GIAO DIỆN DUYỆT TRƯỚC (UI PREVIEWS - CHƯA SCAFFOLD):
+            </div>
+            <div class="d-flex flex-wrap gap-1">
+                <a href="01-portal-discovery-s06.html" class="btn btn-xs btn-outline-dark">1. Cổng Portal & Tìm kiếm (S06/S13)</a>
+                <a href="02-personal-shelf-tracker-s02-s03.html" class="btn btn-xs btn-outline-dark">2. Tủ sách & Tiến độ Ver07 (S02/S03/S05)</a>
+                <a href="03-p2p-loan-condition-s09-s10.html" class="btn btn-xs btn-outline-dark">3. Mượn P2P & Ảnh Tình trạng (S09/S10/S20)</a>
+                <a href="04-librarian-admin-desk-s21-s22.html" class="btn btn-xs btn-primary fw-bold">4. Bàn Thủ thư & Admin (S19/S21/S22)</a>
+            </div>
+        </div>
+    </div>
+
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark sticky-top shadow-sm">
+        <div class="container">
+            <a class="navbar-brand fw-bold d-flex align-items-center gap-2" href="01-portal-discovery-s06.html">
+                <i class="bi bi-shield-lock-fill text-warning fs-4"></i>
+                <span>BookShare <span class="badge bg-warning text-dark ms-1" style="font-size:0.68rem;">Areas: Librarian & Admin</span></span>
+            </a>
+            <div class="collapse navbar-collapse show">
+                <ul class="navbar-nav me-auto">
+                    <li class="nav-item"><a class="nav-link" href="01-portal-discovery-s06.html"><i class="bi bi-compass me-1"></i>Khám phá & Mượn sách</a></li>
+                    <li class="nav-item"><a class="nav-link" href="02-personal-shelf-tracker-s02-s03.html"><i class="bi bi-bookshelf me-1"></i>Tủ sách & Tiến độ (Ver07)</a></li>
+                    <li class="nav-item"><a class="nav-link" href="03-p2p-loan-condition-s09-s10.html"><i class="bi bi-arrow-left-right me-1"></i>Mượn trả P2P & Điểm hẹn</a></li>
+                    <li class="nav-item"><a class="nav-link active" href="04-librarian-admin-desk-s21-s22.html"><i class="bi bi-pc-display-horizontal me-1"></i>Quầy Thủ thư & Admin</a></li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container mt-3">
+        <div id="systemStatusBox" class="status-banner status-200">
+            <div class="status-banner-left">
+                <span class="status-code-pill">MÃ 200</span>
+                <div class="status-text-group">
+                    <strong>Phân khu Quản trị Kho chung (Librarian Area) & Quản trị Hệ thống (Admin Area)</strong>
+                    <span class="status-detail-sub">Quét mã Barcode duyệt mượn/trả nhanh (S21), tính phí phạt trễ hạn (S12), phân xử tranh chấp (S19) & giám sát Hangfire Jobs (S22).</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <main class="container py-4">
+        <!-- BÀN LÀM VIỆC THỦ THƯ: QUÉT MÃ VẠCH BARCODE TẠI QUẦY (S21 LibrarianDesk + S12 LoanRenewalFine) -->
+        <section class="scanner-box mb-4 shadow-sm">
+            <div class="row g-3 align-items-center">
+                <div class="col-lg-5">
+                    <span class="badge bg-info text-dark mb-2">Area("Librarian") • Dịch vụ S21</span>
+                    <h4 class="fw-bold mb-1"><i class="bi bi-upc-scan me-2 text-info"></i>Bàn Thủ Thư: Quét Barcode Mượn / Trả Nhanh</h4>
+                    <p class="small text-white-50 mb-0">Quét mã vạch trên bìa sách vật lý để tự động kiểm tra hợp đồng mượn, tính phí trễ hạn (5.000đ/ngày) và xác nhận thu hồi về kho.</p>
+                </div>
+                <div class="col-lg-7">
+                    <div class="bg-white text-dark p-3 rounded-4">
+                        <div class="row g-2 align-items-center">
+                            <div class="col-md-5">
+                                <label class="small fw-bold text-muted">Mã Barcode bản sao vật lý:</label>
+                                <input type="text" id="barcodeScanInput" class="form-control font-monospace fw-bold" value="BS-SYS-0004">
+                            </div>
+                            <div class="col-md-4">
+                                <label class="small fw-bold text-muted">Thao tác tại quầy:</label>
+                                <select class="form-select">
+                                    <option>Thu hồi sách trả & Tính phí trễ</option>
+                                    <option>Xuất kho bàn giao sách mới</option>
+                                </select>
+                            </div>
+                            <div class="col-md-3 d-grid">
+                                <label class="small opacity-0">Nút</label>
+                                <button class="btn btn-primary fw-bold" onclick="Swal.fire('Đã quét mã BS-SYS-0004!', 'Cuốn Designing Data-Intensive Applications (Người mượn: Lê Hoàng Nam) trễ hạn 5 ngày. Phí phạt tự động: 25.000đ.', 'warning')">
+                                    <i class="bi bi-lightning-charge-fill me-1"></i>Quét Duyệt
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <div class="row g-4 mb-4">
+            <!-- BẢNG DUYỆT MƯỢN / TRẢ KHO CHUNG & PHÍ PHẠT TRỄ HẠN (S08 + S12 + S21) -->
+            <div class="col-lg-7">
+                <div class="card border-0 shadow-sm rounded-4 h-100">
+                    <div class="card-body p-4">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <h5 class="fw-bold mb-0"><i class="bi bi-journal-check text-primary me-2"></i>S08 & S12. Danh Sách Hợp Đồng Mượn & Phí Trễ Hạn</h5>
+                            <span class="badge bg-primary">3 hợp đồng đang mở</span>
+                        </div>
+                        <div class="table-responsive">
+                            <table class="table table-hover align-middle small mb-0">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Barcode / Đầu sách</th>
+                                        <th>Người mượn</th>
+                                        <th>Hạn trả</th>
+                                        <th>Phí trễ (S12)</th>
+                                        <th>Thao tác</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td>
+                                            <code>BS-SYS-0002</code>
+                                            <div class="fw-bold">Clean Code</div>
+                                        </td>
+                                        <td>Nguyễn Hùng<br><span class="text-success">Trust: 128</span></td>
+                                        <td><span class="badge bg-success">Còn 5 ngày</span></td>
+                                        <td><strong>0 đ</strong></td>
+                                        <td><button class="btn btn-xs btn-outline-success" onclick="Swal.fire('Đã nhận sách trả!', 'Bản sao BS-SYS-0002 đã chuyển về trạng thái Available.', 'success')">Nhận trả</button></td>
+                                    </tr>
+                                    <tr class="table-danger">
+                                        <td>
+                                            <code>BS-SYS-0004</code>
+                                            <div class="fw-bold">Designing Data-Intensive Apps</div>
+                                        </td>
+                                        <td>Lê Hoàng Nam<br><span class="text-danger">Trust: 96</span></td>
+                                        <td><span class="badge bg-danger">Quá hạn 5 ngày</span></td>
+                                        <td><strong class="text-danger">25.000 đ</strong></td>
+                                        <td><button class="btn btn-xs btn-danger" onclick="Swal.fire('Đã gửi nhắc hạn qua Resend (S18)!', 'Đã gửi email nhắc hạn kèm link thanh toán phí phạt VNPay Sandbox.', 'info')">Thu phạt & Trả</button></td>
+                                    </tr>
+                                    <tr>
+                                        <td>
+                                            <code>BS-P2P-0036</code>
+                                            <div class="fw-bold">Nhà Giả Kim (P2P)</div>
+                                        </td>
+                                        <td>Trần Minh Anh<br><span class="text-primary">Trust: 115</span></td>
+                                        <td><span class="badge bg-info text-dark">Gia hạn (1/3)</span></td>
+                                        <td><strong>0 đ</strong></td>
+                                        <td><a href="03-p2p-loan-condition-s09-s10.html" class="btn btn-xs btn-outline-primary">Xem biên bản</a></td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- BẢNG PHÂN XỬ TRANH CHẤP SÁCH HỎNG / QUÁ HẠN (S19 DisputeResolution - Admin) -->
+            <div class="col-lg-5">
+                <div class="card border-0 shadow-sm rounded-4 h-100">
+                    <div class="card-body p-4">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <h5 class="fw-bold mb-0"><i class="bi bi-gavel text-danger me-2"></i>S19. Phân Xử Tranh Chấp (Admin)</h5>
+                            <span class="badge bg-danger">1 hồ sơ chờ xử lý</span>
+                        </div>
+                        <div class="p-3 rounded-4 border border-danger bg-danger bg-opacity-10 mb-3">
+                            <div class="d-flex justify-content-between small mb-1">
+                                <strong class="text-danger">Khiếu nại #DSP-0001 (Quá hạn & Hư hỏng bìa)</strong>
+                                <span class="badge bg-warning text-dark">UnderReview</span>
+                            </div>
+                            <p class="small mb-2"><strong>Bản sao:</strong> <code>BS-SYS-0004</code> — Designing Data-Intensive Applications</p>
+                            <p class="small text-muted mb-3">Căn cứ đối chiếu: Ảnh biên bản lúc giao (Mới 100%) trên Cloudinary (Bảng <code>ConditionReports</code>).</p>
+                            <div class="d-flex gap-2">
+                                <button class="btn btn-danger btn-sm flex-grow-1 fw-bold" onclick="Swal.fire('Đã ban hành phán quyết (S19)!', 'Đã trừ 10 điểm TrustScore của người làm hỏng sách và yêu cầu bồi hoàn bản sao tương đương.', 'success')">
+                                    <i class="bi bi-check2-square me-1"></i>Phán quyết & Trừ TrustScore
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Giám sát Hangfire Background Jobs (S22) -->
+                        <h6 class="fw-bold mb-2"><i class="bi bi-gear-wide-connected text-primary me-2"></i>S22. Trạng Thái Hangfire Background Jobs</h6>
+                        <ul class="list-group list-group-flush small">
+                            <li class="list-group-item d-flex justify-content-between align-items-center px-0">
+                                <span><code>DueDateReminderJob</code> (Gửi mail Resend trước 24h)</span>
+                                <span class="badge bg-success">CRON: 0 7 * * *</span>
+                            </li>
+                            <li class="list-group-item d-flex justify-content-between align-items-center px-0">
+                                <span><code>OverdueFineCalculatorJob</code> (Tính phí 5.000đ/ngày)</span>
+                                <span class="badge bg-success">CRON: 5 0 * * *</span>
+                            </li>
+                            <li class="list-group-item d-flex justify-content-between align-items-center px-0">
+                                <span><code>ExpiredReservationCleanupJob</code> (Hủy giữ chỗ > 48h)</span>
+                                <span class="badge bg-success">Mỗi 30 phút</span>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script src="../../_reference/book-tracker-ver07/vendor/bootstrap/bootstrap.bundle.min.js"></script>
+    <script src="../../_reference/book-tracker-ver07/vendor/sweetalert2/sweetalert2.all.min.js"></script>
+</body>
+</html>

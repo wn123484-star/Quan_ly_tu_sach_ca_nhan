@@ -1,0 +1,23 @@
+﻿@model ErrorViewModel
+@{
+    ViewData["Title"] = "Có sự cố xảy ra";
+}
+
+<div class="card border-0 shadow-sm rounded-4 p-5 text-center my-4">
+    <div class="mb-3"><i class="bi bi-exclamation-circle-fill text-danger" style="font-size: 2.8rem;"></i></div>
+    <h2 class="fw-bold text-danger mb-2">Rất tiếc, đã xảy ra lỗi khi xử lý yêu cầu</h2>
+    <p class="text-muted mb-3">Hệ thống không thể hoàn tất thao tác của bạn lúc này. Vui lòng thử tải lại trang hoặc quay về trang chủ.</p>
+
+    @if (Model.ShowRequestId)
+    {
+        <p class="small text-muted mb-4">
+            Mã tham chiếu hỗ trợ: <code>@Model.RequestId</code>
+        </p>
+    }
+
+    <div>
+        <a asp-controller="Home" asp-action="Index" class="btn btn-primary px-4 fw-semibold">
+            <i class="bi bi-house-door-fill me-1"></i>Quay về Trang chủ
+        </a>
+    </div>
+</div>

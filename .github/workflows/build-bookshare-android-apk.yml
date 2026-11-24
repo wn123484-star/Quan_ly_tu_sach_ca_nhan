@@ -1,0 +1,76 @@
+name: Build BookShare Android APK
+
+on:
+  push:
+    branches:
+      - main
+      - mainforSprint2
+      - mainforSprint3
+    paths:
+      - 'mobile/bookshare-android/**'
+      - '.github/workflows/build-bookshare-android-apk.yml'
+  workflow_dispatch:
+    inputs:
+      base_url:
+        description: 'URL máy chủ BookShare (ví dụ https://bookshare.example.com hoặc http://192.168.1.10:5087)'
+        required: false
+        default: 'http://10.0.2.2:5087'
+        type: string
+
+jobs:
+  build-apk:
+    name: Biên dịch BookShare Mobile Android APK
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout mã nguồn BookShare
+        uses: actions/checkout@v4
+
+      - name: Thiết lập JDK 17 (Temurin)
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Chấp nhận Android SDK Licenses
+        run: |
+          if [ -n "$ANDROID_HOME" ] && [ -x "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" ]; then
+            yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null 2>&1 || true
+          fi
+
+      - name: Thiết lập Gradle 8.7
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.7'
+
+      - name: Xác định URL máy chủ nhúng vào APK
+        id: resolve_url
+        env:
+          INPUT_URL: ${{ github.event.inputs.base_url }}
+          REPO_VAR_URL: ${{ vars.BOOKSHARE_BASE_URL }}
+        run: |
+          TARGET_URL="$INPUT_URL"
+          if [ -z "$TARGET_URL" ]; then
+            TARGET_URL="$REPO_VAR_URL"
+          fi
+          if [ -z "$TARGET_URL" ]; then
+            TARGET_URL="http://10.0.2.2:5087"
+          fi
+          echo "target_url=$TARGET_URL" >> "$GITHUB_OUTPUT"
+          echo "Đang nhúng BASE_URL=$TARGET_URL vào APK"
+
+      - name: Build Debug APK bằng Gradle
+        working-directory: mobile/bookshare-android
+        run: gradle assembleDebug --no-daemon -PBOOKSHARE_BASE_URL="${{ steps.resolve_url.outputs.target_url }}"
+
+      - name: Chuẩn bị tệp BookShare-Mobile-Android.apk
+        run: |
+          mkdir -p dist
+          cp mobile/bookshare-android/app/build/outputs/apk/debug/app-debug.apk dist/BookShare-Mobile-Android.apk
+
+      - name: Upload Artifact APK (BookShare-Mobile-Android)
+        uses: actions/upload-artifact@v4
+        with:
+          name: BookShare-Mobile-Android
+          path: dist/BookShare-Mobile-Android.apk
+          retention-days: 30

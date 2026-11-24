@@ -1,0 +1,58 @@
+# Environment variables & Secrets
+.env
+.env.local
+.env.*.local
+
+# .NET Build Results
+[Dd]ebug/
+[Dd]ebugPublic/
+[Rr]elease/
+[Rr]eleases/
+x64/
+x86/
+[Ww][Ii][Nn]32/
+[Aa][Rr][Mm]/
+[Aa][Rr][Mm]64/
+bld/
+[Bb]in/
+[Oo]bj/
+[Ll]og/
+[Ll]ogs/
+
+# Visual Studio / Rider / VS Code
+.vs/
+.idea/
+.vscode/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+*.DotSettings.user
+
+# NuGet Packages
+*.nupkg
+*.snupkg
+**/[Pp]ackages/*
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# Python & QA Artifacts
+__pycache__/
+*.pyc
+*.pyo
+
+# Android / Gradle Build Artifacts
+mobile/bookshare-android/.gradle/
+mobile/bookshare-android/build/
+mobile/bookshare-android/app/build/
+mobile/bookshare-android/local.properties
+dist/
+*.apk
+
+# Runtime uploaded condition photos
+src/BookShare.Web/wwwroot/uploads/conditions/*.png
+src/BookShare.Web/wwwroot/uploads/conditions/*.jpg
+src/BookShare.Web/wwwroot/uploads/conditions/*.jpeg
+src/BookShare.Web/wwwroot/uploads/conditions/*.webp

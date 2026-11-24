@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="bookshare_bg_light">#F8FAFC</color>
+    <color name="bookshare_primary">#2563EB</color>
+    <color name="bookshare_primary_dark">#1D4ED8</color>
+    <color name="bookshare_text_main">#0F172A</color>
+</resources>

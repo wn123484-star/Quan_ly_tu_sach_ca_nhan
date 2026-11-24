@@ -1,0 +1,8 @@
+/* =========================================================================
+   MODULE S12: LOAN RENEWAL & FINE (s12-loan-renewal-fine.css)
+   ========================================================================= */
+
+.s12-fine-highlight {
+    background-color: #FEF2F2;
+    border: 1px solid #FECACA;
+}

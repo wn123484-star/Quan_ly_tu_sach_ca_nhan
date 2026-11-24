@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Trang chủ - Tủ Sách Cá Nhân</title>
+
+    <!-- [MÃ: GD-01] Khúc này chạy ngay lập tức khi vừa mở trang để đọc giao diện, kiểu chữ và bộ icon từ máy lên trước, giúp màn hình không bị chớp trắng -->
+    <link id="themeStylesheet" href="vendor/bootstrap/bootstrap.min.css" rel="stylesheet">
+    <script>
+        (function() {
+            const themeUrls = {
+                'pure': '',
+                'default': 'vendor/bootstrap/bootstrap.min.css',
+                'flatly': 'vendor/bootswatch/flatly.min.css',
+                'cyborg': 'vendor/bootswatch/cyborg.min.css',
+                'sketchy': 'vendor/bootswatch/sketchy.min.css',
+                'morph': 'vendor/bootswatch/morph.min.css'
+            };
+            const savedTheme = localStorage.getItem('app_theme') || 'default';
+            const linkEl = document.getElementById('themeStylesheet');
+            if (savedTheme === 'pure') {
+                linkEl.removeAttribute('href');
+                document.documentElement.classList.add('pure-mode');
+            } else {
+                linkEl.href = themeUrls[savedTheme] || themeUrls['default'];
+                document.documentElement.classList.remove('pure-mode');
+            }
+
+            const savedFont = localStorage.getItem('app_font') || 'priority-regular';
+            document.documentElement.setAttribute('data-font', savedFont);
+
+            if ((localStorage.getItem('app_icon_pack') || 'bo1') === 'bo4') {
+                document.documentElement.classList.add('use-default-icons');
+            }
+        })();
+    </script>
+    <link rel="stylesheet" href="vendor/bootstrap-icons/font/bootstrap-icons.css">
+    <link rel="stylesheet" href="assets/css/style.css">
+    <script src="vendor/chartjs/chart.umd.js"></script>
+    <script src="vendor/emailjs/email.min.js"></script>
+</head>
+<body>
+
+    <!-- [MÃ: GD-02] Thanh điều hướng trên cùng (Navbar): Chứa logo, menu chuyển giữa 3 trang và 2 nút Sao lưu / Phục hồi dữ liệu -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary sticky-top shadow-sm" id="mainNavbar">
+        <div class="container">
+            <a class="navbar-brand fw-bold d-flex align-items-center" href="index.html">
+                <i class="bi bi-book-half me-2 default-icon"></i>
+                <img data-icon="logo.png" class="nav-logo me-2 dynamic-icon" alt="">
+                Tủ Sách Cá Nhân
+            </a>
+            <button class="navbar-toggler" type="button" id="mobileMenuBtn" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav me-auto">
+                    <li class="nav-item"><a class="nav-link active" href="index.html"><i class="bi bi-house-door me-1"></i>Trang chủ</a></li>
+                    <li class="nav-item"><a class="nav-link" href="books.html"><i class="bi bi-journal-bookmark me-1"></i>Kệ sách của tôi</a></li>
+                    <li class="nav-item"><a class="nav-link" href="settings.html"><i class="bi bi-gear me-1"></i>Tùy chỉnh</a></li>
+                </ul>
+                <div class="nav-actions">
+                    <button class="btn btn-outline-light btn-sm ms-2" id="btnExportJSON"><i class="bi bi-download me-1"></i>Tải tệp sao lưu</button>
+                    <label class="btn btn-outline-light btn-sm ms-2 mb-0" for="btnImportJSON"><i class="bi bi-upload me-1"></i>Phục hồi từ tệp</label>
+                    <input type="file" id="btnImportJSON" accept=".json" style="display: none;">
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- [MÃ: GD-18] Khung hiển thị trạng thái kết nối & bắt ngoại lệ trực tiếp trên màn hình (Báo rõ mã 200, 300, 400, 404, 500...) -->
+    <div class="container mt-3">
+        <div id="systemStatusBox" class="status-banner status-200">
+            <div class="status-banner-left">
+                <span id="statusCodeBadge" class="status-code-pill">MÃ 200</span>
+                <div class="status-text-group">
+                    <strong id="statusTitleText">Hệ thống hoạt động ổn định</strong>
+                    <span id="statusDetailText" class="status-detail-sub">Đã kết nối bộ nhớ trình duyệt và tải dữ liệu tủ sách thành công.</span>
+                </div>
+            </div>
+            <button type="button" class="status-close-btn" id="btnHideStatusBox" title="Thu gọn thông báo">×</button>
+        </div>
+    </div>
+
+    <main class="container py-4">
+        <div class="welcome-banner mb-4 p-4 rounded-4 shadow-sm bg-body d-flex justify-content-between align-items-center flex-wrap gap-3">
+            <div>
+                <h3 class="fw-bold mb-1">Không gian Tủ Sách Cá Nhân</h3>
+                <p class="text-muted mb-0">Theo dõi tiến độ đọc sách mỗi ngày, đặt mục tiêu hoàn thành và trò chuyện cùng Trợ lý AI.</p>
+            </div>
+            <a href="settings.html#aiSettingsSection" class="btn btn-outline-primary btn-sm">
+                <i class="bi bi-robot me-1"></i>Cấu hình Gemini AI
+            </a>
+        </div>
+
+        <!-- [MÃ: GD-03] 3 hộp thống kê số lượng sách: Tổng số sách (#totalBooks), Đã đọc (#readBooks), Đang/Chưa đọc (#unreadBooks) -->
+        <div class="row g-4 mb-5" id="statCardsSection">
+            <div class="col-md-4">
+                <div class="card stat-card shadow-sm h-100 bg-primary bg-opacity-10 border-0">
+                    <div class="card-body d-flex align-items-center">
+                        <div class="icon-box bg-primary text-white me-3">
+                            <i class="bi bi-collection default-icon"></i>
+                            <img data-icon="icon-total.png" class="stat-icon dynamic-icon" alt="">
+                        </div>
+                        <div>
+                            <h6 class="card-title text-muted mb-1">Tổng số sách</h6>
+                            <h2 class="mb-0 fw-bold text-primary" id="totalBooks">0</h2>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card stat-card shadow-sm h-100 bg-success bg-opacity-10 border-0">
+                    <div class="card-body d-flex align-items-center">
+                        <div class="icon-box bg-success text-white me-3">
+                            <i class="bi bi-check-circle default-icon"></i>
+                            <img data-icon="icon-read.png" class="stat-icon dynamic-icon" alt="">
+                        </div>
+                        <div>
+                            <h6 class="card-title text-muted mb-1">Sách đã đọc xong</h6>
+                            <h2 class="mb-0 fw-bold text-success" id="readBooks">0</h2>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card stat-card shadow-sm h-100 bg-warning bg-opacity-10 border-0">
+                    <div class="card-body d-flex align-items-center">
+                        <div class="icon-box bg-warning text-dark me-3">
+                            <i class="bi bi-bookmark-dash default-icon"></i>
+                            <img data-icon="icon-unread.png" class="stat-icon dynamic-icon" alt="">
+                        </div>
+                        <div>
+                            <h6 class="card-title text-muted mb-1">Đang đọc & Chưa đọc</h6>
+                            <h2 class="mb-0 fw-bold text-warning" id="unreadBooks">0</h2>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row justify-content-center">
+            <!-- [MÃ: GD-04] Khung vẽ biểu đồ tròn thống kê tỷ lệ đọc sách (#bookChart) và đếm số lượng theo mức độ ưu tiên -->
+            <div class="col-md-6 mb-4">
+                <div class="card shadow-sm border-0 rounded-4 h-100 bg-body" id="chartSectionCard">
+                    <div class="card-body p-4 text-center">
+                        <h5 class="fw-bold mb-3">
+                            <i class="bi bi-pie-chart me-2 default-icon"></i>
+                            <img data-icon="icon-chart.png" class="title-icon me-2 dynamic-icon" alt="">Biểu đồ tiến độ đọc sách
+                        </h5>
+                        <div id="chartContainer" class="d-flex justify-content-center align-items-center" style="min-height: 250px;">
+                            <canvas id="bookChart"></canvas>
+                        </div>
+                        <div class="priority-summary mt-3 pt-3 border-top d-flex justify-content-around small text-muted">
+                            <span>Ưu tiên Cao: <strong class="text-danger" id="highPriorityCount">0</strong></span>
+                            <span>Trung bình: <strong class="text-primary" id="mediumPriorityCount">0</strong></span>
+                            <span>Thấp: <strong class="text-secondary" id="lowPriorityCount">0</strong></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- [MÃ: GD-05] Khung hộp nhấn gửi báo cáo kết quả đọc sách về thư điện tử cá nhân (#btnSendReport) -->
+            <div class="col-md-6 mb-4">
+                <div class="card shadow-sm border-0 rounded-4 h-100 bg-body" id="emailSectionCard">
+                    <div class="card-body p-4 text-center d-flex flex-column justify-content-center">
+                        <i class="bi bi-envelope-paper display-3 text-primary mb-3 default-icon d-block mx-auto"></i>
+                        <img data-icon="icon-email.png" class="giant-icon mb-3 mx-auto dynamic-icon" alt="">
+                        <h5 class="fw-bold mb-3">Nhận kết quả đọc sách qua thư</h5>
+                        <p class="text-muted small mb-4">Gửi bản tóm tắt số lượng sách đã đọc và đang đọc về địa chỉ thư điện tử của bạn.</p>
+                        <button class="btn btn-primary" id="btnSendReport"><i class="bi bi-send me-2"></i>Gửi bản tóm tắt ngay</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- [MÃ: GD-06] Chân trang (Footer bắt buộc theo đề bài) -->
+    <footer class="app-footer py-4 mt-auto border-top bg-body" id="mainFooter">
+        <div class="container text-center text-muted small">
+            <p class="mb-1 fw-bold">Tủ Sách Cá Nhân – Ứng dụng quản lý việc đọc sách mỗi ngày</p>
+            <p class="mb-0">Bài tập giữa kỳ môn Phát triển ứng dụng Web – Khoa CNTT&TT – Trường Đại học CMC</p>
+        </div>
+    </footer>
+
+    <script src="vendor/bootstrap/bootstrap.bundle.min.js"></script>
+    <script src="vendor/sweetalert2/sweetalert2.all.min.js"></script>
+    <script src="assets/js/main.js"></script>
+    <script src="assets/js/gemini-service.js"></script>
+
+    <!-- [MÃ: NV-01] Đoạn xử lý đếm số lượng sách, vẽ biểu đồ Chart.js và bắt ngoại lệ khi gửi Email báo cáo ở Trang chủ -->
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            try {
+                const books = getBooks();
+                let readCount = 0, unreadCount = 0;
+                let highCount = 0, mediumCount = 0, lowCount = 0;
+
+                // Chạy vòng lặp đếm xem có bao nhiêu cuốn đã đọc, chưa đọc và đếm theo từng mức ưu tiên
+                books.forEach(b => {
+                    if (b.status === 'Đã đọc') readCount++;
+                    else unreadCount++;
+
+                    if (b.priority === 'Cao') highCount++;
+                    else if (b.priority === 'Thấp') lowCount++;
+                    else mediumCount++;
+                });
+
+                document.getElementById('totalBooks').innerText = books.length;
+                document.getElementById('readBooks').innerText = readCount;
+                document.getElementById('unreadBooks').innerText = unreadCount;
+                document.getElementById('highPriorityCount').innerText = highCount;
+                document.getElementById('mediumPriorityCount').innerText = mediumCount;
+                document.getElementById('lowPriorityCount').innerText = lowCount;
+
+                const chartContainer = document.getElementById('chartContainer');
+                const ctx = document.getElementById('bookChart');
+
+                if (books.length === 0) {
+                    chartContainer.innerHTML = `
+                        <div class="empty-state">
+                            <i class="bi bi-inbox fs-1 d-block mb-3 default-icon"></i>
+                            <img data-icon="icon-empty.png" class="empty-icon mb-3 dynamic-icon" alt="">
+                            <p class="mb-0">Tủ sách đang trống.<br><a href="books.html" class="text-decoration-none fw-bold">Thêm sách ngay</a></p>
+                        </div>`;
+                    applyIconPack();
+                    hienThiThongBaoNgoaiLeHTML(300, 'Tủ sách hiện đang trống (Mã 300)', 'Chưa có dữ liệu để vẽ biểu đồ, gợi ý chuyển hướng sang trang Kệ sách để thêm mới.');
+                } else if (typeof Chart !== 'undefined') {
+                    new Chart(ctx, {
+                        type: 'doughnut',
+                        data: {
+                            labels: ['Đã đọc xong', 'Đang đọc / Chưa đọc'],
+                            datasets: [{
+                                data: [readCount, unreadCount],
+                                backgroundColor: ['#198754', '#ffc107'],
+                                borderWidth: 0
+                            }]
+                        },
+                        options: { cutout: '70%', plugins: { legend: { position: 'bottom' } } }
+                    });
+                    hienThiThongBaoNgoaiLeHTML(200, 'Tải thống kê & biểu đồ thành công (Mã 200)', `Đã tổng hợp số liệu từ ${books.length} cuốn sách trong bộ nhớ.`);
+                } else {
+                    hienThiThongBaoNgoaiLeHTML(500, 'Lỗi nạp thư viện biểu đồ (Mã 500)', 'Không tìm thấy thư viện Chart.js để vẽ biểu đồ tròn.');
+                }
+
+                // Sự kiện bấm nút gửi báo cáo qua thư điện tử
+                document.getElementById('btnSendReport').addEventListener('click', function() {
+                    ghiLogF12('BÁO CÁO EMAIL', 'Người dùng bấm nút Gửi bản tóm tắt ngay');
+
+                    if (!navigator.onLine) {
+                        hienThiThongBaoNgoaiLeHTML(500, 'Mất kết nối mạng khi gửi thư (Mã 500)', 'Tính năng gửi thư cần có mạng Internet. Các tính năng quản lý sách khác vẫn chạy Offline bình thường.');
+                        Swal.fire('Đang ngoại tuyến (Mã 500)', 'Máy tính đang mất mạng nên chưa thể gửi thư điện tử lúc này.', 'error');
+                        return;
+                    }
+
+                    if (books.length === 0) {
+                        hienThiThongBaoNgoaiLeHTML(400, 'Không thể gửi báo cáo rỗng (Mã 400)', 'Tủ sách đang có 0 cuốn nên yêu cầu gửi thư bị từ chối.');
+                        Swal.fire('Chưa có dữ liệu (Mã 400)', 'Tủ sách đang trống nên chưa thể gửi báo cáo.', 'warning');
+                        return;
+                    }
+
+                    const emailConfig = JSON.parse(localStorage.getItem('emailConfig') || '{}');
+                    if (!emailConfig.publicKey || !emailConfig.serviceId || !emailConfig.templateId || !emailConfig.targetEmail) {
+                        hienThiThongBaoNgoaiLeHTML(300, 'Cần cấu hình hộp thư trước khi gửi (Mã 300)', 'Hệ thống điều hướng bạn sang trang Tùy chỉnh để nhập mã kết nối EmailJS.');
+                        Swal.fire({
+                            title: 'Chưa cài đặt hộp thư (Mã 300)',
+                            text: 'Vui lòng vào trang Tùy chỉnh để điền thông tin hộp thư nhận báo cáo.',
+                            icon: 'warning',
+                            confirmButtonText: 'Đến trang Tùy chỉnh'
+                        }).then((res) => {
+                            if (res.isConfirmed) window.location.href = 'settings.html';
+                        });
+                        return;
+                    }
+
+                    Swal.fire({ title: 'Đang kết nối máy chủ gửi thư...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); }});
+                    emailjs.init(emailConfig.publicKey);
+                    emailjs.send(emailConfig.serviceId, emailConfig.templateId, {
+                        to_email: emailConfig.targetEmail,
+                        total_books: books.length,
+                        read_books: readCount,
+                        unread_books: unreadCount,
+                        time: new Date().toLocaleString('vi-VN')
+                    }).then((response) => {
+                        const code = response && response.status ? response.status : 200;
+                        hienThiThongBaoNgoaiLeHTML(code, `Gửi báo cáo thư điện tử thành công (Mã ${code})`, `Đã chuyển bản tóm tắt tới hộp thư ${emailConfig.targetEmail}.`);
+                        Swal.fire('Thành công (Mã 200)', `Đã gửi bản tóm tắt tới: ${emailConfig.targetEmail}`, 'success');
+                    }, (err) => {
+                        const errCode = (err && err.status) ? err.status : 500;
+                        hienThiThongBaoNgoaiLeHTML(errCode, `Lỗi máy chủ gửi thư (Mã ${errCode})`, 'Không thể xác thực Public Key / Service ID hoặc máy chủ EmailJS từ chối kết nối.');
+                        Swal.fire(`Lỗi gửi thư (Mã ${errCode})`, 'Vui lòng kiểm tra lại mã cấu hình trong trang Tùy chỉnh.', 'error');
+                    });
+                });
+            } catch (err) {
+                hienThiThongBaoNgoaiLeHTML(500, 'Ngoại lệ xử lý trang chủ (Mã 500)', err.message);
+            }
+        });
+    </script>
+</body>
+</html>

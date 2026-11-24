@@ -1,0 +1,271 @@
+@model BookShare.Web.Models.ViewModels.S21LibrarianDeskPageViewModel
+@{
+    ViewData["Title"] = "Quầy Nghiệp Vụ Thủ Thư: Quét Barcode, Nhập Lô & Kiểm Soát Quá Hạn";
+}
+
+@section Styles {
+    <link rel="stylesheet" href="~/modules/s21-librarian-desk/s21-librarian-desk.css" asp-append-version="true" />
+}
+
+@{
+    var isStaff = Model.CurrentUserRole == "Librarian" || Model.CurrentUserRole == "Admin";
+}
+
+@if (!isStaff)
+{
+    <div class="card border-0 shadow-sm rounded-4 p-5 text-center my-4">
+        <div class="mb-3"><i class="bi bi-shield-lock-fill text-warning" style="font-size: 2.5rem;"></i></div>
+        <h4 class="fw-bold mb-2">Khu vực Quầy Nghiệp Vụ Thủ Thư</h4>
+        <p class="text-muted mb-4">Chỉ tài khoản Thủ thư hoặc Quản trị viên mới có quyền truy cập chức năng quét mã vạch xuất nhập kho, nhập lô sách mới và xử lý quá hạn.</p>
+        <div>
+            <a asp-controller="S01AuthOtpGoogle" asp-action="Index" class="btn btn-primary fw-semibold px-4">
+                <i class="bi bi-box-arrow-in-right me-1"></i>Đăng nhập tài khoản phù hợp
+            </a>
+        </div>
+    </div>
+    return;
+}
+
+<!-- BÀN QUÉT BARCODE NHANH TẠI QUẦY THỦ THƯ -->
+<section class="s21-scanner-banner mb-4 shadow-sm">
+    <div class="row g-3 align-items-center">
+        <div class="col-lg-5">
+            <span class="badge bg-info text-dark fw-bold mb-2">QUẦY NGHIỆP VỤ THỦ THƯ</span>
+            <h3 class="fw-bold mb-1"><i class="bi bi-upc-scan me-2 text-info"></i>Quầy Nghiệp Vụ Thủ Thư: Quét Mã Vạch Nhanh</h3>
+            <p class="small text-white-50 mb-2">
+                Quét mã vạch trên bìa sách vật lý để duyệt xuất kho bàn giao hoặc thu hồi sách trả kèm tính phí trễ hạn &amp; thông báo tự động cho bạn đọc đứng đầu hàng chờ.
+            </p>
+            <div class="d-flex flex-wrap gap-1">
+                @foreach (var sampleCopy in Model.SystemCopies.Take(4))
+                {
+                    <button type="button" class="btn btn-xs btn-outline-light js-sample-barcode" data-code="@sampleCopy.Barcode">
+                        @sampleCopy.Barcode (@sampleCopy.Status)
+                    </button>
+                }
+            </div>
+        </div>
+        <div class="col-lg-7">
+            <form id="formQuickScan" class="bg-white text-dark p-3 rounded-4 shadow-sm">
+                <div class="row g-2 align-items-end">
+                    <div class="col-md-4">
+                        <label class="small fw-bold text-muted">Mã vạch bản sao:</label>
+                        <div class="input-group">
+                            <input type="text" id="scanBarcodeInput" class="form-control font-monospace fw-bold" value="@(Model.SystemCopies.FirstOrDefault()?.Barcode ?? "")" placeholder="Nhập hoặc quét mã vạch..." required aria-label="Mã vạch bản sao" />
+                            <button type="button" id="btnScanBarcodeCamera" class="btn btn-outline-primary" title="Quét mã vạch bằng Camera" aria-label="Quét mã vạch bằng Camera">
+                                <i class="bi bi-camera-video-fill"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="col-md-5">
+                        <label class="small fw-bold text-muted">Thao tác tại quầy:</label>
+                        <select id="scanDeskAction" class="form-select">
+                            <option value="AutoDetect" selected>⚡ Tự động nhận diện (Mượn ↔ Trả)</option>
+                            <option value="Checkin">📥 Thu hồi sách trả & Kiểm tra phí trễ</option>
+                            <option value="Checkout">📤 Xuất kho bàn giao sách tại quầy</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3 d-grid">
+                        <button type="submit" class="btn btn-primary fw-bold">
+                            <i class="bi bi-lightning-charge-fill me-1"></i>Quét Duyệt
+                        </button>
+                    </div>
+                    <div class="col-12 mt-2">
+                        <label class="small fw-bold text-muted">Độc giả nhận sách tại quầy (khi xuất kho trực tiếp không có phiếu chờ):</label>
+                        <select id="scanBorrowerUserId" class="form-select form-select-sm">
+                            <option value="">-- Tự động khớp theo phiếu yêu cầu đang chờ --</option>
+                            @foreach (var u in Model.Borrowers)
+                            {
+                                <option value="@u.UserId">@u.DisplayName</option>
+                            }
+                        </select>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+</section>
+
+<!-- 4 THẺ CHỈ SỐ KHO CHUNG -->
+<div class="row g-3 mb-4">
+    <div class="col-md-3">
+        <div class="card border-0 shadow-sm rounded-4 p-3 bg-white">
+            <small class="text-muted">Tổng bản sao Kho chung</small>
+            <h3 class="fw-bold text-primary mb-0">@Model.TotalSystemCopies bản sao</h3>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-0 shadow-sm rounded-4 p-3 bg-white">
+            <small class="text-muted">Sẵn sàng trên kệ (Available)</small>
+            <h3 class="fw-bold text-success mb-0">@Model.AvailableSystemCopies bản sao</h3>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-0 shadow-sm rounded-4 p-3 bg-white">
+            <small class="text-muted">Đang mượn / Giữ chỗ</small>
+            <h3 class="fw-bold text-warning mb-0">@Model.BorrowedSystemCopies bản sao</h3>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-0 shadow-sm rounded-4 p-3 bg-white">
+            <small class="text-muted">Sách hỏng/mất • Độc giả quá hạn</small>
+            <h3 class="fw-bold text-danger mb-0">@Model.DamagedOrLostCopies hỏng • @Model.OverdueLoansCount trễ</h3>
+        </div>
+    </div>
+</div>
+
+<div class="row g-4 mb-4">
+    <!-- CỘT TRÁI: NHẬP LÔ BẢN SAO MỚI & DANH SÁCH ĐỘC GIẢ QUÁ HẠN -->
+    <div class="col-lg-5 d-flex flex-column gap-4">
+        <!-- FORM NHẬP LÔ BẢN SAO MỚI VÀO KHO CHUNG -->
+        <div class="card border-0 shadow-sm rounded-4 bg-white">
+            <div class="card-body p-4">
+                <h5 class="fw-bold mb-3"><i class="bi bi-boxes text-primary me-2"></i>Nhập Lô Bản Sao Mới Vào Kho Chung</h5>
+                <form id="formBatchImport" class="d-flex flex-column gap-3">
+                    <div>
+                        <label class="form-label small fw-bold">Chọn Đầu sách</label>
+                        <select id="importBookId" class="form-select">
+                            @foreach (var b in Model.Books)
+                            {
+                                <option value="@b.BookId">@b.Title (ISBN: @b.ISBN)</option>
+                            }
+                        </select>
+                    </div>
+                    <div>
+                        <label class="form-label small fw-bold">Thư viện tiếp nhận</label>
+                        <select id="importLibraryId" class="form-select">
+                            @foreach (var lib in Model.Libraries)
+                            {
+                                <option value="@lib.LibraryId">@lib.Name</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="row g-2">
+                        <div class="col-4">
+                            <label class="form-label small fw-bold">Số lượng lô</label>
+                            <input type="number" id="importQuantity" class="form-control fw-bold" value="2" min="1" max="10" required />
+                        </div>
+                        <div class="col-4">
+                            <label class="form-label small fw-bold">Tình trạng</label>
+                            <select id="importCondition" class="form-select">
+                                <option value="New" selected>New</option>
+                                <option value="Good">Good</option>
+                            </select>
+                        </div>
+                        <div class="col-4">
+                            <label class="form-label small fw-bold">Vị trí kệ</label>
+                            <input type="text" id="importShelfLocation" class="form-control" value="Kệ CNTT-A2" required />
+                        </div>
+                    </div>
+                    <button type="submit" class="btn btn-success fw-bold">
+                        <i class="bi bi-plus-circle-fill me-1"></i>Tự Động Sinh Barcode & Nhập Kho
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <!-- DANH SÁCH ĐỘC GIẢ QUÁ HẠN -->
+        <div class="card border-0 shadow-sm rounded-4 bg-white">
+            <div class="card-body p-4">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h5 class="fw-bold mb-0"><i class="bi bi-exclamation-triangle-fill text-danger me-2"></i>Độc Giả Đang Quá Hạn Trả Sách</h5>
+                    <span class="badge bg-danger">@Model.OverdueLoans.Count trường hợp</span>
+                </div>
+                <div class="d-flex flex-column gap-2">
+                    @foreach (var ov in Model.OverdueLoans)
+                    {
+                        <div class="p-3 rounded-3 border border-danger bg-danger bg-opacity-10 small">
+                            <div class="d-flex justify-content-between fw-bold text-danger">
+                                <span>@ov.BorrowerName (Trust: @ov.BorrowerTrustScore)</span>
+                                <span>Trễ @ov.OverdueDays ngày (@ov.EstimatedFine.ToString("N0")đ)</span>
+                            </div>
+                            <div class="text-dark mt-1">
+                                <code>@ov.Barcode</code> — <strong>@ov.BookTitle</strong>
+                            </div>
+                            <div class="d-flex justify-content-between align-items-center mt-2">
+                                <span class="text-muted">Hạn trả: @ov.DueDate.ToString("dd/MM/yyyy")</span>
+                                <button type="button" class="btn btn-xs btn-danger fw-bold js-scan-overdue" data-code="@ov.Barcode">
+                                    Quét Thu Hồi Ngay
+                                </button>
+                            </div>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- CỘT PHẢI: QUẢN LÝ BẢN SAO KHO CHUNG & CHUYỂN TRẠNG THÁI DAMAGED / LOST -->
+    <div class="col-lg-7">
+        <div class="card border-0 shadow-sm rounded-4 bg-white h-100">
+            <div class="card-body p-4">
+                <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+                    <div>
+                        <h5 class="fw-bold mb-0"><i class="bi bi-collection-fill text-primary me-2"></i>Danh Mục Bản Sao Kho Chung &amp; Đánh Dấu Sách Hỏng/Mất</h5>
+                        <small class="text-muted">Chuyển nhanh trạng thái sẵn sàng, hư hỏng hoặc thất lạc (Dành cho Thủ thư &amp; Quản trị viên)</small>
+                    </div>
+                </div>
+
+                <div class="table-responsive" style="max-height: 620px;">
+                    <table class="table table-hover align-middle small mb-0 table-mobile-cards">
+                        <thead class="table-light sticky-top">
+                            <tr>
+                                <th>Barcode / Đầu sách</th>
+                                <th>Vị trí kệ</th>
+                                <th>Trạng thái</th>
+                                <th>Chuyển trạng thái (Damaged / Lost)</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var c in Model.SystemCopies)
+                            {
+                                <tr>
+                                    <td>
+                                        <code>@c.Barcode</code>
+                                        <div class="fw-bold">@c.BookTitle</div>
+                                        @if (!string.IsNullOrEmpty(c.CurrentBorrowerName))
+                                        {
+                                            <small class="text-primary">Độc giả: @c.CurrentBorrowerName</small>
+                                        }
+                                    </td>
+                                    <td>
+                                        <div>@c.ShelfLocation</div>
+                                        <small class="text-muted">Tình trạng: @c.Condition</small>
+                                    </td>
+                                    <td>
+                                        <span class="badge @(c.Status == "Available" ? "bg-success" : c.Status == "Borrowed" ? "bg-warning text-dark" : c.Status == "Reserved" ? "bg-info text-dark" : "bg-danger")">
+                                            @c.Status
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <div class="btn-group btn-group-sm">
+                                            <button type="button" class="btn btn-xs btn-outline-success js-change-state"
+                                                    data-id="@c.BookCopyId" data-status="Available" data-cond="Good">
+                                                Available
+                                            </button>
+                                            <button type="button" class="btn btn-xs btn-outline-warning text-dark js-change-state"
+                                                    data-id="@c.BookCopyId" data-status="Damaged" data-cond="Worn">
+                                                Damaged
+                                            </button>
+                                                <button type="button" class="btn btn-xs btn-outline-danger js-change-state"
+                                                        data-id="@c.BookCopyId" data-status="Lost" data-cond="Worn">
+                                                    Lost
+                                                </button>
+                                                <button type="button" class="btn btn-xs btn-outline-secondary js-delete-sys-copy"
+                                                        data-id="@c.BookCopyId" data-barcode="@c.Barcode" title="Thanh lý / Xóa bản sao kho chung">
+                                                    <i class="bi bi-trash3"></i>
+                                                </button>
+                                            </div>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script type="module" src="~/modules/s21-librarian-desk/s21-librarian-desk.js" asp-append-version="true"></script>
+}

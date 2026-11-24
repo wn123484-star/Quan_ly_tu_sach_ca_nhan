@@ -1,0 +1,1530 @@
+/* ==========================================================================
+   BOOKSHARE PORTAL CORE THEME (wwwroot/css/core-theme.css)
+   Kế thừa book-tracker-ver07 (Font Roboto, Status Banner, AI Widget)
+   Kết hợp Bố cục Cổng Dịch vụ Portal (Không Bán Sách - 100% Mượn Trả & Theo Dõi Đọc)
+   ========================================================================== */
+
+@font-face {
+    font-family: 'Roboto';
+    src: url('../fonts/Roboto-Regular.ttf') format('truetype');
+    font-weight: 400;
+    font-style: normal;
+    font-display: swap;
+}
+@font-face {
+    font-family: 'Roboto';
+    src: url('../fonts/Roboto-Bold.ttf') format('truetype');
+    font-weight: 700;
+    font-style: normal;
+    font-display: swap;
+}
+
+:root {
+    --portal-grad-deep: #060d1f;
+    --portal-grad-start: #0f172a;
+    --portal-grad-mid: #1e3a8a;
+    --portal-grad-end: #1d4ed8;
+    --portal-accent: #2563eb;
+    --portal-accent-glow: #38bdf8;
+    --portal-light-bg: #f1f5f9;
+    --portal-surface: #ffffff;
+    --portal-surface-2: #f8fafc;
+    --portal-text: #0f172a;
+    --portal-border: #cbd5e1;
+    --portal-skeleton: #e2e8f0;
+    --portal-skeleton-shine: #f1f5f9;
+    --card-radius: 18px;
+    --bs-font-sans-serif: 'Roboto', 'Segoe UI', system-ui, -apple-system, sans-serif;
+}
+
+/* Dark Mode: Bootstrap 5.3 tự đổi màu component qua data-bs-theme, phần dưới phủ các màu tự định nghĩa */
+[data-bs-theme="dark"] {
+    --portal-light-bg: #0f172a;
+    --portal-surface: #1e293b;
+    --portal-surface-2: #172033;
+    --portal-text: #e2e8f0;
+    --portal-border: #334155;
+    --portal-skeleton: #26324a;
+    --portal-skeleton-shine: #334155;
+    --bs-body-bg: #0f172a;
+    --bs-body-color: #e2e8f0;
+    --bs-border-color: #334155;
+    --bs-secondary-color: #94a3b8;
+    --bs-tertiary-bg: #172033;
+    color-scheme: dark;
+}
+
+body[data-portal-palette="midnight"] {
+    --portal-grad-deep: #020617;
+    --portal-grad-start: #090d16;
+    --portal-grad-mid: #172554;
+    --portal-grad-end: #1e40af;
+    --portal-accent: #3b82f6;
+    --portal-accent-glow: #60a5fa;
+}
+
+body[data-portal-palette="ocean"] {
+    --portal-grad-deep: #041322;
+    --portal-grad-start: #082f49;
+    --portal-grad-mid: #0369a1;
+    --portal-grad-end: #0284c7;
+    --portal-accent: #0284c7;
+    --portal-accent-glow: #38bdf8;
+}
+
+body[data-portal-palette="emerald"] {
+    --portal-grad-deep: #022c22;
+    --portal-grad-start: #064e3b;
+    --portal-grad-mid: #047857;
+    --portal-grad-end: #059669;
+    --portal-accent: #059669;
+    --portal-accent-glow: #34d399;
+}
+
+body[data-portal-palette="royal"] {
+    --portal-grad-deep: #0f0728;
+    --portal-grad-start: #1e1b4b;
+    --portal-grad-mid: #4338ca;
+    --portal-grad-end: #4f46e5;
+    --portal-accent: #4f46e5;
+    --portal-accent-glow: #818cf8;
+}
+
+body[data-portal-palette="obsidian"] {
+    --portal-grad-deep: #09090b;
+    --portal-grad-start: #18181b;
+    --portal-grad-mid: #78350f;
+    --portal-grad-end: #b45309;
+    --portal-accent: #d97706;
+    --portal-accent-glow: #fbbf24;
+}
+
+body[data-portal-palette="coral"] {
+    --portal-grad-deep: #270905;
+    --portal-grad-start: #431407;
+    --portal-grad-mid: #9a3412;
+    --portal-grad-end: #ea580c;
+    --portal-accent: #ea580c;
+    --portal-accent-glow: #fb923c;
+}
+
+body {
+    font-family: var(--bs-font-sans-serif);
+    background-color: var(--portal-light-bg);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    color: var(--portal-text);
+    transition: background-color 0.25s ease, color 0.25s ease;
+}
+
+main {
+    flex: 1;
+}
+
+/* 1. PORTAL HEADER & GIANT SEARCH BAR */
+.portal-header-wrapper {
+    background: linear-gradient(135deg, var(--portal-grad-deep) 0%, var(--portal-grad-start) 48%, var(--portal-grad-mid) 100%);
+    color: #ffffff;
+    position: sticky;
+    top: 0;
+    z-index: 1030;
+    border-bottom: 1.5px solid rgba(56, 189, 248, 0.35);
+    box-shadow: 0 10px 28px rgba(6, 13, 31, 0.32);
+}
+
+.bs-domain-nav-bar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+}
+
+.bs-domain-dropdown .dropdown-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 12px;
+    border-radius: 999px;
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: #f8fafc !important;
+    background: rgba(30, 58, 138, 0.45);
+    border: 1px solid rgba(56, 189, 248, 0.32);
+    text-decoration: none;
+    transition: all 0.18s ease;
+}
+
+.bs-domain-dropdown .dropdown-toggle:hover,
+.bs-domain-dropdown .dropdown-toggle:focus {
+    background: linear-gradient(135deg, #1d4ed8 0%, #0284c7 100%);
+    border-color: #7dd3fc;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 14px rgba(2, 132, 199, 0.35);
+}
+
+.bs-domain-dropdown .dropdown-menu {
+    background: #0f172a;
+    border: 1.5px solid rgba(56, 189, 248, 0.45);
+    border-radius: 14px;
+    padding: 8px;
+    box-shadow: 0 18px 42px rgba(6, 13, 31, 0.55);
+    min-width: 250px;
+}
+
+.bs-domain-dropdown .dropdown-item {
+    color: #e2e8f0 !important;
+    font-size: 0.82rem;
+    font-weight: 600;
+    padding: 8px 12px;
+    border-radius: 9px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.bs-domain-dropdown .dropdown-item:hover {
+    background: rgba(37, 99, 235, 0.32);
+    color: #38bdf8 !important;
+}
+
+.bs-adaptive-card {
+    background: var(--portal-surface);
+    color: var(--portal-text);
+    border: 1.5px solid var(--portal-border);
+    border-left: 5px solid var(--portal-accent) !important;
+    border-radius: var(--card-radius);
+    box-shadow: 0 8px 24px rgba(15, 23, 42, 0.06);
+    transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.bs-adaptive-card:hover {
+    transform: translateY(-3px);
+    border-color: var(--portal-accent-glow);
+    box-shadow: 0 14px 32px rgba(30, 58, 138, 0.14);
+}
+
+.portal-utility-bar {
+    font-size: 0.78rem;
+    padding: 6px 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.16);
+}
+
+.portal-utility-bar a {
+    color: rgba(255, 255, 255, 0.92);
+    text-decoration: none;
+    transition: opacity 0.15s;
+}
+.portal-utility-bar a:hover {
+    opacity: 0.8;
+    color: #ffffff;
+}
+
+.portal-main-bar {
+    padding: 12px 0 10px;
+}
+
+.portal-logo {
+    color: #ffffff;
+    text-decoration: none;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+.portal-logo:hover {
+    color: #ffffff;
+}
+
+.portal-search-box {
+    background: #ffffff;
+    border-radius: 8px;
+    padding: 3px;
+    display: flex;
+    align-items: center;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.14);
+}
+
+.portal-search-box input {
+    border: none;
+    outline: none;
+    flex: 1;
+    padding: 8px 14px;
+    font-size: 0.92rem;
+    color: #1e293b;
+}
+
+.portal-search-box select {
+    border: none;
+    border-left: 1px solid #e2e8f0;
+    padding: 8px 12px;
+    font-size: 0.82rem;
+    color: #475569;
+    background: transparent;
+    outline: none;
+    max-width: 195px;
+}
+
+.portal-search-btn {
+    background: var(--portal-accent);
+    color: #ffffff;
+    border: none;
+    border-radius: 6px;
+    padding: 8px 20px;
+    font-weight: 600;
+    transition: opacity 0.15s;
+}
+.portal-search-btn:hover {
+    opacity: 0.92;
+}
+
+.portal-quick-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-top: 6px;
+    font-size: 0.76rem;
+}
+.portal-quick-tags a {
+    color: rgba(255, 255, 255, 0.92);
+    text-decoration: none;
+}
+.portal-quick-tags a:hover {
+    text-decoration: underline;
+    color: #ffffff;
+}
+
+/* 2. KHUNG HIỂN THỊ MÃ TRẠNG THÁI & BẮT NGOẠI LỆ (KẾ THỪA VER07: MÃ 200, 300, 400, 404, 500) */
+.status-banner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 11px 18px;
+    border-radius: 12px;
+    border-left: 6px solid #198754;
+    background-color: #e8f5e9;
+    color: #1b5e20;
+    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.05);
+    transition: all 0.25s ease;
+}
+.status-banner.hidden-banner {
+    display: none !important;
+}
+.status-banner-left {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    flex-wrap: wrap;
+}
+.status-code-pill {
+    font-weight: 800;
+    font-size: 0.78rem;
+    padding: 4px 12px;
+    border-radius: 50px;
+    background-color: #198754;
+    color: #ffffff;
+    letter-spacing: 0.5px;
+    white-space: nowrap;
+}
+.status-text-group {
+    display: flex;
+    flex-direction: column;
+}
+.status-detail-sub {
+    font-size: 0.84rem;
+    opacity: 0.9;
+}
+.status-close-btn {
+    background: transparent;
+    border: none;
+    font-size: 1.35rem;
+    line-height: 1;
+    color: inherit;
+    opacity: 0.65;
+    cursor: pointer;
+    padding: 0 6px;
+}
+.status-close-btn:hover { opacity: 1; }
+
+.status-banner.status-200 { border-left-color: #198754; background-color: #e8f5e9; color: #1b5e20; }
+.status-banner.status-200 .status-code-pill { background-color: #198754; }
+
+.status-banner.status-300 { border-left-color: #0d6efd; background-color: #e7f1ff; color: #084298; }
+.status-banner.status-300 .status-code-pill { background-color: #0d6efd; }
+
+.status-banner.status-400 { border-left-color: #fd7e14; background-color: #fff3cd; color: #664d03; }
+.status-banner.status-400 .status-code-pill { background-color: #fd7e14; }
+
+.status-banner.status-404 { border-left-color: #d97706; background-color: #fef3c7; color: #78350f; }
+.status-banner.status-404 .status-code-pill { background-color: #d97706; }
+
+.status-banner.status-500 { border-left-color: #dc3545; background-color: #f8d7da; color: #842029; }
+.status-banner.status-500 .status-code-pill { background-color: #dc3545; }
+
+/* 3. CARDS, BADGES & PORTAL COMPONENTS */
+.stat-card, .book-card {
+    transition: transform 0.22s ease, box-shadow 0.22s ease;
+    border-radius: 16px;
+}
+.stat-card:hover, .book-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 12px 24px rgba(0, 0, 0, 0.1) !important;
+}
+
+.icon-box {
+    width: 56px;
+    height: 56px;
+    border-radius: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.6rem;
+    flex-shrink: 0;
+}
+
+.book-cover {
+    height: 220px;
+    object-fit: cover;
+    background-color: #e2e8f0;
+}
+
+.owner-badge-lib {
+    background-color: #0d9488;
+    color: #ffffff;
+    font-weight: 700;
+    font-size: 0.72rem;
+    padding: 3px 9px;
+    border-radius: 6px;
+}
+
+.owner-badge-p2p {
+    background-color: #7c3aed;
+    color: #ffffff;
+    font-weight: 700;
+    font-size: 0.72rem;
+    padding: 3px 9px;
+    border-radius: 6px;
+}
+
+.trust-pill {
+    background: #fef3c7;
+    color: #92400e;
+    font-weight: 700;
+    font-size: 0.74rem;
+    padding: 3px 8px;
+    border-radius: 6px;
+}
+
+.btn-xs {
+    font-size: 0.75rem;
+    padding: 3px 9px;
+    border-radius: 20px;
+}
+
+/* 4. FLOATING GEMINI AI CHAT WIDGET (S13) */
+.ai-chat-widget {
+    position: fixed;
+    right: 22px;
+    bottom: 22px;
+    z-index: 1080;
+}
+
+.ai-chat-fab {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: linear-gradient(135deg, #1d4ed8, #7c3aed);
+    color: #ffffff;
+    border: none;
+    border-radius: 50px;
+    padding: 12px 20px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.ai-chat-fab:hover {
+    transform: scale(1.04);
+    box-shadow: 0 8px 22px rgba(29, 78, 216, 0.4) !important;
+}
+
+.ai-chat-popup {
+    position: fixed;
+    right: 22px;
+    bottom: 80px;
+    width: 365px;
+    max-width: calc(100vw - 32px);
+    height: 470px;
+    max-height: calc(100vh - 120px);
+    background-color: var(--portal-surface);
+    color: var(--portal-text);
+    border: 1px solid var(--portal-border);
+    border-radius: 16px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.ai-chat-header {
+    background: linear-gradient(135deg, #1d4ed8, #7c3aed);
+}
+
+.ai-chat-messages {
+    flex: 1;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    background-color: var(--portal-surface-2);
+}
+
+.ai-msg {
+    max-width: 86%;
+    padding: 9px 13px;
+    border-radius: 14px;
+    font-size: 0.86rem;
+    line-height: 1.45;
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+.ai-msg-bot {
+    align-self: flex-start;
+    background-color: #eff6ff;
+    border: 1px solid #bfdbfe;
+    border-bottom-left-radius: 4px;
+}
+.ai-msg-user {
+    align-self: flex-end;
+    background: #2563eb;
+    color: #ffffff;
+    border-bottom-right-radius: 4px;
+}
+
+/* Câu trả lời AI dạng Markdown (S13): bỏ pre-wrap vì đã render thành thẻ HTML */
+.ai-msg.ai-md,
+.ai-md {
+    white-space: normal;
+}
+.ai-md p { margin: 0 0 6px; }
+.ai-md p:last-child { margin-bottom: 0; }
+.ai-md ul, .ai-md ol { margin: 4px 0 6px; padding-left: 20px; }
+.ai-md li { margin-bottom: 2px; }
+.ai-md code {
+    background: rgba(37, 99, 235, 0.1);
+    padding: 1px 5px;
+    border-radius: 4px;
+    font-size: 0.82em;
+}
+
+/* Hiệu ứng "AI đang gõ..." */
+.ai-typing {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+.ai-typing span {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: #3b82f6;
+    animation: ai-typing-bounce 1.2s infinite ease-in-out;
+}
+.ai-typing span:nth-child(2) { animation-delay: 0.15s; }
+.ai-typing span:nth-child(3) { animation-delay: 0.3s; }
+@keyframes ai-typing-bounce {
+    0%, 60%, 100% { transform: translateY(0); opacity: 0.45; }
+    30% { transform: translateY(-5px); opacity: 1; }
+}
+
+/* ==========================================================================
+   5. FINAL POLISH: DARK MODE, LOADING, MOBILE, ẢNH, 3D, THÔNG BÁO, A11Y, PWA
+   ========================================================================== */
+
+/* 5.1 Dark Mode – phủ các lớp màu sáng cố định của Bootstrap & 22 module */
+[data-bs-theme="dark"] .bg-white,
+[data-bs-theme="dark"] .bg-light,
+[data-bs-theme="dark"] .card {
+    background-color: var(--portal-surface) !important;
+    color: var(--portal-text);
+}
+[data-bs-theme="dark"] .text-dark { color: var(--portal-text) !important; }
+/* Nền vàng / xanh nhạt vẫn cần chữ tối để đọc được */
+[data-bs-theme="dark"] :is(.bg-warning, .bg-info, .btn-warning, .btn-info, .text-bg-warning, .text-bg-info).text-dark,
+[data-bs-theme="dark"] :is(.bg-warning, .bg-info, .btn-warning) .text-dark { color: #111827 !important; }
+/* Nút sáng trong nội dung chuyển sang tông tối */
+[data-bs-theme="dark"] main .btn-light {
+    --bs-btn-bg: var(--portal-surface-2);
+    --bs-btn-color: var(--portal-text);
+    --bs-btn-border-color: var(--portal-border);
+    --bs-btn-hover-bg: #26324a;
+    --bs-btn-hover-color: #fff;
+    --bs-btn-hover-border-color: #475569;
+}
+[data-bs-theme="dark"] .text-secondary { color: #94a3b8 !important; }
+[data-bs-theme="dark"] .border,
+[data-bs-theme="dark"] .border-top,
+[data-bs-theme="dark"] .border-bottom { border-color: var(--portal-border) !important; }
+[data-bs-theme="dark"] .table-light {
+    --bs-table-bg: var(--portal-surface-2);
+    --bs-table-color: var(--portal-text);
+    --bs-table-border-color: var(--portal-border);
+}
+[data-bs-theme="dark"] .table { --bs-table-bg: transparent; --bs-table-color: var(--portal-text); }
+[data-bs-theme="dark"] code { color: #f9a8d4; }
+[data-bs-theme="dark"] .portal-search-box,
+[data-bs-theme="dark"] .portal-search-box input { background: var(--portal-surface); color: var(--portal-text); }
+[data-bs-theme="dark"] .portal-search-box select { color: #cbd5e1; border-left-color: var(--portal-border); }
+[data-bs-theme="dark"] .portal-search-box select option { background: var(--portal-surface); }
+[data-bs-theme="dark"] .ai-msg-bot { background-color: #1e3a5f; border-color: #1d4ed8; color: #e2e8f0; }
+[data-bs-theme="dark"] .ai-md code { background: rgba(147, 197, 253, 0.15); }
+
+/* Các khối nền sáng tự định nghĩa trong module sXX (card, box, hero, panel, ...) */
+[data-bs-theme="dark"] main :is([class*="s0"], [class*="s1"], [class*="s2"]):is([class*="-card"], [class*="-box"], [class*="-hero"], [class*="-panel"], [class*="-viewport"], [class*="-bubble"], [class*="-tab"], [class*="-item"], [class*="-thumb"], [class*="-score"], [class*="-avatar"], [class*="-chip"]) {
+    background-color: var(--portal-surface) !important;
+    background-image: none !important;
+    color: var(--portal-text);
+    border-color: var(--portal-border) !important;
+}
+[data-bs-theme="dark"] main .s13-msg-row.user .s13-msg-bubble { background-color: #1d4ed8 !important; color: #fff; }
+[data-bs-theme="dark"] main .s18-notif-card.is-unread { background-color: #13314a !important; }
+[data-bs-theme="dark"] main .s02-shelf-tab.active { background-color: #1e3a5f !important; }
+
+/* Status banner tối, giữ màu nhận diện ở viền trái */
+[data-bs-theme="dark"] .status-banner { background-color: var(--portal-surface) !important; color: var(--portal-text) !important; }
+
+/* Nút gạt Dark Mode trên thanh tiện ích */
+.theme-toggle {
+    background: rgba(255, 255, 255, 0.16);
+    border: 1px solid rgba(255, 255, 255, 0.35);
+    color: #fff;
+    border-radius: 50px;
+    padding: 2px 10px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+.theme-toggle:hover { background: rgba(255, 255, 255, 0.26); }
+
+/* 5.2 Loading: spinner trên nút & Skeleton khung xám nhấp nháy */
+.btn-loading { pointer-events: none; opacity: 0.8; }
+.skeleton {
+    background: linear-gradient(90deg, var(--portal-skeleton) 25%, var(--portal-skeleton-shine) 37%, var(--portal-skeleton) 63%);
+    background-size: 400% 100%;
+    animation: skeleton-shimmer 1.3s ease infinite;
+    border-radius: 8px;
+}
+@keyframes skeleton-shimmer {
+    0% { background-position: 100% 50%; }
+    100% { background-position: 0 50%; }
+}
+.skeleton-card {
+    background: var(--portal-surface);
+    border-radius: 16px;
+    padding: 20px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+}
+.skeleton-line { height: 12px; margin-bottom: 10px; }
+.skeleton-cover { width: 82px; height: 116px; flex-shrink: 0; }
+
+/* Header trên điện thoại rất cao (22 dịch vụ) nên không dính đầu trang để khỏi che nội dung */
+@media (max-width: 768px) {
+    .portal-header-wrapper { position: static; }
+}
+/* Nút Trợ lý AI trên điện thoại: chỉ hiện icon tròn để không tràn mép phải */
+@media (max-width: 576px) {
+    .ai-chat-widget { right: 14px; bottom: 14px; }
+    .ai-chat-fab { padding: 14px; }
+    .ai-chat-fab span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+    .ai-chat-popup { right: 8px; bottom: 76px; max-width: calc(100vw - 16px); }
+    /* Ô tìm kiếm header co theo màn hình 375px, không đẩy trang tràn ngang */
+    .portal-search-box input { min-width: 0; padding: 8px 10px; }
+    .portal-search-box select { max-width: 112px; padding: 8px 6px; }
+    .portal-search-btn { padding: 8px 14px; }
+    /* Badge tiêu đề dài được xuống dòng thay vì đẩy trang tràn ngang */
+    main .badge { white-space: normal; text-align: left; line-height: 1.35; }
+    /* Con của flex được phép co lại, chữ/mã quá dài tự ngắt dòng */
+    main .d-flex > * { min-width: 0; }
+    main { overflow-wrap: anywhere; }
+    main select { max-width: 100%; }
+}
+
+/* 5.3 Bảng dữ liệu chuyển thành Thẻ trên Mobile (S07, S21, S22) */
+@media (max-width: 576px) {
+    .table-mobile-cards thead { display: none; }
+    .table-mobile-cards,
+    .table-mobile-cards tbody,
+    .table-mobile-cards tr,
+    .table-mobile-cards td { display: block; width: 100%; }
+    .table-mobile-cards tr {
+        background: var(--portal-surface);
+        border: 1px solid var(--portal-border);
+        border-radius: 14px;
+        padding: 10px 12px;
+        margin-bottom: 12px;
+        box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
+    }
+    .table-mobile-cards td {
+        border: none;
+        padding: 6px 0;
+        text-align: left !important;
+    }
+    .table-mobile-cards td[data-label]::before {
+        content: attr(data-label);
+        display: block;
+        font-size: 0.7rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.3px;
+        color: var(--bs-secondary-color);
+        margin-bottom: 2px;
+    }
+    .table-mobile-cards td .d-flex { flex-wrap: wrap; }
+    .table-responsive:has(> .table-mobile-cards) { max-height: none !important; overflow: visible; }
+}
+
+/* 5.4 Ảnh bìa Lazy Loading + Blur-up */
+img.lazy-blur {
+    filter: blur(12px);
+    transform: scale(1.03);
+    transition: filter 0.45s ease, transform 0.45s ease;
+    background-color: var(--portal-skeleton);
+}
+img.lazy-blur.is-loaded {
+    filter: none;
+    transform: none;
+}
+
+/* 5.5 Hover 3D cho thẻ / bìa sách */
+.tilt-3d {
+    transform-style: preserve-3d;
+    transition: transform 0.18s ease-out, box-shadow 0.18s ease-out;
+    will-change: transform;
+}
+.tilt-3d.is-tilting {
+    box-shadow: var(--tilt-shadow-x, 0) 18px 30px rgba(15, 23, 42, 0.22) !important;
+}
+
+/* 5.6 Chuông thông báo real-time (S18) */
+.notif-bell {
+    position: relative;
+    color: #fff;
+    text-decoration: none;
+    font-size: 1.05rem;
+    line-height: 1;
+}
+.notif-bell:hover { color: #fff; opacity: 0.85; }
+.notif-bell .notif-dot {
+    position: absolute;
+    top: -6px;
+    right: -9px;
+    min-width: 17px;
+    height: 17px;
+    padding: 0 4px;
+    border-radius: 9px;
+    background: #ef4444;
+    color: #fff;
+    font-size: 0.62rem;
+    font-weight: 800;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 0 0 2px var(--portal-grad-start);
+}
+.notif-bell.is-ringing i { display: inline-block; animation: bell-ring 0.9s ease-in-out 2; transform-origin: 50% 0; }
+@keyframes bell-ring {
+    0%, 100% { transform: rotate(0); }
+    15% { transform: rotate(16deg); }
+    30% { transform: rotate(-14deg); }
+    45% { transform: rotate(10deg); }
+    60% { transform: rotate(-8deg); }
+    75% { transform: rotate(4deg); }
+}
+
+/* 5.7 Huy hiệu TrustScore lấp lánh (Bronze / Silver / Gold / Platinum) */
+.trust-tier {
+    position: relative;
+    overflow: hidden;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    border-radius: 50px;
+    padding: 2px 9px;
+    font-size: 0.7rem;
+    font-weight: 800;
+    letter-spacing: 0.3px;
+    color: #1f2937;
+}
+.trust-tier::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: -60%;
+    width: 40%;
+    height: 100%;
+    background: linear-gradient(100deg, transparent, rgba(255, 255, 255, 0.75), transparent);
+    animation: tier-shine 2.6s ease-in-out infinite;
+}
+@keyframes tier-shine { 0% { left: -60%; } 55%, 100% { left: 130%; } }
+.trust-tier-bronze { background: linear-gradient(135deg, #f3c19a, #b8733f); }
+.trust-tier-silver { background: linear-gradient(135deg, #f1f5f9, #94a3b8); }
+.trust-tier-gold { background: linear-gradient(135deg, #fde68a, #d97706); }
+.trust-tier-platinum { background: linear-gradient(135deg, #e0f2fe, #a5b4fc, #f0abfc); }
+
+/* 5.8 Autocomplete thanh tìm kiếm (S06) */
+.autocomplete-wrap { position: relative; }
+.autocomplete-list {
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0;
+    min-width: min(420px, 92vw);
+    z-index: 1050;
+    background: var(--portal-surface);
+    border: 1px solid var(--portal-border);
+    border-radius: 12px;
+    box-shadow: 0 12px 28px rgba(15, 23, 42, 0.16);
+    padding: 4px;
+    margin: 0;
+    list-style: none;
+}
+.autocomplete-list li {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    padding: 7px 9px;
+    border-radius: 8px;
+    cursor: pointer;
+}
+.autocomplete-list li[aria-selected="true"],
+.autocomplete-list li:hover { background: rgba(37, 99, 235, 0.1); }
+.autocomplete-list img { width: 30px; height: 42px; object-fit: cover; border-radius: 4px; }
+.autocomplete-list mark { padding: 0; background: #fde68a; color: inherit; }
+
+/* 5.9 Kéo thả sách giữa các kệ (S02) */
+.dnd-dragging { opacity: 0.45; }
+.dnd-drop-target {
+    outline: 2px dashed var(--portal-accent);
+    outline-offset: 2px;
+    transform: scale(1.04);
+    transition: transform 0.12s ease;
+}
+
+/* 5.10 Trợ năng: bỏ qua menu, focus ring nổi bật */
+.skip-link {
+    position: absolute;
+    left: 12px;
+    top: -60px;
+    z-index: 2000;
+    background: #facc15;
+    color: #111827;
+    font-weight: 700;
+    padding: 8px 14px;
+    border-radius: 8px;
+    text-decoration: none;
+}
+.skip-link:focus { top: 12px; }
+:focus-visible {
+    outline: 3px solid #f59e0b !important;
+    outline-offset: 2px !important;
+    box-shadow: 0 0 0 6px rgba(245, 158, 11, 0.25) !important;
+    border-radius: 6px;
+}
+.book-card:focus-visible,
+[class*="-card"][tabindex]:focus-visible {
+    transform: translateY(-3px);
+}
+
+/* 5.11 Splash Screen khi mở PWA (Nền sáng tinh gọn mặc định, hỗ trợ Dark Mode) */
+.app-splash {
+    position: fixed;
+    inset: 0;
+    z-index: 3000;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 14px;
+    color: #0f172a;
+    background: linear-gradient(135deg, #f8fafc 0%, #eff6ff 100%);
+    transition: opacity 0.45s ease, visibility 0.45s ease;
+}
+[data-bs-theme="dark"] .app-splash {
+    color: #f8fafc;
+    background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+}
+.app-splash.is-hidden { opacity: 0; visibility: hidden; }
+.app-splash-logo {
+    width: 86px;
+    height: 86px;
+    border-radius: 22px;
+    background: #ffffff;
+    color: #1d4ed8;
+    border: 1px solid #dbeafe;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2.8rem;
+    box-shadow: 0 12px 30px rgba(37, 99, 235, 0.14);
+    animation: splash-pop 0.9s ease-out;
+}
+[data-bs-theme="dark"] .app-splash-logo {
+    background: #1e293b;
+    color: #60a5fa;
+    border-color: #334155;
+    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.35);
+}
+@keyframes splash-pop { 0% { transform: scale(0.6); opacity: 0; } 70% { transform: scale(1.06); opacity: 1; } 100% { transform: scale(1); } }
+
+/* Tôn trọng thiết lập giảm chuyển động của hệ điều hành */
+@media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+    }
+}
+
+/* ==========================================================================
+   6. [UI-ENTERPRISE] ENTERPRISE SAPPHIRE & GLASSMORPHISM DESIGN SYSTEM (.bs-*)
+      Chuẩn hóa giao diện S13, S14, S15, Trang Chủ (Density Switcher & Empty State)
+      & Khống chế Sticky Header Offset tránh che nội dung đầu trang
+   ========================================================================== */
+
+html {
+    scroll-padding-top: 165px;
+}
+
+/* [UI-ENTERPRISE] Tránh các thẻ .sticky-top bên trong <main> bị thanh .portal-header-wrapper che khuất khi cuộn */
+main .sticky-top:not(thead) {
+    top: 162px !important;
+    z-index: 1015;
+}
+
+@media (max-width: 768px) {
+    html {
+        scroll-padding-top: 24px;
+    }
+    main .sticky-top:not(thead) {
+        top: 16px !important;
+    }
+}
+
+/* 6.1 Enterprise Card (Glassmorphism Sapphire Surface) */
+.bs-card {
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.96) 0%, rgba(248, 250, 252, 0.94) 100%);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    color: var(--portal-text);
+    border: 1px solid rgba(203, 213, 225, 0.9);
+    border-radius: 16px;
+    padding: 1.25rem 1.4rem;
+    box-shadow: 0 10px 30px rgba(15, 23, 42, 0.06), 0 1px 2px rgba(15, 23, 42, 0.04);
+    transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+.bs-card:hover {
+    border-color: rgba(37, 99, 235, 0.35);
+    box-shadow: 0 14px 36px rgba(30, 58, 138, 0.09), 0 2px 6px rgba(15, 23, 42, 0.05);
+}
+
+/* 6.2 Enterprise Form Controls (.bs-label, .bs-input, .bs-select, .bs-textarea, .bs-muted) */
+.bs-label {
+    display: block;
+    font-size: 0.79rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    color: #1e293b;
+    margin-bottom: 0.38rem;
+}
+
+.bs-muted {
+    color: #64748b;
+    line-height: 1.5;
+}
+
+.bs-input,
+.bs-select,
+.bs-textarea {
+    display: block;
+    width: 100%;
+    padding: 0.6rem 0.85rem;
+    font-size: 0.9rem;
+    font-family: inherit;
+    line-height: 1.45;
+    color: #0f172a;
+    background-color: #ffffff;
+    border: 1.5px solid #cbd5e1;
+    border-radius: 10px;
+    outline: none;
+    transition: border-color 0.18s ease, box-shadow 0.18s ease, background-color 0.18s ease;
+}
+
+.bs-input::placeholder,
+.bs-textarea::placeholder {
+    color: #94a3b8;
+}
+
+.bs-input:hover,
+.bs-select:hover,
+.bs-textarea:hover {
+    border-color: #94a3b8;
+}
+
+.bs-input:focus,
+.bs-select:focus,
+.bs-textarea:focus {
+    border-color: var(--portal-accent);
+    box-shadow: 0 0 0 3.5px rgba(37, 99, 235, 0.18);
+    background-color: #ffffff;
+}
+
+.bs-textarea {
+    resize: vertical;
+    min-height: 86px;
+}
+
+.bs-select {
+    cursor: pointer;
+    padding-right: 2rem;
+}
+
+/* 6.3 Enterprise Badges (.bs-badge & Variants) */
+.bs-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.32rem;
+    padding: 0.28rem 0.72rem;
+    border-radius: 999px;
+    font-size: 0.74rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    line-height: 1.25;
+    border: 1px solid transparent;
+    white-space: nowrap;
+}
+
+.bs-badge-info {
+    background: linear-gradient(135deg, rgba(219, 234, 254, 0.95), rgba(224, 242, 254, 0.95));
+    color: #1e40af;
+    border-color: rgba(59, 130, 246, 0.35);
+}
+
+.bs-badge-success {
+    background: linear-gradient(135deg, rgba(220, 252, 231, 0.95), rgba(209, 250, 229, 0.95));
+    color: #166534;
+    border-color: rgba(34, 197, 94, 0.35);
+}
+
+.bs-badge-warning {
+    background: linear-gradient(135deg, rgba(254, 243, 199, 0.96), rgba(254, 249, 195, 0.96));
+    color: #92400e;
+    border-color: rgba(245, 158, 11, 0.42);
+}
+
+.bs-badge-danger {
+    background: linear-gradient(135deg, rgba(254, 226, 226, 0.96), rgba(255, 228, 230, 0.96));
+    color: #991b1b;
+    border-color: rgba(239, 68, 68, 0.38);
+}
+
+/* 6.4 Enterprise Buttons (.bs-btn, .bs-btn-primary, .bs-btn-outline) */
+.bs-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.45rem;
+    padding: 0.56rem 1.05rem;
+    border-radius: 10px;
+    font-size: 0.86rem;
+    font-weight: 700;
+    line-height: 1.3;
+    text-decoration: none;
+    cursor: pointer;
+    border: 1.5px solid transparent;
+    transition: transform 0.16s ease, box-shadow 0.18s ease, background 0.18s ease, border-color 0.18s ease, color 0.18s ease;
+    white-space: nowrap;
+}
+
+.bs-btn:disabled {
+    opacity: 0.65;
+    cursor: not-allowed;
+    transform: none !important;
+}
+
+.bs-btn-primary {
+    background: linear-gradient(135deg, var(--portal-grad-mid) 0%, var(--portal-accent) 100%);
+    color: #ffffff;
+    border-color: rgba(29, 78, 216, 0.6);
+    box-shadow: 0 6px 16px rgba(37, 99, 235, 0.25);
+}
+
+.bs-btn-primary:hover,
+.bs-btn-primary:focus {
+    color: #ffffff;
+    transform: translateY(-1px);
+    box-shadow: 0 10px 22px rgba(37, 99, 235, 0.34);
+    filter: brightness(1.06);
+}
+
+.bs-btn-outline {
+    background: rgba(255, 255, 255, 0.85);
+    color: #1e3a8a;
+    border-color: rgba(37, 99, 235, 0.38);
+}
+
+.bs-btn-outline:hover,
+.bs-btn-outline:focus {
+    background: rgba(37, 99, 235, 0.08);
+    color: #1d4ed8;
+    border-color: var(--portal-accent);
+    transform: translateY(-1px);
+}
+
+/* 6.5 Dark Mode Full Compatibility cho toàn bộ hệ .bs-* & S13/S14/S15 */
+[data-bs-theme="dark"] .bs-card {
+    background: linear-gradient(180deg, rgba(30, 41, 59, 0.92) 0%, rgba(15, 23, 42, 0.95) 100%);
+    border-color: rgba(71, 85, 105, 0.72);
+    box-shadow: 0 12px 32px rgba(2, 6, 23, 0.45);
+}
+
+[data-bs-theme="dark"] .bs-card:hover {
+    border-color: rgba(56, 189, 248, 0.45);
+    box-shadow: 0 16px 38px rgba(2, 6, 23, 0.55);
+}
+
+[data-bs-theme="dark"] .bs-label {
+    color: #e2e8f0;
+}
+
+[data-bs-theme="dark"] .bs-muted {
+    color: #94a3b8;
+}
+
+[data-bs-theme="dark"] .bs-input,
+[data-bs-theme="dark"] .bs-select,
+[data-bs-theme="dark"] .bs-textarea {
+    background-color: #0f172a;
+    color: #f1f5f9;
+    border-color: #334155;
+}
+
+[data-bs-theme="dark"] .bs-input::placeholder,
+[data-bs-theme="dark"] .bs-textarea::placeholder {
+    color: #64748b;
+}
+
+[data-bs-theme="dark"] .bs-input:focus,
+[data-bs-theme="dark"] .bs-select:focus,
+[data-bs-theme="dark"] .bs-textarea:focus {
+    background-color: #0f172a;
+    border-color: var(--portal-accent-glow);
+    box-shadow: 0 0 0 3.5px rgba(56, 189, 248, 0.2);
+}
+
+[data-bs-theme="dark"] .bs-select option {
+    background-color: #0f172a;
+    color: #f1f5f9;
+}
+
+[data-bs-theme="dark"] .bs-badge-info {
+    background: rgba(30, 64, 175, 0.35);
+    color: #93c5fd;
+    border-color: rgba(96, 165, 250, 0.42);
+}
+
+[data-bs-theme="dark"] .bs-badge-success {
+    background: rgba(20, 83, 45, 0.42);
+    color: #86efac;
+    border-color: rgba(74, 222, 128, 0.38);
+}
+
+[data-bs-theme="dark"] .bs-badge-warning {
+    background: rgba(120, 53, 15, 0.45);
+    color: #fde68a;
+    border-color: rgba(251, 191, 36, 0.42);
+}
+
+[data-bs-theme="dark"] .bs-badge-danger {
+    background: rgba(127, 29, 29, 0.45);
+    color: #fca5a5;
+    border-color: rgba(248, 113, 113, 0.42);
+}
+
+[data-bs-theme="dark"] .bs-btn-outline {
+    background: rgba(15, 23, 42, 0.65);
+    color: #93c5fd;
+    border-color: rgba(96, 165, 250, 0.4);
+}
+
+[data-bs-theme="dark"] .bs-btn-outline:hover {
+    background: rgba(37, 99, 235, 0.25);
+    color: #e0f2fe;
+    border-color: #38bdf8;
+}
+
+[data-bs-theme="dark"] .s13-kpi,
+[data-bs-theme="dark"] .s13-rag-book,
+[data-bs-theme="dark"] .s14-ai-reason,
+[data-bs-theme="dark"] .s15-leader-row,
+[data-bs-theme="dark"] .s15-pill {
+    background-color: var(--portal-surface-2) !important;
+    border-color: var(--portal-border) !important;
+    color: var(--portal-text) !important;
+}
+
+[data-bs-theme="dark"] .s13-kpi strong,
+[data-bs-theme="dark"] .s13-session-item strong,
+[data-bs-theme="dark"] .s14-stat-box strong,
+[data-bs-theme="dark"] .s14-ai-reason strong,
+[data-bs-theme="dark"] .s15-review-comment,
+[data-bs-theme="dark"] .s15-my-score strong {
+    color: #f1f5f9 !important;
+}
+
+[data-bs-theme="dark"] .s13-kpi span,
+[data-bs-theme="dark"] .s13-session-item small,
+[data-bs-theme="dark"] .s13-rag-book small,
+[data-bs-theme="dark"] .s14-stat-box span,
+[data-bs-theme="dark"] .s14-ai-reason p,
+[data-bs-theme="dark"] .s15-leader-info small,
+[data-bs-theme="dark"] .s15-leader-score small,
+[data-bs-theme="dark"] .s15-review-foot,
+[data-bs-theme="dark"] .s15-my-score span,
+[data-bs-theme="dark"] .s15-my-score small {
+    color: #94a3b8 !important;
+}
+
+[data-bs-theme="dark"] .s14-advice-output {
+    background: rgba(30, 58, 138, 0.28) !important;
+    border-color: rgba(96, 165, 250, 0.4) !important;
+    color: #dbeafe !important;
+}
+
+[data-bs-theme="dark"] .s14-match-pill {
+    background: rgba(55, 48, 163, 0.4) !important;
+    border-color: rgba(129, 140, 248, 0.45) !important;
+    color: #c7d2fe !important;
+}
+
+[data-bs-theme="dark"] .s15-pill.active {
+    background: var(--portal-accent) !important;
+    border-color: var(--portal-accent) !important;
+    color: #ffffff !important;
+}
+
+/* 6.6 [UI-ENTERPRISE] Thanh chọn mật độ kệ sách (3 Cột / 4 Cột / Danh sách ngang) */
+.bs-density-bar {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px;
+    border-radius: 12px;
+    background: var(--portal-surface-2);
+    border: 1px solid var(--portal-border);
+}
+
+.bs-density-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    border: none;
+    background: transparent;
+    color: #475569;
+    font-size: 0.78rem;
+    font-weight: 700;
+    padding: 5px 11px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.16s ease;
+    white-space: nowrap;
+}
+
+.bs-density-btn:hover {
+    color: var(--portal-accent);
+    background: rgba(37, 99, 235, 0.08);
+}
+
+.bs-density-btn.active {
+    background: linear-gradient(135deg, var(--portal-grad-mid), var(--portal-accent));
+    color: #ffffff;
+    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.28);
+}
+
+[data-bs-theme="dark"] .bs-density-btn {
+    color: #cbd5e1;
+}
+
+[data-bs-theme="dark"] .bs-density-btn.active {
+    color: #ffffff;
+}
+
+/* Mật độ 4 cột: ảnh bìa gọn hơn một chút để cân đối tỷ lệ */
+.bs-shelf-grid.is-density-4 .book-cover {
+    height: 185px;
+}
+
+/* Mật độ Danh sách ngang (Horizontal List View) */
+.bs-shelf-grid.is-density-list .bs-book-col {
+    flex: 0 0 100%;
+    max-width: 100%;
+    width: 100%;
+}
+
+@media (min-width: 768px) {
+    .bs-shelf-grid.is-density-list .book-card {
+        flex-direction: row;
+        align-items: stretch;
+    }
+
+    .bs-shelf-grid.is-density-list .bs-book-cover-wrap {
+        flex: 0 0 220px;
+        max-width: 220px;
+    }
+
+    .bs-shelf-grid.is-density-list .book-cover {
+        height: 100%;
+        min-height: 230px;
+    }
+}
+
+/* 6.7 [UI-ENTERPRISE] Empty State Chuyên nghiệp (Khi CSDL Trắng hoặc Bộ lọc Trống) */
+.bs-empty-state {
+    position: relative;
+    overflow: hidden;
+    text-align: center;
+    padding: 3.25rem 1.75rem;
+    border-radius: 20px;
+    border: 1.5px dashed rgba(37, 99, 235, 0.38);
+    background: radial-gradient(circle at top center, rgba(37, 99, 235, 0.08), transparent 62%),
+                linear-gradient(180deg, rgba(248, 250, 252, 0.95), rgba(241, 245, 249, 0.85));
+}
+
+[data-bs-theme="dark"] .bs-empty-state {
+    border-color: rgba(56, 189, 248, 0.35);
+    background: radial-gradient(circle at top center, rgba(56, 189, 248, 0.12), transparent 65%),
+                linear-gradient(180deg, rgba(30, 41, 59, 0.85), rgba(15, 23, 42, 0.92));
+}
+
+.bs-empty-icon {
+    width: 78px;
+    height: 78px;
+    margin: 0 auto 1.1rem;
+    border-radius: 22px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2.2rem;
+    color: #ffffff;
+    background: linear-gradient(135deg, #0f172a 0%, #1e3a8a 52%, #2563eb 100%);
+    box-shadow: 0 14px 28px rgba(30, 58, 138, 0.28);
+}
+
+.bs-empty-state h4 {
+    font-weight: 800;
+    margin-bottom: 0.5rem;
+}
+
+.bs-empty-state p {
+    max-width: 580px;
+    margin: 0 auto 1.4rem;
+    font-size: 0.92rem;
+}
+
+/* SPRINT 3: AI COPILOT CLIENT COMMAND CHIPS & 1-TAP ACTION CARDS */
+.ai-copilot-extras {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-top: 10px;
+}
+
+.ai-cmd-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.ai-cmd-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 5px 11px;
+    font-size: 0.78rem;
+    font-weight: 600;
+    border-radius: 999px;
+    border: 1px solid rgba(37, 99, 235, 0.35);
+    background: #eff6ff;
+    color: #1d4ed8;
+    cursor: pointer;
+    transition: background 0.15s ease, transform 0.15s ease;
+}
+.ai-cmd-chip:hover {
+    background: #dbeafe;
+    transform: translateY(-1px);
+}
+
+.ai-action-card {
+    background: var(--portal-surface, #ffffff);
+    color: var(--portal-text, #1e293b);
+    border: 1px solid rgba(37, 99, 235, 0.25);
+    border-left: 4px solid #2563eb;
+    border-radius: 12px;
+    padding: 10px 12px;
+    box-shadow: 0 4px 12px rgba(15, 23, 42, 0.06);
+}
+
+.ai-action-card-title {
+    font-weight: 700;
+    font-size: 0.86rem;
+    color: #1e3a8a;
+    margin-bottom: 2px;
+}
+
+.ai-action-card-desc {
+    font-size: 0.79rem;
+    color: #475569;
+    margin-bottom: 8px;
+}
+
+[data-bs-theme="dark"] .ai-cmd-chip {
+    background: rgba(37, 99, 235, 0.2);
+    color: #93c5fd;
+    border-color: rgba(147, 197, 253, 0.35);
+}
+
+[data-bs-theme="dark"] .ai-action-card {
+    background: #1e293b;
+    color: #e2e8f0;
+    border-color: rgba(96, 165, 250, 0.35);
+}
+
+[data-bs-theme="dark"] .ai-action-card-title {
+    color: #93c5fd;
+}
+
+[data-bs-theme="dark"] .ai-action-card-desc {
+    color: #cbd5e1;
+}
+
+/* =========================================================================
+   SPRINT 3.6: THANH ĐIỀU HƯỚNG ĐÁY CHO DI ĐỘNG & BOOKSHARE ANDROID APP
+   ========================================================================= */
+.mobile-bottom-nav {
+    display: none;
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 1045;
+    background: rgba(255, 255, 255, 0.96);
+    backdrop-filter: blur(10px);
+    border-top: 1px solid #e2e8f0;
+    box-shadow: 0 -6px 20px rgba(15, 23, 42, 0.08);
+    padding: 6px 8px calc(6px + env(safe-area-inset-bottom, 0px));
+    justify-content: space-around;
+    align-items: center;
+    gap: 4px;
+}
+
+@media (max-width: 767.98px) {
+    .mobile-bottom-nav {
+        display: flex;
+    }
+
+    body {
+        padding-bottom: 78px;
+    }
+
+    .ai-chat-widget {
+        bottom: 84px !important;
+    }
+}
+
+body.is-mobile-app .mobile-bottom-nav {
+    display: flex;
+}
+
+body.is-mobile-app {
+    padding-bottom: 82px;
+}
+
+body.is-mobile-app .ai-chat-widget {
+    bottom: 86px !important;
+}
+
+.mobile-nav-item {
+    flex: 1 1 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    text-decoration: none;
+    color: #475569;
+    font-size: 0.7rem;
+    font-weight: 600;
+    padding: 4px 2px;
+    border-radius: 10px;
+    transition: color 0.15s ease, background-color 0.15s ease;
+}
+
+.mobile-nav-item i {
+    font-size: 1.15rem;
+}
+
+.mobile-nav-item:hover,
+.mobile-nav-item.is-active {
+    color: #2563eb;
+    background: rgba(37, 99, 235, 0.08);
+}
+
+.mobile-nav-qr-btn {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    border: 3px solid #ffffff;
+    background: linear-gradient(135deg, #2563eb, #1d4ed8);
+    color: #ffffff;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.25rem;
+    box-shadow: 0 6px 16px rgba(37, 99, 235, 0.35);
+    transform: translateY(-10px);
+    flex-shrink: 0;
+}
+
+.mobile-nav-badge {
+    position: absolute;
+    top: 2px;
+    right: calc(50% - 18px);
+    min-width: 17px;
+    height: 17px;
+    padding: 0 4px;
+    border-radius: 999px;
+    background: #ef4444;
+    color: #ffffff;
+    font-size: 0.65rem;
+    font-weight: 700;
+    line-height: 17px;
+    text-align: center;
+}
+
+[data-bs-theme="dark"] .mobile-bottom-nav {
+    background: rgba(15, 23, 42, 0.96);
+    border-top-color: #334155;
+}
+
+[data-bs-theme="dark"] .mobile-nav-item {
+    color: #cbd5e1;
+}
+
+[data-bs-theme="dark"] .mobile-nav-item:hover,
+[data-bs-theme="dark"] .mobile-nav-item.is-active {
+    color: #93c5fd;
+    background: rgba(59, 130, 246, 0.15);
+}
+
+[data-bs-theme="dark"] .mobile-nav-qr-btn {
+    border-color: #0f172a;
+}

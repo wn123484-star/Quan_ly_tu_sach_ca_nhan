@@ -1,0 +1,17 @@
+/* =========================================================================
+   S20: EXCHANGE HUB & BOOK CLUB CURATOR STYLES
+   ========================================================================= */
+.s20-hero {
+    background: linear-gradient(135deg, var(--portal-surface) 0%, var(--portal-surface-2) 100%);
+    border-left: 6px solid #1e3a8a !important;
+}
+
+.s20-hub-badge {
+    background: linear-gradient(135deg, #060d1f 0%, #0f172a 52%, #1e3a8a 100%);
+    border: 1.5px solid rgba(56, 189, 248, 0.45);
+    color: #ffffff;
+    padding: 12px 20px;
+    border-radius: 14px;
+    min-width: 260px;
+    box-shadow: 0 10px 24px rgba(6, 13, 31, 0.25);
+}

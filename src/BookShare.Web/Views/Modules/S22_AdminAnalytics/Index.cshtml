@@ -1,0 +1,306 @@
+@model BookShare.Web.Models.ViewModels.S22AdminAnalyticsPageViewModel
+@{
+    ViewData["Title"] = "Trung Tâm Điều Hành Quản Trị Hệ Thống, Phân Quyền & Giám Sát Tự Động";
+}
+
+@section Styles {
+    <link rel="stylesheet" href="~/modules/s22-admin-analytics/s22-admin-analytics.css" asp-append-version="true" />
+}
+
+@if (Model.CurrentUserRole != "Admin")
+{
+    <div class="card border-0 shadow-sm rounded-4 p-5 text-center my-4">
+        <div class="mb-3"><i class="bi bi-shield-lock-fill text-danger" style="font-size: 2.5rem;"></i></div>
+        <h4 class="fw-bold mb-2">Khu vực Trung Tâm Quản Trị Hệ Thống</h4>
+        <p class="text-muted mb-4">Chỉ tài khoản Quản trị viên mới có quyền truy cập số liệu vận hành, phân quyền tài khoản và điều khiển tác vụ tự động.</p>
+        <div>
+            <a asp-controller="S01AuthOtpGoogle" asp-action="Index" class="btn btn-primary fw-semibold px-4">
+                <i class="bi bi-box-arrow-in-right me-1"></i>Đăng nhập tài khoản Quản trị viên
+            </a>
+        </div>
+    </div>
+    return;
+}
+
+<section class="s22-hero card border-0 shadow-sm rounded-4 p-4 mb-4" data-report-section>
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
+        <div>
+            <span class="badge bg-primary mb-2 px-3 py-1 rounded-pill">TRUNG TÂM ĐIỀU HÀNH TOÀN HỆ THỐNG</span>
+            <h2 class="fw-bold mb-1">📊 Trung Tâm Quản Trị Hệ Thống, Thống Kê &amp; Tác Vụ Tự Động</h2>
+            <p class="text-muted small mb-0">
+                Tổng hợp báo cáo lưu thông kho sách và mượn trả cộng đồng, đối soát phí hội viên &amp; phí trễ hạn, quản lý phân quyền thành viên và điều phối các tác vụ định kỳ hằng ngày.
+            </p>
+        </div>
+        <div class="s22-admin-pill">
+            <div class="small opacity-75">Quyền truy cập hiện tại: <strong>@Model.CurrentUserRole</strong></div>
+            <div class="fs-5 fw-bold">@Model.TotalUsers Thành Viên • @Model.TotalCopies Bản Sao</div>
+            <small>Tổng thu Gói & Phạt: <strong>@((Model.TotalMembershipRevenue + Model.TotalFineRevenue).ToString("N0")) VNĐ</strong></small>
+            <button type="button" id="btnExportS22Pdf" class="btn btn-light btn-sm fw-bold w-100 mt-2" data-report-ignore>
+                <i class="bi bi-file-earmark-pdf-fill text-danger me-1"></i>Xuất Báo Cáo PDF
+            </button>
+        </div>
+    </div>
+</section>
+
+<!-- 4 THẺ KPI TOÀN HỆ THỐNG -->
+<div class="row g-3 mb-4" data-report-section>
+    <div class="col-md-3">
+        <div class="card border-0 shadow-sm rounded-4 p-3 bg-white h-100">
+            <small class="text-muted fw-semibold">Doanh thu Thẻ Premium &amp; Ví Bảo Lãnh</small>
+            <h3 class="fw-bold text-primary mb-0">@Model.TotalMembershipRevenue.ToString("N0") đ</h3>
+            <small class="text-secondary">Ký quỹ cọc: @Model.TotalSimulatedDeposits.ToString("N0") đ</small>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-0 shadow-sm rounded-4 p-3 bg-white h-100">
+            <small class="text-muted fw-semibold">Thu phí phạt trễ hạn &amp; Đền bù</small>
+            <h3 class="fw-bold text-danger mb-0">@Model.TotalFineRevenue.ToString("N0") đ</h3>
+            <small class="text-secondary">Tranh chấp chờ xử lý: @Model.TotalOpenDisputes hồ sơ</small>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-0 shadow-sm rounded-4 p-3 bg-white h-100">
+            <small class="text-muted fw-semibold">Tỷ lệ mượn Kho chung vs Cộng đồng</small>
+            <h3 class="fw-bold text-success mb-0">@Model.LibraryLoansCount Kho / @Model.P2PLoansCount Cộng đồng</h3>
+            <small class="text-secondary">Tổng hợp đồng mượn: @Model.TotalLoans</small>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-0 shadow-sm rounded-4 p-3 bg-white h-100">
+            <small class="text-muted fw-semibold">Kho sách &amp; Trợ lý đọc sách</small>
+            <h3 class="fw-bold text-dark mb-0">@Model.TotalBooks Đầu sách (@Model.TotalCopies bản)</h3>
+            <small class="text-primary fw-semibold">@Model.TotalAiMessages lượt tư vấn AI</small>
+        </div>
+    </div>
+</div>
+
+<!-- BIỂU ĐỒ THỐNG KÊ TỶ LỆ MƯỢN & TÀI CHÍNH -->
+<div class="row g-4 mb-4" data-report-section
+     id="s22ChartData"
+     data-lib-loans="@Model.LibraryLoansCount"
+     data-p2p-loans="@Model.P2PLoansCount"
+     data-avail-copies="@Model.AvailableCopiesCount"
+     data-borrowed-copies="@Model.BorrowedCopiesCount"
+     data-reserved-copies="@Model.ReservedCopiesCount"
+     data-damaged-copies="@Model.DamagedOrLostCopiesCount"
+     data-rev-membership="@Model.TotalMembershipRevenue"
+     data-rev-fine="@Model.TotalFineRevenue"
+     data-rev-deposit="@Model.TotalSimulatedDeposits">
+    <div class="col-lg-6">
+        <div class="card border-0 shadow-sm rounded-4 p-4 bg-white h-100">
+            <h6 class="fw-bold mb-3"><i class="bi bi-pie-chart-fill text-primary me-2"></i>Biểu Đồ Tỷ Lệ Mượn Kho Chung vs Cộng Đồng &amp; Phân Bổ Bản Sao</h6>
+            <div style="height: 250px;">
+                <canvas id="chartLoanAndCopyDistribution"></canvas>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-6">
+        <div class="card border-0 shadow-sm rounded-4 p-4 bg-white h-100">
+            <h6 class="fw-bold mb-3"><i class="bi bi-bar-chart-fill text-success me-2"></i>Biểu Đồ Tài Chính (Gói Premium, Phí Trễ &amp; Cọc Bảo Đảm)</h6>
+            <div style="height: 250px;">
+                <canvas id="chartRevenueBreakdown"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-4 mb-4">
+    <!-- BẢNG QUẢN LÝ TÀI KHOẢN, KHÓA/MỞ KHÓA & PHÂN QUYỀN -->
+    <div class="col-lg-7">
+        <div class="card border-0 shadow-sm rounded-4 bg-white h-100">
+            <div class="card-body p-4">
+                <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+                    <div>
+                        <h5 class="fw-bold mb-0"><i class="bi bi-people-fill text-primary me-2"></i>Quản Lý Tài Khoản, Khóa/Mở Khóa &amp; Phân Quyền</h5>
+                        <small class="text-muted">Chỉ Quản trị viên hệ thống có quyền thay đổi vai trò hoặc tạm khóa tài khoản</small>
+                    </div>
+                    <span class="badge bg-primary">@Model.Users.Count tài khoản</span>
+                </div>
+
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle small mb-0 table-mobile-cards">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Họ tên &amp; Email</th>
+                                <th>Uy tín / Gói</th>
+                                <th>Phân quyền</th>
+                                <th>Trạng thái Khóa</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var u in Model.Users)
+                            {
+                                <tr>
+                                    <td>
+                                        <div class="fw-bold">@u.FullName</div>
+                                        <small class="text-muted">@u.Email</small>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-warning text-dark">Trust: @u.TrustScore</span>
+                                        <span class="badge @(u.MembershipTier == "Premium" ? "bg-primary" : "bg-secondary")">@u.MembershipTier</span>
+                                    </td>
+                                    <td>
+                                        <div class="d-flex gap-1">
+                                            <select class="form-select form-select-sm js-role-select" data-user-id="@u.UserId" style="width:115px;">
+                                                <option value="User" selected="@(u.RoleName == "User")">User</option>
+                                                <option value="Curator" selected="@(u.RoleName == "Curator")">Curator</option>
+                                                <option value="Librarian" selected="@(u.RoleName == "Librarian")">Librarian</option>
+                                                <option value="Admin" selected="@(u.RoleName == "Admin")">Admin</option>
+                                            </select>
+                                            <button type="button" class="btn btn-xs btn-primary fw-bold js-btn-save-role" data-user-id="@u.UserId">
+                                                Lưu
+                                            </button>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        @if (u.IsLockedOut)
+                                        {
+                                            <button type="button" class="btn btn-xs btn-success fw-bold js-btn-toggle-lock"
+                                                    data-user-id="@u.UserId" data-lock="false">
+                                                <i class="bi bi-unlock-fill me-1"></i>Mở khóa
+                                            </button>
+                                        }
+                                        else
+                                        {
+                                            <button type="button" class="btn btn-xs btn-outline-danger fw-semibold js-btn-toggle-lock"
+                                                    data-user-id="@u.UserId" data-lock="true">
+                                                <i class="bi bi-lock-fill me-1"></i>Khóa TK
+                                            </button>
+                                        }
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- BẢNG ĐIỀU KHIỂN DỮ LIỆU MẪU SQL, HANGFIRE DAILY JOBS & NHẬT KÝ HỆ THỐNG -->
+    <div class="col-lg-5 d-flex flex-column gap-4">
+        <!-- [LOCKED-DESIGN] TRẠM QUẢN TRỊ DỮ LIỆU MẪU SQL & LÀM SẠCH HỆ THỐNG CHO ADMIN -->
+        <div class="card border-0 shadow-sm rounded-4 bg-white border-start border-4 border-primary">
+            <div class="card-body p-4">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <h5 class="fw-bold mb-0"><i class="bi bi-database-fill-gear text-primary me-2"></i>Khôi Phục &amp; Làm Sạch Dữ Liệu Hệ Thống</h5>
+                    <span class="badge bg-dark">Quản trị dữ liệu</span>
+                </div>
+                <p class="small text-muted mb-3">
+                    Quản trị viên có thể khôi phục bộ dữ liệu cộng đồng tiêu chuẩn hoặc làm sạch các giao dịch để bắt đầu chu kỳ vận hành mới:
+                </p>
+                <div class="d-grid gap-2">
+                    <button type="button" class="btn btn-primary btn-sm fw-bold text-start p-2 rounded-3 js-manage-sample-data"
+                            data-mode="SeedSampleData"
+                            data-confirm-title="Khôi phục bộ dữ liệu cộng đồng tiêu chuẩn?"
+                            data-confirm-text="Hệ thống sẽ nạp lại đầy đủ 6 tài khoản 4 vai trò, 35 đầu sách và 55 bản sao vật lý chuẩn.">
+                        <i class="bi bi-cloud-download-fill me-1"></i>1. Khôi Phục Bộ Dữ Liệu Cộng Đồng Chuẩn (35 Sách &amp; 55 Bản Sao)
+                    </button>
+                    <button type="button" class="btn btn-outline-primary btn-sm fw-bold text-start p-2 rounded-3 js-manage-sample-data"
+                            data-mode="ResetTransactions"
+                            data-confirm-title="Làm sạch Giao dịch — Giữ nguyên Kho sách?"
+                            data-confirm-text="Xóa toàn bộ đơn mượn, hợp đồng, tranh chấp, đánh giá, thông báo và đặt lại 100% bản sao sách về Sẵn sàng.">
+                        <i class="bi bi-arrow-counterclockwise me-1"></i>2. Làm Sạch Giao Dịch — Giữ Nguyên Kho Sách &amp; Tài Khoản
+                    </button>
+                    <button type="button" class="btn btn-outline-danger btn-sm fw-bold text-start p-2 rounded-3 js-manage-sample-data"
+                            data-mode="FactoryClean"
+                            data-confirm-title="Đưa hệ thống về trạng thái trống ban đầu?"
+                            data-confirm-text="Xóa toàn bộ sách, bản sao, kệ sách, giao dịch và tài khoản thành viên (chỉ giữ lại Quản trị viên gốc và 3 điểm trạm).">
+                        <i class="bi bi-trash3-fill me-1"></i>3. Đưa Hệ Thống Về Trạng Thái Trắng Ban Đầu
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- BẢNG ĐIỀU KHIỂN TÁC VỤ TỰ ĐỘNG HẰNG NGÀY -->
+        <div class="card border-0 shadow-sm rounded-4 bg-white">
+            <div class="card-body p-4">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <div>
+                        <h5 class="fw-bold mb-0"><i class="bi bi-gear-wide-connected text-primary me-2"></i>Tác Vụ Tự Động Hằng Ngày</h5>
+                        <small class="text-muted">Lịch chạy định kỳ &amp; Kích hoạt kiểm tra tức thì</small>
+                    </div>
+                    <button type="button" class="btn btn-xs btn-warning fw-bold text-dark js-trigger-job" data-job="AllDailyJobs">
+                        <i class="bi bi-play-circle-fill me-1"></i>Chạy Tất Cả Tác Vụ
+                    </button>
+                </div>
+
+                <div class="d-flex flex-column gap-2">
+                    @foreach (var job in Model.BackgroundJobs)
+                    {
+                        <div class="p-3 rounded-3 border bg-light small">
+                            <div class="d-flex justify-content-between align-items-center mb-1">
+                                <strong class="text-primary">@job.JobName</strong>
+                                <span class="badge bg-success">@job.CronSchedule</span>
+                            </div>
+                            <p class="text-muted mb-2">@job.Description</p>
+                            <button type="button" class="btn btn-xs btn-outline-primary fw-bold js-trigger-job" data-job="@job.JobKey">
+                                <i class="bi bi-lightning-fill me-1"></i>Chạy Ngay
+                            </button>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+
+        <!-- ĐỀ NGHỊ NÂNG QUYỀN CHỦ NHIỆM CLB (CURATOR) -->
+        <div class="card border-0 shadow-sm rounded-4 bg-white border-start border-4 border-warning">
+            <div class="card-body p-4">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <h5 class="fw-bold mb-0"><i class="bi bi-person-badge-fill text-warning me-2"></i>Xét Duyệt Chủ Nhiệm CLB</h5>
+                    <span class="badge bg-warning text-dark">@Model.PendingRoleUpgrades.Count chờ duyệt</span>
+                </div>
+                @if (!Model.PendingRoleUpgrades.Any())
+                {
+                    <p class="small text-muted mb-0">Hiện chưa có đề nghị nâng quyền Chủ nhiệm CLB nào đang chờ duyệt.</p>
+                }
+                else
+                {
+                    <div class="d-flex flex-column gap-2">
+                        @foreach (var req in Model.PendingRoleUpgrades)
+                        {
+                            <div class="p-3 rounded-3 border bg-light small" data-upgrade-id="@req.Id">
+                                <div class="fw-bold text-dark">@req.UserFullName (@req.UserEmail)</div>
+                                <div class="text-primary fw-semibold">@req.OrganizationName</div>
+                                <p class="text-muted mb-2">@req.Reason</p>
+                                <div class="d-flex gap-2">
+                                    <button type="button" class="btn btn-xs btn-success fw-bold js-btn-review-upgrade" data-id="@req.Id" data-approve="true">
+                                        <i class="bi bi-check2-circle me-1"></i>Phê duyệt
+                                    </button>
+                                    <button type="button" class="btn btn-xs btn-outline-danger fw-semibold js-btn-review-upgrade" data-id="@req.Id" data-approve="false">
+                                        <i class="bi bi-x-circle me-1"></i>Từ chối
+                                    </button>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                }
+            </div>
+        </div>
+
+        <!-- NHẬT KÝ HOẠT ĐỘNG HỆ THỐNG -->
+        <div class="card border-0 shadow-sm rounded-4 bg-white flex-fill">
+            <div class="card-body p-4">
+                <h5 class="fw-bold mb-3"><i class="bi bi-clock-history text-secondary me-2"></i>Nhật Ký Hoạt Động Hệ Thống</h5>
+                <div class="d-flex flex-column gap-2" style="max-height: 290px; overflow-y: auto;">
+                    @foreach (var log in Model.AuditLogs)
+                    {
+                        <div class="p-2 rounded-3 border-bottom small">
+                            <div class="d-flex justify-content-between">
+                                <span class="badge bg-dark">@log.Category</span>
+                                <small class="text-muted">@log.Timestamp.ToString("dd/MM HH:mm")</small>
+                            </div>
+                            <div class="mt-1">
+                                <strong>@log.ActorName:</strong> <span class="text-secondary">@log.Summary</span>
+                            </div>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script type="module" src="~/modules/s22-admin-analytics/s22-admin-analytics.js" asp-append-version="true"></script>
+}

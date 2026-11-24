@@ -1,0 +1,35 @@
+/* =========================================================================
+   MODULE S08: LIBRARY LOAN FLOW (s08-library-loan-flow.css)
+   ========================================================================= */
+
+.s08-quota-badge {
+    background-color: var(--portal-surface-2);
+    border: 1px solid var(--portal-border);
+    border-radius: 999px;
+    padding: 0.35rem 0.9rem;
+    font-size: 0.83rem;
+}
+
+.s08-request-box {
+    background: linear-gradient(135deg, #EFF6FF 0%, var(--portal-surface-2) 100%);
+    border: 1px dashed #60A5FA;
+}
+
+.s08-flow-card {
+    background-color: var(--portal-surface);
+    border: 1.5px solid var(--portal-border);
+    border-left: 5px solid #1E3A8A;
+    transition: transform 0.18s ease, box-shadow 0.18s ease;
+}
+
+.s08-flow-card:hover {
+    box-shadow: 0 8px 20px rgba(15, 23, 42, 0.06);
+}
+
+.s08-cover-thumb {
+    width: 54px;
+    height: 76px;
+    object-fit: cover;
+    border-radius: 8px;
+    flex-shrink: 0;
+}

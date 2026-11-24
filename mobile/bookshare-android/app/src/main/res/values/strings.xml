@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">BookShare</string>
+    <string name="notif_channel_name">Thông báo BookShare</string>
+    <string name="notif_channel_desc">Nhắc hạn trả sách, phê duyệt mượn trả và cảnh báo tài khoản</string>
+</resources>

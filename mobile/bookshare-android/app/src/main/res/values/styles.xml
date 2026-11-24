@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.BookShare.Light" parent="Theme.AppCompat.Light.NoActionBar">
+        <item name="colorPrimary">@color/bookshare_primary</item>
+        <item name="colorPrimaryDark">@color/bookshare_primary_dark</item>
+        <item name="colorAccent">@color/bookshare_primary</item>
+        <item name="android:windowBackground">@color/bookshare_bg_light</item>
+        <item name="android:statusBarColor">@color/bookshare_bg_light</item>
+        <item name="android:navigationBarColor">#FFFFFF</item>
+        <item name="android:windowLightStatusBar">true</item>
+    </style>
+</resources>

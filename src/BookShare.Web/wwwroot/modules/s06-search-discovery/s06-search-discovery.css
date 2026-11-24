@@ -1,0 +1,41 @@
+/* =========================================================================
+   MODULE S06: SEARCH & DISCOVERY (s06-search-discovery.css)
+   ========================================================================= */
+
+.s06-stat-chip {
+    background-color: var(--portal-surface-2);
+    border: 1px solid var(--portal-border);
+    border-radius: 999px;
+    padding: 0.35rem 0.85rem;
+    font-size: 0.83rem;
+}
+
+.s06-filter-box {
+    background-color: var(--portal-surface-2);
+    border: 1px solid var(--portal-border);
+}
+
+.s06-copy-card {
+    background-color: var(--portal-surface);
+    border: 1.5px solid var(--portal-border);
+    border-top: 4px solid #1E3A8A;
+    transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+}
+
+.s06-copy-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 12px 26px rgba(15, 23, 42, 0.08) !important;
+}
+
+.s06-book-cover {
+    width: 78px;
+    height: 112px;
+    object-fit: cover;
+    border-radius: 8px;
+    flex-shrink: 0;
+}
+
+.s06-meta-panel {
+    background-color: var(--portal-surface-2);
+    border: 1px solid var(--portal-border);
+}
