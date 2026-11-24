@@ -242,6 +242,8 @@ public class S18NotificationHubPageViewModel
 {
     public string CurrentUserId { get; set; } = string.Empty;
     public string CurrentUserName { get; set; } = string.Empty;
+    public string CurrentUserEmail { get; set; } = string.Empty;
+    public bool EmailConfirmed { get; set; }
     public int TotalCount { get; set; }
     public int UnreadCount { get; set; }
     public int EmailSentCount { get; set; }

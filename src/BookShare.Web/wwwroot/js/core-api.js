@@ -451,35 +451,63 @@ export async function openBarcodeScanner({ title = 'Quét Mã QR / Mã Vạch B�
     let cameraActive = false;
 
     let useDeviceId = false;
+    let isClosing = false;
+
+    const releaseVideoTracks = () => {
+        const container = document.getElementById('bsBarcodeReader');
+        if (!container) return;
+        container.querySelectorAll('video').forEach(video => {
+            try {
+                const stream = video.srcObject;
+                if (stream && typeof stream.getTracks === 'function') {
+                    stream.getTracks().forEach(track => {
+                        try { track.stop(); } catch { /* bỏ qua */ }
+                    });
+                }
+                video.srcObject = null;
+            } catch { /* bỏ qua */ }
+        });
+    };
 
     const stop = async () => {
-        if (cameraActive && scanner?.isScanning) {
-            try { await scanner.stop(); } catch { /* camera đã tắt */ }
+        if (scanner) {
+            try {
+                if (cameraActive || scanner.isScanning) {
+                    await scanner.stop();
+                }
+            } catch { /* camera đã tắt */ }
+            try { scanner.clear(); } catch { /* bỏ qua */ }
         }
         cameraActive = false;
-        try { scanner?.clear(); } catch { /* bỏ qua */ }
+        releaseVideoTracks();
     };
 
     const scannerConfig = {
         fps: 12,
-        qrbox: (w, h) => ({ width: Math.min(280, Math.max(160, w * 0.8)), height: Math.min(200, Math.max(140, h * 0.65)) })
+        aspectRatio: 1.0,
+        qrbox: (w, h) => {
+            const side = Math.max(150, Math.min(230, Math.round(Math.min(w, h) * 0.72)));
+            return { width: side, height: side };
+        }
     };
 
     const onDecodeSuccess = (decodedText) => {
+        if (isClosing) return;
+        isClosing = true;
         scannedText = decodedText.trim();
         window.BookShareAndroidBridge?.vibrateShort?.();
-        window.Swal.close();
+        stop().finally(() => window.Swal.close());
     };
 
     const startCamera = async () => {
-        if (!scanner) return;
+        if (!scanner || isClosing) return;
         const statusEl = document.getElementById('bsScannerStateMsg');
         const settingsBtn = document.getElementById('bsBtnOpenCamSettings');
         if (settingsBtn) settingsBtn.classList.add('d-none');
-        if (statusEl) statusEl.innerText = 'Đang khởi động máy ảnh...';
+        if (statusEl) statusEl.innerText = 'Đang tự động bật máy ảnh...';
 
         try {
-            // Ưu tiên mở trực tiếp camera sau ({ facingMode: 'environment' }) trong 1 lần xin quyền duy nhất
+            // Chủ động mở trực tiếp camera sau ({ facingMode: 'environment' }) — xin quyền ngay khi cần
             const cameraTarget = (useDeviceId && cameras.length > 0 && cameras[camIdx]?.id)
                 ? cameras[camIdx].id
                 : { facingMode };
@@ -493,7 +521,6 @@ export async function openBarcodeScanner({ title = 'Quét Mã QR / Mã Vạch B�
                 if (isDenied || !window.Html5Qrcode?.getCameras) {
                     throw primaryErr;
                 }
-                // Dự phòng trên thiết bị 1 camera / webcam máy tính không nhận facingMode
                 cameras = await window.Html5Qrcode.getCameras();
                 if (!cameras.length) throw primaryErr;
                 const backIdx = cameras.findIndex(c => /back|rear|environment/i.test(c.label || ''));
@@ -502,10 +529,15 @@ export async function openBarcodeScanner({ title = 'Quét Mã QR / Mã Vạch B�
                 await scanner.start(cameras[camIdx].id, scannerConfig, onDecodeSuccess, () => { /* tiếp tục quét khung hình */ });
             }
 
+            if (isClosing) {
+                await stop();
+                return;
+            }
             cameraActive = true;
-            if (statusEl) statusEl.innerText = 'Camera đang hoạt động. Hướng vào mã QR hoặc mã vạch.';
+            if (statusEl) statusEl.innerText = 'Camera đang hoạt động. Đưa mã QR hoặc mã vạch vào giữa khung vuông.';
         } catch (err) {
             cameraActive = false;
+            releaseVideoTracks();
             const errText = String(err?.message || err || '');
             const isDenied = /NotAllowed|PermissionDenied|permission|denied/i.test(`${err?.name || ''} ${errText}`);
             if (statusEl) {
@@ -519,12 +551,30 @@ export async function openBarcodeScanner({ title = 'Quét Mã QR / Mã Vạch B�
         }
     };
 
+    const onEscKey = (ev) => {
+        if (ev.key === 'Escape') {
+            isClosing = true;
+            stop();
+        }
+    };
+    const onPageExit = () => {
+        isClosing = true;
+        releaseVideoTracks();
+        stop();
+    };
+
+    document.addEventListener('keydown', onEscKey, true);
+    window.addEventListener('pagehide', onPageExit);
+    window.addEventListener('beforeunload', onPageExit);
     window.BookShareAndroidBridge?.setPullToRefreshEnabled?.(false);
+
     try {
         await window.Swal.fire({
             title,
             html: `
-                <div id="bsBarcodeReader" style="width:100%;min-height:220px;border-radius:12px;overflow:hidden;background:#f1f5f9;border:1px solid #cbd5e1"></div>
+                <div class="d-flex justify-content-center">
+                    <div id="bsBarcodeReader" class="bs-qr-scanner-stage"></div>
+                </div>
                 <div id="bsScannerStateMsg" class="small text-muted mt-2">${hint}</div>
                 <div class="mt-2">
                     <button type="button" id="bsBtnOpenCamSettings" class="btn btn-sm btn-warning fw-bold d-none">
@@ -532,7 +582,6 @@ export async function openBarcodeScanner({ title = 'Quét Mã QR / Mã Vạch B�
                     </button>
                 </div>
                 <div class="d-flex flex-wrap justify-content-center gap-2 mt-2">
-                    <button type="button" id="bsBtnToggleCam" class="btn btn-sm btn-outline-primary"><i class="bi bi-camera-video me-1"></i>Bật/Tắt Camera</button>
                     <button type="button" id="bsBtnSwitchCam" class="btn btn-sm btn-outline-secondary"><i class="bi bi-arrow-repeat me-1"></i>Đổi Camera</button>
                     <button type="button" id="bsBtnFlashCam" class="btn btn-sm btn-outline-warning text-dark"><i class="bi bi-lightning-charge me-1"></i>Đèn Flash</button>
                     <label class="btn btn-sm btn-outline-success mb-0" style="cursor:pointer;">
@@ -547,6 +596,7 @@ export async function openBarcodeScanner({ title = 'Quét Mã QR / Mã Vạch B�
             showCancelButton: true,
             showConfirmButton: false,
             cancelButtonText: 'Đóng',
+            allowEscapeKey: true,
             ...swalThemeOptions(),
             didOpen: async () => {
                 scanner = new window.Html5Qrcode('bsBarcodeReader', {
@@ -558,16 +608,6 @@ export async function openBarcodeScanner({ title = 'Quét Mã QR / Mã Vạch B�
 
                 document.getElementById('bsBtnOpenCamSettings')?.addEventListener('click', () => {
                     window.BookShareAndroidBridge?.openAppSettings?.();
-                });
-
-                document.getElementById('bsBtnToggleCam')?.addEventListener('click', async () => {
-                    const statusEl = document.getElementById('bsScannerStateMsg');
-                    if (cameraActive) {
-                        await stop();
-                        if (statusEl) statusEl.innerText = 'Đã tạm tắt camera.';
-                    } else {
-                        await startCamera();
-                    }
                 });
 
                 document.getElementById('bsBtnSwitchCam')?.addEventListener('click', async () => {
@@ -605,6 +645,7 @@ export async function openBarcodeScanner({ title = 'Quét Mã QR / Mã Vạch B�
                         const decoded = await scanner.scanFile(file, true);
                         scannedText = String(decoded || '').trim();
                         window.BookShareAndroidBridge?.vibrateShort?.();
+                        isClosing = true;
                         window.Swal.close();
                     } catch {
                         if (statusEl) statusEl.innerText = 'Không đọc được mã QR hoặc mã vạch từ ảnh đã chọn.';
@@ -615,12 +656,24 @@ export async function openBarcodeScanner({ title = 'Quét Mã QR / Mã Vạch B�
                     const val = document.getElementById('bsManualCodeInput')?.value.trim() || '';
                     if (!val) return;
                     scannedText = val;
-                    window.Swal.close();
+                    isClosing = true;
+                    stop().finally(() => window.Swal.close());
                 });
             },
-            willClose: stop
+            willClose: () => {
+                isClosing = true;
+                return stop();
+            },
+            didClose: () => {
+                isClosing = true;
+                releaseVideoTracks();
+            }
         });
     } finally {
+        isClosing = true;
+        document.removeEventListener('keydown', onEscKey, true);
+        window.removeEventListener('pagehide', onPageExit);
+        window.removeEventListener('beforeunload', onPageExit);
         await stop();
         window.BookShareAndroidBridge?.setPullToRefreshEnabled?.(true);
     }
@@ -697,11 +750,13 @@ export async function openUniversalScanner() {
             return false;
         }
         const info = preview.data.data;
-        const confirmed = await confirmDialog(
-            'Xác nhận đăng nhập thiết bị mới?',
-            `Thiết bị: ${info.deviceInfo} • Địa chỉ mạng: ${info.ipAddress} (còn ${info.remainingSeconds} giây).`,
-            'Phê duyệt đăng nhập'
-        );
+        const confirmed = await confirmDialog({
+            title: 'Xác nhận đăng nhập thiết bị mới?',
+            text: `Thiết bị: ${info.deviceInfo} • Địa chỉ mạng: ${info.ipAddress} (còn ${info.remainingSeconds} giây).`,
+            confirmText: 'Phê duyệt đăng nhập',
+            cancelText: 'Từ chối',
+            danger: false
+        });
         if (!confirmed) {
             await apiFetch('/api/qr-login/approve', {
                 method: 'POST',
@@ -934,7 +989,23 @@ const STYLE_CSS_MAP = {
     sketchy: '/vendor/bootswatch/sketchy.min.css',
     flatly: '/vendor/bootswatch/flatly.min.css',
     morph: '/vendor/bootswatch/morph.min.css',
-    cyborg: '/vendor/bootswatch/cyborg.min.css'
+    cyborg: '/vendor/bootswatch/cyborg.min.css',
+    paper: '/vendor/bootstrap/bootstrap.min.css',
+    neobrutal: '/vendor/bootstrap/bootstrap.min.css',
+    pastel: '/vendor/bootstrap/bootstrap.min.css',
+    terminal: '/vendor/bootswatch/cyborg.min.css'
+};
+
+export const STYLE_LABELS = {
+    standard: 'Chuẩn Hiện Đại',
+    sketchy: 'Nét Vẽ Nghệch Ngoặc',
+    morph: 'Kính Mờ Mềm Mại',
+    flatly: 'Phẳng Sắc Nét',
+    cyborg: 'Đêm Công Nghệ',
+    paper: 'Trang Sách Cổ Điển',
+    neobrutal: 'Truyện Tranh Pop',
+    pastel: 'Kẹo Ngọt Dịu Mắt',
+    terminal: 'Lập Trình Viên'
 };
 
 export const PALETTE_LABELS = {
@@ -948,8 +1019,12 @@ export const PALETTE_LABELS = {
     coral: 'Cam Hoàng Hôn',
     royal: 'Tím Hoàng Gia',
     midnight: 'Đêm Ngân Hà',
+    mint: 'Bạc Hà Tươi Mát',
+    sakura: 'Hoa Anh Đào Pastel',
     obsidian: 'Đen Kim Tước'
 };
+
+const DARK_LOCKED_STYLES = new Set(['cyborg', 'terminal']);
 
 export function getUiPrefs() {
     const def = { theme: 'light', style: 'standard', palette: 'blue', font: 'roboto', fontSize: 'md' };
@@ -983,7 +1058,7 @@ export function applyUiPrefs(partial = {}, { persistRemote = false, silent = tru
         fontSize: partial.fontSize !== undefined && ['sm', 'md', 'lg', 'xl'].includes(partial.fontSize) ? partial.fontSize : current.fontSize
     };
 
-    const effectiveTheme = next.style === 'cyborg' ? 'dark' : next.theme;
+    const effectiveTheme = DARK_LOCKED_STYLES.has(next.style) ? 'dark' : next.theme;
     const html = document.documentElement;
     html.setAttribute('data-bs-theme', effectiveTheme);
     html.setAttribute('data-ui-style', next.style);
@@ -1029,6 +1104,15 @@ export function applyUiPrefs(partial = {}, { persistRemote = false, silent = tru
     syncSel('aiPaletteSelect', next.palette);
     syncSel('aiFontSelect', next.font);
     syncSel('aiFontSizeSelect', next.fontSize);
+    syncSel('s13StyleSelect', next.style);
+    syncSel('s13PaletteSelect', next.palette);
+    syncSel('s13FontSelect', next.font);
+    syncSel('s13FontSizeSelect', next.fontSize);
+    syncSel('prefThemeMode', effectiveTheme);
+    syncSel('prefUiStyle', next.style);
+    syncSel('prefPalette', next.palette);
+    syncSel('prefFontFamily', next.font);
+    syncSel('prefFontSize', next.fontSize);
 
     applyChartTheme(effectiveTheme === 'dark');
 
@@ -1041,7 +1125,7 @@ export function applyUiPrefs(partial = {}, { persistRemote = false, silent = tru
     }
 
     if (!silent) {
-        showSystemStatus(200, 'Đã cập nhật giao diện', `Màu: ${PALETTE_LABELS[next.palette] || next.palette} • Phong cách: ${next.style}`);
+        showSystemStatus(200, 'Đã cập nhật giao diện', `Màu: ${PALETTE_LABELS[next.palette] || next.palette} • Phong cách: ${STYLE_LABELS[next.style] || next.style}`);
     }
     return next;
 }
@@ -1295,7 +1379,7 @@ function initThemeToggle() {
         const nextTheme = isDark ? 'light' : 'dark';
         const current = getUiPrefs();
         const patch = { theme: nextTheme };
-        if (nextTheme === 'light' && current.style === 'cyborg') {
+        if (nextTheme === 'light' && DARK_LOCKED_STYLES.has(current.style)) {
             patch.style = 'standard';
         }
         applyUiPrefs(patch, { persistRemote: true, silent: true });
@@ -1349,18 +1433,39 @@ function initNotificationPolling() {
         }
     };
 
+    const appendNotifIdParam = (url, id) => {
+        if (!url || !id) return url;
+        if (url.includes('notifId=')) return url;
+        return `${url}${url.includes('?') ? '&' : '?'}notifId=${encodeURIComponent(id)}`;
+    };
+
+    const markReadSilently = async (notificationId) => {
+        if (!notificationId) return false;
+        try {
+            const headers = { Accept: 'application/json', 'Content-Type': 'application/json' };
+            const csrf = getCsrfToken();
+            if (csrf) headers['RequestVerificationToken'] = csrf;
+            const resp = await fetch('/S18NotificationHub/MarkRead', {
+                method: 'POST',
+                headers,
+                credentials: 'same-origin',
+                body: JSON.stringify({ notificationId })
+            });
+            return resp.ok;
+        } catch {
+            return false;
+        }
+    };
+
     const openNotificationDetailModal = async (item) => {
         if (!item.isRead) {
-            await apiFetch('/S18NotificationHub/MarkRead', {
-                method: 'POST',
-                body: { notificationId: item.id },
-                button: null
-            });
+            await markReadSilently(item.id);
             item.isRead = true;
             loadPopupList();
         }
 
-        const targetUrl = item.detailUrl || `/S18NotificationHub?highlight=${item.id}`;
+        const baseTarget = item.detailUrl || `/S18NotificationHub?highlight=${item.id}`;
+        const targetUrl = appendNotifIdParam(baseTarget, item.id);
         const res = await window.Swal.fire({
             title: item.title || 'Chi tiết thông báo',
             html: `
@@ -1380,6 +1485,10 @@ function initNotificationPolling() {
             ...swalThemeOptions()
         });
         if (res.isConfirmed) {
+            if (!item.isRead) {
+                await markReadSilently(item.id);
+                item.isRead = true;
+            }
             window.location.href = targetUrl;
         }
     };
@@ -1437,19 +1546,17 @@ function initNotificationPolling() {
                 });
 
                 const linkGo = document.createElement('a');
-                linkGo.href = item.detailUrl || `/S18NotificationHub?highlight=${item.id}`;
+                const detailHref = appendNotifIdParam(item.detailUrl || `/S18NotificationHub?highlight=${item.id}`, item.id);
+                linkGo.href = detailHref;
                 linkGo.className = 'small fw-semibold text-decoration-none';
                 linkGo.innerHTML = 'Mở trang chi tiết <i class="bi bi-arrow-right-short"></i>';
                 linkGo.addEventListener('click', async (ev) => {
                     ev.stopPropagation();
                     if (!item.isRead) {
                         ev.preventDefault();
-                        await apiFetch('/S18NotificationHub/MarkRead', {
-                            method: 'POST',
-                            body: { notificationId: item.id },
-                            button: null
-                        });
-                        window.location.href = linkGo.href;
+                        await markReadSilently(item.id);
+                        item.isRead = true;
+                        window.location.href = detailHref;
                     }
                 });
 
@@ -1479,6 +1586,7 @@ function initNotificationPolling() {
         }
     });
 
+    const lastNotifIdKey = 'bookshare_last_toasted_notif_id';
     const poll = async () => {
         if (document.hidden) return;
         try {
@@ -1489,17 +1597,19 @@ function initNotificationPolling() {
             if (!res.ok || !(res.headers.get('content-type') || '').includes('application/json')) return;
             const data = await res.json();
             const count = Number(data.unreadCount) || 0;
+            const latestId = Number(data.latestId) || 0;
             updateBadge(count);
 
-            let seen = 0;
-            try { seen = Number(sessionStorage.getItem(storageKey)) || 0; } catch { /* bỏ qua */ }
-            if (count > seen) {
+            let lastToastedId = 0;
+            try { lastToastedId = Number(localStorage.getItem(lastNotifIdKey)) || 0; } catch { /* bỏ qua */ }
+            if (count > 0 && latestId > 0 && latestId !== lastToastedId) {
                 bell.classList.remove('is-ringing');
                 void bell.offsetWidth;
                 bell.classList.add('is-ringing');
-                if (seen > 0 || data.latestTitle) {
+                if (lastToastedId > 0) {
                     toast(300, `Bạn có ${count} thông báo chưa đọc`, data.latestTitle || '');
                 }
+                try { localStorage.setItem(lastNotifIdKey, String(latestId)); } catch { /* bỏ qua */ }
             }
             try { sessionStorage.setItem(storageKey, String(count)); } catch { /* bỏ qua */ }
         } catch {
@@ -1507,7 +1617,13 @@ function initNotificationPolling() {
         }
     };
 
-    poll();
+    // Tự động đánh dấu đã đọc khi mở từ thông báo Mobile hoặc link ?notifId=ID
+    const urlNotifId = parseInt(new URLSearchParams(window.location.search).get('notifId') || '0', 10);
+    if (urlNotifId > 0) {
+        markReadSilently(urlNotifId).then(() => poll());
+    } else {
+        poll();
+    }
     setInterval(poll, 30000);
     document.addEventListener('visibilitychange', () => { if (!document.hidden) poll(); });
 }
@@ -1559,9 +1675,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
     document.addEventListener('click', (e) => {
         const qrPayBtn = e.target.closest('.js-open-qr-pay-scanner');
-        if (!qrPayBtn) return;
-        e.preventDefault();
-        openQrPaymentScanner();
+        if (qrPayBtn) {
+            e.preventDefault();
+            openQrPaymentScanner();
+            return;
+        }
+        const quickQrLoginBtn = e.target.closest('.js-open-quick-qr-login');
+        if (quickQrLoginBtn) {
+            e.preventDefault();
+            openUniversalScanner();
+        }
     });
 
     initThemeToggle();
@@ -1595,7 +1718,9 @@ document.addEventListener('DOMContentLoaded', () => {
             const st = btn.getAttribute('data-set-ui-style') || 'standard';
             const patch = { style: st };
             if (st === 'sketchy') patch.font = 'patrick';
-            else if (st === 'standard' && getUiPrefs().font === 'patrick') patch.font = 'roboto';
+            else if (st === 'paper') patch.font = 'lora';
+            else if (st === 'terminal') patch.font = 'jetbrains';
+            else if (st === 'standard' && ['patrick', 'jetbrains'].includes(getUiPrefs().font)) patch.font = 'roboto';
             applyUiPrefs(patch, { persistRemote: true, silent: false });
         });
     });
@@ -1726,6 +1851,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const st = e.target.value;
         const patch = { style: st };
         if (st === 'sketchy') patch.font = 'patrick';
+        else if (st === 'paper') patch.font = 'lora';
+        else if (st === 'terminal') patch.font = 'jetbrains';
         applyUiPrefs(patch, { persistRemote: true, silent: true });
     });
     document.getElementById('aiPaletteSelect')?.addEventListener('change', (e) => {

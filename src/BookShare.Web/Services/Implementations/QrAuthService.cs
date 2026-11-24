@@ -395,7 +395,8 @@ public class QrAuthService : IQrAuthService
             Email = user.Email ?? string.Empty,
             FullName = user.FullName,
             PrimaryRole = primaryRole,
-            TrustScore = user.TrustScore
+            TrustScore = user.TrustScore,
+            AvatarUrl = user.AvatarUrl
         };
     }
 

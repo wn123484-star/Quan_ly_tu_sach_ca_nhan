@@ -179,6 +179,7 @@ public class MobileNotificationItemDto
 public class MobileUnreadNotificationsResponseDto
 {
     public int UnreadCount { get; set; }
+    public int LatestNotificationId { get; set; }
     public List<MobileNotificationItemDto> Notifications { get; set; } = new();
 }
 

@@ -86,6 +86,8 @@ public class S18NotificationHubService : IS18NotificationHubService
         {
             CurrentUserId = user.Id,
             CurrentUserName = user.FullName,
+            CurrentUserEmail = user.Email ?? string.Empty,
+            EmailConfirmed = user.EmailConfirmed,
             TotalCount = totalScoped,
             UnreadCount = unreadScoped,
             EmailSentCount = emailSentScoped,

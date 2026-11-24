@@ -258,20 +258,30 @@ document.addEventListener('DOMContentLoaded', () => {
     if (iconGrid) {
         const escapeAttr = (v) => String(v ?? '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
-        const updateIconCardUi = (card, item) => {
+        const updateIconCardUi = (card, item, localPreviewUrl = null) => {
             if (!card || !item) return;
             const stage = card.querySelector('.js-icon-preview-stage');
             const toggle = card.querySelector('.js-icon-toggle');
             const badge = card.querySelector('.js-icon-mode-badge');
             const fileHint = card.querySelector('.js-icon-file-hint');
-            const useCustom = Boolean(item.useCustomImage && item.customImageUrl);
+            const useCustom = Boolean(item.useCustomImage && (item.customImageUrl || localPreviewUrl));
 
             if (stage) {
                 if (useCustom) {
-                    const safeUrl = escapeAttr(item.customImageUrl);
+                    const cacheBust = `t=${Date.now()}`;
+                    const rawPrimary = item.customImageUrl
+                        ? `${item.customImageUrl}${item.customImageUrl.includes('?') ? '&' : '?'}${cacheBust}`
+                        : localPreviewUrl;
+                    const dbFallback = `/assets/system-icons/${encodeURIComponent(item.iconKey)}?${cacheBust}`;
+                    const safeUrl = escapeAttr(rawPrimary);
+                    const safeDbFallback = escapeAttr(dbFallback);
+                    const safeLocalFallback = escapeAttr(localPreviewUrl || '');
                     const safeAlt = escapeAttr(item.displayName || item.iconKey);
                     const safeCls = escapeAttr(item.defaultIconClass || 'bi-app');
-                    stage.innerHTML = `<img src="${safeUrl}" alt="${safeAlt}" class="s22-icon-preview-img" onerror="this.style.display='none';if(this.nextElementSibling)this.nextElementSibling.classList.remove('d-none');" /><i class="bi ${safeCls} fs-3 text-primary d-none" aria-hidden="true"></i>`;
+                    const onErrorCode = safeLocalFallback
+                        ? `if(!this.dataset.dbTried){this.dataset.dbTried='1';this.src='${safeDbFallback}';return;}if(!this.dataset.localTried){this.dataset.localTried='1';this.src='${safeLocalFallback}';return;}this.style.display='none';if(this.nextElementSibling)this.nextElementSibling.classList.remove('d-none');`
+                        : `if(!this.dataset.dbTried){this.dataset.dbTried='1';this.src='${safeDbFallback}';return;}this.style.display='none';if(this.nextElementSibling)this.nextElementSibling.classList.remove('d-none');`;
+                    stage.innerHTML = `<img src="${safeUrl}" alt="${safeAlt}" class="s22-icon-preview-img" onerror="${onErrorCode}" /><i class="bi ${safeCls} fs-3 text-primary d-none" aria-hidden="true"></i>`;
                 } else {
                     const safeCls = escapeAttr(item.defaultIconClass || 'bi-app');
                     stage.innerHTML = `<i class="bi ${safeCls} fs-3 text-primary" aria-hidden="true"></i>`;
@@ -289,7 +299,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             if (fileHint) {
                 fileHint.textContent = item.customImageUrl
-                    ? 'Đã lưu ảnh tùy chỉnh trên máy chủ'
+                    ? 'Đã lưu & hiển thị xem trước ảnh tùy chỉnh'
                     : 'Chưa có ảnh tùy chỉnh';
             }
         };
@@ -323,11 +333,23 @@ document.addEventListener('DOMContentLoaded', () => {
                 const key = input.getAttribute('data-icon-key') || '';
                 const card = input.closest('.s22-icon-card');
                 const uploadBtn = card?.querySelector('.js-icon-upload-btn');
+                const stage = card?.querySelector('.js-icon-preview-stage');
+                const fileHint = card?.querySelector('.js-icon-file-hint');
 
                 if (file.size > 2 * 1024 * 1024) {
                     showSystemStatus(400, 'Tệp quá dung lượng cho phép', 'Ảnh biểu tượng không được vượt quá 2MB.');
                     input.value = '';
                     return;
+                }
+
+                // Hiển thị ngay hình ảnh xem trước cục bộ ngay khi Admin vừa chọn ảnh
+                const previousStageHtml = stage ? stage.innerHTML : '';
+                const localPreviewUrl = URL.createObjectURL(file);
+                if (stage) {
+                    stage.innerHTML = `<img src="${escapeAttr(localPreviewUrl)}" alt="Xem trước biểu tượng" class="s22-icon-preview-img" />`;
+                }
+                if (fileHint) {
+                    fileHint.textContent = `Đang tải lên: ${file.name}...`;
                 }
 
                 const formData = new FormData();
@@ -342,7 +364,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 input.value = '';
 
                 if (res.ok && res.data?.item) {
-                    updateIconCardUi(card, res.data.item);
+                    updateIconCardUi(card, res.data.item, localPreviewUrl);
+                } else {
+                    if (stage) stage.innerHTML = previousStageHtml;
+                    if (fileHint) fileHint.textContent = 'Tải ảnh thất bại, giữ biểu tượng cũ';
+                    URL.revokeObjectURL(localPreviewUrl);
                 }
             });
         });

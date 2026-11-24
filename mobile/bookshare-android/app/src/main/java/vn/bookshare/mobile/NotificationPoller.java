@@ -34,6 +34,11 @@ import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
 public class NotificationPoller extends Worker {
@@ -43,6 +48,8 @@ public class NotificationPoller extends Worker {
     private static final String ONETIME_WORK_NAME = "bookshare_notif_now";
     private static final String PREFS_NAME = "bookshare_mobile_prefs";
     private static final String KEY_LAST_NOTIF_ID = "last_notification_id";
+    private static final String KEY_DELIVERED_IDS = "delivered_notification_ids";
+    private static final int MAX_TRACKED_DELIVERED = 120;
 
     public NotificationPoller(@NonNull Context context, @NonNull WorkerParameters params) {
         super(context, params);
@@ -112,10 +119,11 @@ public class NotificationPoller extends Worker {
             return;
         }
 
+        String resolvedTarget = appendNotifIdToTargetUrl(targetUrl, notificationId);
         Intent intent = new Intent(context, MainActivity.class);
         intent.addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP | Intent.FLAG_ACTIVITY_CLEAR_TOP);
-        if (targetUrl != null && !targetUrl.trim().isEmpty()) {
-            intent.putExtra(MainActivity.EXTRA_TARGET_URL, targetUrl.trim());
+        if (resolvedTarget != null && !resolvedTarget.isEmpty()) {
+            intent.putExtra(MainActivity.EXTRA_TARGET_URL, resolvedTarget);
         }
 
         int pendingFlags = PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE;
@@ -134,6 +142,19 @@ public class NotificationPoller extends Worker {
         NotificationManagerCompat.from(context).notify(notificationId, builder.build());
     }
 
+    private static String appendNotifIdToTargetUrl(String targetUrl, int notificationId) {
+        String clean = targetUrl == null ? "" : targetUrl.trim();
+        if (clean.isEmpty()) {
+            return notificationId > 0
+                    ? "/S18NotificationHub?highlight=" + notificationId + "&notifId=" + notificationId
+                    : "/S18NotificationHub";
+        }
+        if (notificationId <= 0 || clean.contains("notifId=")) {
+            return clean;
+        }
+        return clean + (clean.contains("?") ? "&" : "?") + "notifId=" + notificationId;
+    }
+
     @NonNull
     @Override
     public Result doWork() {
@@ -150,6 +171,8 @@ public class NotificationPoller extends Worker {
 
         SharedPreferences prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
         int lastId = prefs.getInt(KEY_LAST_NOTIF_ID, 0);
+        Set<String> storedDelivered = prefs.getStringSet(KEY_DELIVERED_IDS, Collections.emptySet());
+        Set<String> deliveredIds = new HashSet<>(storedDelivered != null ? storedDelivered : Collections.emptySet());
 
         HttpURLConnection conn = null;
         try {
@@ -177,17 +200,24 @@ public class NotificationPoller extends Worker {
             }
 
             JSONObject json = new JSONObject(body.toString());
-            int unreadCount = json.optInt("unreadCount", 0);
+            int latestNotificationId = json.optInt("latestNotificationId", 0);
             JSONArray items = json.optJSONArray("notifications");
-            if (items == null || items.length() == 0) {
-                if (unreadCount > 0 && lastId > 0) {
-                    // CSDL vừa được khởi tạo lại khiến ID thông báo nhỏ hơn mốc cũ: đặt lại mốc an toàn
-                    prefs.edit().putInt(KEY_LAST_NOTIF_ID, 0).apply();
-                }
+
+            // Chỉ hạ mốc lastId khi máy chủ xác nhận ID lớn nhất thực tế nhỏ hơn mốc cũ (do reset CSDL)
+            if (latestNotificationId > 0 && latestNotificationId < lastId) {
+                prefs.edit()
+                        .putInt(KEY_LAST_NOTIF_ID, latestNotificationId)
+                        .putStringSet(KEY_DELIVERED_IDS, Collections.emptySet())
+                        .apply();
                 return Result.success();
             }
 
-            int maxId = lastId;
+            if (items == null || items.length() == 0) {
+                return Result.success();
+            }
+
+            int maxId = Math.max(lastId, latestNotificationId);
+            boolean deliveredChanged = false;
             for (int i = 0; i < items.length(); i++) {
                 JSONObject item = items.optJSONObject(i);
                 if (item == null) {
@@ -201,13 +231,20 @@ public class NotificationPoller extends Worker {
                 if (id > maxId) {
                     maxId = id;
                 }
-                if (id > 0 && !message.isEmpty()) {
+                String idStr = String.valueOf(id);
+                if (id > 0 && !message.isEmpty() && !deliveredIds.contains(idStr)) {
                     showNativeNotification(context, id, title, message, targetUrl);
+                    deliveredIds.add(idStr);
+                    deliveredChanged = true;
                 }
             }
 
-            if (maxId > lastId) {
-                prefs.edit().putInt(KEY_LAST_NOTIF_ID, maxId).apply();
+            if (maxId > lastId || deliveredChanged) {
+                SharedPreferences.Editor editor = prefs.edit().putInt(KEY_LAST_NOTIF_ID, maxId);
+                if (deliveredChanged) {
+                    editor.putStringSet(KEY_DELIVERED_IDS, trimDeliveredIds(deliveredIds));
+                }
+                editor.apply();
             }
         } catch (Exception ignored) {
             // Mất kết nối tạm thời: giữ yên, WorkManager chạy lại chu kỳ kế tiếp
@@ -218,5 +255,26 @@ public class NotificationPoller extends Worker {
         }
 
         return Result.success();
+    }
+
+    private static Set<String> trimDeliveredIds(Set<String> source) {
+        if (source.size() <= MAX_TRACKED_DELIVERED) {
+            return new HashSet<>(source);
+        }
+        List<Integer> nums = new ArrayList<>();
+        for (String s : source) {
+            try {
+                nums.add(Integer.parseInt(s));
+            } catch (NumberFormatException ignored) {
+                // Bỏ qua giá trị không hợp lệ
+            }
+        }
+        Collections.sort(nums);
+        int start = Math.max(0, nums.size() - MAX_TRACKED_DELIVERED);
+        Set<String> trimmed = new HashSet<>();
+        for (int i = start; i < nums.size(); i++) {
+            trimmed.add(String.valueOf(nums.get(i)));
+        }
+        return trimmed;
     }
 }

@@ -1,3 +1,4 @@
+using System.Text.RegularExpressions;
 using BookShare.Web.Data;
 using BookShare.Web.Models.Entities;
 using BookShare.Web.Models.ViewModels;
@@ -9,19 +10,28 @@ namespace BookShare.Web.Services.Implementations;
 
 public class S01AuthOtpService : IS01AuthOtpService
 {
+    private const long MaxAvatarSizeBytes = 2 * 1024 * 1024; // 2 MB
+    private static readonly string[] AllowedAvatarExtensions = { ".png", ".jpg", ".jpeg", ".webp" };
+
     private readonly BookShareDbContext _db;
     private readonly IConfiguration _config;
     private readonly IDatabaseBootstrapService _bootstrap;
+    private readonly IResendEmailService _resendEmailService;
+    private readonly IWebHostEnvironment _env;
     private readonly PasswordHasher<AspNetUser> _passwordHasher = new();
 
     public S01AuthOtpService(
         BookShareDbContext db,
         IConfiguration config,
-        IDatabaseBootstrapService bootstrap)
+        IDatabaseBootstrapService bootstrap,
+        IResendEmailService resendEmailService,
+        IWebHostEnvironment env)
     {
         _db = db;
         _config = config;
         _bootstrap = bootstrap;
+        _resendEmailService = resendEmailService;
+        _env = env;
     }
 
     private Task EnsureCoreAdminBootstrapAsync() => _bootstrap.EnsureInitializedAsync();
@@ -158,7 +168,8 @@ public class S01AuthOtpService : IS01AuthOtpService
             Email = user.Email ?? string.Empty,
             FullName = user.FullName,
             PrimaryRole = roleName,
-            TrustScore = user.TrustScore
+            TrustScore = user.TrustScore,
+            AvatarUrl = user.AvatarUrl
         };
 
         string note = emailChanged
@@ -219,8 +230,14 @@ public class S01AuthOtpService : IS01AuthOtpService
 
     private static UiPreferencesDto SanitizeUiPreferences(UiPreferencesDto? raw)
     {
-        var allowedStyles = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "standard", "sketchy", "flatly", "morph", "cyborg" };
-        var allowedPalettes = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "blue", "ocean", "emerald", "gold", "rose", "lavender", "sepia", "coral", "royal", "midnight", "obsidian" };
+        var allowedStyles = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            "standard", "sketchy", "flatly", "morph", "cyborg", "paper", "neobrutal", "pastel", "terminal"
+        };
+        var allowedPalettes = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            "blue", "ocean", "emerald", "gold", "rose", "lavender", "sepia", "coral", "royal", "midnight", "mint", "sakura", "obsidian"
+        };
         var allowedFonts = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "roboto", "bevietnam", "lora", "patrick", "jetbrains" };
         var allowedSizes = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "sm", "md", "lg", "xl" };
 
@@ -238,6 +255,280 @@ public class S01AuthOtpService : IS01AuthOtpService
             Font = allowedFonts.Contains(fn) ? fn : "roboto",
             FontSize = allowedSizes.Contains(sz) ? sz : "md"
         };
+    }
+
+    public async Task<(bool Success, string Message, string? DevOtpCode)> RequestPasswordResetOtpAsync(string email)
+    {
+        if (!AuthConfigHelper.IsValidEmailFormat(email))
+        {
+            return (false, "Vui lòng nhập địa chỉ Email đã đăng ký hợp lệ.", null);
+        }
+
+        await EnsureCoreAdminBootstrapAsync();
+
+        string normalizedUpper = email.Trim().ToUpperInvariant();
+        var user = await _db.AspNetUsers
+            .AsNoTracking()
+            .FirstOrDefaultAsync(u => u.NormalizedEmail == normalizedUpper);
+
+        if (user == null)
+        {
+            return (false, "Không tìm thấy tài khoản nào được đăng ký với địa chỉ Email này.", null);
+        }
+
+        if (user.LockoutEnd.HasValue && user.LockoutEnd.Value > DateTimeOffset.UtcNow)
+        {
+            return (false, "Tài khoản này hiện đang bị tạm khóa. Vui lòng liên hệ Quản trị viên.", null);
+        }
+
+        return await _resendEmailService.GenerateAndSendOtpAsync(user.Email ?? email.Trim(), "ResetPassword", user.Id);
+    }
+
+    public async Task<(bool Success, string Message)> VerifyPasswordResetOtpAsync(string email, string otpCode)
+    {
+        if (!AuthConfigHelper.IsValidEmailFormat(email) || string.IsNullOrWhiteSpace(otpCode))
+        {
+            return (false, "Vui lòng nhập đầy đủ Email và mã OTP 6 chữ số.");
+        }
+
+        string normalizedLower = email.Trim().ToLowerInvariant();
+        string cleanCode = otpCode.Trim();
+        if (cleanCode.Length != 6 || !cleanCode.All(char.IsDigit))
+        {
+            return (false, "Mã OTP chưa chính xác. Vui lòng nhập đủ 6 chữ số.");
+        }
+
+        string codeHash = AuthConfigHelper.ComputeSha256Hex(cleanCode);
+        var record = await _db.OtpVerifications
+            .AsNoTracking()
+            .Where(o => o.Email == normalizedLower && o.Purpose == "ResetPassword" && !o.IsUsed)
+            .OrderByDescending(o => o.CreatedAt)
+            .FirstOrDefaultAsync();
+
+        if (record == null)
+        {
+            return (false, "Chưa có yêu cầu đặt lại mật khẩu nào đang chờ cho Email này. Vui lòng bấm gửi mã OTP trước.");
+        }
+
+        if (record.ExpiresAt < DateTime.UtcNow)
+        {
+            return (false, "Mã OTP đã hết hạn (quá 5 phút). Vui lòng bấm gửi lại mã mới.");
+        }
+
+        if (!string.Equals(record.OtpCodeHash, codeHash, StringComparison.OrdinalIgnoreCase))
+        {
+            return (false, "Mã OTP nhập chưa chính xác. Vui lòng kiểm tra lại hộp thư.");
+        }
+
+        return (true, "Xác thực OTP thành công! Mời bạn nhập mật khẩu mới bên dưới.");
+    }
+
+    public async Task<(bool Success, string Message)> ResetPasswordWithOtpAsync(ForgotPasswordResetRequestDto request)
+    {
+        if (request == null || !AuthConfigHelper.IsValidEmailFormat(request.Email))
+        {
+            return (false, "Địa chỉ Email không hợp lệ.");
+        }
+
+        if (string.IsNullOrWhiteSpace(request.OtpCode) || request.OtpCode.Trim().Length != 6)
+        {
+            return (false, "Mã OTP 6 chữ số không hợp lệ.");
+        }
+
+        if (string.IsNullOrWhiteSpace(request.NewPassword) || request.NewPassword.Length < 6)
+        {
+            return (false, "Mật khẩu mới phải có tối thiểu 6 ký tự.");
+        }
+
+        if (!string.Equals(request.NewPassword, request.ConfirmPassword, StringComparison.Ordinal))
+        {
+            return (false, "Mật khẩu nhập lại không khớp với mật khẩu mới. Vui lòng kiểm tra lại.");
+        }
+
+        string normalizedLower = request.Email.Trim().ToLowerInvariant();
+        string normalizedUpper = normalizedLower.ToUpperInvariant();
+        string codeHash = AuthConfigHelper.ComputeSha256Hex(request.OtpCode.Trim());
+
+        var record = await _db.OtpVerifications
+            .Where(o => o.Email == normalizedLower && o.Purpose == "ResetPassword" && !o.IsUsed)
+            .OrderByDescending(o => o.CreatedAt)
+            .FirstOrDefaultAsync();
+
+        if (record == null || record.ExpiresAt < DateTime.UtcNow ||
+            !string.Equals(record.OtpCodeHash, codeHash, StringComparison.OrdinalIgnoreCase))
+        {
+            return (false, "Mã OTP chưa chính xác hoặc đã hết hạn. Vui lòng gửi lại mã mới.");
+        }
+
+        var user = !string.IsNullOrWhiteSpace(record.UserId)
+            ? await _db.AspNetUsers.FirstOrDefaultAsync(u => u.Id == record.UserId)
+            : await _db.AspNetUsers.FirstOrDefaultAsync(u => u.NormalizedEmail == normalizedUpper);
+
+        if (user == null)
+        {
+            return (false, "Không tìm thấy tài khoản tương ứng với Email này.");
+        }
+
+        record.IsUsed = true;
+        user.PasswordHash = _passwordHasher.HashPassword(user, request.NewPassword);
+        user.SecurityStamp = Guid.NewGuid().ToString("N");
+        user.EmailConfirmed = true;
+
+        _db.Notifications.Add(new Notification
+        {
+            UserId = user.Id,
+            Title = "Đặt lại mật khẩu thành công qua OTP",
+            Content = $"Mật khẩu tài khoản BookShare của bạn vừa được đặt lại lúc {DateTime.UtcNow.AddHours(7):HH:mm dd/MM/yyyy}. Nếu không phải bạn thực hiện, hãy đổi mật khẩu ngay.",
+            Type = "System",
+            IsRead = false,
+            EmailSentViaResend = false,
+            CreatedAt = DateTime.UtcNow
+        });
+
+        await _db.SaveChangesAsync();
+        return (true, "Đặt lại mật khẩu mới thành công! Bạn có thể đăng nhập ngay bằng mật khẩu mới.");
+    }
+
+    public async Task<(bool Success, string Message, string? AvatarUrl, AuthUserClaimsDto? UpdatedClaims)> UploadUserAvatarAsync(
+        string userId,
+        IFormFile file)
+    {
+        if (file == null || file.Length == 0)
+        {
+            return (false, "Vui lòng chọn một tệp ảnh hợp lệ để làm ảnh đại diện.", null, null);
+        }
+
+        if (file.Length > MaxAvatarSizeBytes)
+        {
+            return (false, "Ảnh đại diện không được vượt quá 2MB.", null, null);
+        }
+
+        string ext = Path.GetExtension(file.FileName ?? string.Empty).ToLowerInvariant();
+        if (!AllowedAvatarExtensions.Contains(ext))
+        {
+            return (false, "Chỉ chấp nhận tệp ảnh định dạng .png, .jpg, .jpeg hoặc .webp.", null, null);
+        }
+
+        byte[] bytes;
+        using (var ms = new MemoryStream())
+        {
+            await file.CopyToAsync(ms);
+            bytes = ms.ToArray();
+        }
+
+        if (!IsValidAvatarBytes(ext, bytes))
+        {
+            return (false, "Nội dung tệp tải lên không đúng định dạng ảnh hợp lệ.", null, null);
+        }
+
+        var user = await _db.AspNetUsers
+            .Include(u => u.Roles)
+            .FirstOrDefaultAsync(u => u.Id == userId);
+
+        if (user == null)
+        {
+            return (false, "Không tìm thấy tài khoản người dùng.", null, null);
+        }
+
+        string webRoot = string.IsNullOrWhiteSpace(_env.WebRootPath)
+            ? Path.Combine(Directory.GetCurrentDirectory(), "wwwroot")
+            : _env.WebRootPath;
+        string avatarsDir = Path.Combine(webRoot, "uploads", "avatars");
+        Directory.CreateDirectory(avatarsDir);
+
+        string safeUid = Regex.Replace(userId.ToLowerInvariant(), @"[^a-z0-9_-]", "");
+        if (string.IsNullOrWhiteSpace(safeUid)) safeUid = "member";
+        string fileName = $"avt_{safeUid}_{DateTime.UtcNow:yyyyMMddHHmmssfff}{ext}";
+        string fullPath = Path.Combine(avatarsDir, fileName);
+        await File.WriteAllBytesAsync(fullPath, bytes);
+
+        string? oldAvatar = user.AvatarUrl;
+        string publicUrl = $"/uploads/avatars/{fileName}";
+        user.AvatarUrl = publicUrl;
+        await _db.SaveChangesAsync();
+
+        TryDeleteLocalAvatar(webRoot, oldAvatar);
+
+        var claims = BuildClaimsDto(user);
+        return (true, "Đã cập nhật ảnh đại diện mới thành công!", publicUrl, claims);
+    }
+
+    public async Task<(bool Success, string Message, AuthUserClaimsDto? UpdatedClaims)> ResetUserAvatarAsync(string userId)
+    {
+        var user = await _db.AspNetUsers
+            .Include(u => u.Roles)
+            .FirstOrDefaultAsync(u => u.Id == userId);
+
+        if (user == null)
+        {
+            return (false, "Không tìm thấy tài khoản người dùng.", null);
+        }
+
+        string webRoot = string.IsNullOrWhiteSpace(_env.WebRootPath)
+            ? Path.Combine(Directory.GetCurrentDirectory(), "wwwroot")
+            : _env.WebRootPath;
+        TryDeleteLocalAvatar(webRoot, user.AvatarUrl);
+
+        user.AvatarUrl = null;
+        await _db.SaveChangesAsync();
+
+        return (true, "Đã đặt lại ảnh đại diện về mặc định hệ thống.", BuildClaimsDto(user));
+    }
+
+    public async Task<AuthUserClaimsDto?> GetUserClaimsByIdAsync(string userId)
+    {
+        if (string.IsNullOrWhiteSpace(userId)) return null;
+        var user = await _db.AspNetUsers
+            .Include(u => u.Roles)
+            .AsNoTracking()
+            .FirstOrDefaultAsync(u => u.Id == userId);
+        return user == null ? null : BuildClaimsDto(user);
+    }
+
+    private static AuthUserClaimsDto BuildClaimsDto(AspNetUser user) => new()
+    {
+        UserId = user.Id,
+        Email = user.Email ?? string.Empty,
+        FullName = user.FullName,
+        PrimaryRole = user.Roles.FirstOrDefault()?.Name ?? "User",
+        TrustScore = user.TrustScore,
+        AvatarUrl = user.AvatarUrl
+    };
+
+    private static bool IsValidAvatarBytes(string ext, byte[] bytes)
+    {
+        if (bytes.Length < 12) return false;
+        if (ext == ".png")
+        {
+            return bytes[0] == 0x89 && bytes[1] == 0x50 && bytes[2] == 0x4E && bytes[3] == 0x47
+                && bytes[4] == 0x0D && bytes[5] == 0x0A && bytes[6] == 0x1A && bytes[7] == 0x0A;
+        }
+        if (ext is ".jpg" or ".jpeg")
+        {
+            return bytes[0] == 0xFF && bytes[1] == 0xD8 && bytes[2] == 0xFF;
+        }
+        if (ext == ".webp")
+        {
+            return bytes[0] == (byte)'R' && bytes[1] == (byte)'I' && bytes[2] == (byte)'F' && bytes[3] == (byte)'F'
+                && bytes[8] == (byte)'W' && bytes[9] == (byte)'E' && bytes[10] == (byte)'B' && bytes[11] == (byte)'P';
+        }
+        return false;
+    }
+
+    private static void TryDeleteLocalAvatar(string webRoot, string? oldUrl)
+    {
+        if (string.IsNullOrWhiteSpace(oldUrl) || !oldUrl.StartsWith("/uploads/avatars/", StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+        try
+        {
+            string fileName = Path.GetFileName(oldUrl);
+            if (string.IsNullOrWhiteSpace(fileName)) return;
+            string fullPath = Path.Combine(webRoot, "uploads", "avatars", fileName);
+            if (File.Exists(fullPath)) File.Delete(fullPath);
+        }
+        catch { /* bỏ qua */ }
     }
 
     public async Task<(bool Success, string Message)> ChangeUserPasswordAsync(
@@ -389,7 +680,8 @@ public class S01AuthOtpService : IS01AuthOtpService
             Email = user.Email ?? email.Trim(),
             FullName = user.FullName,
             PrimaryRole = primaryRole,
-            TrustScore = user.TrustScore
+            TrustScore = user.TrustScore,
+            AvatarUrl = user.AvatarUrl
         };
 
         return (true, $"Đăng nhập thành công! Chào mừng {user.FullName}.", claimsDto);
@@ -577,7 +869,8 @@ public class S01AuthOtpService : IS01AuthOtpService
             Email = user.Email ?? email,
             FullName = user.FullName,
             PrimaryRole = roleName,
-            TrustScore = user.TrustScore
+            TrustScore = user.TrustScore,
+            AvatarUrl = user.AvatarUrl
         });
     }
 

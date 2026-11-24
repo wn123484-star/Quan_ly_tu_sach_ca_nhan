@@ -1,7 +1,7 @@
 /**
- * XÁC THỰC, ĐĂNG NHẬP QR & HỒ SƠ CÁ NHÂN (s01-auth-otp-google.js)
+ * XÁC THỰC, QUÊN MẬT KHẨU OTP, ĐĂNG NHẬP NHANH QR, TẢI AVATAR & HỒ SƠ CÁ NHÂN (s01-auth-otp-google.js)
  */
-import { apiFetch, showSystemStatus, getRecaptchaToken, renderQrCode, openBarcodeScanner, openUniversalScanner, toast, confirmDialog, getUiPrefs, applyUiPrefs } from '../../js/core-api.js';
+import { apiFetch, showSystemStatus, getRecaptchaToken, renderQrCode, openUniversalScanner, toast, getUiPrefs, applyUiPrefs } from '../../js/core-api.js';
 
 document.addEventListener('DOMContentLoaded', () => {
     const bindRecaptchaForm = (formId, tokenInputId, actionName) => {
@@ -24,6 +24,191 @@ document.addEventListener('DOMContentLoaded', () => {
     bindRecaptchaForm('s01LoginForm', 'loginRecaptchaToken', 'login');
     bindRecaptchaForm('s01RegisterForm', 'registerRecaptchaToken', 'register');
 
+    // ---------- QUÊN MẬT KHẨU (EMAIL -> XÁC THỰC OTP -> ĐẶT MẬT KHẨU MỚI) ----------
+    const fpPanel = document.getElementById('s01ForgotPasswordPanel');
+    const btnOpenFp = document.getElementById('btnOpenForgotPassword');
+    const btnCloseFp = document.getElementById('btnCloseForgotPassword');
+    const fpEmailInput = document.getElementById('fpEmailInput');
+    const btnFpSendOtp = document.getElementById('btnFpSendOtp');
+    const fpDevBanner = document.getElementById('fpDevOtpBanner');
+    const fpDevVal = document.getElementById('fpDevOtpValue');
+    const fpStep2Box = document.getElementById('fpStep2Box');
+    const fpOtpInput = document.getElementById('fpOtpInput');
+    const btnFpVerifyOtp = document.getElementById('btnFpVerifyOtp');
+    const fpStepStatus = document.getElementById('fpStepStatus');
+    const fpStep3Box = document.getElementById('fpStep3Box');
+    const fpNewPassInput = document.getElementById('fpNewPassInput');
+    const fpConfirmPassInput = document.getElementById('fpConfirmPassInput');
+    const btnFpSubmitReset = document.getElementById('btnFpSubmitReset');
+
+    const setFpStatus = (msg, isOk) => {
+        if (!fpStepStatus) return;
+        fpStepStatus.textContent = msg;
+        fpStepStatus.className = `small fw-semibold mb-2 ${isOk ? 'text-success' : 'text-danger'}`;
+        fpStepStatus.classList.remove('d-none');
+    };
+
+    btnOpenFp?.addEventListener('click', () => {
+        fpPanel?.classList.remove('d-none');
+        const loginEmailVal = document.getElementById('loginEmail')?.value.trim() || '';
+        if (loginEmailVal && fpEmailInput && !fpEmailInput.value) {
+            fpEmailInput.value = loginEmailVal;
+        }
+        fpEmailInput?.focus();
+    });
+
+    btnCloseFp?.addEventListener('click', () => {
+        fpPanel?.classList.add('d-none');
+    });
+
+    btnFpSendOtp?.addEventListener('click', async () => {
+        const email = fpEmailInput?.value.trim() || '';
+        if (!email) {
+            setFpStatus('Vui lòng nhập địa chỉ Email đã đăng ký.', false);
+            return;
+        }
+        const recaptchaToken = await getRecaptchaToken('forgot_password');
+        const res = await apiFetch('/S01AuthOtpGoogle/SendPasswordResetOtp', {
+            method: 'POST',
+            button: btnFpSendOtp,
+            body: { email, recaptchaToken }
+        });
+        if (res.ok && res.data) {
+            fpStep2Box?.classList.remove('d-none');
+            fpStep3Box?.classList.add('d-none');
+            setFpStatus(res.data.message || 'Đã gửi mã OTP 6 chữ số tới Email của bạn.', true);
+            if (res.data.devOtpCode && fpDevBanner && fpDevVal) {
+                fpDevVal.textContent = res.data.devOtpCode;
+                fpDevBanner.classList.remove('d-none');
+                if (fpOtpInput) fpOtpInput.value = res.data.devOtpCode;
+            }
+            fpOtpInput?.focus();
+        } else {
+            setFpStatus(res.message || 'Không thể gửi mã OTP cho địa chỉ Email này.', false);
+        }
+    });
+
+    btnFpVerifyOtp?.addEventListener('click', async () => {
+        const email = fpEmailInput?.value.trim() || '';
+        const otpCode = fpOtpInput?.value.trim() || '';
+        if (!email || otpCode.length !== 6) {
+            setFpStatus('Mã OTP nhập chưa chính xác. Vui lòng nhập đủ 6 chữ số.', false);
+            return;
+        }
+        const res = await apiFetch('/S01AuthOtpGoogle/VerifyPasswordResetOtp', {
+            method: 'POST',
+            button: btnFpVerifyOtp,
+            body: { email, otpCode }
+        });
+        if (res.ok) {
+            setFpStatus(res.data?.message || 'Mã OTP chính xác! Mời bạn đặt mật khẩu mới bên dưới.', true);
+            fpStep3Box?.classList.remove('d-none');
+            fpNewPassInput?.focus();
+        } else {
+            fpStep3Box?.classList.add('d-none');
+            setFpStatus(res.message || 'Mã OTP nhập chưa chính xác. Vui lòng kiểm tra lại.', false);
+        }
+    });
+
+    btnFpSubmitReset?.addEventListener('click', async () => {
+        const email = fpEmailInput?.value.trim() || '';
+        const otpCode = fpOtpInput?.value.trim() || '';
+        const newPassword = fpNewPassInput?.value || '';
+        const confirmPassword = fpConfirmPassInput?.value || '';
+
+        if (newPassword.length < 6) {
+            setFpStatus('Mật khẩu mới phải có tối thiểu 6 ký tự.', false);
+            return;
+        }
+        if (newPassword !== confirmPassword) {
+            setFpStatus('Mật khẩu nhập lại không khớp với mật khẩu mới.', false);
+            return;
+        }
+
+        const res = await apiFetch('/S01AuthOtpGoogle/ResetPasswordWithOtp', {
+            method: 'POST',
+            button: btnFpSubmitReset,
+            body: { email, otpCode, newPassword, confirmPassword }
+        });
+
+        if (res.ok) {
+            toast(200, 'Đặt lại mật khẩu thành công', 'Bạn có thể đăng nhập ngay bằng mật khẩu mới.');
+            const loginEmail = document.getElementById('loginEmail');
+            const loginPass = document.getElementById('loginPassword');
+            if (loginEmail) loginEmail.value = email;
+            if (loginPass) {
+                loginPass.value = '';
+                loginPass.focus();
+            }
+            fpPanel?.classList.add('d-none');
+            fpStep2Box?.classList.add('d-none');
+            fpStep3Box?.classList.add('d-none');
+            fpDevBanner?.classList.add('d-none');
+            if (fpOtpInput) fpOtpInput.value = '';
+            if (fpNewPassInput) fpNewPassInput.value = '';
+            if (fpConfirmPassInput) fpConfirmPassInput.value = '';
+        } else {
+            setFpStatus(res.message || 'Không thể đặt lại mật khẩu.', false);
+        }
+    });
+
+    // ---------- TẢI ẢNH ĐẠI DIỆN (UPLOAD TRỰC TIẾP, KHÔNG NHẬP LINK) ----------
+    const avatarFileInput = document.getElementById('profAvatarFileInput');
+    const btnUploadAvatar = document.getElementById('btnUploadAvatar');
+    const btnResetAvatar = document.getElementById('btnResetAvatar');
+    const avatarPreviewImg = document.getElementById('s01AvatarPreview');
+
+    btnUploadAvatar?.addEventListener('click', () => avatarFileInput?.click());
+
+    avatarFileInput?.addEventListener('change', async () => {
+        const file = avatarFileInput.files?.[0];
+        if (!file) return;
+        if (file.size > 2 * 1024 * 1024) {
+            showSystemStatus(400, 'Ảnh quá dung lượng', 'Ảnh đại diện không được vượt quá 2MB.');
+            avatarFileInput.value = '';
+            return;
+        }
+
+        // Xem trước ảnh ngay lập tức trước khi tải xong
+        const localUrl = URL.createObjectURL(file);
+        if (avatarPreviewImg) {
+            avatarPreviewImg.src = localUrl;
+        }
+
+        const formData = new FormData();
+        formData.append('file', file);
+
+        try {
+            const res = await apiFetch('/S01AuthOtpGoogle/UploadAvatar', {
+                method: 'POST',
+                body: formData,
+                button: btnUploadAvatar
+            });
+            if (res.ok && res.data?.avatarUrl) {
+                const freshUrl = `${res.data.avatarUrl}?t=${Date.now()}`;
+                if (avatarPreviewImg) avatarPreviewImg.src = freshUrl;
+                document.querySelectorAll('.bs-header-avatar').forEach(img => { img.src = freshUrl; });
+                setTimeout(() => window.location.reload(), 650);
+            }
+        } finally {
+            avatarFileInput.value = '';
+            setTimeout(() => URL.revokeObjectURL(localUrl), 5000);
+        }
+    });
+
+    btnResetAvatar?.addEventListener('click', async () => {
+        const res = await apiFetch('/S01AuthOtpGoogle/ResetAvatar', {
+            method: 'POST',
+            body: {},
+            button: btnResetAvatar
+        });
+        if (res.ok) {
+            const defUrl = res.data?.avatarUrl || '/images/avatar-default.svg';
+            if (avatarPreviewImg) avatarPreviewImg.src = defUrl;
+            setTimeout(() => window.location.reload(), 550);
+        }
+    });
+
     const updateProfileForm = document.getElementById('s01UpdateProfileForm');
     if (updateProfileForm) {
         updateProfileForm.addEventListener('submit', async (e) => {
@@ -32,11 +217,10 @@ document.addEventListener('DOMContentLoaded', () => {
             const email = document.getElementById('profEmail')?.value.trim() || '';
             const phoneNumber = document.getElementById('profPhone')?.value.trim() || '';
             const address = document.getElementById('profAddress')?.value.trim() || '';
-            const avatarUrl = document.getElementById('profAvatarUrl')?.value.trim() || '';
 
             const res = await apiFetch('/S01AuthOtpGoogle/UpdateProfile', {
                 method: 'POST',
-                body: { fullName, email, phoneNumber, address, avatarUrl }
+                body: { fullName, email, phoneNumber, address }
             });
 
             if (res.ok) {
@@ -76,6 +260,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (sel === prefStyle && next.style === 'sketchy' && prefFont) {
                     next.font = 'patrick';
                     prefFont.value = 'patrick';
+                } else if (sel === prefStyle && next.style === 'paper' && prefFont) {
+                    next.font = 'lora';
+                    prefFont.value = 'lora';
+                } else if (sel === prefStyle && next.style === 'terminal' && prefFont) {
+                    next.font = 'jetbrains';
+                    prefFont.value = 'jetbrains';
                 }
                 applyUiPrefs(next, { persistRemote: false, silent: true });
             });
@@ -100,14 +290,6 @@ document.addEventListener('DOMContentLoaded', () => {
             await apiFetch('/S01AuthOtpGoogle/SaveUiPreferences', { method: 'POST', body: def });
             toast(200, 'Đã khôi phục mặc định', 'Giao diện đã trở về chuẩn sáng BookShare.');
         });
-    }
-
-    // Tự động mở đúng tab Giao Diện khi điều hướng từ /S01AuthOtpGoogle?tab=appearance
-    if (new URLSearchParams(window.location.search).get('tab') === 'appearance') {
-        const tabBtn = document.getElementById('btnTabAppearance');
-        if (tabBtn && window.bootstrap?.Tab) {
-            window.bootstrap.Tab.getOrCreateInstance(tabBtn).show();
-        }
     }
 
     const changePassForm = document.getElementById('s01ChangePasswordForm');
@@ -147,14 +329,16 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // ---------- ĐĂNG NHẬP BẰNG MÃ QR 2 CHIỀU ----------
+    // ---------- ĐĂNG NHẬP NHANH BẰNG MÃ QR (THỐNG NHẤT 1 MÁY QUÉT CHUẨN) ----------
     const btnTabQrLogin = document.getElementById('btnTabQrLogin');
+    const tabQrPane = document.getElementById('tabQrLogin');
+    const isAuthTab = tabQrPane?.getAttribute('data-authenticated') === '1';
     const qrWebBox = document.getElementById('qrWebLoginBox');
     const qrWebTimer = document.getElementById('qrWebLoginTimer');
     const qrWebStatus = document.getElementById('qrWebLoginStatus');
     const btnRefreshWebQr = document.getElementById('btnRefreshWebQr');
 
-    let webQrState = null; // { sessionId, token, remainingSeconds }
+    let webQrState = null;
     let webCountdownTimer = null;
     let webPollTimer = null;
     let isCreatingWebQr = false;
@@ -166,7 +350,7 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     const startWebQrSession = async () => {
-        if (isCreatingWebQr || !qrWebBox) return;
+        if (isAuthTab || isCreatingWebQr || !qrWebBox) return;
         isCreatingWebQr = true;
         isClaimingWebQr = false;
         stopWebQrTimers();
@@ -202,8 +386,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }, 1000);
 
             webPollTimer = setInterval(async () => {
-                const pane = document.getElementById('tabQrLogin');
-                if (!webQrState || isClaimingWebQr || !pane?.classList.contains('active')) return;
+                if (!webQrState || isClaimingWebQr || !tabQrPane?.classList.contains('active')) return;
                 try {
                     const statusRes = await fetch(`/api/qr-login/status/${webQrState.sessionId}`, {
                         headers: { Accept: 'application/json' },
@@ -241,7 +424,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
-    if (btnTabQrLogin) {
+    if (btnTabQrLogin && !isAuthTab) {
         btnTabQrLogin.addEventListener('shown.bs.tab', () => {
             if (!webQrState || webQrState.remainingSeconds <= 5) {
                 startWebQrSession();
@@ -250,19 +433,9 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     btnRefreshWebQr?.addEventListener('click', startWebQrSession);
 
+    // Thống nhất mọi nút quét QR đăng nhập dùng đúng openUniversalScanner() (tự nhận diện cả QRLOGIN lẫn MOBILELINK)
     document.getElementById('btnScanMobileLinkQr')?.addEventListener('click', async () => {
-        const scanned = await openBarcodeScanner({
-            title: 'Quét Mã Đăng Nhập Từ Thiết Bị Đã Đăng Nhập',
-            hint: 'Quét mã hiển thị trên màn hình Hồ Sơ của thiết bị kia hoặc nhập chuỗi liên kết'
-        });
-        if (!scanned) return;
-        const res = await apiFetch('/api/qr-login/mobile-claim', {
-            method: 'POST',
-            body: { qrPayload: scanned.trim() }
-        });
-        if (res.ok) {
-            setTimeout(() => { window.location.href = res.data?.redirectUrl || '/'; }, 600);
-        }
+        await openUniversalScanner();
     });
 
     document.getElementById('btnApproveDesktopQr')?.addEventListener('click', async () => {
@@ -282,7 +455,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const data = res.data.data;
         mobileLinkContainer?.classList.remove('d-none');
-        await renderQrCode(mobileLinkBox, data.qrPayload, 180);
+        await renderQrCode(mobileLinkBox, data.qrPayload, 200);
 
         let left = Number(data.expiresInSeconds) || 60;
         if (mobileLinkTimer) mobileLinkTimer.innerText = `Hiệu lực: ${left}s (chỉ dùng 1 lần)`;
@@ -297,4 +470,17 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }, 1000);
     });
+
+    // Tự động mở đúng tab Giao Diện (?tab=appearance) hoặc Đăng Nhập Nhanh (?tab=qr)
+    const tabParam = (new URLSearchParams(window.location.search).get('tab') || '').toLowerCase();
+    if (tabParam === 'appearance') {
+        const tabBtn = document.getElementById('btnTabAppearance');
+        if (tabBtn && window.bootstrap?.Tab) window.bootstrap.Tab.getOrCreateInstance(tabBtn).show();
+    } else if (tabParam === 'qr') {
+        const tabBtn = document.getElementById('btnTabQrLogin');
+        if (tabBtn && window.bootstrap?.Tab) {
+            window.bootstrap.Tab.getOrCreateInstance(tabBtn).show();
+            if (!isAuthTab) startWebQrSession();
+        }
+    }
 });

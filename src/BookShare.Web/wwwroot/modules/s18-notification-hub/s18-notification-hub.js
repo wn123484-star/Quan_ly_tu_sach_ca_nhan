@@ -106,6 +106,7 @@ document.addEventListener('DOMContentLoaded', () => {
             s18VerifiedBadge.className = 'badge bg-success';
             s18VerifiedBadge.innerText = 'Đã xác minh OTP';
             s18DevBanner?.classList.add('d-none');
+            if (s18OtpInput) s18OtpInput.value = '';
         }
     });
 

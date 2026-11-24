@@ -83,3 +83,23 @@ public class ChangePasswordRequestDto
     public string CurrentPassword { get; set; } = string.Empty;
     public string NewPassword { get; set; } = string.Empty;
 }
+
+public class ForgotPasswordSendOtpRequestDto
+{
+    public string Email { get; set; } = string.Empty;
+    public string? RecaptchaToken { get; set; }
+}
+
+public class ForgotPasswordVerifyOtpRequestDto
+{
+    public string Email { get; set; } = string.Empty;
+    public string OtpCode { get; set; } = string.Empty;
+}
+
+public class ForgotPasswordResetRequestDto
+{
+    public string Email { get; set; } = string.Empty;
+    public string OtpCode { get; set; } = string.Empty;
+    public string NewPassword { get; set; } = string.Empty;
+    public string ConfirmPassword { get; set; } = string.Empty;
+}

@@ -220,8 +220,10 @@ document.addEventListener('DOMContentLoaded', () => {
                     const patch = { [key]: el.value };
                     if (key === 'style' && el.value === 'sketchy') {
                         patch.font = 'patrick';
-                        const f = document.getElementById('s13FontSelect');
-                        if (f) f.value = 'patrick';
+                    } else if (key === 'style' && el.value === 'paper') {
+                        patch.font = 'lora';
+                    } else if (key === 'style' && el.value === 'terminal') {
+                        patch.font = 'jetbrains';
                     }
                     applyUiPrefs(patch, { persistRemote: true, silent: true });
                 });

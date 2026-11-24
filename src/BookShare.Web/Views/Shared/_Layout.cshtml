@@ -9,6 +9,8 @@
     var currentUserName = User.Identity?.Name ?? "Khách (Chế độ Xem nhanh)";
     var currentRole = User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value ?? "User";
     var currentTrust = User.FindFirst("TrustScore")?.Value ?? "100";
+    var currentAvatarUrl = User.FindFirst("AvatarUrl")?.Value;
+    var defaultAvatarIcon = IconService.GetImageUrl("avatar_default", "/images/avatar-default.svg");
 
     var statusCode = TempData["StatusCode"] as int? ?? 200;
     var flashTitle = TempData["StatusTitle"] as string;
@@ -42,7 +44,8 @@
                 sketchy: '/vendor/bootswatch/sketchy.min.css',
                 flatly: '/vendor/bootswatch/flatly.min.css',
                 morph: '/vendor/bootswatch/morph.min.css',
-                cyborg: '/vendor/bootswatch/cyborg.min.css'
+                cyborg: '/vendor/bootswatch/cyborg.min.css',
+                terminal: '/vendor/bootswatch/cyborg.min.css'
             };
             var prefs = { theme: 'light', style: 'standard', palette: 'blue', font: 'roboto', fontSize: 'md' };
             try {
@@ -63,7 +66,7 @@
                 }
             } catch (e) { }
             var html = document.documentElement;
-            html.setAttribute('data-bs-theme', prefs.style === 'cyborg' ? 'dark' : prefs.theme);
+            html.setAttribute('data-bs-theme', (prefs.style === 'cyborg' || prefs.style === 'terminal') ? 'dark' : prefs.theme);
             html.setAttribute('data-ui-style', prefs.style);
             html.setAttribute('data-font-family', prefs.font);
             html.setAttribute('data-font-size', prefs.fontSize);
@@ -187,6 +190,14 @@
                         <ul class="dropdown-menu">
                             <li><a class="dropdown-item" asp-controller="S17SandboxPayment" asp-action="Index"><i class="bi bi-wallet2 text-success"></i>Ví Tiền Ảo &amp; Nạp Miễn Phí</a></li>
                             <li><button type="button" class="dropdown-item js-open-qr-pay-scanner"><i class="bi bi-qr-code-scan text-info"></i>Quét QR Thanh Toán</button></li>
+                            @if (isAuthenticated)
+                            {
+                                <li><button type="button" class="dropdown-item js-open-quick-qr-login">@IconService.RenderIconHtml("qr_scan", "bi-qr-code-scan", "text-warning")Đăng nhập nhanh</button></li>
+                            }
+                            else
+                            {
+                                <li><a class="dropdown-item" href="/S01AuthOtpGoogle?tab=qr">@IconService.RenderIconHtml("qr_scan", "bi-qr-code-scan", "text-warning")Đăng nhập nhanh</a></li>
+                            }
                             <li><a class="dropdown-item" asp-controller="S16MembershipTier" asp-action="Index"><i class="bi bi-gem text-warning"></i>Gói Hội Viên 4 Cấp</a></li>
                             <li><a class="dropdown-item" asp-controller="S15TrustScoreReview" asp-action="Index"><i class="bi bi-star-half text-success"></i>Điểm Uy Tín</a></li>
                             <li><a class="dropdown-item" asp-controller="S20ExchangeHubClub" asp-action="Index"><i class="bi bi-geo-alt-fill text-primary"></i>Trạm CLB &amp; Hub</a></li>
@@ -257,7 +268,14 @@
 
                         <div class="dropdown bs-domain-dropdown bs-account-dropdown">
                             <a id="accountMenuToggle" class="dropdown-toggle bs-account-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false" title="@currentUserName (@currentRole)">
-                                <i class="bi bi-person-circle text-info" aria-hidden="true"></i>
+                                @if (!string.IsNullOrWhiteSpace(currentAvatarUrl))
+                                {
+                                    <img src="@currentAvatarUrl" alt="Ảnh đại diện @currentUserName" class="bs-header-avatar" onerror="this.onerror=null;this.src='@defaultAvatarIcon'" />
+                                }
+                                else
+                                {
+                                    <i class="bi bi-person-circle text-info" aria-hidden="true"></i>
+                                }
                                 <span class="bs-account-name">@currentUserName</span>
                                 <span class="badge bg-warning text-dark bs-role-chip">@currentRole</span>
                             </a>
@@ -273,6 +291,7 @@
                                     </div>
                                 </li>
                                 <li><a class="dropdown-item" asp-controller="S01AuthOtpGoogle" asp-action="Index"><i class="bi bi-person-vcard-fill text-info"></i>Hồ Sơ, Email &amp; Bảo Mật</a></li>
+                                <li><button type="button" class="dropdown-item js-open-quick-qr-login">@IconService.RenderIconHtml("qr_scan", "bi-qr-code-scan", "text-warning")Đăng nhập nhanh</button></li>
                                 <li><a class="dropdown-item" href="/S01AuthOtpGoogle?tab=appearance"><i class="bi bi-palette2 text-warning"></i>Cài Đặt Giao Diện, Style &amp; Font</a></li>
                                 <li><a class="dropdown-item" asp-controller="S02PersonalShelf" asp-action="Index"><i class="bi bi-bookshelf text-warning"></i>Tủ Sách Cá Nhân</a></li>
                                 <li><a class="dropdown-item" asp-controller="S17SandboxPayment" asp-action="Index"><i class="bi bi-wallet2 text-success"></i>Ví Tiền Ảo Miễn Phí</a></li>
@@ -291,8 +310,10 @@
                                         <button type="button" class="bs-palette-dot" style="background:#1d4ed8;" data-set-palette="blue" data-palette-name="Xanh Sapphire" title="Xanh Sapphire"></button>
                                         <button type="button" class="bs-palette-dot" style="background:#0284c7;" data-set-palette="ocean" data-palette-name="Xanh Đại Dương" title="Xanh Đại Dương"></button>
                                         <button type="button" class="bs-palette-dot" style="background:#059669;" data-set-palette="emerald" data-palette-name="Lục Bảo Thư Viện" title="Lục Bảo Thư Viện"></button>
+                                        <button type="button" class="bs-palette-dot" style="background:#0d9488;" data-set-palette="mint" data-palette-name="Bạc Hà Tươi Mát" title="Bạc Hà Tươi Mát"></button>
                                         <button type="button" class="bs-palette-dot" style="background:#d97706;" data-set-palette="gold" data-palette-name="Vàng Mộng Mơ" title="Vàng Mộng Mơ"></button>
                                         <button type="button" class="bs-palette-dot" style="background:#e11d48;" data-set-palette="rose" data-palette-name="Hồng Ấm Áp" title="Hồng Ấm Áp"></button>
+                                        <button type="button" class="bs-palette-dot" style="background:#db2777;" data-set-palette="sakura" data-palette-name="Hoa Anh Đào Pastel" title="Hoa Anh Đào Pastel"></button>
                                         <button type="button" class="bs-palette-dot" style="background:#7c3aed;" data-set-palette="lavender" data-palette-name="Tím Oải Hương" title="Tím Oải Hương"></button>
                                         <button type="button" class="bs-palette-dot" style="background:#a16207;" data-set-palette="sepia" data-palette-name="Giấy Cổ Thư Viện" title="Giấy Cổ Thư Viện"></button>
                                         <button type="button" class="bs-palette-dot" style="background:#ea580c;" data-set-palette="coral" data-palette-name="Cam Hoàng Hôn" title="Cam Hoàng Hôn"></button>
@@ -303,7 +324,10 @@
                                         <button type="button" class="btn btn-xs btn-outline-light py-0 px-2" data-set-ui-style="standard">Chuẩn</button>
                                         <button type="button" class="btn btn-xs btn-outline-warning py-0 px-2" data-set-ui-style="sketchy">✏️ Nghệch ngoặc</button>
                                         <button type="button" class="btn btn-xs btn-outline-info py-0 px-2" data-set-ui-style="morph">Kính mờ</button>
-                                        <button type="button" class="btn btn-xs btn-outline-light py-0 px-2" data-set-ui-style="flatly">Phẳng</button>
+                                        <button type="button" class="btn btn-xs btn-outline-light py-0 px-2" data-set-ui-style="paper">📜 Trang sách</button>
+                                        <button type="button" class="btn btn-xs btn-outline-warning py-0 px-2" data-set-ui-style="neobrutal">💥 Truyện tranh</button>
+                                        <button type="button" class="btn btn-xs btn-outline-info py-0 px-2" data-set-ui-style="pastel">🍬 Kẹo ngọt</button>
+                                        <button type="button" class="btn btn-xs btn-outline-success py-0 px-2" data-set-ui-style="terminal">💻 Terminal</button>
                                     </div>
                                 </li>
                                 <li><hr class="dropdown-divider border-secondary opacity-25 my-1" /></li>
@@ -329,6 +353,8 @@
                                 <li><button type="button" class="dropdown-item" data-set-palette="blue" data-palette-name="Xanh Sapphire">🔵 Xanh Sapphire (Mặc định)</button></li>
                                 <li><button type="button" class="dropdown-item" data-set-palette="gold" data-palette-name="Vàng Mộng Mơ">✨ Vàng Mộng Mơ</button></li>
                                 <li><button type="button" class="dropdown-item" data-set-palette="rose" data-palette-name="Hồng Ấm Áp">🌸 Hồng Ấm Áp</button></li>
+                                <li><button type="button" class="dropdown-item" data-set-palette="sakura" data-palette-name="Hoa Anh Đào Pastel">🌷 Hoa Anh Đào Pastel</button></li>
+                                <li><button type="button" class="dropdown-item" data-set-palette="mint" data-palette-name="Bạc Hà Tươi Mát">🌿 Bạc Hà Tươi Mát</button></li>
                                 <li><button type="button" class="dropdown-item" data-set-palette="lavender" data-palette-name="Tím Oải Hương">💜 Tím Oải Hương</button></li>
                                 <li><button type="button" class="dropdown-item" data-set-palette="sepia" data-palette-name="Giấy Cổ Thư Viện">📜 Giấy Cổ Thư Viện</button></li>
                                 <li><button type="button" class="dropdown-item" data-set-palette="emerald" data-palette-name="Lục Bảo Thư Viện">🟢 Lục Bảo Thư Viện</button></li>
@@ -336,14 +362,22 @@
                                 <li><button type="button" class="dropdown-item" data-set-palette="coral" data-palette-name="Cam Hoàng Hôn">🟠 Cam Hoàng Hôn</button></li>
                                 <li><button type="button" class="dropdown-item" data-set-palette="midnight" data-palette-name="Đêm Ngân Hà">🌌 Đêm Ngân Hà</button></li>
                                 <li><hr class="dropdown-divider border-secondary opacity-25 my-1" /></li>
-                                <li class="px-3 py-1 small text-warning fw-bold">✏️ Phong cách Bootstrap</li>
+                                <li class="px-3 py-1 small text-warning fw-bold">✏️ Phong cách giao diện (9 kiểu)</li>
                                 <li><button type="button" class="dropdown-item" data-set-ui-style="standard">📘 Chuẩn Hiện Đại</button></li>
                                 <li><button type="button" class="dropdown-item" data-set-ui-style="sketchy">✏️ Nét Vẽ Nghệch Ngoặc (Sketchy)</button></li>
                                 <li><button type="button" class="dropdown-item" data-set-ui-style="morph">🫧 Kính Mờ Mềm Mại (Morph)</button></li>
                                 <li><button type="button" class="dropdown-item" data-set-ui-style="flatly">📐 Phẳng Sắc Nét (Flatly)</button></li>
+                                <li><button type="button" class="dropdown-item" data-set-ui-style="paper">📜 Trang Sách Cổ Điển (Paper)</button></li>
+                                <li><button type="button" class="dropdown-item" data-set-ui-style="neobrutal">💥 Truyện Tranh Pop (Neo-Brutal)</button></li>
+                                <li><button type="button" class="dropdown-item" data-set-ui-style="pastel">🍬 Kẹo Ngọt Dịu Mắt (Pastel)</button></li>
                                 <li><button type="button" class="dropdown-item" data-set-ui-style="cyborg">⚡ Đêm Công Nghệ (Cyborg)</button></li>
+                                <li><button type="button" class="dropdown-item" data-set-ui-style="terminal">💻 Lập Trình Viên (Terminal)</button></li>
                             </ul>
                         </div>
+
+                        <a href="/S01AuthOtpGoogle?tab=qr" class="btn btn-xs btn-outline-light fw-bold px-2 py-1 rounded-pill text-decoration-none" title="Đăng nhập nhanh bằng mã QR">
+                            <i class="bi bi-qr-code-scan me-1" aria-hidden="true"></i>Đăng nhập nhanh
+                        </a>
 
                         <a asp-controller="S01AuthOtpGoogle" asp-action="Index" class="btn btn-xs btn-warning text-dark fw-bold px-3 py-1 rounded-pill text-decoration-none">
                             <i class="bi bi-box-arrow-in-right me-1"></i>Đăng Nhập
@@ -393,8 +427,8 @@
                         </div>
                     </div>
 
-                    <div class="col-lg-2 col-md-2 text-end">
-                        <a asp-controller="S02PersonalShelf" asp-action="Index" class="text-white text-decoration-none d-inline-flex flex-column align-items-center">
+                    <div class="col-lg-2 col-md-12 text-lg-end">
+                        <a asp-controller="S02PersonalShelf" asp-action="Index" class="portal-shelf-cta text-white text-decoration-none d-inline-flex flex-column align-items-center">
                             <div class="position-relative">
                                 @IconService.RenderIconHtml("nav_cart_shelf", "bi-journal-bookmark-fill", "fs-3")
                                 <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-info text-dark">Kệ Sách</span>
@@ -473,16 +507,22 @@
                 <!-- Thanh tùy biến Style/Màu/Font/Cỡ chữ nhanh ngay trong Chat AI -->
                 <div id="aiWidgetStyleBar" class="ai-chat-stylebar d-none">
                     <select id="aiStyleSelect" class="form-select form-select-sm" aria-label="Chọn phong cách giao diện">
-                        <option value="standard">Style: Chuẩn</option>
-                        <option value="sketchy">Style: Nghệch ngoặc</option>
-                        <option value="morph">Style: Kính mờ</option>
-                        <option value="flatly">Style: Phẳng</option>
-                        <option value="cyborg">Style: Đêm Cyborg</option>
+                        <option value="standard">Style: Chuẩn Hiện Đại</option>
+                        <option value="sketchy">Style: Nét vẽ nghệch ngoặc</option>
+                        <option value="morph">Style: Kính mờ Morph</option>
+                        <option value="flatly">Style: Phẳng sắc nét</option>
+                        <option value="paper">Style: Trang sách cổ điển</option>
+                        <option value="neobrutal">Style: Truyện tranh Pop</option>
+                        <option value="pastel">Style: Kẹo ngọt dịu mắt</option>
+                        <option value="cyborg">Style: Đêm công nghệ</option>
+                        <option value="terminal">Style: Lập trình viên</option>
                     </select>
                     <select id="aiPaletteSelect" class="form-select form-select-sm" aria-label="Chọn bảng màu">
                         <option value="blue">Màu: Sapphire</option>
                         <option value="gold">Màu: Vàng Mộng Mơ</option>
                         <option value="rose">Màu: Hồng Ấm Áp</option>
+                        <option value="sakura">Màu: Hoa Anh Đào</option>
+                        <option value="mint">Màu: Bạc Hà Tươi</option>
                         <option value="lavender">Màu: Tím Oải Hương</option>
                         <option value="sepia">Màu: Giấy Cổ</option>
                         <option value="emerald">Màu: Lục Bảo</option>

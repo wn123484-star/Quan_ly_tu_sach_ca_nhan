@@ -44,6 +44,20 @@ public interface IS01AuthOtpService
         string userId,
         ChangePasswordRequestDto request);
 
+    Task<(bool Success, string Message, string? DevOtpCode)> RequestPasswordResetOtpAsync(string email);
+
+    Task<(bool Success, string Message)> VerifyPasswordResetOtpAsync(string email, string otpCode);
+
+    Task<(bool Success, string Message)> ResetPasswordWithOtpAsync(ForgotPasswordResetRequestDto request);
+
+    Task<(bool Success, string Message, string? AvatarUrl, AuthUserClaimsDto? UpdatedClaims)> UploadUserAvatarAsync(
+        string userId,
+        IFormFile file);
+
+    Task<(bool Success, string Message, AuthUserClaimsDto? UpdatedClaims)> ResetUserAvatarAsync(string userId);
+
+    Task<AuthUserClaimsDto?> GetUserClaimsByIdAsync(string userId);
+
     Task<(bool Success, string Message)> SubmitCuratorRequestAsync(
         string userId,
         SubmitCuratorRequestDto request);
@@ -62,4 +76,5 @@ public class AuthUserClaimsDto
     public string FullName { get; set; } = string.Empty;
     public string PrimaryRole { get; set; } = "User";
     public int TrustScore { get; set; } = 100;
+    public string? AvatarUrl { get; set; }
 }

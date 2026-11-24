@@ -29,6 +29,11 @@ public class MobileCompanionService : IMobileCompanionService
             .Where(n => n.UserId == currentUserId && !n.IsRead);
 
         int unreadCount = await baseQuery.CountAsync();
+        int latestNotificationId = await _db.Notifications
+            .AsNoTracking()
+            .Where(n => n.UserId == currentUserId)
+            .Select(n => (int?)n.Id)
+            .MaxAsync() ?? 0;
 
         var latestItems = await baseQuery
             .Where(n => n.Id > sinceId)
@@ -39,6 +44,7 @@ public class MobileCompanionService : IMobileCompanionService
         return new MobileUnreadNotificationsResponseDto
         {
             UnreadCount = unreadCount,
+            LatestNotificationId = latestNotificationId,
             Notifications = latestItems.Select(n => new MobileNotificationItemDto
             {
                 Id = n.Id,
@@ -85,18 +91,18 @@ public class MobileCompanionService : IMobileCompanionService
     {
         if (n.Content.Contains("/S17SandboxPayment", StringComparison.OrdinalIgnoreCase))
         {
-            return "/S17SandboxPayment";
+            return $"/S17SandboxPayment?notifId={n.Id}";
         }
         if (n.Type.Contains("Dispute", StringComparison.OrdinalIgnoreCase) ||
             n.Content.Contains("tranh chấp", StringComparison.OrdinalIgnoreCase))
         {
-            return "/S19DisputeResolution";
+            return $"/S19DisputeResolution?notifId={n.Id}";
         }
         if (n.Type.Contains("Loan", StringComparison.OrdinalIgnoreCase) ||
             n.Content.Contains("mượn sách", StringComparison.OrdinalIgnoreCase))
         {
-            return "/S08LibraryLoanFlow";
+            return $"/S08LibraryLoanFlow?notifId={n.Id}";
         }
-        return "/S18NotificationHub";
+        return $"/S18NotificationHub?highlight={n.Id}&notifId={n.Id}";
     }
 }

@@ -55,6 +55,7 @@ public class MainActivity extends AppCompatActivity {
     private static final String OFFLINE_ASSET_URL = "file:///android_asset/offline.html";
     private static final long SLOW_LOAD_HINT_MS = 7000L;
     private static final long LOAD_TIMEOUT_MS = 20000L;
+    private static final long MIN_NOTIF_POLL_INTERVAL_MS = 45000L;
 
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
 
@@ -72,6 +73,7 @@ public class MainActivity extends AppCompatActivity {
     private boolean mainFrameErrorOccurred = false;
     private boolean pullToRefreshEnabled = true;
     private boolean notificationPromptRequested = false;
+    private long lastNotifPollAtMs = 0L;
 
     private final Runnable slowLoadHintRunnable = () -> {
         if (loadingOverlay != null && loadingOverlay.getVisibility() == View.VISIBLE) {
@@ -202,6 +204,15 @@ public class MainActivity extends AppCompatActivity {
         if (webView != null) {
             webView.onResume();
         }
+        triggerNotificationsThrottled();
+    }
+
+    private void triggerNotificationsThrottled() {
+        long now = System.currentTimeMillis();
+        if (now - lastNotifPollAtMs < MIN_NOTIF_POLL_INTERVAL_MS) {
+            return;
+        }
+        lastNotifPollAtMs = now;
         NotificationPoller.triggerNow(this);
     }
 
@@ -326,7 +337,7 @@ public class MainActivity extends AppCompatActivity {
 
                 if (isHttpUrl(url) && !mainFrameErrorOccurred) {
                     requestNotificationPermissionOnceAfterLoad();
-                    NotificationPoller.triggerNow(MainActivity.this);
+                    triggerNotificationsThrottled();
                 }
             }
 

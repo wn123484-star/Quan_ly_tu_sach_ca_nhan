@@ -187,11 +187,124 @@ public class S01AuthOtpGoogleController : Controller
             return BadRequest(new { title = "Xác thực OTP thất bại", message });
         }
 
+        // Đồng bộ lại claims cookie ngay sau khi xác minh Email (tránh sai lệch Email giữa S01 và S18)
+        if (User.Identity?.IsAuthenticated == true)
+        {
+            var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (!string.IsNullOrWhiteSpace(currentUserId))
+            {
+                var freshClaims = await _authService.GetUserClaimsByIdAsync(currentUserId);
+                if (freshClaims != null)
+                {
+                    await SignInCookieAsync(freshClaims, isPersistent: true);
+                }
+            }
+        }
+
         return Ok(new
         {
             title = "Xác thực OTP thành công",
             message
         });
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> SendPasswordResetOtp([FromBody] ForgotPasswordSendOtpRequestDto request)
+    {
+        var remoteIp = HttpContext.Connection.RemoteIpAddress?.ToString();
+        var (captchaOk, _, captchaMsg) = await _recaptchaService.VerifyTokenAsync(request?.RecaptchaToken, "forgot_password", remoteIp);
+        if (!captchaOk)
+        {
+            return StatusCode(StatusCodes.Status403Forbidden, new
+            {
+                title = "Chặn yêu cầu bất thường (reCAPTCHA v3)",
+                message = captchaMsg
+            });
+        }
+
+        var (success, message, devOtpCode) = await _authService.RequestPasswordResetOtpAsync(request?.Email ?? string.Empty);
+        if (!success)
+        {
+            return BadRequest(new { title = "Không thể gửi mã OTP khôi phục", message });
+        }
+
+        return Ok(new
+        {
+            title = "Đã gửi mã OTP đặt lại mật khẩu",
+            message,
+            devOtpCode
+        });
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> VerifyPasswordResetOtp([FromBody] ForgotPasswordVerifyOtpRequestDto request)
+    {
+        var (success, message) = await _authService.VerifyPasswordResetOtpAsync(
+            request?.Email ?? string.Empty,
+            request?.OtpCode ?? string.Empty);
+
+        if (!success)
+        {
+            return BadRequest(new { title = "Mã OTP chưa chính xác", message });
+        }
+
+        return Ok(new { title = "Xác thực OTP thành công", message });
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> ResetPasswordWithOtp([FromBody] ForgotPasswordResetRequestDto request)
+    {
+        var (success, message) = await _authService.ResetPasswordWithOtpAsync(request ?? new ForgotPasswordResetRequestDto());
+        if (!success)
+        {
+            return BadRequest(new { title = "Đặt lại mật khẩu thất bại", message });
+        }
+
+        return Ok(new { title = "Đặt lại mật khẩu thành công", message });
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    [Authorize]
+    [RequestSizeLimit(3 * 1024 * 1024)]
+    public async Task<IActionResult> UploadAvatar(IFormFile file)
+    {
+        var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
+        var (success, message, avatarUrl, updatedClaims) = await _authService.UploadUserAvatarAsync(currentUserId, file);
+        if (!success)
+        {
+            return BadRequest(new { message });
+        }
+
+        if (updatedClaims != null)
+        {
+            await SignInCookieAsync(updatedClaims, isPersistent: true);
+        }
+
+        return Ok(new { title = "Cập nhật ảnh đại diện thành công", message, avatarUrl });
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    [Authorize]
+    public async Task<IActionResult> ResetAvatar()
+    {
+        var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
+        var (success, message, updatedClaims) = await _authService.ResetUserAvatarAsync(currentUserId);
+        if (!success)
+        {
+            return BadRequest(new { message });
+        }
+
+        if (updatedClaims != null)
+        {
+            await SignInCookieAsync(updatedClaims, isPersistent: true);
+        }
+
+        return Ok(new { title = "Đã đặt lại ảnh đại diện", message, avatarUrl = "/images/avatar-default.svg" });
     }
 
     [HttpPost]

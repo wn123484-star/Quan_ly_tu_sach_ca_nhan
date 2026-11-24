@@ -96,6 +96,10 @@ public static class AuthConfigHelper
             new(ClaimTypes.Role, userClaims.PrimaryRole),
             new("TrustScore", userClaims.TrustScore.ToString())
         };
+        if (!string.IsNullOrWhiteSpace(userClaims.AvatarUrl))
+        {
+            claims.Add(new Claim("AvatarUrl", userClaims.AvatarUrl));
+        }
 
         var identity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
         return new ClaimsPrincipal(identity);

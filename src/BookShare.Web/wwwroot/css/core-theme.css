@@ -213,11 +213,37 @@ body[data-portal-palette="coral"] {
     --portal-accent-glow: #fb923c;
 }
 
+body[data-portal-palette="mint"] {
+    --portal-grad-deep: #115e59;
+    --portal-grad-start: #0f766e;
+    --portal-grad-mid: #0d9488;
+    --portal-grad-end: #14b8a6;
+    --portal-accent: #0d9488;
+    --portal-accent-glow: #5eead4;
+    --portal-light-bg: #f0fdfa;
+    --portal-surface-2: #ccfbf1;
+    --portal-border: #99f6e4;
+}
+
+body[data-portal-palette="sakura"] {
+    --portal-grad-deep: #831843;
+    --portal-grad-start: #9d174d;
+    --portal-grad-mid: #be185d;
+    --portal-grad-end: #ec4899;
+    --portal-accent: #db2777;
+    --portal-accent-glow: #f9a8d4;
+    --portal-light-bg: #fdf2f8;
+    --portal-surface-2: #fce7f3;
+    --portal-border: #fbcfe8;
+}
+
 /* Giữ nền tối chuẩn khi bật Dark Mode kết hợp với bảng màu sáng ấm */
 [data-bs-theme="dark"] body[data-portal-palette="gold"],
 [data-bs-theme="dark"] body[data-portal-palette="rose"],
 [data-bs-theme="dark"] body[data-portal-palette="lavender"],
-[data-bs-theme="dark"] body[data-portal-palette="sepia"] {
+[data-bs-theme="dark"] body[data-portal-palette="sepia"],
+[data-bs-theme="dark"] body[data-portal-palette="mint"],
+[data-bs-theme="dark"] body[data-portal-palette="sakura"] {
     --portal-light-bg: #0f172a;
     --portal-surface: #1e293b;
     --portal-surface-2: #172033;
@@ -868,20 +894,46 @@ main {
 .skeleton-line { height: 12px; margin-bottom: 10px; }
 .skeleton-cover { width: 82px; height: 116px; flex-shrink: 0; }
 
-/* Header trên điện thoại rất cao (22 dịch vụ) nên không dính đầu trang để khỏi che nội dung */
-@media (max-width: 768px) {
+/* Header trên điện thoại & tablet không dính đầu trang để tránh che nội dung đầu trang */
+@media (max-width: 991.98px) {
     .portal-header-wrapper { position: static; }
+    .bs-utility-row { gap: 6px; }
+    .bs-domain-nav-bar {
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        scrollbar-width: none;
+        padding-bottom: 2px;
+        max-width: 100%;
+    }
+    .bs-domain-nav-bar::-webkit-scrollbar { display: none; }
+    .bs-domain-dropdown .dropdown-toggle,
+    .bs-nav-home-btn { white-space: nowrap; flex-shrink: 0; }
+    .bs-utility-actions { width: 100%; justify-content: flex-end; flex-wrap: wrap; }
+    .portal-main-bar { padding: 10px 0; }
+    .portal-quick-tags { gap: 8px; }
+    .portal-shelf-cta {
+        flex-direction: row !important;
+        gap: 8px;
+        padding: 6px 12px;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.14);
+        border: 1px solid rgba(255, 255, 255, 0.25);
+    }
+    .portal-shelf-cta .badge { position: static !important; transform: none !important; margin-left: 4px; }
 }
 /* Nút Trợ lý AI trên điện thoại: chỉ hiện icon tròn để không tràn mép phải */
 @media (max-width: 576px) {
+    body { overflow-x: clip; }
     .ai-chat-widget { right: 14px; bottom: 14px; }
     .ai-chat-fab { padding: 14px; }
     .ai-chat-fab span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
     .ai-chat-popup { right: 8px; bottom: 76px; max-width: calc(100vw - 16px); }
     /* Ô tìm kiếm header co theo màn hình 375px, không đẩy trang tràn ngang */
-    .portal-search-box input { min-width: 0; padding: 8px 10px; }
-    .portal-search-box select { max-width: 112px; padding: 8px 6px; }
+    .portal-search-box input { min-width: 0; padding: 8px 10px; font-size: 0.85rem; }
+    .portal-search-box select { max-width: 108px; padding: 8px 6px; font-size: 0.78rem; }
     .portal-search-btn { padding: 8px 14px; }
+    .portal-quick-tags { display: none; }
+    .nav-pills.nav-fill .nav-link { font-size: 0.82rem; padding: 8px 6px; }
     /* Badge tiêu đề dài được xuống dòng thay vì đẩy trang tràn ngang */
     main .badge { white-space: normal; text-align: left; line-height: 1.35; }
     /* Con của flex được phép co lại, chữ/mã quá dài tự ngắt dòng */
@@ -946,19 +998,33 @@ img.lazy-blur.is-loaded {
     box-shadow: var(--tilt-shadow-x, 0) 18px 30px rgba(15, 23, 42, 0.22) !important;
 }
 
-/* 5.6 Chuông thông báo real-time (S18) */
+/* 5.6 Chuông thông báo real-time (S18) — luôn nổi rõ trên mọi phong cách Bootstrap */
 .notif-bell {
     position: relative;
-    color: #fff;
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.16) !important;
+    border: 1px solid rgba(255, 255, 255, 0.35) !important;
+    color: #ffffff !important;
     text-decoration: none;
-    font-size: 1.05rem;
+    font-size: 0.98rem;
     line-height: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: background-color 0.15s ease, transform 0.15s ease;
 }
-.notif-bell:hover { color: #fff; opacity: 0.85; }
+.notif-bell:hover,
+.notif-bell:focus {
+    background: rgba(255, 255, 255, 0.28) !important;
+    color: #ffffff !important;
+}
 .notif-bell .notif-dot {
     position: absolute;
-    top: -6px;
-    right: -9px;
+    top: -5px;
+    right: -6px;
     min-width: 17px;
     height: 17px;
     padding: 0 4px;
@@ -971,6 +1037,15 @@ img.lazy-blur.is-loaded {
     align-items: center;
     justify-content: center;
     box-shadow: 0 0 0 2px var(--portal-grad-start);
+}
+
+.bs-header-avatar {
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 1.5px solid rgba(255, 255, 255, 0.75);
+    flex-shrink: 0;
 }
 .notif-bell.is-ringing i { display: inline-block; animation: bell-ring 0.9s ease-in-out 2; transform-origin: 50% 0; }
 @keyframes bell-ring {
@@ -2052,4 +2127,113 @@ html[data-ui-style="cyborg"] .bg-white,
 .bs-notif-highlight {
     outline: 2px solid var(--portal-accent) !important;
     box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.16) !important;
+}
+
+/* =========================================================================
+   KHUNG QUÉT QR / MÃ VẠCH HÌNH VUÔNG CHUẨN (1:1) & ĐA PHONG CÁCH GIAO DIỆN MỚI
+   ========================================================================= */
+.bs-qr-scanner-stage {
+    width: min(290px, 76vw);
+    height: min(290px, 76vw);
+    aspect-ratio: 1 / 1;
+    margin: 0 auto;
+    border-radius: 18px;
+    overflow: hidden;
+    background: #0f172a;
+    border: 2.5px solid var(--portal-accent);
+    box-shadow: 0 12px 30px rgba(15, 23, 42, 0.24);
+    position: relative;
+}
+
+.bs-qr-scanner-stage video {
+    width: 100% !important;
+    height: 100% !important;
+    object-fit: cover !important;
+    display: block;
+}
+
+.bs-qr-scanner-stage #qr-shaded-region {
+    border-color: rgba(15, 23, 42, 0.56) !important;
+}
+
+/* Phong cách 6: Trang Sách Cổ Điển (Paper Literary) */
+html[data-ui-style="paper"] {
+    --portal-light-bg: #faf6ee;
+    --portal-surface: #fffdf8;
+    --portal-surface-2: #f4ecdc;
+    --portal-border: #dfd3bc;
+    --portal-text: #2c2419;
+}
+html[data-ui-style="paper"] .card,
+html[data-ui-style="paper"] .bs-card,
+html[data-ui-style="paper"] .bs-adaptive-card {
+    border-radius: 10px !important;
+    border: 1px solid #d6c7ac !important;
+    box-shadow: 0 3px 0 #e6dac3, 0 8px 20px rgba(72, 54, 24, 0.07) !important;
+}
+
+/* Phong cách 7: Truyện Tranh Pop (Neo-Brutalism) */
+html[data-ui-style="neobrutal"] .card,
+html[data-ui-style="neobrutal"] .bs-card,
+html[data-ui-style="neobrutal"] .bs-adaptive-card,
+html[data-ui-style="neobrutal"] .portal-search-box,
+html[data-ui-style="neobrutal"] .ai-chat-popup,
+html[data-ui-style="neobrutal"] .bs-notif-popover {
+    border: 2.5px solid var(--portal-text) !important;
+    border-radius: 12px !important;
+    box-shadow: 5px 5px 0 var(--portal-text) !important;
+}
+html[data-ui-style="neobrutal"] .btn {
+    border: 2px solid var(--portal-text) !important;
+    box-shadow: 3px 3px 0 var(--portal-text) !important;
+    font-weight: 800 !important;
+}
+html[data-ui-style="neobrutal"] .btn:active {
+    transform: translate(2px, 2px);
+    box-shadow: 1px 1px 0 var(--portal-text) !important;
+}
+
+/* Phong cách 8: Kẹo Ngọt Dịu Mắt (Soft Pastel) */
+html[data-ui-style="pastel"] .card,
+html[data-ui-style="pastel"] .bs-card,
+html[data-ui-style="pastel"] .bs-adaptive-card,
+html[data-ui-style="pastel"] .ai-chat-popup,
+html[data-ui-style="pastel"] .bs-notif-popover {
+    border-radius: 26px !important;
+    border: 1.5px solid rgba(148, 163, 184, 0.28) !important;
+    box-shadow: 0 14px 36px rgba(99, 102, 241, 0.09) !important;
+}
+html[data-ui-style="pastel"] .btn,
+html[data-ui-style="pastel"] .form-control,
+html[data-ui-style="pastel"] .form-select {
+    border-radius: 999px !important;
+}
+
+/* Phong cách 9: Lập Trình Viên (Retro Terminal) */
+html[data-ui-style="terminal"] {
+    --portal-light-bg: #071018;
+    --portal-surface: #0c1926;
+    --portal-surface-2: #102334;
+    --portal-text: #d1fae5;
+    --portal-border: #10b981;
+    --portal-accent: #10b981;
+    --portal-accent-glow: #34d399;
+    --bs-body-bg: #071018;
+    --bs-body-color: #d1fae5;
+}
+html[data-ui-style="terminal"] .card,
+html[data-ui-style="terminal"] .bs-card,
+html[data-ui-style="terminal"] .bs-adaptive-card,
+html[data-ui-style="terminal"] .ai-chat-popup,
+html[data-ui-style="terminal"] .bs-notif-popover,
+html[data-ui-style="terminal"] .btn,
+html[data-ui-style="terminal"] .form-control,
+html[data-ui-style="terminal"] .form-select {
+    border-radius: 4px !important;
+    border-color: rgba(16, 185, 129, 0.55) !important;
+}
+html[data-ui-style="terminal"] .bg-white,
+html[data-ui-style="terminal"] .bg-light {
+    background-color: #0c1926 !important;
+    color: #d1fae5 !important;
 }

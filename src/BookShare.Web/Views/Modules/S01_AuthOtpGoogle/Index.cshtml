@@ -94,7 +94,7 @@
                         </li>
                         <li class="nav-item" role="presentation">
                             <button class="nav-link fw-bold" id="btnTabQrLogin" data-bs-toggle="pill" data-bs-target="#tabQrLogin" type="button">
-                                @IconService.RenderIconHtml("qr_scan", "bi-qr-code-scan", "me-1")Mã QR
+                                @IconService.RenderIconHtml("qr_scan", "bi-qr-code-scan", "me-1")Đăng Nhập Nhanh
                             </button>
                         </li>
                     }
@@ -112,7 +112,7 @@
                         </li>
                         <li class="nav-item" role="presentation">
                             <button class="nav-link fw-bold" id="btnTabQrLogin" data-bs-toggle="pill" data-bs-target="#tabQrLogin" type="button">
-                                @IconService.RenderIconHtml("qr_scan", "bi-qr-code-scan", "me-1")Liên Kết QR
+                                @IconService.RenderIconHtml("qr_scan", "bi-qr-code-scan", "me-1")Đăng Nhập Nhanh
                             </button>
                         </li>
                     }
@@ -136,16 +136,69 @@
                                 <label class="form-label small fw-bold" for="loginPassword">Mật khẩu</label>
                                 <input type="password" class="form-control" id="loginPassword" name="Password" value="" placeholder="Nhập mật khẩu..." required />
                             </div>
-                            <div class="d-flex justify-content-between align-items-center mb-3">
+                            <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
                                 <div class="form-check">
                                     <input class="form-check-input" type="checkbox" name="RememberMe" value="true" checked id="rememberCheck" />
                                     <label class="form-check-label small" for="rememberCheck">Ghi nhớ phiên đăng nhập</label>
                                 </div>
+                                <button type="button" id="btnOpenForgotPassword" class="btn btn-link btn-sm p-0 text-decoration-none fw-semibold">
+                                    <i class="bi bi-key me-1"></i>Quên mật khẩu?
+                                </button>
                             </div>
                             <button type="submit" class="btn btn-primary w-100 fw-bold py-2">
                                 <i class="bi bi-unlock-fill me-1"></i>Đăng Nhập Vào Hệ Thống
                             </button>
                         </form>
+
+                        <!-- KHỐI QUÊN MẬT KHẨU QUA XÁC THỰC OTP EMAIL -->
+                        <div id="s01ForgotPasswordPanel" class="d-none p-3 rounded-4 border border-primary bg-body-tertiary mb-3">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <h6 class="fw-bold text-primary mb-0"><i class="bi bi-shield-lock-fill me-1"></i>Khôi Phục Mật Khẩu Bằng OTP Email</h6>
+                                <button type="button" id="btnCloseForgotPassword" class="btn-close btn-sm" aria-label="Đóng khung quên mật khẩu"></button>
+                            </div>
+                            <p class="small text-muted mb-3">
+                                Nhập địa chỉ Email đã đăng ký để nhận mã xác thực OTP 6 chữ số, sau đó thiết lập mật khẩu mới.
+                            </p>
+
+                            <div class="mb-2">
+                                <label class="form-label small fw-bold" for="fpEmailInput">Bước 1: Địa chỉ Email đăng ký</label>
+                                <div class="input-group input-group-sm">
+                                    <input type="email" id="fpEmailInput" class="form-control" placeholder="nhapemail@domain.com" />
+                                    <button type="button" id="btnFpSendOtp" class="btn btn-primary fw-bold">Gửi mã OTP</button>
+                                </div>
+                            </div>
+
+                            <div id="fpDevOtpBanner" class="alert alert-warning py-2 px-3 small d-none mb-2">
+                                <span>Mã OTP khôi phục: <strong id="fpDevOtpValue" class="font-monospace fs-6 text-primary">------</strong></span>
+                            </div>
+
+                            <div id="fpStep2Box" class="d-none mb-2">
+                                <label class="form-label small fw-bold" for="fpOtpInput">Bước 2: Nhập mã OTP 6 chữ số</label>
+                                <div class="input-group input-group-sm">
+                                    <input type="text" id="fpOtpInput" class="form-control font-monospace fw-bold text-center" maxlength="6" placeholder="Nhập 6 chữ số OTP..." />
+                                    <button type="button" id="btnFpVerifyOtp" class="btn btn-success fw-bold">Xác nhận OTP</button>
+                                </div>
+                            </div>
+
+                            <div id="fpStepStatus" class="small fw-semibold mb-2 d-none"></div>
+
+                            <div id="fpStep3Box" class="d-none border-top pt-2 mt-2">
+                                <div class="small fw-bold text-success mb-2"><i class="bi bi-check-circle-fill me-1"></i>Bước 3: Tạo mật khẩu mới</div>
+                                <div class="row g-2 mb-2">
+                                    <div class="col-md-6">
+                                        <label class="form-label small fw-bold" for="fpNewPassInput">Mật khẩu mới *</label>
+                                        <input type="password" id="fpNewPassInput" class="form-control form-control-sm" minlength="6" placeholder="Tối thiểu 6 ký tự..." />
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label small fw-bold" for="fpConfirmPassInput">Nhập lại mật khẩu mới *</label>
+                                        <input type="password" id="fpConfirmPassInput" class="form-control form-control-sm" minlength="6" placeholder="Nhập khớp mật khẩu mới..." />
+                                    </div>
+                                </div>
+                                <button type="button" id="btnFpSubmitReset" class="btn btn-success btn-sm fw-bold w-100">
+                                    <i class="bi bi-check2-circle me-1"></i>Xác Nhận Đặt Lại Mật Khẩu Mới
+                                </button>
+                            </div>
+                        </div>
 
                         <div class="text-center text-muted small my-3">— HOẶC ĐĂNG NHẬP NHANH —</div>
 
@@ -210,68 +263,108 @@
                         </div>
                     }
 
-                    <!-- TAB 2B: ĐĂNG NHẬP NHANH BẰNG MÃ QR -->
-                    <div class="tab-pane fade" id="tabQrLogin" role="tabpanel">
-                        <div class="text-center p-3 p-md-4 rounded-4 border bg-body-tertiary">
-                            <h6 class="fw-bold text-primary mb-2">
-                                <i class="bi bi-qr-code-scan me-1"></i>Đăng Nhập Nhanh Không Cần Nhập Mật Khẩu
-                            </h6>
-                            <p class="small text-muted mb-3">
-                                Mở ứng dụng BookShare (hoặc trình duyệt) đang đăng nhập sẵn trên thiết bị khác và quét mã dưới đây để vào hệ thống ngay lập tức.
-                            </p>
+                    <!-- TAB 2B: ĐĂNG NHẬP NHANH BẰNG MÃ QR (THỐNG NHẤT 1 LUỒNG CHUẨN) -->
+                    <div class="tab-pane fade" id="tabQrLogin" role="tabpanel" data-authenticated="@(Model.IsAuthenticated ? "1" : "0")">
+                        @if (!Model.IsAuthenticated)
+                        {
+                            <div class="text-center p-3 p-md-4 rounded-4 border bg-body-tertiary">
+                                <h6 class="fw-bold text-primary mb-2">
+                                    <i class="bi bi-qr-code-scan me-1"></i>Đăng Nhập Nhanh Bằng Mã QR
+                                </h6>
+                                <p class="small text-muted mb-3">
+                                    Dùng điện thoại hoặc trình duyệt đang đăng nhập BookShare quét mã bên dưới, hoặc bấm nút quét mã từ thiết bị đã đăng nhập.
+                                </p>
 
-                            <div class="d-inline-block p-3 bg-white rounded-4 border shadow-sm mb-3">
-                                <div id="qrWebLoginBox" class="d-flex align-items-center justify-content-center" style="min-width:210px; min-height:210px;">
-                                    <span class="small text-muted">Đang khởi tạo mã xác nhận...</span>
+                                <div class="d-inline-block p-3 bg-white rounded-4 border shadow-sm mb-3">
+                                    <div id="qrWebLoginBox" class="d-flex align-items-center justify-content-center" style="min-width:210px; min-height:210px;">
+                                        <span class="small text-muted">Đang khởi tạo mã xác nhận...</span>
+                                    </div>
+                                </div>
+
+                                <div class="d-flex justify-content-center align-items-center gap-2 mb-3 flex-wrap">
+                                    <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-3 py-2" id="qrWebLoginTimer">
+                                        Hiệu lực: 120s
+                                    </span>
+                                    <span class="small fw-semibold text-muted" id="qrWebLoginStatus">
+                                        Đang chờ thiết bị khác xác nhận...
+                                    </span>
+                                </div>
+
+                                <div class="d-flex flex-wrap justify-content-center gap-2">
+                                    <button type="button" id="btnRefreshWebQr" class="btn btn-outline-primary btn-sm fw-bold">
+                                        <i class="bi bi-arrow-clockwise me-1"></i>Tạo Mã Mới
+                                    </button>
+                                    <button type="button" id="btnScanMobileLinkQr" class="btn btn-primary btn-sm fw-bold">
+                                        <i class="bi bi-camera-fill me-1"></i>Quét Mã QR Đăng Nhập Nhanh
+                                    </button>
                                 </div>
                             </div>
+                        }
+                        else
+                        {
+                            <div class="text-center p-3 p-md-4 rounded-4 border bg-body-tertiary">
+                                <h6 class="fw-bold text-primary mb-2">
+                                    <i class="bi bi-qr-code-scan me-1"></i>Đăng Nhập Nhanh Thiết Bị Khác Bằng Mã QR
+                                </h6>
+                                <p class="small text-muted mb-3">
+                                    Bạn đang đăng nhập với tài khoản <strong>@Model.CurrentUserFullName</strong>. Chọn một trong hai chiều đăng nhập nhanh bên dưới:
+                                </p>
 
-                            <div class="d-flex justify-content-center align-items-center gap-2 mb-3 flex-wrap">
-                                <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-3 py-2" id="qrWebLoginTimer">
-                                    Hiệu lực: 120s
-                                </span>
-                                <span class="small fw-semibold text-muted" id="qrWebLoginStatus">
-                                    Đang chờ thiết bị khác xác nhận...
-                                </span>
-                            </div>
+                                <div class="d-flex flex-wrap justify-content-center gap-2 mb-3">
+                                    <button type="button" id="btnApproveDesktopQr" class="btn btn-primary fw-bold px-3">
+                                        <i class="bi bi-camera-fill me-1"></i>Quét Mã QR Trên Máy Tính / Thiết Bị Mới
+                                    </button>
+                                    <button type="button" id="btnGenerateMobileLinkQr" class="btn btn-outline-primary fw-bold px-3">
+                                        <i class="bi bi-qr-code me-1"></i>Tạo Mã QR Cho Thiết Bị Mới (60s)
+                                    </button>
+                                </div>
 
-                            <div class="d-flex flex-wrap justify-content-center gap-2">
-                                <button type="button" id="btnRefreshWebQr" class="btn btn-outline-primary btn-sm fw-bold">
-                                    <i class="bi bi-arrow-clockwise me-1"></i>Tạo Mã Mới
-                                </button>
-                                <button type="button" id="btnScanMobileLinkQr" class="btn btn-primary btn-sm fw-bold">
-                                    <i class="bi bi-camera-fill me-1"></i>Quét Mã Từ Thiết Bị Đã Đăng Nhập
-                                </button>
+                                <div id="mobileLinkQrContainer" class="d-none mt-3 p-3 rounded-4 border bg-white text-center d-inline-block">
+                                    <div id="mobileLinkQrBox" class="d-flex align-items-center justify-content-center" style="min-width:200px; min-height:200px;"></div>
+                                    <div class="small fw-semibold text-primary mt-2" id="mobileLinkQrTimer"></div>
+                                    <div class="small text-muted mt-1">Trên thiết bị chưa đăng nhập, bấm <strong>Đăng nhập nhanh → Quét Mã QR</strong> để vào ngay.</div>
+                                </div>
                             </div>
-                        </div>
+                        }
                     </div>
 
                     @if (Model.IsAuthenticated)
                     {
                         <!-- TAB 3: HỒ SƠ CÁ NHÂN & ĐỔI MẬT KHẨU (MẶC ĐỊNH KHI ĐÃ ĐĂNG NHẬP) -->
                         <div class="tab-pane fade show active" id="tabProfile" role="tabpanel">
-                            <div class="d-flex align-items-center gap-3 p-3 rounded-4 border mb-3 s01-profile-summary">
-                                <img src="@(string.IsNullOrWhiteSpace(Model.CurrentUserAvatarUrl) ? defaultAvatarUrl : Model.CurrentUserAvatarUrl)" alt="Ảnh đại diện của @Model.CurrentUserFullName" id="s01AvatarPreview"
-                                     class="rounded-circle border shadow-sm" style="width:64px; height:64px; object-fit:cover;"
-                                     onerror="this.onerror=null;this.src='@defaultAvatarUrl'" />
-                                <div>
-                                    <div class="fw-bold">@Model.CurrentUserFullName <span class="badge bg-primary ms-1">@Model.CurrentUserRole</span></div>
-                                    <div class="small text-muted">Tên đăng nhập: <code>@Model.CurrentUserName</code></div>
-                                    <div class="small text-muted">
-                                        Email nhận thư:
-                                        @if (Model.HasValidEmail)
-                                        {
-                                            <strong>@Model.CurrentUserEmail</strong>
-                                            <span class="badge @(Model.EmailConfirmed ? "bg-success" : "bg-warning text-dark") ms-1">
-                                                @(Model.EmailConfirmed ? "Đã xác minh OTP" : "Chưa xác minh OTP")
-                                            </span>
-                                        }
-                                        else
-                                        {
-                                            <span class="badge bg-danger">Chưa có Email — Cần điền để gửi thư</span>
-                                        }
+                            <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 p-3 rounded-4 border mb-3 s01-profile-summary">
+                                <div class="d-flex align-items-center gap-3">
+                                    <img src="@(string.IsNullOrWhiteSpace(Model.CurrentUserAvatarUrl) ? defaultAvatarUrl : Model.CurrentUserAvatarUrl)" alt="Ảnh đại diện của @Model.CurrentUserFullName" id="s01AvatarPreview"
+                                         class="rounded-circle border shadow-sm flex-shrink-0" style="width:72px; height:72px; object-fit:cover;"
+                                         onerror="this.onerror=null;this.src='@defaultAvatarUrl'" />
+                                    <div>
+                                        <div class="fw-bold">@Model.CurrentUserFullName <span class="badge bg-primary ms-1">@Model.CurrentUserRole</span></div>
+                                        <div class="small text-muted">Tên đăng nhập: <code>@Model.CurrentUserName</code></div>
+                                        <div class="small text-muted">
+                                            Email nhận thư:
+                                            @if (Model.HasValidEmail)
+                                            {
+                                                <strong>@Model.CurrentUserEmail</strong>
+                                                <span id="s01EmailVerifiedBadge" class="badge @(Model.EmailConfirmed ? "bg-success" : "bg-warning text-dark") ms-1">
+                                                    @(Model.EmailConfirmed ? "Đã xác minh OTP" : "Chưa xác minh OTP")
+                                                </span>
+                                            }
+                                            else
+                                            {
+                                                <span id="s01EmailVerifiedBadge" class="badge bg-danger">Chưa có Email — Cần điền để gửi thư</span>
+                                            }
+                                        </div>
+                                        <div class="small text-success fw-semibold"><i class="bi bi-award-fill me-1"></i>Điểm uy tín: @Model.CurrentTrustScore điểm</div>
                                     </div>
-                                    <div class="small text-success fw-semibold"><i class="bi bi-award-fill me-1"></i>Điểm uy tín: @Model.CurrentTrustScore điểm</div>
+                                </div>
+                                <div class="d-flex flex-wrap gap-2">
+                                    <input type="file" id="profAvatarFileInput" class="d-none" accept=".jpg,.jpeg,.png,.webp" />
+                                    <button type="button" id="btnUploadAvatar" class="btn btn-sm btn-primary fw-bold">
+                                        <i class="bi bi-camera-fill me-1"></i>Tải Ảnh Đại Diện
+                                    </button>
+                                    <button type="button" id="btnResetAvatar" class="btn btn-sm btn-outline-secondary fw-semibold" title="Đặt lại ảnh đại diện mặc định">
+                                        <i class="bi bi-arrow-counterclockwise"></i>
+                                    </button>
                                 </div>
                             </div>
 
@@ -288,7 +381,7 @@
                                     <div class="col-md-6">
                                         <label class="form-label small fw-bold" for="profEmail">Email liên hệ &amp; nhận thư</label>
                                         <input type="email" id="profEmail" class="form-control" value="@Model.CurrentUserEmail" placeholder="VD: tenban@gmail.com" />
-                                        <div class="form-text small">Dùng để gửi OTP, nhắc hạn trả sách và bản lưu chat AI.</div>
+                                        <div class="form-text small">Dùng để gửi OTP, khôi phục mật khẩu, nhắc hạn trả sách và bản lưu chat AI.</div>
                                     </div>
                                     <div class="col-md-6">
                                         <label class="form-label small fw-bold" for="profUserNameReadonly">Tên đăng nhập hệ thống</label>
@@ -298,13 +391,9 @@
                                         <label class="form-label small fw-bold" for="profPhone">Số điện thoại</label>
                                         <input type="text" id="profPhone" class="form-control" value="@Model.CurrentUserPhoneNumber" placeholder="0988xxxxxx" />
                                     </div>
-                                    <div class="col-md-6">
+                                    <div class="col-12">
                                         <label class="form-label small fw-bold" for="profAddress">Địa chỉ / Khu vực giao nhận</label>
-                                        <input type="text" id="profAddress" class="form-control" value="@Model.CurrentUserAddress" />
-                                    </div>
-                                    <div class="col-md-6">
-                                        <label class="form-label small fw-bold" for="profAvatarUrl">Đường dẫn ảnh đại diện</label>
-                                        <input type="text" id="profAvatarUrl" class="form-control" value="@Model.CurrentUserAvatarUrl" />
+                                        <input type="text" id="profAddress" class="form-control" value="@Model.CurrentUserAddress" placeholder="VD: Cầu Giấy, Hà Nội" />
                                     </div>
                                     <div class="col-12 text-end">
                                         <button type="submit" class="btn btn-primary fw-bold px-4">
@@ -334,29 +423,6 @@
                                     </div>
                                 </div>
                             </form>
-
-                            <div class="mt-4 pt-3 border-top">
-                                <h6 class="fw-bold small text-primary text-uppercase mb-2">
-                                    <i class="bi bi-phone-flip me-1"></i>Đăng Nhập Nhanh Thiết Bị Khác Bằng Mã QR
-                                </h6>
-                                <p class="small text-muted mb-3">
-                                    Quét mã trên màn hình máy tính để đăng nhập giúp thiết bị đó, hoặc tạo mã tạm thời dùng 1 lần cho điện thoại mới.
-                                </p>
-                                <div class="d-flex flex-wrap gap-2">
-                                    <button type="button" id="btnApproveDesktopQr" class="btn btn-sm btn-primary fw-bold">
-                                        <i class="bi bi-qr-code-scan me-1"></i>Quét Mã Trên Máy Tính
-                                    </button>
-                                    <button type="button" id="btnGenerateMobileLinkQr" class="btn btn-sm btn-outline-primary fw-bold">
-                                        <i class="bi bi-qr-code me-1"></i>Hiện Mã Cho Điện Thoại (60s)
-                                    </button>
-                                </div>
-                                <div id="mobileLinkQrContainer" class="d-none mt-3 p-3 rounded-4 border bg-body-tertiary text-center">
-                                    <div class="d-inline-block p-2 bg-white rounded-3 border shadow-sm">
-                                        <div id="mobileLinkQrBox"></div>
-                                    </div>
-                                    <div class="small fw-semibold text-primary mt-2" id="mobileLinkQrTimer"></div>
-                                </div>
-                            </div>
 
                             @if (Model.CurrentUserRole == "User")
                             {
@@ -414,21 +480,27 @@
                                     </select>
                                 </div>
                                 <div class="col-md-6">
-                                    <label class="form-label small fw-bold" for="prefUiStyle">Phong cách thiết kế (Bootstrap)</label>
+                                    <label class="form-label small fw-bold" for="prefUiStyle">Phong cách thiết kế (9 lựa chọn)</label>
                                     <select id="prefUiStyle" class="form-select">
                                         <option value="standard">📘 Chuẩn Hiện Đại (BookShare Default)</option>
                                         <option value="sketchy">✏️ Nét Vẽ Nghệch Ngoặc (Sketchy Hand-Drawn)</option>
                                         <option value="morph">🫧 Kính Mờ Mềm Mại (Neumorphism Morph)</option>
                                         <option value="flatly">📐 Phẳng Sắc Nét (Flatly Minimal)</option>
+                                        <option value="paper">📜 Trang Sách Cổ Điển (Paper Literary)</option>
+                                        <option value="neobrutal">💥 Truyện Tranh Pop (Neo-Brutalism)</option>
+                                        <option value="pastel">🍬 Kẹo Ngọt Dịu Mắt (Soft Pastel)</option>
                                         <option value="cyborg">⚡ Đêm Công Nghệ (Cyborg Dark)</option>
+                                        <option value="terminal">💻 Lập Trình Viên (Retro Terminal)</option>
                                     </select>
                                 </div>
                                 <div class="col-md-6">
-                                    <label class="form-label small fw-bold" for="prefPalette">Bảng màu chủ đạo (10 lựa chọn)</label>
+                                    <label class="form-label small fw-bold" for="prefPalette">Bảng màu chủ đạo (12 lựa chọn)</label>
                                     <select id="prefPalette" class="form-select">
                                         <option value="blue">🔵 Xanh Sapphire (Mặc định)</option>
                                         <option value="gold">✨ Vàng Mộng Mơ (Ấm áp &amp; Dịu mắt)</option>
-                                        <option value="rose">🌸 Hồng Ấm Áp (Sakura Nhẹ Nhàng)</option>
+                                        <option value="rose">🌸 Hồng Ấm Áp (Rose Nhẹ Nhàng)</option>
+                                        <option value="sakura">🌷 Hoa Anh Đào Pastel (Sakura)</option>
+                                        <option value="mint">🌿 Bạc Hà Tươi Mát (Mint)</option>
                                         <option value="lavender">💜 Tím Oải Hương (Mộng Mơ)</option>
                                         <option value="sepia">📜 Giấy Cổ Thư Viện (Cảm giác sách giấy)</option>
                                         <option value="emerald">🟢 Lục Bảo Thư Viện</option>

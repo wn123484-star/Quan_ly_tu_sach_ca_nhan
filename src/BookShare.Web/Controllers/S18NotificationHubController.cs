@@ -16,12 +16,27 @@ public class S18NotificationHubController : Controller
     }
 
     [HttpGet]
-    public async Task<IActionResult> Index(string typeFilter = "all", bool viewAll = false)
+    public async Task<IActionResult> Index(string typeFilter = "all", bool viewAll = false, int? highlight = null, int? notifId = null)
     {
         var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? string.Empty;
         var currentUserRole = User.Identity?.IsAuthenticated == true
             ? (User.FindFirstValue(ClaimTypes.Role) ?? "User")
             : "Guest";
+
+        // Tự động đánh dấu đã đọc khi người dùng mở chi tiết từ Popup chuông hoặc chạm vào thông báo Mobile App
+        int? autoReadId = notifId ?? highlight;
+        if (User.Identity?.IsAuthenticated == true && autoReadId.HasValue && autoReadId.Value > 0 && !string.IsNullOrWhiteSpace(currentUserId))
+        {
+            try
+            {
+                await _notificationService.MarkNotificationReadAsync(currentUserId, autoReadId.Value);
+            }
+            catch (UnauthorizedAccessException)
+            {
+                // Bỏ qua an toàn nếu ID không thuộc người dùng hiện tại
+            }
+        }
+
         var vm = await _notificationService.GetNotificationHubPageAsync(currentUserId, currentUserRole, typeFilter, viewAll);
         return View("~/Views/Modules/S18_NotificationHub/Index.cshtml", vm);
     }
@@ -40,10 +55,12 @@ public class S18NotificationHubController : Controller
         var vm = await _notificationService.GetNotificationHubPageAsync(currentUserId, currentUserRole);
         // Chỉ đếm thông báo của chính người đang đăng nhập
         var myUnread = vm.Notifications.Where(n => n.UserId == currentUserId && !n.IsRead).ToList();
+        var latest = myUnread.OrderByDescending(n => n.Id).FirstOrDefault();
         return Ok(new
         {
             unreadCount = myUnread.Count,
-            latestTitle = myUnread.OrderByDescending(n => n.CreatedAt).FirstOrDefault()?.Title
+            latestId = latest?.Id ?? 0,
+            latestTitle = latest?.Title
         });
     }
 

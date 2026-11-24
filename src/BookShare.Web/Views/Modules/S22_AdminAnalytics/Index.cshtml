@@ -383,8 +383,9 @@
                             <div class="s22-icon-preview-box js-icon-preview-stage">
                                 @if (activeCustom)
                                 {
+                                    var dbFallbackUrl = $"/assets/system-icons/{Uri.EscapeDataString(icon.IconKey)}";
                                     <img src="@icon.CustomImageUrl" alt="@icon.DisplayName" class="s22-icon-preview-img"
-                                         onerror="this.style.display='none';if(this.nextElementSibling)this.nextElementSibling.classList.remove('d-none');" />
+                                         onerror="if(!this.dataset.dbTried){this.dataset.dbTried='1';this.src='@dbFallbackUrl';return;}this.style.display='none';if(this.nextElementSibling)this.nextElementSibling.classList.remove('d-none');" />
                                     <i class="bi @icon.DefaultIconClass fs-3 text-primary d-none" aria-hidden="true"></i>
                                 }
                                 else

@@ -2468,6 +2468,178 @@ class QARunner:
             f"ml={ml_c}, ho={ho_c}, auth1={hs_json.get('authenticated')}, auth2={rs_json.get('authenticated')}, raw={ml_raw[:120]}",
         )
 
+        # 9.8 Square QR Scanner, Unified Quick QR Login, Forgot Password OTP, Avatar Upload, Notification Sync, Icon Preview & 9-Style AI Control
+        s01_js_txt = (WEB_DIR / "wwwroot" / "modules" / "s01-auth-otp-google" / "s01-auth-otp-google.js").read_text(encoding="utf-8", errors="ignore")
+        s22_js_txt = (WEB_DIR / "wwwroot" / "modules" / "s22-admin-analytics" / "s22-admin-analytics.js").read_text(encoding="utf-8", errors="ignore")
+        s13_svc_txt = (WEB_DIR / "Services" / "Implementations" / "S13GeminiAiService.cs").read_text(encoding="utf-8", errors="ignore")
+        poller_java = (mob_dir / "app" / "src" / "main" / "java" / "vn" / "bookshare" / "mobile" / "NotificationPoller.java").read_text(encoding="utf-8", errors="ignore")
+
+        self.check(
+            "L9",
+            "QR Scanner is 1:1 square, auto-on (no toggle button), releases tracks on ESC/close & unifies QR login",
+            "bs-qr-scanner-stage" in core_js_mob
+            and "aspectRatio: 1.0" in core_js_mob
+            and "releaseVideoTracks" in core_js_mob
+            and "bsBtnToggleCam" not in core_js_mob
+            and "confirmDialog({" in core_js_mob
+            and "openUniversalScanner" in s01_js_txt
+            and "/api/qr-login/mobile-claim" not in s01_js_txt,
+        )
+
+        _, guest_h_nav, _ = SessionClient(self.base_url).get("/")
+        _, u1_h_nav, _ = u1.get("/")
+        self.check(
+            "L9",
+            "Header exposes dedicated 'Đăng nhập nhanh' QR menu item for both Guest and Authenticated users",
+            "Đăng nhập nhanh" in html_lib.unescape(guest_h_nav)
+            and "Đăng nhập nhanh" in html_lib.unescape(u1_h_nav)
+            and "js-open-quick-qr-login" in u1_h_nav,
+        )
+
+        # Forgot Password 3-step OTP flow
+        fp_guest = SessionClient(self.base_url)
+        fp_guest.refresh_csrf("/S01AuthOtpGoogle")
+        fp_email = f"fp.qa.{int(time.time())}@cmc.edu.vn"
+        fp_guest.post_form(
+            "/S01AuthOtpGoogle/Register",
+            {"FullName": "Quen Mat Khau QA", "Email": fp_email, "Password": "OldPass@123", "Address": "Ha Noi"},
+            follow_redirects=True,
+        )
+        fp_guest.logout()
+        fp_guest.refresh_csrf("/S01AuthOtpGoogle")
+
+        bad_fp_c, _, _ = fp_guest.post_json("/S01AuthOtpGoogle/SendPasswordResetOtp", {"email": "khongtontai.xyz@cmc.edu.vn"})
+        send_fp_c, send_fp_j, send_fp_raw = fp_guest.post_json("/S01AuthOtpGoogle/SendPasswordResetOtp", {"email": fp_email})
+        wrong_otp_c, _, _ = fp_guest.post_json("/S01AuthOtpGoogle/VerifyPasswordResetOtp", {"email": fp_email, "otpCode": "000000"})
+        dev_fp_otp = (send_fp_j or {}).get("devOtpCode")
+        if dev_fp_otp:
+            ok_otp_c, _, _ = fp_guest.post_json("/S01AuthOtpGoogle/VerifyPasswordResetOtp", {"email": fp_email, "otpCode": dev_fp_otp})
+            mis_c, _, _ = fp_guest.post_json(
+                "/S01AuthOtpGoogle/ResetPasswordWithOtp",
+                {"email": fp_email, "otpCode": dev_fp_otp, "newPassword": "NewPass@456", "confirmPassword": "Mismatch@789"},
+            )
+            rst_pw_c, _, _ = fp_guest.post_json(
+                "/S01AuthOtpGoogle/ResetPasswordWithOtp",
+                {"email": fp_email, "otpCode": dev_fp_otp, "newPassword": "NewPass@456", "confirmPassword": "NewPass@456"},
+            )
+            replay_pw_c, _, _ = fp_guest.post_json(
+                "/S01AuthOtpGoogle/ResetPasswordWithOtp",
+                {"email": fp_email, "otpCode": dev_fp_otp, "newPassword": "Another@999", "confirmPassword": "Another@999"},
+            )
+            relogin_ok, _ = fp_guest.login(fp_email, "NewPass@456")
+            fp_ok = (
+                bad_fp_c == 400
+                and send_fp_c == 200
+                and wrong_otp_c == 400
+                and ok_otp_c == 200
+                and mis_c == 400
+                and rst_pw_c == 200
+                and replay_pw_c == 400
+                and relogin_ok
+            )
+        else:
+            fp_ok = bad_fp_c == 400 and send_fp_c == 200 and wrong_otp_c == 400
+        self.check(
+            "L9",
+            "Forgot Password OTP flow validates email, rejects wrong OTP, verifies & resets password atomically",
+            fp_ok,
+            f"bad={bad_fp_c}, send={send_fp_c}, wrong={wrong_otp_c}, devOtp={bool(dev_fp_otp)}, raw={send_fp_raw[:120]}",
+        )
+
+        # Avatar file upload (replaces manual URL input)
+        _, u1_prof_html, _ = u1.get("/S01AuthOtpGoogle")
+        valid_avt_png = bytes.fromhex(
+            "89504e470d0a1a0a0000000d49484452000000010000000108060000001f15c489"
+            "0000000a49444154789c63000100000500010d0a2db40000000049454e44ae426082"
+        )
+        u1.refresh_csrf("/S01AuthOtpGoogle")
+        bad_avt_c, _, _ = u1.post_multipart("/S01AuthOtpGoogle/UploadAvatar", {}, ("file", "fake.exe", b"MZ\x90\x001234567890", "application/octet-stream"))
+        ok_avt_c, ok_avt_j, _ = u1.post_multipart("/S01AuthOtpGoogle/UploadAvatar", {}, ("file", "avatar.png", valid_avt_png, "image/png"))
+        rst_avt_c, _, _ = u1.post_json("/S01AuthOtpGoogle/ResetAvatar", {})
+        self.check(
+            "L9",
+            "Profile replaces manual AvatarUrl text box with secure image upload & reset",
+            'id="profAvatarFileInput"' in u1_prof_html
+            and 'id="profAvatarUrl"' not in u1_prof_html
+            and bad_avt_c == 400
+            and ok_avt_c == 200
+            and str((ok_avt_j or {}).get("avatarUrl", "")).startswith("/uploads/avatars/")
+            and rst_avt_c == 200,
+            f"bad={bad_avt_c}, ok={ok_avt_c}, rst={rst_avt_c}",
+        )
+
+        # S18 Email OTP state synced 100% with S01 from DB (both unverified & verified states) + Mobile anti-loop & auto-read
+        _, u1_s01_chk, _ = u1.get("/S01AuthOtpGoogle")
+        _, u1_s18_chk, _ = u1.get("/S18NotificationHub")
+        _, adm_s01_chk, _ = admin.get("/S01AuthOtpGoogle")
+        _, adm_s18_chk, _ = admin.get("/S18NotificationHub")
+        u1_unverified_synced = "Chưa xác minh OTP" in html_lib.unescape(u1_s01_chk) and "Chờ xác minh" in html_lib.unescape(u1_s18_chk)
+        adm_verified_synced = "Đã xác minh OTP" in html_lib.unescape(adm_s01_chk) and "Đã xác minh OTP" in html_lib.unescape(adm_s18_chk)
+
+        mob_u1_c, mob_u1_raw, _ = u1.get("/api/mobile/notifications/unread?sinceId=0", accept_json=True)
+        mob_u1_j = json.loads(mob_u1_raw) if mob_u1_c == 200 else {}
+        mob_items = mob_u1_j.get("notifications") or []
+        auto_read_ok = True
+        if mob_items:
+            first_nid = mob_items[0].get("id")
+            if first_nid:
+                u1.get(f"/S18NotificationHub?highlight={first_nid}&notifId={first_nid}")
+                _, mob_after_raw, _ = u1.get("/api/mobile/notifications/unread?sinceId=0", accept_json=True)
+                mob_after_ids = [x.get("id") for x in (json.loads(mob_after_raw).get("notifications") or [])]
+                auto_read_ok = first_nid not in mob_after_ids
+        self.check(
+            "L9",
+            "S18 syncs EmailConfirmed with S01 (verified & unverified), auto-marks opened notification read & Mobile Poller blocks spam loop",
+            u1_unverified_synced
+            and adm_verified_synced
+            and mob_u1_c == 200
+            and "latestNotificationId" in mob_u1_j
+            and auto_read_ok
+            and "KEY_DELIVERED_IDS" in poller_java
+            and "latestNotificationId < lastId" in poller_java,
+            f"u1_sync={u1_unverified_synced}, adm_sync={adm_verified_synced}, mob={mob_u1_c}, auto_read={auto_read_ok}",
+        )
+
+        # S22 Icon instant preview & 9-Style / 12-Palette AI Chat sync (both Guest & Auth)
+        self.check(
+            "L9",
+            "S22 Icon Manager shows instant URL.createObjectURL preview & SQL /assets/system-icons/ fallback",
+            "URL.createObjectURL(file)" in s22_js_txt and "/assets/system-icons/" in s22_js_txt,
+        )
+
+        ai_guest = SessionClient(self.base_url)
+        ai_guest.refresh_csrf("/")
+        ag_c, ag_j, ag_raw = ai_guest.post_json(
+            "/api/ai-chat/quick-ask",
+            {"message": "Đổi giao diện sang phong cách truyện tranh màu bạc hà cỡ chữ lớn"},
+        )
+        ag_cmds = (ag_j or {}).get("clientCommands") or []
+        has_neobrutal = any((c.get("args") or {}).get("style") == "neobrutal" for c in ag_cmds)
+        has_mint = any((c.get("args") or {}).get("palette") == "mint" for c in ag_cmds)
+        has_lg = any((c.get("args") or {}).get("fontSize") == "lg" for c in ag_cmds)
+
+        u1.refresh_csrf("/S01AuthOtpGoogle")
+        sp_c, sp_j, _ = u1.post_json(
+            "/S01AuthOtpGoogle/SaveUiPreferences",
+            {"theme": "light", "style": "paper", "palette": "sakura", "font": "lora", "fontSize": "lg"},
+        )
+        sp_saved = (sp_j or {}).get("preferences") or {}
+        # Restore default clean light blue prefs for u1
+        u1.post_json("/S01AuthOtpGoogle/SaveUiPreferences", {"theme": "light", "style": "standard", "palette": "blue", "font": "roboto", "fontSize": "md"})
+        self.check(
+            "L9",
+            "AI Chat & Settings support all 9 styles, 12 palettes, fonts & sizes (including Gemini set_ui_prefs tool & Guest quick-ask)",
+            'name = "set_ui_prefs"' in s13_svc_txt
+            and ag_c == 200
+            and has_neobrutal
+            and has_mint
+            and has_lg
+            and sp_c == 200
+            and sp_saved.get("style") == "paper"
+            and sp_saved.get("palette") == "sakura",
+            f"ag={ag_c}, cmds={ag_cmds}, sp={sp_c}:{sp_saved}, raw={ag_raw[:120]}",
+        )
+
 
 def wait_for_server(base_url: str, timeout_s: float = 40.0) -> bool:
     deadline = time.time() + timeout_s

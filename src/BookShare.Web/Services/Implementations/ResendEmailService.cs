@@ -215,12 +215,23 @@ public class ResendEmailService : IResendEmailService
 
             if (user != null)
             {
+                string upperTarget = normalizedEmail.ToUpperInvariant();
+                if (!string.Equals(user.NormalizedEmail, upperTarget, StringComparison.OrdinalIgnoreCase))
+                {
+                    bool emailTaken = await _db.AspNetUsers.AsNoTracking()
+                        .AnyAsync(u => u.Id != user.Id && u.NormalizedEmail == upperTarget);
+                    if (!emailTaken)
+                    {
+                        user.Email = normalizedEmail;
+                        user.NormalizedEmail = upperTarget;
+                    }
+                }
                 user.EmailConfirmed = true;
             }
         }
         await _db.SaveChangesAsync();
 
-        return (true, $"Xác thực mã OTP thành công cho địa chỉ {normalizedEmail}.");
+        return (true, $"Xác thực mã OTP thành công cho địa chỉ {normalizedEmail}. Trạng thái đã được đồng bộ với Hồ sơ cá nhân.");
     }
 
     public async Task<(bool SentViaApi, string MessageId, string StatusNote)> SendNotificationEmailAsync(

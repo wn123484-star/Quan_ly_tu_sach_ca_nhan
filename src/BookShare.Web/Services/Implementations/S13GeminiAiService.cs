@@ -845,7 +845,13 @@ public class S13GeminiAiService : IS13GeminiAiService
         {
             ragBuilder.AppendLine($"- ProgressId={rp.Id}: \"{rp.Book.Title}\" ({rp.CurrentPage}/{rp.TotalPages} trang, {rp.Status}).");
         }
-        ragBuilder.AppendLine("Nếu người dùng muốn đổi giao diện/điều hướng/tìm sách/gia hạn/cập nhật trang/gửi email nhắc hạn, hãy gọi function tool tương ứng và trả lời tiếng Việt ngắn gọn, chuyên nghiệp.");
+        ragBuilder.AppendLine("Bạn có thể tùy biến toàn diện giao diện BookShare bằng tool `set_ui_prefs`:");
+        ragBuilder.AppendLine("- theme: light (sáng) | dark (tối)");
+        ragBuilder.AppendLine("- style (9 phong cách): standard (Chuẩn Hiện Đại), sketchy (Nét vẽ nghệch ngoặc), morph (Kính mờ mềm mại), flatly (Phẳng sắc nét), paper (Trang sách cổ điển), neobrutal (Truyện tranh Pop), pastel (Kẹo ngọt dịu mắt), cyborg (Đêm công nghệ), terminal (Lập trình viên)");
+        ragBuilder.AppendLine("- palette (12 bảng màu): blue (Sapphire), ocean (Đại dương), emerald (Lục bảo), mint (Bạc hà), gold (Vàng mộng mơ), rose (Hồng ấm áp), sakura (Hoa anh đào), lavender (Tím oải hương), sepia (Giấy cổ), coral (Cam hoàng hôn), royal (Tím hoàng gia), midnight (Đêm ngân hà)");
+        ragBuilder.AppendLine("- font (5 phông tiếng Việt): roboto, bevietnam, lora (có chân sách giấy), patrick (viết tay), jetbrains (đơn cách lập trình)");
+        ragBuilder.AppendLine("- fontSize (4 cỡ chữ): sm (nhỏ 14px), md (chuẩn 16px), lg (lớn 17.5px), xl (rất lớn 19px)");
+        ragBuilder.AppendLine("Khi người dùng yêu cầu đổi phong cách, bảng màu, phông chữ, cỡ chữ hoặc sáng/tối, PHẢI gọi tool `set_ui_prefs` (hoặc `set_theme`) tương ứng và trả lời tiếng Việt ngắn gọn, thân thiện.");
         return ragBuilder;
     }
 
@@ -855,8 +861,25 @@ public class S13GeminiAiService : IS13GeminiAiService
         {
             new
             {
+                name = "set_ui_prefs",
+                description = "Đổi toàn diện giao diện người dùng BookShare: chế độ sáng/tối (theme), 9 phong cách thiết kế (style), 12 bảng màu (palette), 5 phông chữ tiếng Việt (font), và 4 cỡ chữ (fontSize). Luôn gọi tool này khi người dùng muốn đổi kiểu giao diện, màu sắc, font chữ hoặc cỡ chữ.",
+                parameters = new
+                {
+                    type = "OBJECT",
+                    properties = new
+                    {
+                        theme = new { type = "STRING", description = "light hoặc dark" },
+                        style = new { type = "STRING", description = "standard | sketchy | morph | flatly | paper | neobrutal | pastel | cyborg | terminal" },
+                        palette = new { type = "STRING", description = "blue | ocean | emerald | mint | gold | rose | sakura | lavender | sepia | coral | royal | midnight" },
+                        font = new { type = "STRING", description = "roboto | bevietnam | lora | patrick | jetbrains" },
+                        fontSize = new { type = "STRING", description = "sm | md | lg | xl" }
+                    }
+                }
+            },
+            new
+            {
                 name = "set_theme",
-                description = "Đổi giao diện Sáng (light) hoặc Tối (dark) theo yêu cầu người dùng.",
+                description = "Đổi nhanh giao diện Sáng (light) hoặc Tối (dark) theo yêu cầu người dùng.",
                 parameters = new { type = "OBJECT", properties = new { theme = new { type = "STRING", description = "light hoặc dark" } }, required = new[] { "theme" } }
             },
             new
@@ -954,6 +977,77 @@ public class S13GeminiAiService : IS13GeminiAiService
     {
         switch (fnName)
         {
+            case "set_ui_prefs":
+            {
+                if (argsEl.ValueKind == JsonValueKind.Object)
+                {
+                    var allowedStyles = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+                    {
+                        "standard", "sketchy", "morph", "flatly", "paper", "neobrutal", "pastel", "cyborg", "terminal"
+                    };
+                    var allowedPalettes = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+                    {
+                        "blue", "ocean", "emerald", "mint", "gold", "rose", "sakura", "lavender", "sepia", "coral", "royal", "midnight"
+                    };
+                    var allowedFonts = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "roboto", "bevietnam", "lora", "patrick", "jetbrains" };
+                    var allowedSizes = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "sm", "md", "lg", "xl" };
+
+                    var prefs = new Dictionary<string, string>();
+                    var labelParts = new List<string>();
+
+                    if (argsEl.TryGetProperty("theme", out var thEl) && thEl.ValueKind == JsonValueKind.String)
+                    {
+                        var th = thEl.GetString()?.Trim().ToLowerInvariant();
+                        if (th is "light" or "dark")
+                        {
+                            prefs["theme"] = th;
+                            labelParts.Add(th == "dark" ? "Nền tối" : "Nền sáng");
+                        }
+                    }
+                    if (argsEl.TryGetProperty("style", out var stEl) && stEl.ValueKind == JsonValueKind.String)
+                    {
+                        var st = stEl.GetString()?.Trim().ToLowerInvariant() ?? string.Empty;
+                        if (allowedStyles.Contains(st))
+                        {
+                            prefs["style"] = st;
+                            labelParts.Add($"Style {st}");
+                        }
+                    }
+                    if (argsEl.TryGetProperty("palette", out var plEl) && plEl.ValueKind == JsonValueKind.String)
+                    {
+                        var pl = plEl.GetString()?.Trim().ToLowerInvariant() ?? string.Empty;
+                        if (allowedPalettes.Contains(pl))
+                        {
+                            prefs["palette"] = pl;
+                            labelParts.Add($"Màu {pl}");
+                        }
+                    }
+                    if (argsEl.TryGetProperty("font", out var fnEl) && fnEl.ValueKind == JsonValueKind.String)
+                    {
+                        var fn = fnEl.GetString()?.Trim().ToLowerInvariant() ?? string.Empty;
+                        if (allowedFonts.Contains(fn))
+                        {
+                            prefs["font"] = fn;
+                            labelParts.Add($"Font {fn}");
+                        }
+                    }
+                    if (argsEl.TryGetProperty("fontSize", out var szEl) && szEl.ValueKind == JsonValueKind.String)
+                    {
+                        var sz = szEl.GetString()?.Trim().ToLowerInvariant() ?? string.Empty;
+                        if (allowedSizes.Contains(sz))
+                        {
+                            prefs["fontSize"] = sz;
+                            labelParts.Add($"Cỡ {sz}");
+                        }
+                    }
+
+                    if (prefs.Count > 0)
+                    {
+                        AddUniqueCommand(clientCommands, "set_ui_prefs", $"Đổi giao diện: {string.Join(" • ", labelParts)}", prefs);
+                    }
+                }
+                break;
+            }
             case "set_theme":
             {
                 string theme = argsEl.ValueKind == JsonValueKind.Object && argsEl.TryGetProperty("theme", out var t)
@@ -1031,6 +1125,151 @@ public class S13GeminiAiService : IS13GeminiAiService
         }
     }
 
+    public static List<AiClientCommandDto> ExtractUiClientCommands(string cleanMsg)
+    {
+        var cmds = new List<AiClientCommandDto>();
+        if (string.IsNullOrWhiteSpace(cleanMsg)) return cmds;
+        var q = cleanMsg.ToLowerInvariant();
+
+        if (q.Contains("chế độ tối") || q.Contains("nền tối") || q.Contains("dark mode") || q.Contains("giao diện tối") || q.Contains("tối đi"))
+        {
+            AddUniqueCommand(cmds, "set_theme", "Bật chế độ tối", new() { ["theme"] = "dark" });
+        }
+        else if (q.Contains("chế độ sáng") || q.Contains("nền sáng") || q.Contains("light mode") || q.Contains("giao diện sáng"))
+        {
+            AddUniqueCommand(cmds, "set_theme", "Chuyển giao diện sáng", new() { ["theme"] = "light" });
+        }
+
+        // Lệnh đổi Phong cách Giao diện (9 kiểu phong phú)
+        if (q.Contains("nghệch ngoặc") || q.Contains("sketchy") || q.Contains("vẽ tay") || q.Contains("phác thảo"))
+        {
+            AddUniqueCommand(cmds, "set_ui_prefs", "Bật phong cách Nét vẽ nghệch ngoặc", new() { ["style"] = "sketchy", ["font"] = "patrick" });
+        }
+        else if (q.Contains("kính mờ") || q.Contains("morph") || q.Contains("thủy tinh"))
+        {
+            AddUniqueCommand(cmds, "set_ui_prefs", "Bật phong cách Kính mờ Morph", new() { ["style"] = "morph" });
+        }
+        else if (q.Contains("flatly") || q.Contains("phẳng"))
+        {
+            AddUniqueCommand(cmds, "set_ui_prefs", "Bật phong cách Phẳng Flatly", new() { ["style"] = "flatly" });
+        }
+        else if (q.Contains("trang sách") || q.Contains("cổ điển") || q.Contains("hoài cổ") || q.Contains("paper"))
+        {
+            AddUniqueCommand(cmds, "set_ui_prefs", "Bật phong cách Trang sách cổ điển", new() { ["style"] = "paper", ["font"] = "lora", ["palette"] = "sepia" });
+        }
+        else if (q.Contains("truyện tranh") || q.Contains("neobrutal") || q.Contains("brutal") || q.Contains("pop art"))
+        {
+            AddUniqueCommand(cmds, "set_ui_prefs", "Bật phong cách Truyện tranh Pop", new() { ["style"] = "neobrutal" });
+        }
+        else if (q.Contains("kẹo ngọt") || q.Contains("pastel") || q.Contains("dịu mắt") || q.Contains("dễ thương"))
+        {
+            AddUniqueCommand(cmds, "set_ui_prefs", "Bật phong cách Kẹo ngọt Pastel", new() { ["style"] = "pastel", ["palette"] = "sakura" });
+        }
+        else if (q.Contains("terminal") || q.Contains("lập trình viên") || q.Contains("hacker") || q.Contains("matrix"))
+        {
+            AddUniqueCommand(cmds, "set_ui_prefs", "Bật phong cách Lập trình viên Terminal", new() { ["style"] = "terminal", ["font"] = "jetbrains", ["theme"] = "dark" });
+        }
+        else if (q.Contains("cyborg") || q.Contains("công nghệ"))
+        {
+            AddUniqueCommand(cmds, "set_ui_prefs", "Bật phong cách Đêm Cyborg", new() { ["style"] = "cyborg", ["theme"] = "dark" });
+        }
+        else if (q.Contains("style mặc định") || q.Contains("phong cách chuẩn") || q.Contains("giao diện mặc định") || q.Contains("khôi phục giao diện"))
+        {
+            AddUniqueCommand(cmds, "set_ui_prefs", "Khôi phục giao diện Chuẩn Hiện Đại", new() { ["theme"] = "light", ["style"] = "standard", ["palette"] = "blue", ["font"] = "roboto", ["fontSize"] = "md" });
+        }
+
+        // Lệnh đổi Bảng màu (12 bảng màu hài hòa)
+        if (q.Contains("vàng mộng mơ") || q.Contains("màu vàng"))
+        {
+            AddUniqueCommand(cmds, "set_ui_prefs", "Đổi màu Vàng Mộng Mơ", new() { ["palette"] = "gold" });
+        }
+        else if (q.Contains("hoa anh đào") || q.Contains("sakura"))
+        {
+            AddUniqueCommand(cmds, "set_ui_prefs", "Đổi màu Hoa Anh Đào Pastel", new() { ["palette"] = "sakura" });
+        }
+        else if (q.Contains("hồng ấm áp") || q.Contains("màu hồng"))
+        {
+            AddUniqueCommand(cmds, "set_ui_prefs", "Đổi màu Hồng Ấm Áp", new() { ["palette"] = "rose" });
+        }
+        else if (q.Contains("bạc hà") || q.Contains("mint"))
+        {
+            AddUniqueCommand(cmds, "set_ui_prefs", "Đổi màu Bạc Hà Tươi Mát", new() { ["palette"] = "mint" });
+        }
+        else if (q.Contains("oải hương") || q.Contains("lavender"))
+        {
+            AddUniqueCommand(cmds, "set_ui_prefs", "Đổi màu Tím Oải Hương", new() { ["palette"] = "lavender" });
+        }
+        else if (q.Contains("tím hoàng gia") || q.Contains("royal"))
+        {
+            AddUniqueCommand(cmds, "set_ui_prefs", "Đổi màu Tím Hoàng Gia", new() { ["palette"] = "royal" });
+        }
+        else if (q.Contains("giấy cổ") || q.Contains("sepia"))
+        {
+            AddUniqueCommand(cmds, "set_ui_prefs", "Đổi màu Giấy Cổ Thư Viện", new() { ["palette"] = "sepia" });
+        }
+        else if (q.Contains("lục bảo") || q.Contains("xanh lá"))
+        {
+            AddUniqueCommand(cmds, "set_ui_prefs", "Đổi màu Lục Bảo Thư Viện", new() { ["palette"] = "emerald" });
+        }
+        else if (q.Contains("đại dương") || q.Contains("ocean"))
+        {
+            AddUniqueCommand(cmds, "set_ui_prefs", "Đổi màu Xanh Đại Dương", new() { ["palette"] = "ocean" });
+        }
+        else if (q.Contains("hoàng hôn") || q.Contains("màu cam") || q.Contains("coral"))
+        {
+            AddUniqueCommand(cmds, "set_ui_prefs", "Đổi màu Cam Hoàng Hôn", new() { ["palette"] = "coral" });
+        }
+        else if (q.Contains("ngân hà") || q.Contains("midnight"))
+        {
+            AddUniqueCommand(cmds, "set_ui_prefs", "Đổi màu Đêm Ngân Hà", new() { ["palette"] = "midnight" });
+        }
+        else if (q.Contains("sapphire") || q.Contains("xanh mặc định"))
+        {
+            AddUniqueCommand(cmds, "set_ui_prefs", "Đổi màu Xanh Sapphire", new() { ["palette"] = "blue" });
+        }
+
+        // Lệnh đổi Font chữ & Cỡ chữ
+        if (q.Contains("font viết tay") || q.Contains("chữ viết tay") || q.Contains("patrick"))
+        {
+            AddUniqueCommand(cmds, "set_ui_prefs", "Đổi font Viết tay Patrick Hand", new() { ["font"] = "patrick" });
+        }
+        else if (q.Contains("font có chân") || q.Contains("font sách") || q.Contains("lora"))
+        {
+            AddUniqueCommand(cmds, "set_ui_prefs", "Đổi font Sách giấy Lora", new() { ["font"] = "lora" });
+        }
+        else if (q.Contains("be vietnam") || q.Contains("font hiện đại"))
+        {
+            AddUniqueCommand(cmds, "set_ui_prefs", "Đổi font Be Vietnam Pro", new() { ["font"] = "bevietnam" });
+        }
+        else if (q.Contains("jetbrains") || q.Contains("font code") || q.Contains("đơn cách") || q.Contains("font lập trình"))
+        {
+            AddUniqueCommand(cmds, "set_ui_prefs", "Đổi font JetBrains Mono", new() { ["font"] = "jetbrains" });
+        }
+        else if (q.Contains("font roboto") || q.Contains("font mặc định"))
+        {
+            AddUniqueCommand(cmds, "set_ui_prefs", "Đổi font Roboto chuẩn", new() { ["font"] = "roboto" });
+        }
+
+        if (q.Contains("chữ rất lớn") || q.Contains("cỡ chữ lớn nhất") || q.Contains("cỡ xl") || q.Contains("siêu to"))
+        {
+            AddUniqueCommand(cmds, "set_ui_prefs", "Đặt cỡ chữ Rất lớn (19px)", new() { ["fontSize"] = "xl" });
+        }
+        else if (q.Contains("chữ lớn") || q.Contains("to chữ") || q.Contains("chữ to") || q.Contains("tăng cỡ chữ") || q.Contains("phóng to chữ"))
+        {
+            AddUniqueCommand(cmds, "set_ui_prefs", "Đặt cỡ chữ Lớn (17.5px)", new() { ["fontSize"] = "lg" });
+        }
+        else if (q.Contains("chữ nhỏ") || q.Contains("giảm cỡ chữ") || q.Contains("thu nhỏ chữ"))
+        {
+            AddUniqueCommand(cmds, "set_ui_prefs", "Đặt cỡ chữ Nhỏ (14px)", new() { ["fontSize"] = "sm" });
+        }
+        else if (q.Contains("cỡ chữ chuẩn") || q.Contains("chữ mặc định") || q.Contains("cỡ chữ vừa"))
+        {
+            AddUniqueCommand(cmds, "set_ui_prefs", "Đặt cỡ chữ Tiêu chuẩn (16px)", new() { ["fontSize"] = "md" });
+        }
+
+        return cmds;
+    }
+
     private static void AnalyzeLocalCopilotIntents(
         string cleanMsg,
         string currentUserRole,
@@ -1042,93 +1281,9 @@ public class S13GeminiAiService : IS13GeminiAiService
         List<AiActionCardDto> actionCards)
     {
         var q = cleanMsg.ToLowerInvariant();
-
-        if (q.Contains("chế độ tối") || q.Contains("nền tối") || q.Contains("dark mode") || q.Contains("giao diện tối") || q.Contains("tối đi"))
+        foreach (var uiCmd in ExtractUiClientCommands(cleanMsg))
         {
-            AddUniqueCommand(clientCommands, "set_theme", "Bật chế độ tối", new() { ["theme"] = "dark" });
-        }
-        else if (q.Contains("chế độ sáng") || q.Contains("nền sáng") || q.Contains("light mode") || q.Contains("giao diện sáng"))
-        {
-            AddUniqueCommand(clientCommands, "set_theme", "Chuyển giao diện sáng", new() { ["theme"] = "light" });
-        }
-
-        // Lệnh đổi Phong cách Bootstrap (Sketchy / Morph / Flatly / Cyborg / Standard)
-        if (q.Contains("nghệch ngoặc") || q.Contains("sketchy") || q.Contains("vẽ tay") || q.Contains("phác thảo"))
-        {
-            AddUniqueCommand(clientCommands, "set_ui_prefs", "Bật phong cách Nét vẽ nghệch ngoặc", new() { ["style"] = "sketchy", ["font"] = "patrick" });
-        }
-        else if (q.Contains("kính mờ") || q.Contains("morph"))
-        {
-            AddUniqueCommand(clientCommands, "set_ui_prefs", "Bật phong cách Kính mờ Morph", new() { ["style"] = "morph" });
-        }
-        else if (q.Contains("flatly") || q.Contains("phẳng"))
-        {
-            AddUniqueCommand(clientCommands, "set_ui_prefs", "Bật phong cách Phẳng Flatly", new() { ["style"] = "flatly" });
-        }
-        else if (q.Contains("cyborg") || q.Contains("công nghệ"))
-        {
-            AddUniqueCommand(clientCommands, "set_ui_prefs", "Bật phong cách Đêm Cyborg", new() { ["style"] = "cyborg", ["theme"] = "dark" });
-        }
-        else if (q.Contains("style mặc định") || q.Contains("phong cách chuẩn") || q.Contains("giao diện mặc định"))
-        {
-            AddUniqueCommand(clientCommands, "set_ui_prefs", "Khôi phục phong cách Chuẩn", new() { ["style"] = "standard", ["font"] = "roboto" });
-        }
-
-        // Lệnh đổi Bảng màu (Vàng mộng mơ, Hồng ấm áp, Tím oải hương, Giấy cổ...)
-        if (q.Contains("vàng mộng mơ") || q.Contains("màu vàng"))
-        {
-            AddUniqueCommand(clientCommands, "set_ui_prefs", "Đổi màu Vàng Mộng Mơ", new() { ["palette"] = "gold" });
-        }
-        else if (q.Contains("hồng ấm áp") || q.Contains("màu hồng") || q.Contains("sakura"))
-        {
-            AddUniqueCommand(clientCommands, "set_ui_prefs", "Đổi màu Hồng Ấm Áp", new() { ["palette"] = "rose" });
-        }
-        else if (q.Contains("oải hương") || q.Contains("lavender"))
-        {
-            AddUniqueCommand(clientCommands, "set_ui_prefs", "Đổi màu Tím Oải Hương", new() { ["palette"] = "lavender" });
-        }
-        else if (q.Contains("giấy cổ") || q.Contains("sepia"))
-        {
-            AddUniqueCommand(clientCommands, "set_ui_prefs", "Đổi màu Giấy Cổ Thư Viện", new() { ["palette"] = "sepia" });
-        }
-        else if (q.Contains("lục bảo") || q.Contains("xanh lá"))
-        {
-            AddUniqueCommand(clientCommands, "set_ui_prefs", "Đổi màu Lục Bảo Thư Viện", new() { ["palette"] = "emerald" });
-        }
-
-        // Lệnh đổi Font chữ & Cỡ chữ
-        if (q.Contains("font viết tay") || q.Contains("chữ viết tay") || q.Contains("patrick"))
-        {
-            AddUniqueCommand(clientCommands, "set_ui_prefs", "Đổi font Viết tay Patrick Hand", new() { ["font"] = "patrick" });
-        }
-        else if (q.Contains("font có chân") || q.Contains("font sách") || q.Contains("lora"))
-        {
-            AddUniqueCommand(clientCommands, "set_ui_prefs", "Đổi font Sách giấy Lora", new() { ["font"] = "lora" });
-        }
-        else if (q.Contains("be vietnam") || q.Contains("font hiện đại"))
-        {
-            AddUniqueCommand(clientCommands, "set_ui_prefs", "Đổi font Be Vietnam Pro", new() { ["font"] = "bevietnam" });
-        }
-        else if (q.Contains("jetbrains") || q.Contains("font code") || q.Contains("đơn cách"))
-        {
-            AddUniqueCommand(clientCommands, "set_ui_prefs", "Đổi font JetBrains Mono", new() { ["font"] = "jetbrains" });
-        }
-
-        if (q.Contains("chữ rất lớn") || q.Contains("cỡ chữ lớn nhất") || q.Contains("cỡ xl"))
-        {
-            AddUniqueCommand(clientCommands, "set_ui_prefs", "Đặt cỡ chữ Rất lớn (20px)", new() { ["fontSize"] = "xl" });
-        }
-        else if (q.Contains("chữ lớn") || q.Contains("to chữ") || q.Contains("tăng cỡ chữ"))
-        {
-            AddUniqueCommand(clientCommands, "set_ui_prefs", "Đặt cỡ chữ Lớn (18px)", new() { ["fontSize"] = "lg" });
-        }
-        else if (q.Contains("chữ nhỏ") || q.Contains("giảm cỡ chữ"))
-        {
-            AddUniqueCommand(clientCommands, "set_ui_prefs", "Đặt cỡ chữ Nhỏ (14px)", new() { ["fontSize"] = "sm" });
-        }
-        else if (q.Contains("cỡ chữ chuẩn") || q.Contains("chữ mặc định"))
-        {
-            AddUniqueCommand(clientCommands, "set_ui_prefs", "Đặt cỡ chữ Tiêu chuẩn (16px)", new() { ["fontSize"] = "md" });
+            AddUniqueCommand(clientCommands, uiCmd.Command, uiCmd.Label, uiCmd.Args);
         }
 
         if (q.Contains("tủ sách") || q.Contains("kệ sách"))

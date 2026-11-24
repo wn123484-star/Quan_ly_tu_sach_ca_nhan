@@ -171,32 +171,22 @@ public class HomeController : Controller
             });
         }
 
-        var guestReply = await _portalService.GetQuickAiReplyAsync(null, prompt);
-        var guestCommands = new List<BookShare.Web.Models.ViewModels.AiClientCommandDto>();
-        var pLower = prompt.ToLowerInvariant();
-        if (pLower.Contains("chế độ tối") || pLower.Contains("nền tối") || pLower.Contains("dark mode"))
+        var guestCommands = BookShare.Web.Services.Implementations.S13GeminiAiService.ExtractUiClientCommands(prompt);
+        string guestReply;
+        if (guestCommands.Count > 0)
         {
-            guestCommands.Add(new BookShare.Web.Models.ViewModels.AiClientCommandDto
-            {
-                Command = "set_theme",
-                Label = "Chuyển giao diện Tối",
-                Args = new() { ["theme"] = "dark" }
-            });
+            var labels = string.Join(", ", guestCommands.Select(c => $"**{c.Label}**"));
+            guestReply = $"🤖 Mình đã áp dụng ngay tùy chỉnh giao diện cho bạn: {labels}. Bạn cũng có thể đổi tiếp phông chữ, cỡ chữ hoặc 9 phong cách khác ngay tại đây!";
         }
-        else if (pLower.Contains("chế độ sáng") || pLower.Contains("nền sáng") || pLower.Contains("light mode"))
+        else
         {
-            guestCommands.Add(new BookShare.Web.Models.ViewModels.AiClientCommandDto
-            {
-                Command = "set_theme",
-                Label = "Chuyển giao diện Sáng",
-                Args = new() { ["theme"] = "light" }
-            });
+            guestReply = await _portalService.GetQuickAiReplyAsync(null, prompt);
         }
 
         return Ok(new
         {
             title = "Trợ lý AI Thủ thư",
-            message = "Đã tra cứu danh mục sách sẵn sàng cho mượn.",
+            message = guestCommands.Count > 0 ? "Đã cập nhật giao diện theo yêu cầu của bạn." : "Đã tra cứu danh mục sách sẵn sàng cho mượn.",
             reply = guestReply,
             clientCommands = guestCommands,
             actionCards = Array.Empty<object>()
