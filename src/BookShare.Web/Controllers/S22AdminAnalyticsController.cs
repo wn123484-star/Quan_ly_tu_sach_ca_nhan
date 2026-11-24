@@ -28,7 +28,12 @@ public class S22AdminAnalyticsController : Controller
             ? (User.FindFirstValue(ClaimTypes.Role) ?? "User")
             : "Guest";
 
-        if (User.Identity?.IsAuthenticated != true || currentUserRole != "Admin")
+        if (User.Identity?.IsAuthenticated == true && currentUserRole != "Admin")
+        {
+            return Forbid();
+        }
+
+        if (User.Identity?.IsAuthenticated != true)
         {
             TempData["StatusCode"] = 403;
             TempData["StatusTitle"] = "Khu vực dành riêng cho Quản trị viên";

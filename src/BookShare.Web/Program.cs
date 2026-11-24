@@ -38,43 +38,45 @@ var authBuilder = builder.Services.AddAuthentication(options =>
     options.Cookie.SameSite = SameSiteMode.Lax;
     options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
     options.LoginPath = "/S01AuthOtpGoogle/Index";
-    options.AccessDeniedPath = "/S01AuthOtpGoogle/Index";
+    options.AccessDeniedPath = "/Home/StatusCode/403";
     options.SlidingExpiration = true;
     options.ExpireTimeSpan = TimeSpan.FromDays(7);
     options.Events = new CookieAuthenticationEvents
     {
         OnRedirectToAccessDenied = async context =>
         {
-            var accept = context.Request.Headers.Accept.ToString();
-            if (accept.Contains("application/json", StringComparison.OrdinalIgnoreCase) ||
-                context.Request.Path.StartsWithSegments("/api") ||
-                !HttpMethods.IsGet(context.Request.Method))
+            if (IsApiOrAjaxRequest(context.HttpContext))
             {
                 context.Response.StatusCode = StatusCodes.Status403Forbidden;
                 context.Response.ContentType = "application/json; charset=utf-8";
                 var payload = JsonSerializer.Serialize(new
                 {
+                    success = false,
+                    statusCode = StatusCodes.Status403Forbidden,
                     title = "Không đủ quyền truy cập",
-                    message = "Tài khoản hiện tại của bạn không có quyền thực hiện thao tác này."
+                    message = "Tài khoản hiện tại của bạn không có quyền thực hiện thao tác này.",
+                    requestId = System.Diagnostics.Activity.Current?.Id ?? context.HttpContext.TraceIdentifier
                 });
                 await context.Response.WriteAsync(payload);
                 return;
             }
-            context.Response.Redirect(context.RedirectUri);
+
+            var returnUrl = context.Request.Path + context.Request.QueryString;
+            context.Response.Redirect($"/Home/StatusCode?code=403&returnUrl={Uri.EscapeDataString(returnUrl)}");
         },
         OnRedirectToLogin = async context =>
         {
-            var accept = context.Request.Headers.Accept.ToString();
-            if (accept.Contains("application/json", StringComparison.OrdinalIgnoreCase) ||
-                context.Request.Path.StartsWithSegments("/api") ||
-                !HttpMethods.IsGet(context.Request.Method))
+            if (IsApiOrAjaxRequest(context.HttpContext))
             {
                 context.Response.StatusCode = StatusCodes.Status401Unauthorized;
                 context.Response.ContentType = "application/json; charset=utf-8";
                 var payload = JsonSerializer.Serialize(new
                 {
+                    success = false,
+                    statusCode = StatusCodes.Status401Unauthorized,
                     title = "Yêu cầu đăng nhập",
-                    message = "Vui lòng đăng nhập tài khoản để thực hiện thao tác này."
+                    message = "Vui lòng đăng nhập tài khoản để thực hiện thao tác này.",
+                    requestId = System.Diagnostics.Activity.Current?.Id ?? context.HttpContext.TraceIdentifier
                 });
                 await context.Response.WriteAsync(payload);
                 return;
@@ -159,12 +161,13 @@ var app = builder.Build();
 
 app.UseForwardedHeaders();
 
+app.UseExceptionHandler("/Home/Error");
 if (!app.Environment.IsDevelopment())
 {
-    app.UseExceptionHandler("/Home/Error");
     app.UseHsts();
 }
 
+app.UseStatusCodePagesWithReExecute("/Home/StatusCode", "?code={0}");
 app.UseHttpsRedirection();
 app.UseRouting();
 
@@ -184,18 +187,18 @@ app.Use(async (context, next) =>
             throw;
         }
 
-        var accept = context.Request.Headers.Accept.ToString();
-        if (accept.Contains("application/json", StringComparison.OrdinalIgnoreCase) ||
-            context.Request.Path.StartsWithSegments("/api") ||
-            !HttpMethods.IsGet(context.Request.Method))
+        if (IsApiOrAjaxRequest(context))
         {
             context.Response.Clear();
             context.Response.StatusCode = StatusCodes.Status403Forbidden;
             context.Response.ContentType = "application/json; charset=utf-8";
             var payload = JsonSerializer.Serialize(new
             {
+                success = false,
+                statusCode = StatusCodes.Status403Forbidden,
                 title = "Từ chối truy cập",
-                message = ex.Message
+                message = ex.Message,
+                requestId = System.Diagnostics.Activity.Current?.Id ?? context.TraceIdentifier
             });
             await context.Response.WriteAsync(payload);
             return;
@@ -243,3 +246,24 @@ app.Lifetime.ApplicationStarted.Register(() =>
 });
 
 app.Run();
+
+static bool IsApiOrAjaxRequest(HttpContext context)
+{
+    if (context.Request.Path.StartsWithSegments("/api", StringComparison.OrdinalIgnoreCase))
+    {
+        return true;
+    }
+
+    var accept = context.Request.Headers.Accept.ToString();
+    if (accept.Contains("application/json", StringComparison.OrdinalIgnoreCase))
+    {
+        return true;
+    }
+
+    if (string.Equals(context.Request.Headers["X-Requested-With"].ToString(), "XMLHttpRequest", StringComparison.OrdinalIgnoreCase))
+    {
+        return true;
+    }
+
+    return !HttpMethods.IsGet(context.Request.Method);
+}

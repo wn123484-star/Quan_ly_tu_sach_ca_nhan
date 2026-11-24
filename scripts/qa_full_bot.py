@@ -1555,6 +1555,75 @@ class QARunner:
             "01_BookShare_Schema.sql" in db_init_section and "02_BookShare_SeedData.sql" not in db_init_section,
         )
 
+        # 6.8 Global Exception & Friendly Status Code Error Pages (400/401/403/404/405/500)
+        guest_err = SessionClient(self.base_url, "guest_err")
+        c_s02p, h_s02p, _ = guest_err.get("/S02Pers")
+        h_s02p_txt = html_lib.unescape(h_s02p)
+        self.check(
+            "L6",
+            "GET /S02Pers returns 404 friendly Vietnamese page with /S02PersonalShelf suggestion & no dev leaks",
+            c_s02p == 404
+            and "Về Trang Chủ" in h_s02p_txt
+            and "Quay Lại Trang Trước" in h_s02p_txt
+            and re.search(r'id="btnErrorSuggested"[^>]*href="/S02PersonalShelf"[^>]*>.*?Tủ Sách Cá Nhân', h_s02p_txt, re.DOTALL) is not None
+            and "Development Mode" not in h_s02p_txt
+            and "ASPNETCORE_ENVIRONMENT" not in h_s02p_txt,
+            f"status={c_s02p}",
+        )
+
+        c_404, h_404, _ = guest_err.get("/duong-dan-khong-ton-tai-xyz")
+        self.check(
+            "L6",
+            "GET /duong-dan-khong-ton-tai-xyz returns 404 friendly BookShare error page",
+            c_404 == 404 and "Mã lỗi 404" in h_404 and "Về Trang Chủ" in h_404,
+            f"status={c_404}",
+        )
+
+        c_api404, b_api404, h_api404 = guest_err.get("/api/khong-ton-tai-xyz", accept_json=True)
+        ct_api404 = next((v for k, v in h_api404.items() if k.lower() == "content-type"), "")
+        try:
+            j_api404 = json.loads(b_api404)
+        except Exception:
+            j_api404 = {}
+        self.check(
+            "L6",
+            "GET /api/khong-ton-tai-xyz with Accept JSON returns 404 JSON (not HTML)",
+            c_api404 == 404
+            and "application/json" in ct_api404.lower()
+            and j_api404.get("success") is False
+            and j_api404.get("statusCode") == 404,
+            f"status={c_api404}, ct={ct_api404}, body={b_api404[:140]}",
+        )
+
+        c_u1_s22, h_u1_s22, _ = u1.get("/S22AdminAnalytics")
+        c_u1_s22_api, b_u1_s22_api, h_u1_s22_api = u1.get("/S22AdminAnalytics/ChartData", accept_json=True)
+        ct_u1_api = next((v for k, v in h_u1_s22_api.items() if k.lower() == "content-type"), "")
+        self.check(
+            "L6",
+            "User GET /S22AdminAnalytics returns friendly 403 page & ChartData API returns 403 JSON",
+            c_u1_s22 == 403
+            and "Đăng Nhập / Đổi Tài Khoản" in h_u1_s22
+            and "Về Trang Chủ" in h_u1_s22
+            and c_u1_s22_api == 403
+            and "application/json" in ct_u1_api.lower(),
+            f"html_status={c_u1_s22}, api_status={c_u1_s22_api}, ct={ct_u1_api}, api_body={b_u1_s22_api[:120]}",
+        )
+
+        static_req = urllib.request.Request(self.base_url + "/uploads/khong-ton-tai.png", method="GET")
+        try:
+            with guest_err._no_redirect_opener.open(static_req, timeout=10) as sr:
+                st_code = sr.status
+                st_body = sr.read().decode("utf-8", errors="replace")
+        except urllib.error.HTTPError as e:
+            st_code = e.code
+            st_body = e.read().decode("utf-8", errors="replace")
+        self.check(
+            "L6",
+            "Missing static asset /uploads/khong-ton-tai.png returns direct 404 without redirect or HTML loop",
+            st_code == 404 and "<html" not in st_body.lower(),
+            f"status={st_code}, len={len(st_body)}",
+        )
+
     def run_layer5_cleanup_and_integrity(self, admin: SessionClient) -> None:
         print("\n=== LAYER 5: FINAL DATABASE RESET & POST-TEST SEED INTEGRITY ===")
         sc, _, sraw = admin.post_json("/S22AdminAnalytics/ManageSampleData", {"actionMode": "SeedSampleData"})

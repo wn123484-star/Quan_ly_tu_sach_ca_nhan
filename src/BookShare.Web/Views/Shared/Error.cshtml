@@ -1,23 +1,138 @@
 ﻿@model ErrorViewModel
 @{
-    ViewData["Title"] = "Có sự cố xảy ra";
+    ViewData["Title"] = string.IsNullOrWhiteSpace(Model.Title) ? "Thông báo từ hệ thống" : Model.Title;
+
+    var (iconClass, toneClass) = Model.StatusCode switch
+    {
+        404 => ("bi-compass-fill", "is-info"),
+        403 => ("bi-shield-lock-fill", "is-warning"),
+        401 => ("bi-person-lock", "is-warning"),
+        400 or 405 => ("bi-exclamation-triangle-fill", "is-warning"),
+        _ => ("bi-exclamation-octagon-fill", "is-danger")
+    };
 }
 
-<div class="card border-0 shadow-sm rounded-4 p-5 text-center my-4">
-    <div class="mb-3"><i class="bi bi-exclamation-circle-fill text-danger" style="font-size: 2.8rem;"></i></div>
-    <h2 class="fw-bold text-danger mb-2">Rất tiếc, đã xảy ra lỗi khi xử lý yêu cầu</h2>
-    <p class="text-muted mb-3">Hệ thống không thể hoàn tất thao tác của bạn lúc này. Vui lòng thử tải lại trang hoặc quay về trang chủ.</p>
+<section class="bs-error-wrapper">
+    <div class="bs-error-card shadow-sm">
+        <div class="bs-error-icon @toneClass" aria-hidden="true">
+            <i class="bi @iconClass"></i>
+        </div>
 
-    @if (Model.ShowRequestId)
-    {
-        <p class="small text-muted mb-4">
-            Mã tham chiếu hỗ trợ: <code>@Model.RequestId</code>
-        </p>
-    }
+        <div class="mb-2">
+            <span class="bs-error-code-pill @toneClass">Mã lỗi @Model.StatusCode</span>
+        </div>
 
-    <div>
-        <a asp-controller="Home" asp-action="Index" class="btn btn-primary px-4 fw-semibold">
-            <i class="bi bi-house-door-fill me-1"></i>Quay về Trang chủ
-        </a>
+        <h1 class="h3 fw-bold mb-2">@Model.Title</h1>
+        <p class="text-body-secondary mb-2">@Model.Description</p>
+
+        @if (Model.StatusCode == 403 && (Model.OriginalPath?.Contains("AdminAnalytics", StringComparison.OrdinalIgnoreCase) ?? false))
+        {
+            <div class="small fw-semibold text-warning-emphasis mb-2">Khu vực yêu cầu quyền Quản Trị Hệ Thống</div>
+        }
+
+        @if (!string.IsNullOrWhiteSpace(Model.Guidance))
+        {
+            <p class="small text-body-secondary mb-3">@Model.Guidance</p>
+        }
+
+        @if (!string.IsNullOrWhiteSpace(Model.OriginalPath) || Model.ShowRequestId)
+        {
+            <div class="bs-error-meta mb-4">
+                @if (!string.IsNullOrWhiteSpace(Model.OriginalPath))
+                {
+                    <div class="bs-error-path-box mb-1">
+                        <span class="text-body-secondary">Đường dẫn:</span>
+                        <code class="ms-1 text-break">@Model.OriginalPath</code>
+                    </div>
+                }
+                @if (Model.ShowRequestId)
+                {
+                    <div class="small text-body-secondary">
+                        Mã tra cứu hỗ trợ: <code>@Model.ShortRequestId</code>
+                    </div>
+                }
+            </div>
+        }
+
+        <div class="d-flex flex-wrap justify-content-center gap-2 mb-3">
+            @if (Model.StatusCode == 404 && !string.IsNullOrWhiteSpace(Model.SuggestedUrl) && !string.IsNullOrWhiteSpace(Model.SuggestedLabel))
+            {
+                <a id="btnErrorSuggested" href="@Model.SuggestedUrl" class="btn btn-primary fw-bold px-4 rounded-pill">
+                    <i class="bi bi-arrow-right-circle-fill me-1"></i>Đi tới @Model.SuggestedLabel
+                </a>
+            }
+
+            @if (Model.StatusCode == 401 || Model.StatusCode == 403)
+            {
+                <a asp-controller="S01AuthOtpGoogle" asp-action="Index" class="btn btn-primary fw-bold px-4 rounded-pill">
+                    <i class="bi bi-person-badge-fill me-1"></i>Đăng Nhập / Đổi Tài Khoản
+                </a>
+            }
+
+            @if (Model.StatusCode == 404)
+            {
+                <a asp-controller="S06SearchDiscovery" asp-action="Index" class="btn btn-outline-primary fw-semibold px-3 rounded-pill">
+                    <i class="bi bi-search me-1"></i>Tìm Kiếm Sách
+                </a>
+            }
+
+            @if (Model.StatusCode >= 500)
+            {
+                <button type="button" id="btnErrorReload" class="btn btn-primary fw-bold px-4 rounded-pill">
+                    <i class="bi bi-arrow-clockwise me-1"></i>Tải Lại Trang
+                </button>
+            }
+
+            <a asp-controller="Home" asp-action="Index" class="btn @(Model.StatusCode == 404 && !string.IsNullOrWhiteSpace(Model.SuggestedUrl) ? "btn-outline-secondary" : "btn-outline-primary") fw-semibold px-4 rounded-pill">
+                <i class="bi bi-house-door-fill me-1"></i>Về Trang Chủ
+            </a>
+
+            <button type="button" id="btnErrorGoBack" class="btn btn-outline-secondary fw-semibold px-3 rounded-pill">
+                <i class="bi bi-arrow-left me-1"></i>Quay Lại Trang Trước
+            </button>
+        </div>
+
+        @if (Model.StatusCode == 404)
+        {
+            <div class="pt-3 mt-3 border-top text-start">
+                <div class="small fw-bold text-body-secondary text-uppercase mb-2">Lối tắt nhanh trong cộng đồng</div>
+                <div class="bs-error-quick-grid">
+                    <a asp-controller="Home" asp-action="Index" class="bs-error-quick-link">
+                        <i class="bi bi-compass text-primary"></i>
+                        <span>Trang chủ</span>
+                    </a>
+                    <a asp-controller="S02PersonalShelf" asp-action="Index" class="bs-error-quick-link">
+                        <i class="bi bi-bookshelf text-warning"></i>
+                        <span>Tủ sách cá nhân</span>
+                    </a>
+                    <a asp-controller="S07LibraryCatalog" asp-action="Index" class="bs-error-quick-link">
+                        <i class="bi bi-buildings-fill text-info"></i>
+                        <span>Kho sách thư viện</span>
+                    </a>
+                    <a asp-controller="S13GeminiAiAssistant" asp-action="Index" class="bs-error-quick-link">
+                        <i class="bi bi-stars text-success"></i>
+                        <span>Trợ lý đọc sách</span>
+                    </a>
+                </div>
+            </div>
+        }
     </div>
-</div>
+</section>
+
+@section Scripts {
+    <script>
+        document.getElementById('btnErrorGoBack')?.addEventListener('click', function () {
+            try {
+                var sameOriginRef = document.referrer && document.referrer.indexOf(window.location.origin) === 0;
+                if (sameOriginRef && window.history.length > 1) {
+                    window.history.back();
+                    return;
+                }
+            } catch (e) { }
+            window.location.href = '/';
+        });
+        document.getElementById('btnErrorReload')?.addEventListener('click', function () {
+            window.location.reload();
+        });
+    </script>
+}

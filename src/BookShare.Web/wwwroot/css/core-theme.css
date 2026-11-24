@@ -1528,3 +1528,127 @@ body.is-mobile-app .ai-chat-widget {
 [data-bs-theme="dark"] .mobile-nav-qr-btn {
     border-color: #0f172a;
 }
+
+/* =========================================================================
+   TRANG BÁO LỖI THÂN THIỆN (400 / 401 / 403 / 404 / 405 / 500)
+   ========================================================================= */
+.bs-error-wrapper {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 1.5rem 0 2.5rem;
+}
+
+.bs-error-card {
+    width: 100%;
+    max-width: 660px;
+    background: var(--portal-surface);
+    color: var(--portal-text);
+    border: 1px solid var(--portal-border);
+    border-radius: 24px;
+    padding: 2.25rem 1.75rem;
+    text-align: center;
+}
+
+.bs-error-icon {
+    width: 72px;
+    height: 72px;
+    border-radius: 20px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2rem;
+    margin-bottom: 1rem;
+}
+
+.bs-error-icon.is-info {
+    background: rgba(37, 99, 235, 0.12);
+    color: var(--portal-accent);
+}
+
+.bs-error-icon.is-warning {
+    background: rgba(245, 158, 11, 0.14);
+    color: #d97706;
+}
+
+.bs-error-icon.is-danger {
+    background: rgba(220, 38, 38, 0.12);
+    color: #dc2626;
+}
+
+.bs-error-code-pill {
+    display: inline-block;
+    padding: 4px 14px;
+    border-radius: 999px;
+    font-size: 0.78rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+}
+
+.bs-error-code-pill.is-info {
+    background: rgba(37, 99, 235, 0.1);
+    color: var(--portal-accent);
+}
+
+.bs-error-code-pill.is-warning {
+    background: rgba(245, 158, 11, 0.14);
+    color: #b45309;
+}
+
+.bs-error-code-pill.is-danger {
+    background: rgba(220, 38, 38, 0.12);
+    color: #b91c1c;
+}
+
+.bs-error-meta {
+    background: var(--portal-surface-2);
+    border: 1px solid var(--portal-border);
+    border-radius: 14px;
+    padding: 0.75rem 1rem;
+    font-size: 0.84rem;
+}
+
+.bs-error-quick-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.65rem;
+}
+
+@media (max-width: 575.98px) {
+    .bs-error-card {
+        padding: 1.5rem 1.1rem;
+        border-radius: 18px;
+    }
+
+    .bs-error-quick-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+.bs-error-quick-link {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    padding: 0.7rem 0.9rem;
+    border-radius: 12px;
+    border: 1px solid var(--portal-border);
+    background: var(--portal-surface-2);
+    color: var(--portal-text);
+    text-decoration: none;
+    font-size: 0.88rem;
+    font-weight: 600;
+    transition: border-color 0.15s ease, transform 0.15s ease;
+}
+
+.bs-error-quick-link:hover {
+    border-color: var(--portal-accent);
+    transform: translateY(-1px);
+}
+
+[data-bs-theme="dark"] .bs-error-code-pill.is-warning {
+    color: #fbbf24;
+}
+
+[data-bs-theme="dark"] .bs-error-code-pill.is-danger {
+    color: #f87171;
+}
