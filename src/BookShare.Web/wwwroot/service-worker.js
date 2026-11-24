@@ -4,7 +4,7 @@
  * - KHÔNG cache trang HTML & API (dữ liệu cá nhân, phiếu mượn, CSRF token luôn lấy mới từ server)
  * - Mất mạng khi mở trang: hiển thị trang báo Offline thân thiện
  */
-const CACHE_NAME = 'bookshare-static-v2';
+const CACHE_NAME = 'bookshare-static-v3';
 
 const PRECACHE_URLS = [
     '/css/core-theme.css',
@@ -87,7 +87,10 @@ self.addEventListener('fetch', (event) => {
                     }
                     return response;
                 })
-                .catch(() => caches.match(request, { ignoreSearch: true }))
+                .catch(async () => {
+                    const cached = await caches.match(request, { ignoreSearch: true });
+                    return cached || Response.error();
+                })
         );
         return;
     }

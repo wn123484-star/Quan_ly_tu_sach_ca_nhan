@@ -2,10 +2,10 @@ plugins {
     id 'com.android.application'
 }
 
-def rawBaseUrl = project.findProperty("BOOKSHARE_BASE_URL") ?: System.getenv("BOOKSHARE_BASE_URL") ?: "http://10.0.2.2:5087"
+def rawBaseUrl = project.findProperty("BOOKSHARE_BASE_URL") ?: System.getenv("BOOKSHARE_BASE_URL") ?: "https://bookshare.castle-tech.cloud"
 def normalizedBaseUrl = rawBaseUrl.toString().trim().replaceAll("/+\$", "")
 if (normalizedBaseUrl.isEmpty()) {
-    normalizedBaseUrl = "http://10.0.2.2:5087"
+    normalizedBaseUrl = "https://bookshare.castle-tech.cloud"
 }
 def escapedBaseUrl = normalizedBaseUrl.replace("\"", "\\\"")
 
@@ -17,8 +17,8 @@ android {
         applicationId "vn.bookshare.mobile"
         minSdk 26
         targetSdk 34
-        versionCode 3
-        versionName "3.0.0"
+        versionCode 4
+        versionName "4.0.0"
 
         buildConfigField "String", "BASE_URL", "\"${escapedBaseUrl}\""
     }

@@ -103,27 +103,35 @@
     </script>
     <a href="#mainContent" class="skip-link">Bỏ qua menu, tới nội dung chính</a>
 
-    <!-- Splash Screen: hiện 1 lần mỗi phiên khi app vừa khởi động -->
-    <div id="appSplash" class="app-splash" role="status" aria-label="Đang khởi động BookShare">
-        <div class="app-splash-logo" aria-hidden="true">@IconService.RenderIconHtml("brand_logo", "bi-book-half")</div>
-        <div class="fs-4 fw-bold">BookShare</div>
-        <div class="small opacity-75">Mượn sách giấy cộng đồng • Không bán sách</div>
-        <div class="spinner-border spinner-border-sm mt-2" aria-hidden="true"></div>
-    </div>
-    <script>
-        (function () {
-            var seen = false;
-            try { seen = sessionStorage.getItem('bookshare_splash') === '1'; sessionStorage.setItem('bookshare_splash', '1'); } catch (e) { }
-            var splash = document.getElementById('appSplash');
-            if (seen) { splash.remove(); return; }
-            window.addEventListener('load', function () {
-                setTimeout(function () {
+    <!-- Splash Screen: chỉ hiện trên trình duyệt web/PWA (Android App dùng lớp chờ native để tránh kẹt kép) -->
+    @if (!isMobileApp)
+    {
+        <div id="appSplash" class="app-splash" role="status" aria-label="Đang khởi động BookShare">
+            <div class="app-splash-logo" aria-hidden="true">@IconService.RenderIconHtml("brand_logo", "bi-book-half")</div>
+            <div class="fs-4 fw-bold">BookShare</div>
+            <div class="small opacity-75">Mượn sách giấy cộng đồng • Không bán sách</div>
+            <div class="spinner-border spinner-border-sm mt-2" aria-hidden="true"></div>
+        </div>
+        <script>
+            (function () {
+                var seen = false;
+                try { seen = sessionStorage.getItem('bookshare_splash') === '1'; sessionStorage.setItem('bookshare_splash', '1'); } catch (e) { }
+                var splash = document.getElementById('appSplash');
+                if (!splash) return;
+                if (seen) { splash.remove(); return; }
+                var dismissed = false;
+                var dismiss = function () {
+                    if (dismissed || !splash) return;
+                    dismissed = true;
                     splash.classList.add('is-hidden');
-                    setTimeout(function () { splash.remove(); }, 500);
-                }, 700);
-            });
-        })();
-    </script>
+                    setTimeout(function () { if (splash && splash.parentNode) splash.remove(); }, 450);
+                };
+                document.addEventListener('DOMContentLoaded', function () { setTimeout(dismiss, 350); }, { once: true });
+                window.addEventListener('load', dismiss, { once: true });
+                setTimeout(dismiss, 2200);
+            })();
+        </script>
+    }
 
     <!-- 1. HEADER CỔNG DỊCH VỤ BOOKSHARE PORTAL (1 HÀNG CÂN ĐỐI DESKTOP) -->
     <header class="portal-header-wrapper">

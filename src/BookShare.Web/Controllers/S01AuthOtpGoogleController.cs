@@ -13,17 +13,20 @@ namespace BookShare.Web.Controllers;
 public class S01AuthOtpGoogleController : Controller
 {
     private readonly IS01AuthOtpService _authService;
+    private readonly IQrAuthService _qrAuthService;
     private readonly IResendEmailService _resendOtpService;
     private readonly IRecaptchaService _recaptchaService;
     private readonly IConfiguration _config;
 
     public S01AuthOtpGoogleController(
         IS01AuthOtpService authService,
+        IQrAuthService qrAuthService,
         IResendEmailService resendOtpService,
         IRecaptchaService recaptchaService,
         IConfiguration config)
     {
         _authService = authService;
+        _qrAuthService = qrAuthService;
         _resendOtpService = resendOtpService;
         _recaptchaService = recaptchaService;
         _config = config;
@@ -195,9 +198,23 @@ public class S01AuthOtpGoogleController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> GoogleLogin(string? returnUrl = null)
     {
+        return await StartGoogleChallengeAsync(returnUrl, mobileApp: false);
+    }
+
+    /// <summary>
+    /// Luồng đăng nhập Google dành riêng cho Android Custom Tabs (tránh lỗi 405 GET và đồng bộ phiên về WebView qua mã 1 lần).
+    /// </summary>
+    [HttpGet]
+    public async Task<IActionResult> GoogleLoginMobile(string? returnUrl = null)
+    {
+        return await StartGoogleChallengeAsync(returnUrl, mobileApp: true);
+    }
+
+    private async Task<IActionResult> StartGoogleChallengeAsync(string? returnUrl, bool mobileApp)
+    {
         if (AuthConfigHelper.IsGoogleOAuthConfigured(_config))
         {
-            var redirectUrl = Url.Action(nameof(GoogleCallback), "S01AuthOtpGoogle", new { returnUrl });
+            var redirectUrl = Url.Action(nameof(GoogleCallback), "S01AuthOtpGoogle", new { returnUrl, mobileApp });
             var properties = new AuthenticationProperties { RedirectUri = redirectUrl };
             return Challenge(properties, GoogleDefaults.AuthenticationScheme);
         }
@@ -219,7 +236,7 @@ public class S01AuthOtpGoogleController : Controller
     }
 
     [HttpGet]
-    public async Task<IActionResult> GoogleCallback(string? returnUrl = null)
+    public async Task<IActionResult> GoogleCallback(string? returnUrl = null, bool mobileApp = false)
     {
         // Đọc thông tin xác thực từ External Cookie riêng (không bị OnValidatePrincipal chặn vì Google sub chưa phải AspNetUsers.Id)
         var result = await HttpContext.AuthenticateAsync(AuthConfigHelper.ExternalCookieScheme);
@@ -227,9 +244,18 @@ public class S01AuthOtpGoogleController : Controller
 
         if (!result.Succeeded || result.Principal == null)
         {
+            const string errDetail = "Không nhận được thông tin định danh hợp lệ từ Google. Vui lòng thử lại.";
+            if (mobileApp)
+            {
+                return RenderMobileOAuthBridgeHtml(
+                    $"/S01AuthOtpGoogle/Index?oauthError={Uri.EscapeDataString(errDetail)}",
+                    "Xác thực Google không thành công",
+                    errDetail,
+                    isError: true);
+            }
             TempData["StatusCode"] = 400;
             TempData["StatusTitle"] = "Xác thực Google không thành công";
-            TempData["StatusDetail"] = "Không nhận được thông tin định danh hợp lệ từ Google. Vui lòng thử lại.";
+            TempData["StatusDetail"] = errDetail;
             return RedirectToAction(nameof(Index));
         }
 
@@ -239,9 +265,18 @@ public class S01AuthOtpGoogleController : Controller
 
         if (string.IsNullOrWhiteSpace(providerKey) || string.IsNullOrWhiteSpace(email))
         {
+            const string errDetail = "Không thể xác minh địa chỉ Email từ tài khoản Google của bạn.";
+            if (mobileApp)
+            {
+                return RenderMobileOAuthBridgeHtml(
+                    $"/S01AuthOtpGoogle/Index?oauthError={Uri.EscapeDataString(errDetail)}",
+                    "Thiếu thông tin tài khoản Google",
+                    errDetail,
+                    isError: true);
+            }
             TempData["StatusCode"] = 400;
             TempData["StatusTitle"] = "Thiếu thông tin tài khoản Google";
-            TempData["StatusDetail"] = "Không thể xác minh địa chỉ Email từ tài khoản Google của bạn.";
+            TempData["StatusDetail"] = errDetail;
             return RedirectToAction(nameof(Index));
         }
 
@@ -249,10 +284,41 @@ public class S01AuthOtpGoogleController : Controller
         if (!upsert.Success || upsert.UserClaims == null)
         {
             await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+            if (mobileApp)
+            {
+                return RenderMobileOAuthBridgeHtml(
+                    $"/S01AuthOtpGoogle/Index?oauthError={Uri.EscapeDataString(upsert.Message)}",
+                    "Từ chối đăng nhập",
+                    upsert.Message,
+                    isError: true);
+            }
             TempData["StatusCode"] = 403;
             TempData["StatusTitle"] = "Từ chối đăng nhập";
             TempData["StatusDetail"] = upsert.Message;
             return RedirectToAction(nameof(Index));
+        }
+
+        if (mobileApp)
+        {
+            var remoteIp = HttpContext.Connection.RemoteIpAddress?.ToString();
+            var link = await _qrAuthService.CreateMobileLinkSessionAsync(
+                upsert.UserClaims.UserId,
+                "Ứng dụng BookShare Android (Google OAuth)",
+                remoteIp);
+
+            if (link.Success && link.Data != null && !string.IsNullOrWhiteSpace(link.Data.QrPayload))
+            {
+                var handoffPath = $"/S01AuthOtpGoogle/CompleteMobileOAuth?code={Uri.EscapeDataString(link.Data.QrPayload)}";
+                if (!string.IsNullOrWhiteSpace(returnUrl) && Url.IsLocalUrl(returnUrl))
+                {
+                    handoffPath += $"&returnUrl={Uri.EscapeDataString(returnUrl)}";
+                }
+                return RenderMobileOAuthBridgeHtml(
+                    handoffPath,
+                    $"Xin chào {upsert.UserClaims.FullName}!",
+                    "Xác thực Google thành công. Đang tự động đưa bạn quay lại ứng dụng BookShare...",
+                    isError: false);
+            }
         }
 
         await SignInCookieAsync(upsert.UserClaims, isPersistent: true);
@@ -266,6 +332,89 @@ public class S01AuthOtpGoogleController : Controller
         }
 
         return RedirectToAction("Index", "S02PersonalShelf");
+    }
+
+    /// <summary>
+    /// Hoàn tất đăng nhập Google bên trong Android WebView bằng mã liên kết 1 lần (hiệu lực 60 giây, đã băm SHA-256).
+    /// </summary>
+    [HttpGet]
+    public async Task<IActionResult> CompleteMobileOAuth(string? code = null, string? returnUrl = null)
+    {
+        if (string.IsNullOrWhiteSpace(code))
+        {
+            TempData["StatusCode"] = 400;
+            TempData["StatusTitle"] = "Mã xác nhận Google không hợp lệ";
+            TempData["StatusDetail"] = "Không tìm thấy mã đồng bộ phiên đăng nhập cho ứng dụng di động.";
+            return RedirectToAction(nameof(Index));
+        }
+
+        var (success, statusCode, message, userClaims) = await _qrAuthService.ClaimMobileLinkSessionAsync(
+            new MobileClaimQrLoginRequestDto { QrPayload = code.Trim() });
+
+        if (!success || userClaims == null)
+        {
+            TempData["StatusCode"] = statusCode;
+            TempData["StatusTitle"] = "Đồng bộ đăng nhập Google thất bại";
+            TempData["StatusDetail"] = message;
+            return RedirectToAction(nameof(Index));
+        }
+
+        await SignInCookieAsync(userClaims, isPersistent: true);
+        TempData["StatusCode"] = 200;
+        TempData["StatusTitle"] = $"Xin chào {userClaims.FullName}";
+        TempData["StatusDetail"] = "Đăng nhập Google trên ứng dụng BookShare thành công!";
+
+        if (!string.IsNullOrWhiteSpace(returnUrl) && Url.IsLocalUrl(returnUrl))
+        {
+            return Redirect(returnUrl);
+        }
+
+        return RedirectToAction("Index", "S02PersonalShelf");
+    }
+
+    private ContentResult RenderMobileOAuthBridgeHtml(string deepLinkPath, string heading, string detail, bool isError)
+    {
+        string deepLinkUrl = $"bookshare://open?path={Uri.EscapeDataString(deepLinkPath)}";
+        string safeHeading = System.Net.WebUtility.HtmlEncode(heading);
+        string safeDetail = System.Net.WebUtility.HtmlEncode(detail);
+        string safeHref = System.Net.WebUtility.HtmlEncode(deepLinkUrl);
+        string accent = isError ? "#dc2626" : "#2563eb";
+        string badgeBg = isError ? "#fee2e2" : "#eff6ff";
+        string iconText = isError ? "!" : "✓";
+
+        string html = $@"<!DOCTYPE html>
+<html lang=""vi"">
+<head>
+    <meta charset=""utf-8"" />
+    <meta name=""viewport"" content=""width=device-width, initial-scale=1.0"" />
+    <title>{safeHeading} - BookShare</title>
+    <style>
+        * {{ box-sizing: border-box; }}
+        body {{ margin:0; min-height:100vh; display:flex; align-items:center; justify-content:center; padding:24px; background:#f8fafc; color:#0f172a; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif; }}
+        .card {{ max-width:390px; width:100%; background:#fff; border:1px solid #e2e8f0; border-radius:20px; padding:28px 24px; text-align:center; box-shadow:0 12px 32px rgba(15,23,42,.08); }}
+        .icon {{ width:64px; height:64px; margin:0 auto 16px; border-radius:18px; background:{badgeBg}; color:{accent}; display:flex; align-items:center; justify-content:center; font-size:30px; font-weight:800; }}
+        h1 {{ font-size:1.15rem; margin:0 0 8px; }}
+        p {{ font-size:.9rem; color:#475569; line-height:1.5; margin:0 0 20px; }}
+        a.btn {{ display:block; width:100%; text-decoration:none; border-radius:12px; background:{accent}; color:#fff; font-weight:700; font-size:.95rem; padding:12px 16px; }}
+    </style>
+</head>
+<body>
+    <main class=""card"">
+        <div class=""icon"">{iconText}</div>
+        <h1>{safeHeading}</h1>
+        <p>{safeDetail}</p>
+        <a id=""btnBackApp"" class=""btn"" href=""{safeHref}"">Quay lại ứng dụng BookShare</a>
+    </main>
+    <script>
+        (function () {{
+            var target = document.getElementById('btnBackApp').getAttribute('href');
+            setTimeout(function () {{ window.location.href = target; }}, 250);
+        }})();
+    </script>
+</body>
+</html>";
+
+        return Content(html, "text/html; charset=utf-8");
     }
 
     [HttpPost]

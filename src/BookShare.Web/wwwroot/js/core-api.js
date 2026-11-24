@@ -450,6 +450,8 @@ export async function openBarcodeScanner({ title = 'Quét Mã QR / Mã Vạch B�
     let torchOn = false;
     let cameraActive = false;
 
+    let useDeviceId = false;
+
     const stop = async () => {
         if (cameraActive && scanner?.isScanning) {
             try { await scanner.stop(); } catch { /* camera đã tắt */ }
@@ -458,125 +460,170 @@ export async function openBarcodeScanner({ title = 'Quét Mã QR / Mã Vạch B�
         try { scanner?.clear(); } catch { /* bỏ qua */ }
     };
 
+    const scannerConfig = {
+        fps: 12,
+        qrbox: (w, h) => ({ width: Math.min(280, Math.max(160, w * 0.8)), height: Math.min(200, Math.max(140, h * 0.65)) })
+    };
+
+    const onDecodeSuccess = (decodedText) => {
+        scannedText = decodedText.trim();
+        window.BookShareAndroidBridge?.vibrateShort?.();
+        window.Swal.close();
+    };
+
     const startCamera = async () => {
         if (!scanner) return;
         const statusEl = document.getElementById('bsScannerStateMsg');
+        const settingsBtn = document.getElementById('bsBtnOpenCamSettings');
+        if (settingsBtn) settingsBtn.classList.add('d-none');
+        if (statusEl) statusEl.innerText = 'Đang khởi động máy ảnh...';
+
         try {
-            if (!cameras.length && window.Html5Qrcode.getCameras) {
-                try { cameras = await window.Html5Qrcode.getCameras(); } catch { cameras = []; }
-            }
-            const cameraConfig = cameras.length > 0 && cameras[camIdx]?.id
+            // Ưu tiên mở trực tiếp camera sau ({ facingMode: 'environment' }) trong 1 lần xin quyền duy nhất
+            const cameraTarget = (useDeviceId && cameras.length > 0 && cameras[camIdx]?.id)
                 ? cameras[camIdx].id
                 : { facingMode };
-            await scanner.start(
-                cameraConfig,
-                { fps: 12, qrbox: (w, h) => ({ width: Math.min(280, Math.max(160, w * 0.8)), height: Math.min(200, Math.max(140, h * 0.65)) }) },
-                (decodedText) => {
-                    scannedText = decodedText.trim();
-                    window.BookShareAndroidBridge?.vibrateShort?.();
-                    window.Swal.close();
-                },
-                () => { /* tiếp tục quét khung hình */ }
-            );
+
+            try {
+                await scanner.start(cameraTarget, scannerConfig, onDecodeSuccess, () => { /* tiếp tục quét khung hình */ });
+            } catch (primaryErr) {
+                const errName = String(primaryErr?.name || '');
+                const errMsg = String(primaryErr?.message || primaryErr || '');
+                const isDenied = /NotAllowed|PermissionDenied|permission|denied/i.test(`${errName} ${errMsg}`);
+                if (isDenied || !window.Html5Qrcode?.getCameras) {
+                    throw primaryErr;
+                }
+                // Dự phòng trên thiết bị 1 camera / webcam máy tính không nhận facingMode
+                cameras = await window.Html5Qrcode.getCameras();
+                if (!cameras.length) throw primaryErr;
+                const backIdx = cameras.findIndex(c => /back|rear|environment/i.test(c.label || ''));
+                camIdx = backIdx >= 0 ? backIdx : 0;
+                useDeviceId = true;
+                await scanner.start(cameras[camIdx].id, scannerConfig, onDecodeSuccess, () => { /* tiếp tục quét khung hình */ });
+            }
+
             cameraActive = true;
             if (statusEl) statusEl.innerText = 'Camera đang hoạt động. Hướng vào mã QR hoặc mã vạch.';
         } catch (err) {
             cameraActive = false;
-            if (statusEl) statusEl.innerText = `Chưa bật được camera (${err?.message || 'kiểm tra quyền'}). Bạn có thể chọn ảnh từ máy hoặc nhập mã bên dưới.`;
+            const errText = String(err?.message || err || '');
+            const isDenied = /NotAllowed|PermissionDenied|permission|denied/i.test(`${err?.name || ''} ${errText}`);
+            if (statusEl) {
+                statusEl.innerText = isDenied
+                    ? 'Bạn chưa cấp quyền truy cập Máy ảnh. Hãy cấp quyền hoặc chọn ảnh QR từ thư viện / nhập mã bên dưới.'
+                    : `Chưa bật được camera (${errText || 'kiểm tra quyền'}). Bạn có thể chọn ảnh từ máy hoặc nhập mã bên dưới.`;
+            }
+            if (isDenied && settingsBtn && typeof window.BookShareAndroidBridge?.openAppSettings === 'function') {
+                settingsBtn.classList.remove('d-none');
+            }
         }
     };
 
-    await window.Swal.fire({
-        title,
-        html: `
-            <div id="bsBarcodeReader" style="width:100%;min-height:220px;border-radius:12px;overflow:hidden;background:#f1f5f9;border:1px solid #cbd5e1"></div>
-            <div id="bsScannerStateMsg" class="small text-muted mt-2">${hint}</div>
-            <div class="d-flex flex-wrap justify-content-center gap-2 mt-2">
-                <button type="button" id="bsBtnToggleCam" class="btn btn-sm btn-outline-primary"><i class="bi bi-camera-video me-1"></i>Bật/Tắt Camera</button>
-                <button type="button" id="bsBtnSwitchCam" class="btn btn-sm btn-outline-secondary"><i class="bi bi-arrow-repeat me-1"></i>Đổi Camera</button>
-                <button type="button" id="bsBtnFlashCam" class="btn btn-sm btn-outline-warning text-dark"><i class="bi bi-lightning-charge me-1"></i>Đèn Flash</button>
-                <label class="btn btn-sm btn-outline-success mb-0" style="cursor:pointer;">
-                    <i class="bi bi-image me-1"></i>Chọn ảnh
-                    <input type="file" id="bsQrFileInput" accept="image/*" class="d-none" />
-                </label>
-            </div>
-            <div class="input-group input-group-sm mt-3">
-                <input type="text" id="bsManualCodeInput" class="form-control" placeholder="Hoặc dán / nhập mã QR, mã ISBN, mã xác nhận..." />
-                <button type="button" id="bsBtnManualSubmit" class="btn btn-primary fw-bold">Xác nhận mã</button>
-            </div>`,
-        showCancelButton: true,
-        showConfirmButton: false,
-        cancelButtonText: 'Đóng',
-        ...swalThemeOptions(),
-        didOpen: async () => {
-            scanner = new window.Html5Qrcode('bsBarcodeReader', {
-                formatsToSupport: [F.QR_CODE, F.EAN_13, F.EAN_8, F.UPC_A, F.UPC_E, F.CODE_128, F.CODE_39],
-                verbose: false
-            });
+    window.BookShareAndroidBridge?.setPullToRefreshEnabled?.(false);
+    try {
+        await window.Swal.fire({
+            title,
+            html: `
+                <div id="bsBarcodeReader" style="width:100%;min-height:220px;border-radius:12px;overflow:hidden;background:#f1f5f9;border:1px solid #cbd5e1"></div>
+                <div id="bsScannerStateMsg" class="small text-muted mt-2">${hint}</div>
+                <div class="mt-2">
+                    <button type="button" id="bsBtnOpenCamSettings" class="btn btn-sm btn-warning fw-bold d-none">
+                        <i class="bi bi-gear-fill me-1"></i>Mở Cài Đặt Quyền Máy Ảnh
+                    </button>
+                </div>
+                <div class="d-flex flex-wrap justify-content-center gap-2 mt-2">
+                    <button type="button" id="bsBtnToggleCam" class="btn btn-sm btn-outline-primary"><i class="bi bi-camera-video me-1"></i>Bật/Tắt Camera</button>
+                    <button type="button" id="bsBtnSwitchCam" class="btn btn-sm btn-outline-secondary"><i class="bi bi-arrow-repeat me-1"></i>Đổi Camera</button>
+                    <button type="button" id="bsBtnFlashCam" class="btn btn-sm btn-outline-warning text-dark"><i class="bi bi-lightning-charge me-1"></i>Đèn Flash</button>
+                    <label class="btn btn-sm btn-outline-success mb-0" style="cursor:pointer;">
+                        <i class="bi bi-image me-1"></i>Chọn ảnh
+                        <input type="file" id="bsQrFileInput" accept="image/*" class="d-none" />
+                    </label>
+                </div>
+                <div class="input-group input-group-sm mt-3">
+                    <input type="text" id="bsManualCodeInput" class="form-control" placeholder="Hoặc dán / nhập mã QR, mã ISBN, mã xác nhận..." />
+                    <button type="button" id="bsBtnManualSubmit" class="btn btn-primary fw-bold">Xác nhận mã</button>
+                </div>`,
+            showCancelButton: true,
+            showConfirmButton: false,
+            cancelButtonText: 'Đóng',
+            ...swalThemeOptions(),
+            didOpen: async () => {
+                scanner = new window.Html5Qrcode('bsBarcodeReader', {
+                    formatsToSupport: [F.QR_CODE, F.EAN_13, F.EAN_8, F.UPC_A, F.UPC_E, F.CODE_128, F.CODE_39],
+                    verbose: false
+                });
 
-            await startCamera();
-
-            document.getElementById('bsBtnToggleCam')?.addEventListener('click', async () => {
-                const statusEl = document.getElementById('bsScannerStateMsg');
-                if (cameraActive) {
-                    await stop();
-                    if (statusEl) statusEl.innerText = 'Đã tạm tắt camera.';
-                } else {
-                    await startCamera();
-                }
-            });
-
-            document.getElementById('bsBtnSwitchCam')?.addEventListener('click', async () => {
-                await stop();
-                if (cameras.length > 1) {
-                    camIdx = (camIdx + 1) % cameras.length;
-                } else {
-                    facingMode = facingMode === 'environment' ? 'user' : 'environment';
-                }
                 await startCamera();
-            });
 
-            document.getElementById('bsBtnFlashCam')?.addEventListener('click', async () => {
-                const statusEl = document.getElementById('bsScannerStateMsg');
-                try {
-                    const caps = scanner.getRunningTrackCapabilities?.();
-                    if (!caps?.torch) {
-                        if (statusEl) statusEl.innerText = 'Thiết bị này không hỗ trợ bật đèn Flash trên trình duyệt.';
-                        return;
+                document.getElementById('bsBtnOpenCamSettings')?.addEventListener('click', () => {
+                    window.BookShareAndroidBridge?.openAppSettings?.();
+                });
+
+                document.getElementById('bsBtnToggleCam')?.addEventListener('click', async () => {
+                    const statusEl = document.getElementById('bsScannerStateMsg');
+                    if (cameraActive) {
+                        await stop();
+                        if (statusEl) statusEl.innerText = 'Đã tạm tắt camera.';
+                    } else {
+                        await startCamera();
                     }
-                    torchOn = !torchOn;
-                    await scanner.applyVideoConstraints({ advanced: [{ torch: torchOn }] });
-                } catch {
-                    if (statusEl) statusEl.innerText = 'Không bật được đèn Flash trên thiết bị hiện tại.';
-                }
-            });
+                });
 
-            document.getElementById('bsQrFileInput')?.addEventListener('change', async (ev) => {
-                const file = ev.target.files?.[0];
-                if (!file) return;
-                const statusEl = document.getElementById('bsScannerStateMsg');
-                try {
+                document.getElementById('bsBtnSwitchCam')?.addEventListener('click', async () => {
                     await stop();
-                    const decoded = await scanner.scanFile(file, true);
-                    scannedText = String(decoded || '').trim();
-                    window.BookShareAndroidBridge?.vibrateShort?.();
+                    if (useDeviceId && cameras.length > 1) {
+                        camIdx = (camIdx + 1) % cameras.length;
+                    } else {
+                        useDeviceId = false;
+                        facingMode = facingMode === 'environment' ? 'user' : 'environment';
+                    }
+                    await startCamera();
+                });
+
+                document.getElementById('bsBtnFlashCam')?.addEventListener('click', async () => {
+                    const statusEl = document.getElementById('bsScannerStateMsg');
+                    try {
+                        const caps = scanner.getRunningTrackCapabilities?.();
+                        if (!caps?.torch) {
+                            if (statusEl) statusEl.innerText = 'Thiết bị này không hỗ trợ bật đèn Flash trên trình duyệt.';
+                            return;
+                        }
+                        torchOn = !torchOn;
+                        await scanner.applyVideoConstraints({ advanced: [{ torch: torchOn }] });
+                    } catch {
+                        if (statusEl) statusEl.innerText = 'Không bật được đèn Flash trên thiết bị hiện tại.';
+                    }
+                });
+
+                document.getElementById('bsQrFileInput')?.addEventListener('change', async (ev) => {
+                    const file = ev.target.files?.[0];
+                    if (!file) return;
+                    const statusEl = document.getElementById('bsScannerStateMsg');
+                    try {
+                        await stop();
+                        const decoded = await scanner.scanFile(file, true);
+                        scannedText = String(decoded || '').trim();
+                        window.BookShareAndroidBridge?.vibrateShort?.();
+                        window.Swal.close();
+                    } catch {
+                        if (statusEl) statusEl.innerText = 'Không đọc được mã QR hoặc mã vạch từ ảnh đã chọn.';
+                    }
+                });
+
+                document.getElementById('bsBtnManualSubmit')?.addEventListener('click', () => {
+                    const val = document.getElementById('bsManualCodeInput')?.value.trim() || '';
+                    if (!val) return;
+                    scannedText = val;
                     window.Swal.close();
-                } catch {
-                    if (statusEl) statusEl.innerText = 'Không đọc được mã QR hoặc mã vạch từ ảnh đã chọn.';
-                }
-            });
-
-            document.getElementById('bsBtnManualSubmit')?.addEventListener('click', () => {
-                const val = document.getElementById('bsManualCodeInput')?.value.trim() || '';
-                if (!val) return;
-                scannedText = val;
-                window.Swal.close();
-            });
-        },
-        willClose: stop
-    });
-
-    await stop();
+                });
+            },
+            willClose: stop
+        });
+    } finally {
+        await stop();
+        window.BookShareAndroidBridge?.setPullToRefreshEnabled?.(true);
+    }
     return scannedText;
 }
 
@@ -631,7 +678,7 @@ export async function confirmHandoverQrModal({ loanRequestId = null, returnCondi
 export async function openUniversalScanner() {
     const code = await openBarcodeScanner({
         title: 'Máy Quét QR & Mã Vạch Đa Năng',
-        hint: 'Quét mã đăng nhập nhanh, mã bàn giao nhận sách hoặc mã vạch sách'
+        hint: 'Quét mã QR thanh toán, đăng nhập nhanh, bàn giao sách hoặc mã vạch ISBN'
     });
     if (!code) return false;
 
@@ -1491,7 +1538,9 @@ function initMobileCompanionBridge() {
             form.dataset.androidBridgeBound = '1';
             form.addEventListener('submit', (e) => {
                 e.preventDefault();
-                window.BookShareAndroidBridge.openExternalAuth(`${window.location.origin}/S01AuthOtpGoogle/GoogleLogin`);
+                const ret = form.querySelector('input[name="returnUrl"]')?.value?.trim() || '';
+                const qs = ret ? `?returnUrl=${encodeURIComponent(ret)}` : '';
+                window.BookShareAndroidBridge.openExternalAuth(`${window.location.origin}/S01AuthOtpGoogle/GoogleLoginMobile${qs}`);
             });
         });
     }

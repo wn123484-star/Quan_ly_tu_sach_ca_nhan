@@ -383,8 +383,8 @@ class QARunner:
         sw = (WEB_DIR / "wwwroot" / "service-worker.js").read_text(encoding="utf-8")
         self.check(
             "L1",
-            "service-worker.js bumped to bookshare-static-v2 & light offline card",
-            "bookshare-static-v2" in sw and "#f8fafc" in sw,
+            "service-worker.js bumped to bookshare-static-v3+ & light offline card",
+            re.search(r"bookshare-static-v[2-9]", sw) is not None and "#f8fafc" in sw,
         )
 
         s01_js = (
@@ -2373,6 +2373,99 @@ class QARunner:
             "S17 TopUpVirtualWallet enforces anti-spam rate limit (5 OK -> 6th HTTP 429)",
             rate_codes[:5] == [200, 200, 200, 200, 200] and rate_codes[5] == 429,
             f"codes={rate_codes}",
+        )
+
+        # 9.7 Android Web App Sync (https://bookshare.castle-tech.cloud), Anti-White-Screen, On-Demand Camera & Mobile OAuth Handoff
+        mob_dir = ROOT_DIR / "mobile" / "bookshare-android"
+        gradle_props = (mob_dir / "gradle.properties").read_text(encoding="utf-8", errors="ignore")
+        app_gradle = (mob_dir / "app" / "build.gradle").read_text(encoding="utf-8", errors="ignore")
+        apk_wf = (ROOT_DIR / ".github" / "workflows" / "build-bookshare-android-apk.yml").read_text(encoding="utf-8", errors="ignore")
+        main_java = (mob_dir / "app" / "src" / "main" / "java" / "vn" / "bookshare" / "mobile" / "MainActivity.java").read_text(encoding="utf-8", errors="ignore")
+        layout_xml = (mob_dir / "app" / "src" / "main" / "res" / "layout" / "activity_main.xml").read_text(encoding="utf-8", errors="ignore")
+        core_js_mob = (WEB_DIR / "wwwroot" / "js" / "core-api.js").read_text(encoding="utf-8", errors="ignore")
+
+        target_prod_url = "https://bookshare.castle-tech.cloud"
+        self.check(
+            "L9",
+            "Android build config & CI workflow default to https://bookshare.castle-tech.cloud (zero 10.0.2.2)",
+            target_prod_url in gradle_props
+            and target_prod_url in app_gradle
+            and target_prod_url in apk_wf
+            and "10.0.2.2" not in gradle_props
+            and "10.0.2.2" not in app_gradle
+            and "10.0.2.2" not in apk_wf,
+        )
+
+        on_create_block = main_java.split("protected void onCreate(", 1)[1].split("protected void onNewIntent(", 1)[0] if "protected void onCreate(" in main_java else ""
+        self.check(
+            "L9",
+            "Android MainActivity has loadingOverlay, watchdog timeout, onPageCommitVisible, safe SSL cancel & on-demand CAMERA only",
+            'id="@+id/loadingOverlay"' in layout_xml
+            and "LOAD_TIMEOUT_MS" in main_java
+            and "onPageCommitVisible" in main_java
+            and "onReceivedSslError" in main_java
+            and "handler.cancel()" in main_java
+            and "handler.proceed()" not in main_java
+            and "onRenderProcessGone" in main_java
+            and "onPermissionRequestCanceled" in main_java
+            and "new String[]{ PermissionRequest.RESOURCE_VIDEO_CAPTURE }" in main_java
+            and "Manifest.permission.CAMERA" not in on_create_block
+            and "setPullToRefreshEnabled" in main_java,
+        )
+
+        self.check(
+            "L9",
+            "core-api.js routes Android Google OAuth to GoogleLoginMobile & opens rear camera on demand",
+            "/S01AuthOtpGoogle/GoogleLoginMobile" in core_js_mob
+            and "setPullToRefreshEnabled" in core_js_mob
+            and "openAppSettings" in core_js_mob,
+        )
+
+        req_mob_ua = urllib.request.Request(
+            self.base_url + "/",
+            headers={"User-Agent": "Mozilla/5.0 (Linux; Android 14) BookShareAndroidApp/1.0"},
+            method="GET",
+        )
+        with urllib.request.urlopen(req_mob_ua, timeout=15) as resp_mob_ua:
+            mob_ua_html = resp_mob_ua.read().decode("utf-8", errors="replace")
+        self.check(
+            "L9",
+            "BookShareAndroidApp User-Agent omits duplicate web #appSplash (prevents double-loading freeze)",
+            "is-mobile-app" in mob_ua_html and 'id="appSplash"' not in mob_ua_html,
+        )
+
+        # GET /S01AuthOtpGoogle/GoogleLoginMobile must NOT return 405 Method Not Allowed
+        mob_oauth_guest = SessionClient(self.base_url)
+        go_mob_c, _, _ = mob_oauth_guest.get("/S01AuthOtpGoogle/GoogleLoginMobile")
+        self.check(
+            "L9",
+            "GET /S01AuthOtpGoogle/GoogleLoginMobile avoids 405 (returns 400 fail-closed or 302 Google challenge)",
+            go_mob_c in (302, 400),
+            f"HTTP {go_mob_c}",
+        )
+
+        # End-to-end single-use CompleteMobileOAuth handoff (creates AuthCookie inside WebView & blocks replay)
+        u1.refresh_csrf("/S01AuthOtpGoogle")
+        ml_c, ml_j, ml_raw = u1.post_json("/api/qr-login/create-mobile-link", {})
+        ml_payload = ((ml_j or {}).get("data") or {}).get("qrPayload", "")
+        handoff_client = SessionClient(self.base_url)
+        ho_c, _, _ = handoff_client.get(f"/S01AuthOtpGoogle/CompleteMobileOAuth?code={urllib.parse.quote(ml_payload, safe='')}")
+        hs_c, hs_raw, _ = handoff_client.get("/api/mobile/session", accept_json=True)
+        hs_json = json.loads(hs_raw) if hs_c == 200 else {}
+        replay_client = SessionClient(self.base_url)
+        rp_c, _, _ = replay_client.get(f"/S01AuthOtpGoogle/CompleteMobileOAuth?code={urllib.parse.quote(ml_payload, safe='')}")
+        rs_c, rs_raw, _ = replay_client.get("/api/mobile/session", accept_json=True)
+        rs_json = json.loads(rs_raw) if rs_c == 200 else {}
+        self.check(
+            "L9",
+            "CompleteMobileOAuth signs WebView cookie atomically once & rejects token replay",
+            ml_c == 200
+            and bool(ml_payload)
+            and ho_c == 200
+            and hs_json.get("authenticated") is True
+            and rp_c == 200
+            and rs_json.get("authenticated") is False,
+            f"ml={ml_c}, ho={ho_c}, auth1={hs_json.get('authenticated')}, auth2={rs_json.get('authenticated')}, raw={ml_raw[:120]}",
         )
 
 

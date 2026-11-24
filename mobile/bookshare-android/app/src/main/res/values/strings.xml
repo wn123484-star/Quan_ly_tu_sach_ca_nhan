@@ -3,4 +3,8 @@
     <string name="app_name">BookShare</string>
     <string name="notif_channel_name">Thông báo BookShare</string>
     <string name="notif_channel_desc">Nhắc hạn trả sách, phê duyệt mượn trả và cảnh báo tài khoản</string>
+    <string name="loading_connecting">Đang kết nối BookShare…</string>
+    <string name="loading_slow_hint">Kết nối mạng đang chậm. Bạn có thể đợi thêm hoặc bấm thử tải lại.</string>
+    <string name="btn_retry_load">Thử tải lại</string>
+    <string name="camera_permission_denied_hint">Bạn chưa cấp quyền Máy ảnh. Hãy cấp quyền trong Cài đặt hoặc chọn ảnh QR từ thư viện.</string>
 </resources>

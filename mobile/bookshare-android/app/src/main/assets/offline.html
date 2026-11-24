@@ -18,7 +18,7 @@
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
         }
         .card {
-            max-width: 380px;
+            max-width: 390px;
             width: 100%;
             background: #ffffff;
             border: 1px solid #e2e8f0;
@@ -48,33 +48,73 @@
             font-size: 0.9rem;
             color: #475569;
             line-height: 1.5;
-            margin: 0 0 20px;
+            margin: 0 0 18px;
+        }
+        .actions {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
         }
         button {
             width: 100%;
             border: 0;
             border-radius: 12px;
-            background: #2563eb;
-            color: #ffffff;
             font-weight: 700;
             font-size: 0.95rem;
             padding: 12px 16px;
             cursor: pointer;
         }
-        button:active {
+        .btn-primary {
+            background: #2563eb;
+            color: #ffffff;
+        }
+        .btn-primary:active {
             background: #1d4ed8;
+        }
+        .btn-secondary {
+            background: #f1f5f9;
+            color: #1e293b;
+            border: 1px solid #cbd5e1;
+        }
+        .btn-secondary:active {
+            background: #e2e8f0;
         }
     </style>
 </head>
 <body>
     <main class="card">
         <div class="icon">B</div>
-        <h1>Không thể kết nối máy chủ BookShare</h1>
-        <p>Vui lòng kiểm tra kết nối Wi-Fi / 4G hoặc đảm bảo máy chủ BookShare đang hoạt động rồi thử tải lại.</p>
-        <button type="button" onclick="retryConnect()">Thử kết nối lại</button>
+        <h1 id="offlineTitle">Không thể kết nối máy chủ BookShare</h1>
+        <p id="offlineDesc">Vui lòng kiểm tra kết nối Wi-Fi / 4G hoặc thử tải lại trang sau vài giây.</p>
+        <div class="actions">
+            <button type="button" class="btn-primary" onclick="retryLast()">Thử kết nối lại</button>
+            <button type="button" class="btn-secondary" onclick="goHome()">Về Trang chủ BookShare</button>
+        </div>
     </main>
     <script>
-        function retryConnect() {
+        (function () {
+            var params = new URLSearchParams(window.location.search);
+            var reason = params.get('reason') || '';
+            var titleEl = document.getElementById('offlineTitle');
+            var descEl = document.getElementById('offlineDesc');
+            if (reason === 'timeout') {
+                titleEl.textContent = 'Kết nối phản hồi quá chậm';
+                descEl.textContent = 'Máy chủ BookShare phản hồi lâu hơn dự kiến do mạng yếu. Hãy kiểm tra Wi-Fi / 4G rồi bấm Thử kết nối lại.';
+            } else if (reason === 'ssl') {
+                titleEl.textContent = 'Kết nối bảo mật HTTPS bị gián đoạn';
+                descEl.textContent = 'Thiết bị không thể xác minh chứng chỉ bảo mật (hãy kiểm tra ngày giờ hệ thống hoặc mạng Wi-Fi công cộng) rồi thử lại.';
+            }
+        })();
+
+        function retryLast() {
+            if (window.BookShareAndroidBridge && typeof window.BookShareAndroidBridge.retryLastPage === 'function') {
+                window.BookShareAndroidBridge.retryLastPage();
+            } else {
+                goHome();
+            }
+        }
+
+        function goHome() {
             if (window.BookShareAndroidBridge && typeof window.BookShareAndroidBridge.reloadHome === 'function') {
                 window.BookShareAndroidBridge.reloadHome();
             } else if (history.length > 1) {

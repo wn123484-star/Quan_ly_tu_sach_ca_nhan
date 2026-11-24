@@ -12,9 +12,9 @@ on:
   workflow_dispatch:
     inputs:
       base_url:
-        description: 'URL máy chủ BookShare (ví dụ https://bookshare.example.com hoặc http://192.168.1.10:5087)'
+        description: 'URL máy chủ BookShare (mặc định https://bookshare.castle-tech.cloud)'
         required: false
-        default: 'http://10.0.2.2:5087'
+        default: 'https://bookshare.castle-tech.cloud'
         type: string
 
 jobs:
@@ -54,7 +54,7 @@ jobs:
             TARGET_URL="$REPO_VAR_URL"
           fi
           if [ -z "$TARGET_URL" ]; then
-            TARGET_URL="http://10.0.2.2:5087"
+            TARGET_URL="https://bookshare.castle-tech.cloud"
           fi
           echo "target_url=$TARGET_URL" >> "$GITHUB_OUTPUT"
           echo "Đang nhúng BASE_URL=$TARGET_URL vào APK"

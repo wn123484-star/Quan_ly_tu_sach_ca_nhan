@@ -142,6 +142,9 @@ public class NotificationPoller extends Worker {
 
         String cookies = CookieManager.getInstance().getCookie(BuildConfig.BASE_URL);
         if (cookies == null || cookies.trim().isEmpty()) {
+            cookies = CookieManager.getInstance().getCookie(BuildConfig.BASE_URL + "/");
+        }
+        if (cookies == null || cookies.trim().isEmpty()) {
             return Result.success();
         }
 
@@ -174,8 +177,13 @@ public class NotificationPoller extends Worker {
             }
 
             JSONObject json = new JSONObject(body.toString());
+            int unreadCount = json.optInt("unreadCount", 0);
             JSONArray items = json.optJSONArray("notifications");
             if (items == null || items.length() == 0) {
+                if (unreadCount > 0 && lastId > 0) {
+                    // CSDL vừa được khởi tạo lại khiến ID thông báo nhỏ hơn mốc cũ: đặt lại mốc an toàn
+                    prefs.edit().putInt(KEY_LAST_NOTIF_ID, 0).apply();
+                }
                 return Result.success();
             }
 
