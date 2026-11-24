@@ -158,7 +158,12 @@ public class S08LibraryLoanService : IS08LibraryLoanService
             return (false, "Bạn đã có yêu cầu mượn bản sao này đang chờ Thủ thư duyệt.");
         }
 
-        int days = Math.Clamp(request.DesiredDays, 3, 30);
+        var borrowerMemberships = await _db.Memberships
+            .AsNoTracking()
+            .Where(m => m.UserId == currentUserId && m.IsActive)
+            .ToListAsync();
+        var tierPlan = MembershipTierCatalog.GetEffectivePolicy(borrowerMemberships, DateTime.UtcNow);
+        int days = Math.Clamp(request.DesiredDays, 3, tierPlan.MaxBorrowDays);
 
         var loanReq = new LoanRequest
         {

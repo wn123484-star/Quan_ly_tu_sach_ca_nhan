@@ -128,6 +128,47 @@ public class DatabaseBootstrapService : IDatabaseBootstrapService
                     [UpdatedByUserId]  NVARCHAR(450) NULL,
                     CONSTRAINT [PK_SystemIconSettings] PRIMARY KEY CLUSTERED ([IconKey] ASC)
                 );
+            END
+
+            IF OBJECT_ID(N'[dbo].[UserWallets]', N'U') IS NULL
+               AND OBJECT_ID(N'[dbo].[AspNetUsers]', N'U') IS NOT NULL
+            BEGIN
+                CREATE TABLE [dbo].[UserWallets] (
+                    [UserId]        NVARCHAR(450) NOT NULL,
+                    [Balance]       DECIMAL(18,2) NOT NULL CONSTRAINT [DF_UserWallets_Balance] DEFAULT (0),
+                    [TotalToppedUp] DECIMAL(18,2) NOT NULL CONSTRAINT [DF_UserWallets_ToppedUp] DEFAULT (0),
+                    [TotalSpent]    DECIMAL(18,2) NOT NULL CONSTRAINT [DF_UserWallets_Spent] DEFAULT (0),
+                    [UpdatedAt]     DATETIME2(7)  NOT NULL CONSTRAINT [DF_UserWallets_UpdatedAt] DEFAULT (SYSUTCDATETIME()),
+                    CONSTRAINT [PK_UserWallets] PRIMARY KEY CLUSTERED ([UserId] ASC),
+                    CONSTRAINT [FK_UserWallets_AspNetUsers] FOREIGN KEY ([UserId]) REFERENCES [dbo].[AspNetUsers] ([Id]) ON DELETE CASCADE,
+                    CONSTRAINT [CK_UserWallets_Balance] CHECK ([Balance] >= 0)
+                );
+            END
+
+            IF OBJECT_ID(N'[dbo].[Transactions]', N'U') IS NOT NULL
+            BEGIN
+                IF COL_LENGTH(N'[dbo].[Transactions]', N'TargetTier') IS NULL
+                    ALTER TABLE [dbo].[Transactions] ADD [TargetTier] NVARCHAR(20) NULL;
+                IF COL_LENGTH(N'[dbo].[Transactions]', N'DurationMonths') IS NULL
+                    ALTER TABLE [dbo].[Transactions] ADD [DurationMonths] INT NULL;
+                IF COL_LENGTH(N'[dbo].[Transactions]', N'Description') IS NULL
+                    ALTER TABLE [dbo].[Transactions] ADD [Description] NVARCHAR(300) NULL;
+                IF OBJECT_ID(N'[dbo].[CK_Transactions_Type]', N'C') IS NOT NULL
+                    ALTER TABLE [dbo].[Transactions] DROP CONSTRAINT [CK_Transactions_Type];
+                ALTER TABLE [dbo].[Transactions] ADD CONSTRAINT [CK_Transactions_Type]
+                    CHECK ([TransactionType] IN (N'Membership', N'Fine', N'SimulatedDeposit', N'WalletTopUp'));
+                IF OBJECT_ID(N'[dbo].[CK_Transactions_Gateway]', N'C') IS NOT NULL
+                    ALTER TABLE [dbo].[Transactions] DROP CONSTRAINT [CK_Transactions_Gateway];
+                ALTER TABLE [dbo].[Transactions] ADD CONSTRAINT [CK_Transactions_Gateway]
+                    CHECK ([PaymentGateway] IN (N'VirtualWallet', N'QrPay', N'VNPaySandbox', N'MoMoSandbox'));
+            END
+
+            IF OBJECT_ID(N'[dbo].[Memberships]', N'U') IS NOT NULL
+            BEGIN
+                IF OBJECT_ID(N'[dbo].[CK_Memberships_Tier]', N'C') IS NOT NULL
+                    ALTER TABLE [dbo].[Memberships] DROP CONSTRAINT [CK_Memberships_Tier];
+                ALTER TABLE [dbo].[Memberships] ADD CONSTRAINT [CK_Memberships_Tier]
+                    CHECK ([Tier] IN (N'Free', N'Standard', N'Premium', N'Scholar'));
             END";
 
         try
@@ -271,6 +312,20 @@ public class DatabaseBootstrapService : IDatabaseBootstrapService
                 MaxConcurrentLoans = 5,
                 StartDate = DateTime.UtcNow,
                 IsActive = true
+            });
+            await _db.SaveChangesAsync(ct);
+        }
+
+        bool hasWallet = await _db.UserWallets.AnyAsync(w => w.UserId == adminUser.Id, ct);
+        if (!hasWallet)
+        {
+            _db.UserWallets.Add(new UserWallet
+            {
+                UserId = adminUser.Id,
+                Balance = 500000m,
+                TotalToppedUp = 500000m,
+                TotalSpent = 0m,
+                UpdatedAt = DateTime.UtcNow
             });
             await _db.SaveChangesAsync(ct);
         }

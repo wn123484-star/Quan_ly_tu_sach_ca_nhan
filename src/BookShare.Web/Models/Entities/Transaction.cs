@@ -21,6 +21,12 @@ public partial class Transaction
 
     public string? HmacSignature { get; set; }
 
+    public string? TargetTier { get; set; }
+
+    public int? DurationMonths { get; set; }
+
+    public string? Description { get; set; }
+
     public DateTime CreatedAt { get; set; }
 
     public virtual Loan? Loan { get; set; }

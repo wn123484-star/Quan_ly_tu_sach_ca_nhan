@@ -146,7 +146,12 @@ public class S09P2PLoanService : IS09P2PLoanService
             return (false, "Bạn đã gửi yêu cầu mượn bản sao này và đang chờ chủ sách duyệt.");
         }
 
-        int days = Math.Clamp(request.DesiredDays, 3, 30);
+        var borrowerMemberships = await _db.Memberships
+            .AsNoTracking()
+            .Where(m => m.UserId == currentUserId && m.IsActive)
+            .ToListAsync();
+        var tierPlan = MembershipTierCatalog.GetEffectivePolicy(borrowerMemberships, DateTime.UtcNow);
+        int days = Math.Clamp(request.DesiredDays, 3, tierPlan.MaxBorrowDays);
         int? resolvedHubId = await _db.Libraries.AnyAsync(l => l.Id == request.PickupHubId && l.IsActive)
             ? request.PickupHubId
             : (copy.LibraryId ?? await _db.Libraries.Where(l => l.IsActive).OrderBy(l => l.Id).Select(l => (int?)l.Id).FirstOrDefaultAsync());

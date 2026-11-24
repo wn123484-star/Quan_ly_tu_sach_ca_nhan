@@ -37,17 +37,23 @@ public class S16MembershipTierService : IS16MembershipTierService
         }
 
         var now = DateTime.UtcNow;
-        var myMembership = !string.IsNullOrWhiteSpace(user.Id)
+        var userMemberships = !string.IsNullOrWhiteSpace(user.Id)
             ? await _db.Memberships
                 .AsNoTracking()
                 .Where(m => m.UserId == user.Id && m.IsActive)
                 .OrderByDescending(m => m.StartDate)
-                .FirstOrDefaultAsync()
-            : null;
+                .ToListAsync()
+            : new List<Membership>();
 
-        bool isValidPremium = myMembership != null &&
-                              myMembership.Tier == "Premium" &&
-                              (!myMembership.ExpiryDate.HasValue || myMembership.ExpiryDate.Value > now);
+        var activePolicy = MembershipTierCatalog.GetEffectivePolicy(userMemberships, now);
+        var activeRecord = userMemberships
+            .FirstOrDefault(m =>
+                m.Tier.Equals(activePolicy.Tier, StringComparison.OrdinalIgnoreCase) &&
+                (!m.ExpiryDate.HasValue || m.ExpiryDate.Value > now));
+
+        decimal walletBalance = !string.IsNullOrWhiteSpace(user.Id)
+            ? await _paymentService.GetWalletBalanceAsync(user.Id)
+            : 0m;
 
         var activeLoansCount = !string.IsNullOrWhiteSpace(user.Id)
             ? await _db.Loans
@@ -77,10 +83,11 @@ public class S16MembershipTierService : IS16MembershipTierService
                 .ToListAsync()
             : new List<S16MembershipRecordDto>();
 
-        string activeTier = isValidPremium ? "Premium" : "Free";
-        int baseMaxLoans = isValidPremium ? (myMembership?.MaxConcurrentLoans ?? 5) : 2;
-        DateTime startDate = myMembership?.StartDate ?? user.CreatedAt;
-        DateTime? expiryDate = isValidPremium ? myMembership?.ExpiryDate : null;
+        int baseMaxLoans = activeRecord != null
+            ? Math.Max(activePolicy.MaxConcurrentLoans, activeRecord.MaxConcurrentLoans)
+            : activePolicy.MaxConcurrentLoans;
+        DateTime startDate = activeRecord?.StartDate ?? user.CreatedAt;
+        DateTime? expiryDate = activePolicy.Tier == "Free" ? null : activeRecord?.ExpiryDate;
 
         int daysRemaining = expiryDate.HasValue
             ? Math.Max(0, (int)Math.Ceiling((expiryDate.Value - now).TotalDays))
@@ -92,13 +99,19 @@ public class S16MembershipTierService : IS16MembershipTierService
             CurrentUserName = user.FullName,
             CurrentUserEmail = user.Email ?? string.Empty,
             CurrentTrustScore = user.TrustScore,
-            ActiveTier = activeTier,
+            WalletBalance = walletBalance,
+            ActiveTier = activePolicy.Tier,
+            ActiveTierDisplayName = activePolicy.DisplayName,
             BaseMaxConcurrentLoans = baseMaxLoans,
+            MaxBorrowDays = activePolicy.MaxBorrowDays,
+            MaxRenewals = activePolicy.MaxRenewals,
+            AllowedBooksSummary = activePolicy.AllowedBooksSummary,
             LendQuotaBonus = user.LendQuotaBonus,
             CurrentActiveLoansCount = activeLoansCount,
             StartDate = startDate,
             ExpiryDate = expiryDate,
             DaysRemaining = daysRemaining,
+            TierPlans = MembershipTierCatalog.ToPlanDtos(),
             AllMemberships = allRecords
         };
     }
@@ -113,14 +126,12 @@ public class S16MembershipTierService : IS16MembershipTierService
             return (false, "Không tìm thấy thông tin tài khoản người dùng.", null, null, null);
         }
 
-        string targetTier = request.TargetTier == "Free" ? "Free" : "Premium";
-        int durationMonths = request.DurationMonths switch
-        {
-            1 => 1,
-            6 => 6,
-            _ => 12
-        };
-        string gateway = request.PaymentGateway == "MoMoSandbox" ? "MoMoSandbox" : "VNPaySandbox";
+        string targetTier = MembershipTierCatalog.NormalizeTier(request.TargetTier);
+        var policy = MembershipTierCatalog.GetPolicy(targetTier);
+        int durationMonths = MembershipTierCatalog.NormalizeDurationMonths(request.DurationMonths);
+        string paymentMode = string.Equals(request.PaymentMode, "InstantWallet", StringComparison.OrdinalIgnoreCase)
+            ? "InstantWallet"
+            : "QrInvoice";
         var now = DateTime.UtcNow;
 
         var existingMembership = await _db.Memberships
@@ -133,7 +144,7 @@ public class S16MembershipTierService : IS16MembershipTierService
             if (existingMembership != null)
             {
                 existingMembership.Tier = "Free";
-                existingMembership.MaxConcurrentLoans = 2;
+                existingMembership.MaxConcurrentLoans = MembershipTierCatalog.Free.MaxConcurrentLoans;
                 existingMembership.ExpiryDate = null;
             }
             else
@@ -142,7 +153,7 @@ public class S16MembershipTierService : IS16MembershipTierService
                 {
                     UserId = currentUserId,
                     Tier = "Free",
-                    MaxConcurrentLoans = 2,
+                    MaxConcurrentLoans = MembershipTierCatalog.Free.MaxConcurrentLoans,
                     StartDate = now,
                     ExpiryDate = null,
                     IsActive = true
@@ -153,31 +164,105 @@ public class S16MembershipTierService : IS16MembershipTierService
             return (true, $"Đã chuyển hạng thành viên của {user.FullName} về gói Free (Tối đa 2 cuốn + {user.LendQuotaBonus} cuốn thưởng chia sẻ).", null, null, null);
         }
 
-        // Gói Premium: tạo lệnh thanh toán chờ xác thực chữ ký HMAC-SHA512 tại Ví Bảo Lãnh
-        decimal feeAmount = durationMonths switch
-        {
-            1 => 19000m,
-            6 => 59000m,
-            _ => 99000m
-        };
+        decimal feeAmount = MembershipTierCatalog.GetPrice(targetTier, durationMonths);
+        string invoiceDesc = $"Đăng ký / Gia hạn gói {policy.DisplayName} ({policy.Tier} — {durationMonths} tháng)";
 
+        if (paymentMode == "InstantWallet")
+        {
+            var wallet = await _db.UserWallets.FirstOrDefaultAsync(w => w.UserId == currentUserId);
+            decimal currentBal = wallet?.Balance ?? 0m;
+            if (wallet == null || currentBal < feeAmount)
+            {
+                decimal shortfall = feeAmount - currentBal;
+                return (false,
+                    $"Số dư Ví Tiền Ảo hiện có {currentBal:N0}đ (cần {feeAmount:N0}đ, còn thiếu {shortfall:N0}đ). Hãy vào Ví Tiền Ảo nạp thêm miễn phí ngay!",
+                    null, null, null);
+            }
+
+            wallet.Balance -= feeAmount;
+            wallet.TotalSpent += feeAmount;
+            wallet.UpdatedAt = now;
+
+            var tx = new Transaction
+            {
+                UserId = currentUserId,
+                LoanId = null,
+                TransactionType = "Membership",
+                Amount = feeAmount,
+                PaymentGateway = "VirtualWallet",
+                PaymentStatus = "Completed",
+                TargetTier = policy.Tier,
+                DurationMonths = durationMonths,
+                Description = invoiceDesc,
+                CreatedAt = now
+            };
+            _db.Transactions.Add(tx);
+            await _db.SaveChangesAsync();
+
+            string canonical = _paymentService.BuildCanonicalPayload(tx.Id, currentUserId, tx.TransactionType, feeAmount, tx.PaymentGateway, null);
+            tx.HmacSignature = _paymentService.ComputeHmacSha512(canonical);
+
+            if (existingMembership != null)
+            {
+                bool sameTierStillValid = existingMembership.Tier.Equals(policy.Tier, StringComparison.OrdinalIgnoreCase)
+                    && existingMembership.ExpiryDate.HasValue
+                    && existingMembership.ExpiryDate.Value > now;
+                existingMembership.Tier = policy.Tier;
+                existingMembership.MaxConcurrentLoans = policy.MaxConcurrentLoans;
+                var baseDate = sameTierStillValid ? existingMembership.ExpiryDate!.Value : now;
+                existingMembership.ExpiryDate = baseDate.AddMonths(durationMonths);
+            }
+            else
+            {
+                _db.Memberships.Add(new Membership
+                {
+                    UserId = currentUserId,
+                    Tier = policy.Tier,
+                    MaxConcurrentLoans = policy.MaxConcurrentLoans,
+                    StartDate = now,
+                    ExpiryDate = now.AddMonths(durationMonths),
+                    IsActive = true
+                });
+            }
+
+            _db.Notifications.Add(new Notification
+            {
+                UserId = currentUserId,
+                Title = $"Kích hoạt thành công gói {policy.DisplayName}",
+                Content = $"Đã trừ {feeAmount:N0}đ từ Ví Tiền Ảo. Hạn mức mượn mới: {policy.MaxConcurrentLoans} cuốn (+{user.LendQuotaBonus} thưởng P2P), thời hạn mượn tối đa {policy.MaxBorrowDays} ngày/lượt. Số dư còn lại: {wallet.Balance:N0}đ.",
+                Type = "System",
+                IsRead = false,
+                EmailSentViaResend = false,
+                CreatedAt = now
+            });
+
+            await _db.SaveChangesAsync();
+            return (true,
+                $"Nâng cấp thành công gói {policy.DisplayName} ({durationMonths} tháng) bằng Ví Tiền Ảo! Đã trừ {feeAmount:N0}đ, số dư còn lại: {wallet.Balance:N0}đ.",
+                null, null, null);
+        }
+
+        // Chế độ tạo hóa đơn QR Thanh Toán (Quét bằng camera trên Web / Android App hoặc xác nhận tại Ví Tiền Ảo)
         var (orderOk, _, txId, rawPayload, expectedHmac) = await _paymentService.CreateSandboxOrderAsync(
             currentUserId,
             new S17CreateSandboxOrderDto
             {
                 TransactionType = "Membership",
                 Amount = feeAmount,
-                PaymentGateway = gateway,
-                LoanId = null
+                PaymentGateway = "QrPay",
+                LoanId = null,
+                TargetTier = policy.Tier,
+                DurationMonths = durationMonths,
+                Description = invoiceDesc
             });
 
         if (!orderOk)
         {
-            return (false, "Không thể khởi tạo lệnh thanh toán nâng cấp gói Premium.", null, null, null);
+            return (false, $"Không thể khởi tạo hóa đơn thanh toán cho gói {policy.DisplayName}.", null, null, null);
         }
 
         return (true,
-            $"Đã khởi tạo lệnh thanh toán #{txId} ({feeAmount:N0} VNĐ cho gói Premium {durationMonths} tháng). Vui lòng xác nhận thanh toán tại Ví Bảo Lãnh để kích hoạt quyền lợi.",
+            $"Đã tạo hóa đơn #TX-{txId} ({feeAmount:N0}đ ảo — {invoiceDesc}). Quét mã QR hoặc mở Ví Tiền Ảo để xác nhận thanh toán!",
             txId,
             rawPayload,
             expectedHmac);

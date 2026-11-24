@@ -1,7 +1,7 @@
 # BookShare Portal — Nền tảng Quản lý Tủ sách Cá nhân, Theo dõi Tiến độ Đọc & Chia sẻ Sách Giấy Cộng đồng (.NET 10 MVC)
 
 > **Học phần:** Phát triển Ứng dụng Web • Trường Đại học CMC  
-> **Nền tảng kỹ thuật:** ASP.NET Core 10 MVC (`.NET 10`) • Entity Framework Core 10 (`Database-First Scaffold`) • SQL Server (`28 bảng dbo`) • Cookie Authentication (`OnValidatePrincipal` tự dọn phiên mồ côi), 2-Way QR Login & Google OAuth 2.0 • Resend OTP & Email API • Google Gemini AI Copilot (Function Calling 2 tầng) • VNPay/MoMo Sandbox (`HMAC-SHA512`) • Hangfire Background Jobs • Admin System Icon Manager (`IMemoryCache`) • 100% Local Assets (0 CDN ngoài) • Android WebView Shell (`mobile/bookshare-android/`)  
+> **Nền tảng kỹ thuật:** ASP.NET Core 10 MVC (`.NET 10`) • Entity Framework Core 10 (`Database-First Scaffold`) • SQL Server (`32 bảng dbo`) • Cookie Authentication (`OnValidatePrincipal` tự dọn phiên mồ côi), 2-Way QR Login & Google OAuth 2.0 • Resend OTP & Email API • Google Gemini AI Copilot (Function Calling 2 tầng) • Ví Tiền Ảo Miễn Phí, Gói Hội Viên 4 Cấp & Quét QR Thanh Toán (0 ngân hàng thật) • Hangfire Background Jobs • Admin System Icon Manager & User Governance (`IMemoryCache`) • 100% Local Assets (0 CDN ngoài) • Android WebView Shell (`mobile/bookshare-android/`)  
 > **Nguyên tắc Nghiệp vụ Cốt lõi:** **100% Chia sẻ & Mượn trả Sách Giấy Học thuật & P2P 0đ — TUYỆT ĐỐI KHÔNG BÁN SÁCH** (Không có giá bán, không có nút mua hàng hay giỏ hàng thương mại).
 
 ---
@@ -50,16 +50,11 @@ Resend__FromEmail="BookShare <onboarding@resend.dev>"
 Authentication__Google__ClientId=""
 Authentication__Google__ClientSecret=""
 
-VNPay__TmnCode=""
-VNPay__HashSecret=""
-VNPay__BaseUrl="https://sandbox.vnpayment.vn/paymentv2/vpcpay.html"
-VNPay__ReturnUrl="http://localhost:5087/S17SandboxPayment"
-
 ReCaptcha__SiteKey=""
 ReCaptcha__SecretKey=""
 ```
 
-> Xem hướng dẫn cấu hình Google OAuth 2.0, Resend Email, SMTP dự phòng và triển khai Docker tại [`docs/DEPLOYMENT_OAUTH_GUIDE.md`](docs/DEPLOYMENT_OAUTH_GUIDE.md).
+> **Lưu ý:** Hệ thống đã loại bỏ hoàn toàn cấu hình ngân hàng thật (`VNPay__*`); mọi giao dịch nâng cấp gói hội viên 4 cấp, nộp phí trễ hạn và ký quỹ bảo lãnh đều dùng **Ví Tiền Ảo miễn phí nội bộ** + **Quét QR Thanh Toán** trực tiếp tại `/S17SandboxPayment`. Xem thêm hướng dẫn Google OAuth 2.0, Resend Email và Docker tại [`docs/DEPLOYMENT_OAUTH_GUIDE.md`](docs/DEPLOYMENT_OAUTH_GUIDE.md).
 
 ### Bước 3: Khởi tạo CSDL & Chạy Ứng dụng
 ```powershell
@@ -100,7 +95,7 @@ docker compose up -d --build
 Dự án đi kèm 2 kịch bản kiểm thử tự động chạy trực tiếp trên server Kestrel & LocalDB thật:
 
 ```powershell
-# 1. Bộ kiểm thử E2E 7 tầng toàn diện (346 assertions: L1-L5 + L6 Sprint 3 + L7 Sprint 3.5: 0 CDN, 0 Schema Drift, QR, Header, Admin Icon Manager, Blank DB & Stale Cookie)
+# 1. Bộ kiểm thử E2E 8 tầng toàn diện (368 assertions: L1-L5 + L6 Sprint 3 + L7 Sprint 3.5 + L8 Sprint 4: Ví Tiền Ảo, 4 Cấp Hội Viên, QR Thanh Toán & Admin DeleteUser)
 python scripts/qa_full_bot.py --autostart
 
 # 2. Bộ kiểm thử khói 3 lớp (Build, Docker mount & quét nhãn UI, 23 route 200 OK, RBAC 401/403)
@@ -148,7 +143,8 @@ Xem báo cáo kết quả kiểm thử chi tiết tại [`docs/QA_TEST_REPORT.md
 - [`docs/SECURITY_RBAC.md`](docs/SECURITY_RBAC.md) — Ma trận phân quyền RBAC 4 vai trò, khóa IDOR & kiểm soát OAuth/HMAC/OTP
 - [`docs/API_REFERENCE.md`](docs/API_REFERENCE.md) — Tài liệu đầy đủ các endpoint GET/POST của 23 Controller
 - [`docs/DEPLOYMENT_OAUTH_GUIDE.md`](docs/DEPLOYMENT_OAUTH_GUIDE.md) — Hướng dẫn triển khai LocalDB/Docker, Google OAuth 2.0 & build APK GitHub Actions
-- [`docs/QA_TEST_REPORT.md`](docs/QA_TEST_REPORT.md) — Báo cáo kết quả kiểm thử E2E 7 tầng (346/346 PASS) & lỗi đã khắc phục
+- [`docs/QA_TEST_REPORT.md`](docs/QA_TEST_REPORT.md) — Báo cáo kết quả kiểm thử E2E 8 tầng (368/368 PASS) & lỗi đã khắc phục
 - [`docs/UPGRADE_SPRINT3_PLAN.md`](docs/UPGRADE_SPRINT3_PLAN.md), [`docs/QR_AUTH_AND_HANDOVER_SPEC.md`](docs/QR_AUTH_AND_HANDOVER_SPEC.md), [`docs/AI_COPILOT_TOOLS_SPEC.md`](docs/AI_COPILOT_TOOLS_SPEC.md), [`docs/MOBILE_APP_ARCHITECTURE.md`](docs/MOBILE_APP_ARCHITECTURE.md) — Bộ đặc tả nâng cấp Sprint 3
 - [`docs/SPRINT35_POLISH_PLAN.md`](docs/SPRINT35_POLISH_PLAN.md), [`docs/ICON_CUSTOMIZATION_SPEC.md`](docs/ICON_CUSTOMIZATION_SPEC.md), [`docs/LOCAL_ASSETS_AUDIT.md`](docs/LOCAL_ASSETS_AUDIT.md) — Bộ đặc tả Sprint 3.5 (Local Assets, QR/Header/Blank DB & Admin Icon Manager)
+- [`docs/SPRINT4_WALLET_MEMBERSHIP_PLAN.md`](docs/SPRINT4_WALLET_MEMBERSHIP_PLAN.md), [`docs/VIRTUAL_WALLET_AND_QR_PAY_SPEC.md`](docs/VIRTUAL_WALLET_AND_QR_PAY_SPEC.md), [`docs/ADMIN_USER_DELETE_SPEC.md`](docs/ADMIN_USER_DELETE_SPEC.md) — Bộ đặc tả Sprint 4 (Ví Tiền Ảo, Gói Hội Viên 4 Cấp, QR Thanh Toán & Admin Xóa Tài Khoản)
 - [`docs/PROGRESS.md`](docs/PROGRESS.md) & [`TODO.md`](TODO.md) — Nhật ký hoàn thiện dự án theo từng pha

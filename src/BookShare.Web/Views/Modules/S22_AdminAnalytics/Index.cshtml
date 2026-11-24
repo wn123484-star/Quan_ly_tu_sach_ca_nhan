@@ -175,20 +175,32 @@
                                         </div>
                                     </td>
                                     <td>
-                                        @if (u.IsLockedOut)
-                                        {
-                                            <button type="button" class="btn btn-xs btn-success fw-bold js-btn-toggle-lock"
-                                                    data-user-id="@u.UserId" data-lock="false">
-                                                <i class="bi bi-unlock-fill me-1"></i>Mở khóa
-                                            </button>
-                                        }
-                                        else
-                                        {
-                                            <button type="button" class="btn btn-xs btn-outline-danger fw-semibold js-btn-toggle-lock"
-                                                    data-user-id="@u.UserId" data-lock="true">
-                                                <i class="bi bi-lock-fill me-1"></i>Khóa TK
-                                            </button>
-                                        }
+                                        <div class="d-flex flex-wrap gap-1">
+                                            @if (u.IsLockedOut)
+                                            {
+                                                <button type="button" class="btn btn-xs btn-success fw-bold js-btn-toggle-lock"
+                                                        data-user-id="@u.UserId" data-lock="false">
+                                                    <i class="bi bi-unlock-fill me-1"></i>Mở khóa
+                                                </button>
+                                            }
+                                            else
+                                            {
+                                                <button type="button" class="btn btn-xs btn-outline-warning text-dark fw-semibold js-btn-toggle-lock"
+                                                        data-user-id="@u.UserId" data-lock="true">
+                                                    <i class="bi bi-lock-fill me-1"></i>Khóa TK
+                                                </button>
+                                            }
+                                            @if (u.UserId != "u-admin-01" && u.UserId != Model.CurrentUserId)
+                                            {
+                                                <button type="button" class="btn btn-xs btn-outline-danger fw-semibold js-btn-delete-user"
+                                                        data-user-id="@u.UserId"
+                                                        data-user-name="@u.FullName"
+                                                        data-user-email="@u.Email"
+                                                        title="Xóa vĩnh viễn tài khoản thành viên">
+                                                    <i class="bi bi-trash3-fill me-1"></i>Xóa TK
+                                                </button>
+                                            }
+                                        </div>
                                     </td>
                                 </tr>
                             }

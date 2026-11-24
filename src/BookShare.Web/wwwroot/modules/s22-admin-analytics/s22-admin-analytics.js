@@ -108,6 +108,33 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
+    // 3b. Xóa vĩnh viễn tài khoản thành viên ([Authorize(Roles = "Admin")])
+    document.querySelectorAll('.js-btn-delete-user').forEach(btn => {
+        btn.addEventListener('click', async () => {
+            const userId = btn.getAttribute('data-user-id') || '';
+            const fullName = btn.getAttribute('data-user-name') || userId;
+            const email = btn.getAttribute('data-user-email') || '';
+
+            const ok = await confirmDialog({
+                title: `Xóa vĩnh viễn tài khoản "${fullName}"?`,
+                text: `Tài khoản ${email} và toàn bộ dữ liệu cá nhân (kệ sách, ghi chú, ví tiền ảo, thông báo) sẽ bị xóa không thể hoàn tác. Tài khoản đang mượn sách hoặc còn tranh chấp mở sẽ tự động được bảo vệ chặn xóa.`,
+                confirmText: 'Xác nhận xóa vĩnh viễn',
+                danger: true
+            });
+            if (!ok) return;
+
+            const res = await apiFetch('/S22AdminAnalytics/DeleteUser', {
+                method: 'POST',
+                body: { userId },
+                button: btn
+            });
+
+            if (res.ok) {
+                setTimeout(() => window.location.reload(), 700);
+            }
+        });
+    });
+
     document.querySelectorAll('.js-btn-review-upgrade').forEach(btn => {
         btn.addEventListener('click', async () => {
             const requestId = parseInt(btn.getAttribute('data-id') || '0', 10);

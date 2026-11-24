@@ -65,3 +65,12 @@ Theo dõi tiến độ thực thi 7 pha chuẩn hóa hệ thống BookShare (.NE
 - [x] **Pha 3:** Thu gọn nút nổi Trợ lý AI thành nút tròn `52x52px`, pop-up `350x460px` có nút Mở rộng/Thu gọn/Đóng, tự ẩn trên `/S13GeminiAiAssistant`; đồng bộ trang lỗi thân thiện (`400`–`500`) cả Dev & Production Docker.
 - [x] **Pha 4:** Bổ sung bảng `SystemIconSettings` (28 bảng `dbo`) + EF Core Scaffold, triển khai `SystemIconService` (`IMemoryCache`, 18 biểu tượng, kiểm tra magic bytes & chống SVG XSS <= 2MB), 4 API `[Authorize(Roles="Admin")]` tại `S22` và giao diện Tab **"Tùy Chỉnh Biểu Tượng"** có công tắc gạt 2 chiều từng icon.
 - [x] **Pha 5–6:** Mở rộng `scripts/qa_full_bot.py` Lớp 7 (kèm chốt chặn chống lệch schema Docker) đạt **346/346 PASS (0 FAIL)**, `scripts/smoke_test.py` **100% PASS (0 lỗi)**, và đồng bộ toàn bộ tài liệu `.md`.
+
+---
+
+## SPRINT 4: Ví Tiền Ảo Miễn Phí, Gói Hội Viên 4 Cấp, Quét QR Thanh Toán & Admin Xóa Tài Khoản
+- [x] **Pha 0:** Tạo bộ 3 tài liệu đặc tả & theo dõi tiến độ trước khi sửa code (`docs/SPRINT4_WALLET_MEMBERSHIP_PLAN.md`, `docs/VIRTUAL_WALLET_AND_QR_PAY_SPEC.md`, `docs/ADMIN_USER_DELETE_SPEC.md`).
+- [x] **Pha 1:** Xóa sạch cấu hình ngân hàng thật `VNPay__*` khỏi `.env.example`, bổ sung bảng `dbo.UserWallets` & nâng cấp 4 cấp `Memberships` + cột hóa đơn `Transactions` trong `01_BookShare_Schema.sql` + `DatabaseBootstrapService`, chạy lại EF Core Scaffold (`--schema dbo`, 0 lệch schema).
+- [x] **Pha 2–3:** Xây dựng `MembershipTierCatalog` (4 cấp `Free`/`Standard`/`Premium`/`Scholar` thực thi thật ở `LoanFlowCoordinatorService`, `S08`, `S09`, `S11`, `S12`), trang Nạp Tiền Ảo miễn phí thoải mái (`/S17SandboxPayment`), bảng so sánh & nâng cấp 4 cấp (`/S16MembershipTier`), và luồng **Quét QR Thanh Toán** đồng bộ Web ↔ Android Web App (mở camera -> xem hóa đơn & số dư Ví -> bấm Xác nhận thanh toán -> polling tự cập nhật).
+- [x] **Pha 4:** Thêm tính năng **Admin Xóa Tài Khoản** (`POST /S22AdminAnalytics/DeleteUser`) có chốt bảo vệ sách đang mượn/tranh chấp mở/tài khoản gốc và xóa nguyên tử khóa ngoại.
+- [x] **Pha 5–6:** Mở rộng `scripts/qa_full_bot.py` Lớp 8 đạt **368/368 PASS (0 FAIL)**, `scripts/smoke_test.py` đạt **100% PASS (0 lỗi)** và đồng bộ toàn bộ tài liệu `.md`.

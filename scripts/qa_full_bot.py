@@ -1891,6 +1891,229 @@ class QARunner:
             f"login={adm_blank_ok} ({adm_blank_fl}), s22={adm_s22_blank_c}",
         )
 
+    def run_layer8_sprint4(self, actors: dict[str, SessionClient]) -> None:
+        print("\n=== LAYER 8: Sprint 4 (No Real Bank .env, Virtual Wallet, 4-Tier Membership, QR Pay & Admin DeleteUser) ===")
+        admin = actors["admin"]
+        lib = actors["librarian"]
+        u1 = actors["u1"]
+        u2 = actors["u2"]
+
+        # 8.1 Zero real bank / VNPay keys in .env.example & S17SandboxPaymentService.cs
+        env_example = (ROOT_DIR / ".env.example").read_text(encoding="utf-8", errors="ignore")
+        self.check(
+            "L8",
+            ".env.example removes all VNPay real-bank env variables",
+            "VNPay__TmnCode" not in env_example
+            and "VNPay__HashSecret" not in env_example
+            and "VNPay__BaseUrl" not in env_example
+            and "VNPay__ReturnUrl" not in env_example,
+        )
+        s17_svc = (WEB_DIR / "Services" / "Implementations" / "S17SandboxPaymentService.cs").read_text(encoding="utf-8", errors="ignore")
+        self.check(
+            "L8",
+            "S17SandboxPaymentService has zero VNPay config key lookups",
+            '["VNPay:' not in s17_svc and "VNPAY_HASH_SECRET" not in s17_svc,
+        )
+        core_js = (WEB_DIR / "wwwroot" / "js" / "core-api.js").read_text(encoding="utf-8", errors="ignore")
+        self.check(
+            "L8",
+            "core-api.js syncs Bank-style QR Pay scanner with Web & Android Bottom Nav",
+            "openQrPaymentScanner" in core_js
+            and "openQrInvoiceConfirmDialog" in core_js
+            and "BOOKSHARE-PAY:" in core_js,
+        )
+
+        # 8.2 Virtual Wallet Free Top-Up & 4-Tier Membership UI + InstantWallet flow
+        c16, h16, _ = u2.get("/S16MembershipTier")
+        h16_txt = html_lib.unescape(h16)
+        self.check(
+            "L8",
+            "S16 displays all 4 membership tiers (Free, Standard, Premium, Scholar) & virtual balance",
+            c16 == 200
+            and "Độc Giả Cơ Bản" in h16_txt
+            and "Hội Viên Đọc Sâu" in h16_txt
+            and "Hội Viên Học Thuật" in h16_txt
+            and "Nghiên Cứu VIP" in h16_txt
+            and "Số dư Ví Tiền Ảo" in h16_txt,
+            f"HTTP {c16}",
+        )
+        c17, h17, _ = u2.get("/S17SandboxPayment")
+        self.check(
+            "L8",
+            "S17 displays Free Virtual Wallet Top-Up card & QR Payment camera button",
+            c17 == 200 and 'id="walletTopUpCard"' in h17 and 'id="btnS17ScanQrPay"' in h17,
+            f"HTTP {c17}",
+        )
+
+        u2.refresh_csrf("/S17SandboxPayment")
+        bad_top_c, _, _ = u2.post_json("/S17SandboxPayment/TopUpVirtualWallet", {"amount": 500})
+        self.check("L8", "TopUpVirtualWallet rejects amount below 1,000đ (400)", bad_top_c == 400, f"HTTP {bad_top_c}")
+
+        # Instant upgrade before topping up must fail 400 (insufficient balance)
+        short_c, _, _ = u2.post_json(
+            "/S16MembershipTier/SwitchMembership",
+            {"targetTier": "Scholar", "durationMonths": 1, "paymentMode": "InstantWallet"},
+        )
+        self.check("L8", "S16 InstantWallet upgrade blocked 400 when virtual balance is insufficient", short_c == 400, f"HTTP {short_c}")
+
+        top1_c, top1_j, _ = u2.post_json("/S17SandboxPayment/TopUpVirtualWallet", {"amount": 100000, "note": "L8 Nap tien ao mien phi"})
+        bal1 = float((top1_j or {}).get("balance", 0)) if isinstance(top1_j, dict) else 0
+        self.check("L8", "TopUpVirtualWallet credits +100,000đ virtual balance free", top1_c == 200 and bal1 >= 100000, f"HTTP {top1_c}, bal={bal1}")
+
+        std_c, std_j, std_raw = u2.post_json(
+            "/S16MembershipTier/SwitchMembership",
+            {"targetTier": "Standard", "durationMonths": 1, "paymentMode": "InstantWallet"},
+        )
+        bal_after_std = float((std_j or {}).get("walletBalance", -1)) if isinstance(std_j, dict) else -1
+        _, h16_std, _ = u2.get("/S16MembershipTier")
+        self.check(
+            "L8",
+            "S16 InstantWallet activates Standard tier (3 books) & deducts 29,000đ",
+            std_c == 200 and abs((bal1 - 29000) - bal_after_std) < 1 and "Gói hiện tại: Standard" in h16_std and "3 cuốn" in h16_std,
+            f"HTTP {std_c}, bal={bal_after_std}",
+        )
+
+        # 8.3 Bank-Style QR Payment Invoice Flow (Create -> Preview -> Anti-IDOR -> Shortfall -> TopUp -> Confirm -> Poll -> Anti-Replay)
+        qr_ord_c, qr_ord_j, _ = u2.post_json(
+            "/S16MembershipTier/SwitchMembership",
+            {"targetTier": "Scholar", "durationMonths": 6, "paymentMode": "QrInvoice"},
+        )
+        pay_tx_id = (qr_ord_j or {}).get("createdTransactionId") if isinstance(qr_ord_j, dict) else None
+        pay_qr = (qr_ord_j or {}).get("qrPayload", "") if isinstance(qr_ord_j, dict) else ""
+        self.check(
+            "L8",
+            "S16 QrInvoice mode creates Pending Scholar 6M invoice (449,000đ) with BOOKSHARE-PAY QR payload",
+            qr_ord_c == 200 and isinstance(pay_tx_id, int) and pay_qr == f"BOOKSHARE-PAY:{pay_tx_id}",
+            f"HTTP {qr_ord_c}, qr={pay_qr}",
+        )
+
+        # Anti-IDOR: u1 cannot preview, confirm, or poll u2's invoice
+        u1.refresh_csrf("/S17SandboxPayment")
+        idor_prev_c, _, _ = u1.post_json("/S17SandboxPayment/PreviewQrInvoice", {"qrPayload": pay_qr})
+        idor_conf_c, _, _ = u1.post_json("/S17SandboxPayment/ConfirmQrInvoice", {"transactionId": pay_tx_id})
+        idor_poll_c, _, _ = u1.get(f"/S17SandboxPayment/InvoiceStatus?txId={pay_tx_id}", accept_json=True)
+        self.check(
+            "L8",
+            "Anti-IDOR: Non-owner u1 blocked 403 on Preview/Confirm/Poll of u2 QR invoice",
+            idor_prev_c == 403 and idor_conf_c == 403 and idor_poll_c == 403,
+            f"prev={idor_prev_c}, conf={idor_conf_c}, poll={idor_poll_c}",
+        )
+
+        # Owner u2 previews invoice before enough money (bal ~121,000 vs 449,000)
+        prev1_c, prev1_j, _ = u2.post_json("/S17SandboxPayment/PreviewQrInvoice", {"qrPayload": pay_qr})
+        inv1 = (prev1_j or {}).get("invoice", {}) if isinstance(prev1_j, dict) else {}
+        self.check(
+            "L8",
+            "PreviewQrInvoice returns full invoice details & flags insufficient balance accurately",
+            prev1_c == 200 and float(inv1.get("amount", 0)) == 449000 and inv1.get("hasSufficientBalance") is False,
+            f"HTTP {prev1_c}, inv={inv1}",
+        )
+
+        conf_short_c, _, _ = u2.post_json("/S17SandboxPayment/ConfirmQrInvoice", {"transactionId": pay_tx_id})
+        self.check("L8", "ConfirmQrInvoice blocks 400 when virtual wallet balance < invoice amount", conf_short_c == 400, f"HTTP {conf_short_c}")
+
+        # Top up +400,000đ -> Preview shows sufficient -> Confirm succeeds -> InvoiceStatus Completed -> Replay blocked 400
+        u2.post_json("/S17SandboxPayment/TopUpVirtualWallet", {"amount": 400000})
+        prev2_c, prev2_j, _ = u2.post_json("/S17SandboxPayment/PreviewQrInvoice", {"qrPayload": pay_qr})
+        inv2 = (prev2_j or {}).get("invoice", {}) if isinstance(prev2_j, dict) else {}
+        self.check(
+            "L8",
+            "PreviewQrInvoice reflects updated wallet balance & sufficient flag",
+            prev2_c == 200 and inv2.get("hasSufficientBalance") is True,
+            f"HTTP {prev2_c}, bal={inv2.get('walletBalance')}",
+        )
+
+        conf_ok_c, conf_ok_j, conf_raw = u2.post_json("/S17SandboxPayment/ConfirmQrInvoice", {"transactionId": pay_tx_id})
+        poll_c, poll_raw, _ = u2.get(f"/S17SandboxPayment/InvoiceStatus?txId={pay_tx_id}", accept_json=True)
+        poll_status = json.loads(poll_raw).get("status") if poll_c == 200 else ""
+        _, h16_sch, _ = u2.get("/S16MembershipTier")
+        self.check(
+            "L8",
+            "ConfirmQrInvoice deducts wallet, marks Completed for Web polling & activates Scholar (10 books)",
+            conf_ok_c == 200 and poll_status == "Completed" and "Gói hiện tại: Scholar" in h16_sch and "10 cuốn" in h16_sch,
+            f"conf={conf_ok_c}, poll={poll_status}",
+        )
+
+        replay_qr_c, _, _ = u2.post_json("/S17SandboxPayment/ConfirmQrInvoice", {"transactionId": pay_tx_id})
+        self.check("L8", "ConfirmQrInvoice blocks duplicate replay payment idempotently (400)", replay_qr_c == 400, f"HTTP {replay_qr_c}")
+
+        # 8.4 Admin Delete User (RBAC, self-delete block, active-loan safety guard, clean atomic delete + stale cookie reject)
+        u1_del_c, _, _ = u1.post_json("/S22AdminAnalytics/DeleteUser", {"userId": "u-user-03"})
+        self.check("L8", "RBAC: User blocked 403 on POST /S22AdminAnalytics/DeleteUser", u1_del_c == 403, f"HTTP {u1_del_c}")
+
+        admin.refresh_csrf("/S22AdminAnalytics")
+        self_del_c, _, _ = admin.post_json("/S22AdminAnalytics/DeleteUser", {"userId": "u-admin-01"})
+        self.check("L8", "Admin blocked 400 from deleting root/self account u-admin-01", self_del_c == 400, f"HTTP {self_del_c}")
+
+        # Register a disposable member to verify both active-loan protection (400) and clean atomic deletion (200)
+        disp_email = f"delete.l8.{int(time.time())}@cmc.edu.vn"
+        disp = SessionClient(self.base_url)
+        disp.refresh_csrf("/S01AuthOtpGoogle")
+        reg_c, _, _ = disp.post_form(
+            "/S01AuthOtpGoogle/Register",
+            {"FullName": "Tai Khoan Kiem Thu Xoa L8", "Email": disp_email, "Password": "User@123", "Address": "Ha Noi"},
+            follow_redirects=True,
+        )
+        disp.refresh_csrf("/S17SandboxPayment")
+        disp.post_json("/S17SandboxPayment/TopUpVirtualWallet", {"amount": 50000})
+
+        _, s22_html, _ = admin.get("/S22AdminAnalytics")
+        # Extract disposable user's ID from the S22 table button
+        m_uid = re.search(
+            r'class="[^"]*js-btn-delete-user[^"]*"[^>]*data-user-id="([^"]+)"[^>]*data-user-name="Tai Khoan Kiem Thu Xoa L8"',
+            s22_html,
+        )
+        disp_uid = m_uid.group(1) if m_uid else ""
+        self.check("L8", "S22 renders Delete User button for newly registered member", reg_c == 200 and bool(disp_uid), f"uid={disp_uid}")
+
+        if disp_uid:
+            # Check out an available system copy to disp_uid via Librarian Desk -> verify DeleteUser is blocked 400 while holding book!
+            _, desk_l8_html, _ = lib.get("/S21LibrarianDesk")
+            avail_candidates: list[str] = []
+            for m in re.finditer(r'class="[^"]*js-sample-barcode[^"]*"[^>]*data-code="([^"]+)"[^>]*>[^<]*\(Available\)', desk_l8_html):
+                avail_candidates.append(m.group(1).strip())
+            for tr_blk in desk_l8_html.split("<tr"):
+                if "bg-success" in tr_blk and "Available" in tr_blk:
+                    cm = re.search(r"<code>([^<]+)</code>", tr_blk)
+                    if cm:
+                        avail_candidates.append(cm.group(1).strip())
+            checked_out_bc = ""
+            last_co_err = ""
+            for cand_bc in list(dict.fromkeys(avail_candidates))[:10]:
+                co_c, _, co_raw = lib.post_json(
+                    "/S21LibrarianDesk/QuickScanBarcode",
+                    {"barcode": cand_bc, "deskAction": "Checkout", "borrowerUserId": disp_uid},
+                )
+                if co_c == 200:
+                    checked_out_bc = cand_bc
+                    break
+                last_co_err = f"{cand_bc}:{co_c}:{co_raw[:80]}"
+            blk_del_c, _, _ = admin.post_json("/S22AdminAnalytics/DeleteUser", {"userId": disp_uid}) if checked_out_bc else (0, None, "")
+            self.check(
+                "L8",
+                "Admin DeleteUser blocked 400 while user holds active unreturned book",
+                bool(checked_out_bc) and blk_del_c == 400,
+                f"bc={checked_out_bc}, HTTP {blk_del_c}, err={last_co_err}",
+            )
+            if checked_out_bc:
+                lib.post_json(
+                    "/S21LibrarianDesk/QuickScanBarcode",
+                    {"barcode": checked_out_bc, "deskAction": "Checkin", "returnCondition": "Good"},
+                )
+
+            ok_del_c, _, ok_del_raw = admin.post_json("/S22AdminAnalytics/DeleteUser", {"userId": disp_uid})
+            self.check("L8", "Admin DeleteUser atomically removes clean user & dependent FK rows (200)", ok_del_c == 200, ok_del_raw)
+
+            # Deleted user's old cookie must be auto-rejected with 0 HTTP 500!
+            after_del_sess_c, after_del_raw, _ = disp.get("/api/mobile/session", accept_json=True)
+            after_del_auth = json.loads(after_del_raw).get("authenticated", True) if after_del_sess_c == 200 else True
+            self.check(
+                "L8",
+                "Deleted user's active session cookie auto-rejected by OnValidatePrincipal (authenticated=false)",
+                after_del_sess_c == 200 and after_del_auth is False,
+                f"HTTP {after_del_sess_c}, auth={after_del_auth}",
+            )
+
 
 def wait_for_server(base_url: str, timeout_s: float = 40.0) -> bool:
     deadline = time.time() + timeout_s
@@ -1968,6 +2191,7 @@ def main() -> int:
         actors = runner.run_layer3_auth_rbac_idor()
         runner.run_layer4_business_loops(actors)
         runner.run_layer6_sprint3(actors)
+        runner.run_layer8_sprint4(actors)
         runner.run_layer7_sprint35(actors)
         runner.run_layer5_cleanup_and_integrity(actors["admin"])
 

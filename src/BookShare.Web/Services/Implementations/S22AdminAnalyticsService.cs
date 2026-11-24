@@ -360,6 +360,153 @@ public class S22AdminAnalyticsService : IS22AdminAnalyticsService
         return (true, $"Đã MỞ KHÓA tài khoản {user.FullName} ({user.Email}) thành công!");
     }
 
+    public async Task<(bool Success, string Message)> DeleteUserAsync(
+        string adminUserId,
+        string targetUserId)
+    {
+        string cleanTargetId = (targetUserId ?? string.Empty).Trim();
+        if (string.IsNullOrWhiteSpace(cleanTargetId))
+        {
+            return (false, "Thiếu mã định danh tài khoản cần xóa.");
+        }
+
+        if (string.Equals(cleanTargetId, adminUserId, StringComparison.OrdinalIgnoreCase))
+        {
+            return (false, "Không thể tự xóa tài khoản Quản trị viên đang đăng nhập.");
+        }
+
+        if (string.Equals(cleanTargetId, "u-admin-01", StringComparison.OrdinalIgnoreCase))
+        {
+            return (false, "Không được phép xóa tài khoản Quản trị viên gốc của hệ thống.");
+        }
+
+        var targetUser = await _db.AspNetUsers
+            .Include(u => u.Roles)
+            .FirstOrDefaultAsync(u => u.Id == cleanTargetId);
+
+        if (targetUser == null)
+        {
+            return (false, "Không tìm thấy tài khoản cần xóa trên hệ thống.");
+        }
+
+        bool targetIsAdmin = targetUser.Roles.Any(r => r.NormalizedName == "ADMIN");
+        if (targetIsAdmin)
+        {
+            int otherAdmins = await _db.AspNetUsers
+                .CountAsync(u => u.Id != cleanTargetId && u.Roles.Any(r => r.NormalizedName == "ADMIN"));
+            if (otherAdmins == 0)
+            {
+                return (false, "Không thể xóa Quản trị viên duy nhất còn lại của hệ thống.");
+            }
+        }
+
+        bool hasActiveBorrowedLoans = await _db.Loans.AnyAsync(l =>
+            l.LoanRequest.BorrowerId == cleanTargetId &&
+            (l.Status == "Active" || l.Status == "Overdue" || l.Status == "Disputed"));
+
+        if (hasActiveBorrowedLoans)
+        {
+            return (false, $"Không thể xóa tài khoản {targetUser.FullName}: Độc giả này vẫn đang giữ sách chưa hoàn trả hoặc đang có hợp đồng tranh chấp. Vui lòng thu hồi sách hoặc dùng chức năng Khóa tài khoản.");
+        }
+
+        bool hasLentOutCopies = await _db.BookCopies.AnyAsync(bc =>
+            bc.OwnerUserId == cleanTargetId &&
+            (bc.Status == "Borrowed" || bc.Status == "Reserved"));
+
+        if (hasLentOutCopies)
+        {
+            return (false, $"Không thể xóa tài khoản {targetUser.FullName}: Tài khoản này đang có sách P2P cho người khác mượn hoặc đang giữ chỗ. Vui lòng hoàn tất chu trình trả sách trước.");
+        }
+
+        bool hasOpenDisputes = await _db.Disputes.AnyAsync(d =>
+            (d.RaisedByUserId == cleanTargetId || d.Loan.LoanRequest.BorrowerId == cleanTargetId) &&
+            (d.Status == "Open" || d.Status == "UnderReview"));
+
+        if (hasOpenDisputes)
+        {
+            return (false, $"Không thể xóa tài khoản {targetUser.FullName}: Vẫn còn hồ sơ tranh chấp đang mở chưa phân xử xong.");
+        }
+
+        string displayName = targetUser.FullName;
+        string displayEmail = targetUser.Email ?? cleanTargetId;
+
+        await using var dbTx = await _db.Database.BeginTransactionAsync();
+        try
+        {
+            await _db.Database.ExecuteSqlInterpolatedAsync($@"
+                UPDATE [dbo].[Libraries] SET [ManagerUserId] = N'u-admin-01' WHERE [ManagerUserId] = {cleanTargetId};
+                UPDATE [dbo].[RoleUpgradeRequests] SET [ReviewedByUserId] = NULL WHERE [ReviewedByUserId] = {cleanTargetId};
+                UPDATE [dbo].[Disputes] SET [ResolvedByAdminId] = NULL WHERE [ResolvedByAdminId] = {cleanTargetId};
+                UPDATE [dbo].[LoanRequests] SET [ApproverId] = NULL WHERE [ApproverId] = {cleanTargetId};
+                IF OBJECT_ID(N'[dbo].[SystemIconSettings]', N'U') IS NOT NULL
+                    UPDATE [dbo].[SystemIconSettings] SET [UpdatedByUserId] = NULL WHERE [UpdatedByUserId] = {cleanTargetId};
+
+                DELETE FROM [dbo].[QrLoginSessions] WHERE [InitiatorUserId] = {cleanTargetId} OR [ApprovedUserId] = {cleanTargetId};
+                DELETE FROM [dbo].[BookHandoverQrs]
+                WHERE [CreatedByUserId] = {cleanTargetId}
+                   OR [ConsumedByUserId] = {cleanTargetId}
+                   OR [LoanRequestId] IN (SELECT [Id] FROM [dbo].[LoanRequests] WHERE [BorrowerId] = {cleanTargetId} OR [BookCopyId] IN (SELECT [Id] FROM [dbo].[BookCopies] WHERE [OwnerUserId] = {cleanTargetId}))
+                   OR [LoanId] IN (SELECT l.[Id] FROM [dbo].[Loans] l INNER JOIN [dbo].[LoanRequests] lr ON l.[LoanRequestId] = lr.[Id] WHERE lr.[BorrowerId] = {cleanTargetId} OR lr.[BookCopyId] IN (SELECT [Id] FROM [dbo].[BookCopies] WHERE [OwnerUserId] = {cleanTargetId}));
+
+                DELETE FROM [dbo].[Disputes]
+                WHERE [RaisedByUserId] = {cleanTargetId}
+                   OR [LoanId] IN (SELECT l.[Id] FROM [dbo].[Loans] l INNER JOIN [dbo].[LoanRequests] lr ON l.[LoanRequestId] = lr.[Id] WHERE lr.[BorrowerId] = {cleanTargetId} OR lr.[BookCopyId] IN (SELECT [Id] FROM [dbo].[BookCopies] WHERE [OwnerUserId] = {cleanTargetId}));
+
+                DELETE FROM [dbo].[ConditionReports]
+                WHERE [ReportedByUserId] = {cleanTargetId}
+                   OR [LoanId] IN (SELECT l.[Id] FROM [dbo].[Loans] l INNER JOIN [dbo].[LoanRequests] lr ON l.[LoanRequestId] = lr.[Id] WHERE lr.[BorrowerId] = {cleanTargetId} OR lr.[BookCopyId] IN (SELECT [Id] FROM [dbo].[BookCopies] WHERE [OwnerUserId] = {cleanTargetId}));
+
+                DELETE FROM [dbo].[Reviews]
+                WHERE [ReviewerId] = {cleanTargetId}
+                   OR ([TargetType] = N'User' AND [TargetId] = {cleanTargetId});
+
+                DELETE FROM [dbo].[Transactions] WHERE [UserId] = {cleanTargetId};
+
+                DELETE FROM [dbo].[Loans]
+                WHERE [LoanRequestId] IN (SELECT [Id] FROM [dbo].[LoanRequests] WHERE [BorrowerId] = {cleanTargetId} OR [BookCopyId] IN (SELECT [Id] FROM [dbo].[BookCopies] WHERE [OwnerUserId] = {cleanTargetId}));
+
+                DELETE FROM [dbo].[LoanRequests]
+                WHERE [BorrowerId] = {cleanTargetId}
+                   OR [BookCopyId] IN (SELECT [Id] FROM [dbo].[BookCopies] WHERE [OwnerUserId] = {cleanTargetId});
+
+                DELETE FROM [dbo].[ShelfItems]
+                WHERE [BookCopyId] IN (SELECT [Id] FROM [dbo].[BookCopies] WHERE [OwnerUserId] = {cleanTargetId})
+                   OR [ShelfId] IN (SELECT [Id] FROM [dbo].[Shelves] WHERE [UserId] = {cleanTargetId});
+
+                DELETE FROM [dbo].[Shelves] WHERE [UserId] = {cleanTargetId};
+                DELETE FROM [dbo].[BookCopies] WHERE [OwnerUserId] = {cleanTargetId};
+                DELETE FROM [dbo].[AiChatMessages]
+                WHERE [UserId] = {cleanTargetId}
+                   OR [SessionId] IN (SELECT [Id] FROM [dbo].[AiChatSessions] WHERE [UserId] = {cleanTargetId});
+                DELETE FROM [dbo].[AiChatSessions] WHERE [UserId] = {cleanTargetId};
+                DELETE FROM [dbo].[BookNotes]
+                WHERE [ReadingProgressId] IN (SELECT [Id] FROM [dbo].[ReadingProgresses] WHERE [UserId] = {cleanTargetId});
+                DELETE FROM [dbo].[ReadingProgresses] WHERE [UserId] = {cleanTargetId};
+                DELETE FROM [dbo].[Reservations] WHERE [UserId] = {cleanTargetId};
+                DELETE FROM [dbo].[Notifications] WHERE [UserId] = {cleanTargetId};
+                DELETE FROM [dbo].[RoleUpgradeRequests] WHERE [UserId] = {cleanTargetId};
+                DELETE FROM [dbo].[Memberships] WHERE [UserId] = {cleanTargetId};
+                IF OBJECT_ID(N'[dbo].[UserWallets]', N'U') IS NOT NULL
+                    DELETE FROM [dbo].[UserWallets] WHERE [UserId] = {cleanTargetId};
+                DELETE FROM [dbo].[OtpVerifications] WHERE [UserId] = {cleanTargetId};
+                DELETE FROM [dbo].[AspNetUserRoles] WHERE [UserId] = {cleanTargetId};
+                DELETE FROM [dbo].[AspNetUserLogins] WHERE [UserId] = {cleanTargetId};
+                DELETE FROM [dbo].[AspNetUserClaims] WHERE [UserId] = {cleanTargetId};
+                DELETE FROM [dbo].[AspNetUserTokens] WHERE [UserId] = {cleanTargetId};
+                DELETE FROM [dbo].[AspNetUsers] WHERE [Id] = {cleanTargetId};
+            ");
+
+            await dbTx.CommitAsync();
+        }
+        catch (Exception ex)
+        {
+            await dbTx.RollbackAsync();
+            return (false, $"Không thể xóa tài khoản {displayName} do ràng buộc dữ liệu: {ex.Message}");
+        }
+
+        return (true, $"Đã xóa vĩnh viễn tài khoản {displayName} ({displayEmail}) và toàn bộ dữ liệu cá nhân liên quan!");
+    }
+
     public async Task<(bool Success, string Message)> ManageSampleDataAsync(
         string adminUserId,
         string actionMode)

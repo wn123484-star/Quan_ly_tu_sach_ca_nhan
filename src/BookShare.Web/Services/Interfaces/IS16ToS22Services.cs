@@ -37,6 +37,28 @@ public interface IS17SandboxPaymentService
         string currentUserRole,
         int transactionId);
 
+    Task<decimal> GetWalletBalanceAsync(string userId);
+
+    Task<(bool Success, string Message, decimal NewBalance, int TransactionId)> TopUpVirtualWalletAsync(
+        string currentUserId,
+        decimal amount,
+        string? note = null);
+
+    Task<(bool Success, string Message, S17QrInvoicePreviewResultDto? Invoice)> PreviewQrInvoiceAsync(
+        string currentUserId,
+        string currentUserRole,
+        string qrPayload);
+
+    Task<(bool Success, string Message, decimal NewBalance)> ConfirmQrInvoicePaymentAsync(
+        string currentUserId,
+        string currentUserRole,
+        int transactionId);
+
+    Task<(bool Found, string Status, decimal Amount, string? Description)> GetInvoiceStatusAsync(
+        string currentUserId,
+        string currentUserRole,
+        int transactionId);
+
     string BuildCanonicalPayload(
         int txId,
         string userId,
@@ -167,4 +189,8 @@ public interface IS22AdminAnalyticsService
         Task<(bool Success, string Message)> ManageSampleDataAsync(
             string adminUserId,
             string actionMode);
+
+        Task<(bool Success, string Message)> DeleteUserAsync(
+            string adminUserId,
+            string targetUserId);
     }

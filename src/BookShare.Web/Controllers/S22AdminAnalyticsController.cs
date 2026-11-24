@@ -135,6 +135,29 @@ public class S22AdminAnalyticsController : Controller
     [HttpPost]
     [ValidateAntiForgeryToken]
     [Authorize(Roles = "Admin")]
+    public async Task<IActionResult> DeleteUser([FromBody] S22DeleteUserDto request)
+    {
+        var adminUserId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
+        var (success, message) = await _adminService.DeleteUserAsync(adminUserId, request?.UserId ?? string.Empty);
+        if (!success)
+        {
+            return BadRequest(new { message });
+        }
+
+        TempData["StatusCode"] = 200;
+        TempData["StatusTitle"] = "Đã xóa tài khoản thành viên thành công";
+        TempData["StatusDetail"] = message;
+
+        return Ok(new
+        {
+            title = "Đã xóa tài khoản thành công",
+            message
+        });
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    [Authorize(Roles = "Admin")]
     public async Task<IActionResult> TriggerDailyJob([FromBody] S22TriggerJobRequestDto request)
     {
         var (success, message) = await _dailyJobs.ExecuteJobByKeyAsync(request.JobKey);

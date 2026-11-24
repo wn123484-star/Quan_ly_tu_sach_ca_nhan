@@ -119,7 +119,8 @@ public class S11HotBookQueueService : IS11HotBookQueueService
             .FirstOrDefaultAsync(u => u.Id == currentUserId);
 
         var nowUtc = DateTime.UtcNow;
-        bool isPremium = user?.Memberships.Any(m => m.IsActive && m.Tier == "Premium" && (m.ExpiryDate == null || m.ExpiryDate > nowUtc)) ?? false;
+        var userPlan = MembershipTierCatalog.GetEffectivePolicy(user?.Memberships, nowUtc);
+        bool isPriorityTier = userPlan.PriorityRank > 0;
 
         var waitingQueue = await _db.Reservations
             .Include(r => r.User)
@@ -130,16 +131,16 @@ public class S11HotBookQueueService : IS11HotBookQueueService
 
         int assignedPosition;
 
-        if (isPremium)
+        if (isPriorityTier)
         {
-            // Thành viên Premium được ưu tiên xếp ngay sau các thành viên Premium khác và đứng trước thành viên Free
-            var firstFree = waitingQueue.FirstOrDefault(r =>
+            // Xếp ưu tiên theo bậc gói hội viên: Scholar (3) > Premium (2) > Standard (1) > Free (0)
+            var firstLowerTier = waitingQueue.FirstOrDefault(r =>
                 r.Status == "Waiting" &&
-                !r.User.Memberships.Any(m => m.IsActive && m.Tier == "Premium" && (m.ExpiryDate == null || m.ExpiryDate > nowUtc)));
+                MembershipTierCatalog.GetEffectivePolicy(r.User?.Memberships, nowUtc).PriorityRank < userPlan.PriorityRank);
 
-            if (firstFree != null)
+            if (firstLowerTier != null)
             {
-                assignedPosition = firstFree.QueuePosition;
+                assignedPosition = firstLowerTier.QueuePosition;
                 foreach (var item in waitingQueue.Where(r => r.QueuePosition >= assignedPosition))
                 {
                     item.QueuePosition += 1;
@@ -167,8 +168,8 @@ public class S11HotBookQueueService : IS11HotBookQueueService
         _db.Reservations.Add(reservation);
         await _db.SaveChangesAsync();
 
-        string tierNote = isPremium
-            ? $" (Đặc quyền gói Premium: Tự động ưu tiên lên vị trí #{reservation.QueuePosition})"
+        string tierNote = isPriorityTier
+            ? $" (Đặc quyền gói {userPlan.DisplayName}: Tự động ưu tiên lên vị trí #{reservation.QueuePosition})"
             : $" (Vị trí xếp hàng hiện tại: #{reservation.QueuePosition})";
 
         return (true, $"Đã đặt trước sách Hot \"{book.Title}\" thành công!{tierNote}", reservation.QueuePosition);

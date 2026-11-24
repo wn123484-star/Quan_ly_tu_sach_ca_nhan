@@ -137,8 +137,9 @@
                             @IconService.RenderIconHtml("nav_community", "bi-gem", "text-info")<span>Ví &amp; Cộng Đồng</span>
                         </a>
                         <ul class="dropdown-menu">
-                            <li><a class="dropdown-item" asp-controller="S17SandboxPayment" asp-action="Index"><i class="bi bi-credit-card-2-front-fill text-info"></i>Ví Bảo Lãnh</a></li>
-                            <li><a class="dropdown-item" asp-controller="S16MembershipTier" asp-action="Index"><i class="bi bi-gem text-warning"></i>Hạng Thành Viên</a></li>
+                            <li><a class="dropdown-item" asp-controller="S17SandboxPayment" asp-action="Index"><i class="bi bi-wallet2 text-success"></i>Ví Tiền Ảo &amp; Nạp Miễn Phí</a></li>
+                            <li><button type="button" class="dropdown-item js-open-qr-pay-scanner"><i class="bi bi-qr-code-scan text-info"></i>Quét QR Thanh Toán</button></li>
+                            <li><a class="dropdown-item" asp-controller="S16MembershipTier" asp-action="Index"><i class="bi bi-gem text-warning"></i>Gói Hội Viên 4 Cấp</a></li>
                             <li><a class="dropdown-item" asp-controller="S15TrustScoreReview" asp-action="Index"><i class="bi bi-star-half text-success"></i>Điểm Uy Tín</a></li>
                             <li><a class="dropdown-item" asp-controller="S20ExchangeHubClub" asp-action="Index"><i class="bi bi-geo-alt-fill text-primary"></i>Trạm CLB &amp; Hub</a></li>
                             <li><a class="dropdown-item" asp-controller="S18NotificationHub" asp-action="Index"><i class="bi bi-bell-fill text-warning"></i>Thông Báo &amp; OTP</a></li>
@@ -206,6 +207,8 @@
                                 </li>
                                 <li><a class="dropdown-item" asp-controller="S01AuthOtpGoogle" asp-action="Index"><i class="bi bi-person-vcard-fill text-info"></i>Hồ Sơ &amp; Bảo Mật</a></li>
                                 <li><a class="dropdown-item" asp-controller="S02PersonalShelf" asp-action="Index"><i class="bi bi-bookshelf text-warning"></i>Tủ Sách Cá Nhân</a></li>
+                                <li><a class="dropdown-item" asp-controller="S17SandboxPayment" asp-action="Index"><i class="bi bi-wallet2 text-success"></i>Ví Tiền Ảo Miễn Phí</a></li>
+                                <li><button type="button" id="btnHeaderQrPay" class="dropdown-item js-open-qr-pay-scanner"><i class="bi bi-qr-code-scan text-info"></i>Quét QR Thanh Toán</button></li>
                                 @if (currentRole == "Admin")
                                 {
                                     <li><a class="dropdown-item" asp-controller="S22AdminAnalytics" asp-action="Index"><i class="bi bi-speedometer2 text-danger"></i>Trung Tâm Quản Trị</a></li>
@@ -399,7 +402,7 @@
             @IconService.RenderIconHtml("nav_shelf", "bi-bookshelf")
             <span>Tủ sách</span>
         </a>
-        <button type="button" id="btnMobileCenterQr" class="mobile-nav-qr-btn" aria-label="Quét mã đa năng">
+        <button type="button" id="btnMobileCenterQr" class="mobile-nav-qr-btn" aria-label="Quét QR thanh toán, đăng nhập và bàn giao sách">
             @IconService.RenderIconHtml("qr_scan", "bi-qr-code-scan")
         </button>
         <a asp-controller="S18NotificationHub" asp-action="Index" class="mobile-nav-item position-relative">

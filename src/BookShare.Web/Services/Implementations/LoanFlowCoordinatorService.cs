@@ -95,11 +95,26 @@ public class LoanFlowCoordinatorService : ILoanFlowCoordinatorService
             return (false, "Tạm khóa quyền mượn sách mới: Tài khoản của bạn đang có hồ sơ khiếu nại tranh chấp chưa được giải quyết xong.");
         }
 
-        int baseQuota = borrower.Memberships
-            .Where(m => m.IsActive && (m.ExpiryDate == null || m.ExpiryDate > nowUtc))
-            .Select(m => m.MaxConcurrentLoans)
-            .DefaultIfEmpty(2)
-            .Max();
+        var effectivePlan = MembershipTierCatalog.GetEffectivePolicy(borrower.Memberships, nowUtc);
+        int baseQuota = Math.Max(
+            effectivePlan.MaxConcurrentLoans,
+            borrower.Memberships
+                .Where(m => m.IsActive && (m.ExpiryDate == null || m.ExpiryDate > nowUtc))
+                .Select(m => m.MaxConcurrentLoans)
+                .DefaultIfEmpty(effectivePlan.MaxConcurrentLoans)
+                .Max());
+
+        // Luật phạm vi sách theo cấp hội viên: sách Hot có từ 3 người xếp hàng chờ trở lên mở mượn trực tiếp từ gói Standard trở lên
+        if (effectivePlan.Tier == "Free" && !hasNotifiedHold)
+        {
+            int bookHotQueueCount = await _db.Reservations.CountAsync(r =>
+                r.BookId == copy.BookId && (r.Status == "Waiting" || r.Status == "Notified"));
+            if (bookHotQueueCount >= 3)
+            {
+                return (false,
+                    $"Đầu sách này đang có {bookHotQueueCount} độc giả xếp hàng Sách Hot — chỉ mở mượn trực tiếp từ gói Hội Viên Đọc Sâu (Standard) trở lên. Bạn có thể đặt trước hàng chờ hoặc nâng cấp gói hội viên bằng tiền ảo miễn phí!");
+            }
+        }
 
         int maxQuota = baseQuota + borrower.LendQuotaBonus;
 
@@ -109,7 +124,7 @@ public class LoanFlowCoordinatorService : ILoanFlowCoordinatorService
 
         if (currentOpenLoans >= maxQuota)
         {
-            return (false, $"Bạn đang mượn {currentOpenLoans}/{maxQuota} cuốn (đạt hạn mức tối đa hiện tại). Vui lòng hoàn trả sách hoặc nâng cấp hạng thành viên Premium.");
+            return (false, $"Bạn đang mượn {currentOpenLoans}/{maxQuota} cuốn (đạt hạn mức tối đa của gói {effectivePlan.DisplayName}). Vui lòng hoàn trả sách hoặc nâng cấp hạng hội viên bằng tiền ảo miễn phí.");
         }
 
         return (true, string.Empty);

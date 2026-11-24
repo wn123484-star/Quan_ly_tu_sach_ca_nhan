@@ -1,6 +1,6 @@
 @model BookShare.Web.Models.ViewModels.S17SandboxPaymentPageViewModel
 @{
-    ViewData["Title"] = "Ví Bảo Lãnh, Đối Soát Phí & Cổng Thanh Toán HMAC-SHA512";
+    ViewData["Title"] = "Ví Tiền Ảo Miễn Phí & Quét QR Thanh Toán BookShare";
 }
 
 @section Styles {
@@ -10,124 +10,196 @@
 <section class="s17-hero card border-0 shadow-sm rounded-4 p-4 mb-4">
     <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
         <div>
-            <span class="badge bg-primary mb-2 px-3 py-1 rounded-pill">VÍ BẢO LÃNH MƯỢN SÁCH &amp; CỔNG ĐỐI SOÁT CHỮ KÝ SỐ HMAC-SHA512</span>
-            <h2 class="fw-bold mb-1">🏦 Ví Bảo Lãnh &amp; Kiểm Định Chữ Ký Điện Tử HMAC-SHA512</h2>
-            <p class="text-muted small mb-0">
-                <strong>Tuân thủ nghiêm ngặt quy tắc không bán sách:</strong> Hệ thống thanh toán chỉ phục vụ đúng 3 nghiệp vụ:
-                <code>Membership</code> (Phí nâng cấp hạng thẻ Premium), <code>Fine</code> (Nộp phí phạt trễ hạn) và <code>SimulatedDeposit</code> (Tiền cọc bảo lãnh sách quý — hoàn trả 100% khi trả sách).
+            <span class="badge bg-success mb-2 px-3 py-1 rounded-pill">100% TIỀN ẢO MIỄN PHÍ • KHÔNG NGÂN HÀNG THẬT</span>
+            <h2 class="fw-bold mb-1">💳 Ví Tiền Ảo &amp; Thanh Toán QR BookShare</h2>
+            <p class="text-muted small mb-3">
+                Nạp tiền ảo miễn phí thoải mái để đăng ký gói hội viên 4 cấp, thanh toán phí trễ hạn hoặc ký quỹ bảo lãnh sách quý (hoàn 100% về ví khi trả sách). Hỗ trợ <strong>Quét QR Thanh Toán</strong> bằng camera đồng bộ tức thì giữa Web và Ứng dụng di động.
             </p>
+            <div class="d-flex flex-wrap gap-2">
+                <button type="button" id="btnS17ScanQrPay" class="btn btn-primary fw-bold rounded-pill px-4 js-open-qr-pay-scanner">
+                    <i class="bi bi-qr-code-scan me-2"></i>Quét QR Thanh Toán (Mở Camera)
+                </button>
+                <a asp-controller="S16MembershipTier" asp-action="Index" class="btn btn-outline-primary fw-bold rounded-pill px-3">
+                    <i class="bi bi-gem me-1"></i>Xem Bảng Giá 4 Cấp Hội Viên
+                </a>
+            </div>
         </div>
         <div class="s17-stat-box">
-            <div class="small opacity-75">Tổng giao dịch hoàn tất</div>
-            <div class="fs-4 fw-bold">@Model.TotalCompletedAmount.ToString("N0") VNĐ</div>
-            <div class="small">Đã xác thực HMAC-SHA512: <strong>@Model.TotalVerifiedHmacCount giao dịch</strong></div>
+            <div class="small opacity-75">Số dư Ví Tiền Ảo (@Model.CurrentUserName)</div>
+            <div class="fs-2 fw-bold text-warning" id="s17WalletBalanceValue">@Model.WalletBalance.ToString("N0")đ ảo</div>
+            <div class="small opacity-90">
+                Đã nạp miễn phí: <strong>@Model.TotalToppedUp.ToString("N0")đ</strong> • Đã dùng: <strong>@Model.TotalSpent.ToString("N0")đ</strong>
+            </div>
         </div>
     </div>
 </section>
 
 <div class="row g-4 mb-4">
-    <!-- BƯỚC 1: KHỞI TẠO LỆNH THANH TOÁN SANDBOX -->
-    <div class="col-lg-5">
-        <div class="card border-0 shadow-sm rounded-4 h-100 bg-white">
+    <!-- KHỐI 1: NẠP TIỀN ẢO MIỄN PHÍ THOẢI MÁI -->
+    <div class="col-lg-5" id="walletTopUpCard">
+        <div class="card border-0 shadow-sm rounded-4 h-100 bg-white border-top border-4 border-success">
             <div class="card-body p-4">
-                <h5 class="fw-bold mb-3"><i class="bi bi-1-circle-fill text-primary me-2"></i>Bước 1: Tạo Lệnh & Ký Số HMAC-SHA512</h5>
-                <form id="formCreateSandboxOrder" class="d-flex flex-column gap-3">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <h5 class="fw-bold mb-0"><i class="bi bi-cash-coin text-success me-2"></i>Nạp Tiền Ảo Miễn Phí</h5>
+                    <span class="badge bg-success-subtle text-success">0đ tiền thật</span>
+                </div>
+                <p class="small text-muted mb-3">
+                    Chọn mệnh giá nhanh hoặc nhập số tiền ảo bất kỳ (tối đa 10.000.000đ/lần, không giới hạn số lần nạp) để trải nghiệm nâng cấp gói hội viên &amp; quét QR hóa đơn.
+                </p>
+
+                <div class="d-flex flex-wrap gap-2 mb-3">
+                    <button type="button" class="btn btn-outline-success btn-sm fw-bold rounded-pill js-quick-topup-chip" data-amount="50000">+50.000đ</button>
+                    <button type="button" class="btn btn-outline-success btn-sm fw-bold rounded-pill js-quick-topup-chip" data-amount="100000">+100.000đ</button>
+                    <button type="button" class="btn btn-outline-success btn-sm fw-bold rounded-pill js-quick-topup-chip" data-amount="200000">+200.000đ</button>
+                    <button type="button" class="btn btn-outline-success btn-sm fw-bold rounded-pill js-quick-topup-chip" data-amount="500000">+500.000đ</button>
+                    <button type="button" class="btn btn-outline-success btn-sm fw-bold rounded-pill js-quick-topup-chip" data-amount="1000000">+1.000.000đ</button>
+                </div>
+
+                <form id="formVirtualTopUp" class="d-flex flex-column gap-3">
                     <div>
-                        <label class="form-label small fw-bold">Loại giao dịch (<code>TransactionType</code>)</label>
-                        <select id="txTypeSelect" class="form-select">
-                            <option value="Membership" data-amount="99000">👑 Phí nâng cấp gói Premium 12 tháng (99.000đ)</option>
-                            <option value="Fine" data-amount="25000">⏰ Nộp phí phạt trả sách trễ hạn (25.000đ)</option>
-                            <option value="SimulatedDeposit" data-amount="50000">🛡️ Tiền cọc mô phỏng Kho chung (50.000đ - Hoàn 100%)</option>
-                        </select>
+                        <label class="form-label small fw-bold" for="topUpAmountInput">Số tiền ảo muốn nạp (đồng ảo)</label>
+                        <input type="number" id="topUpAmountInput" class="form-control form-control-lg fw-bold text-success" value="200000" min="1000" max="10000000" step="1000" required />
                     </div>
-
-                    <div id="loanSelectGroup">
-                        <label class="form-label small fw-bold">Liên kết Hợp đồng mượn (<code>LoanId</code> - Dùng cho Phí trễ / Cọc)</label>
-                        <select id="txLoanIdSelect" class="form-select">
-                            <option value="">-- Không gắn hợp đồng (Dành cho Gói Membership) --</option>
-                            @foreach (var l in Model.UnpaidFineLoans)
-                            {
-                                <option value="@l.LoanId">Loan #@l.LoanId — [@l.Barcode] @l.BookTitle (@l.BorrowerName • Phí: @l.FineAmount.ToString("N0")đ)</option>
-                            }
-                        </select>
+                    <div>
+                        <label class="form-label small fw-bold" for="topUpNoteInput">Ghi chú nạp tiền (tùy chọn)</label>
+                        <input type="text" id="topUpNoteInput" class="form-control form-control-sm" placeholder="VD: Nạp tiền ảo nâng cấp gói Hội Viên Học Thuật..." />
                     </div>
-
-                    <div class="row g-2">
-                        <div class="col-6">
-                            <label class="form-label small fw-bold">Số tiền (VNĐ)</label>
-                            <input type="number" id="txAmountInput" class="form-control fw-bold" value="99000" min="5000" step="1000" required />
-                        </div>
-                        <div class="col-6">
-                            <label class="form-label small fw-bold">Cổng Sandbox</label>
-                            <select id="txGatewaySelect" class="form-select">
-                                <option value="VNPaySandbox">VNPaySandbox</option>
-                                <option value="MoMoSandbox">MoMoSandbox</option>
-                            </select>
-                        </div>
-                    </div>
-
-                    <button type="submit" id="btnCreateOrder" class="btn btn-primary fw-bold">
-                        <i class="bi bi-key-fill me-1"></i>Khởi Tạo Giao Dịch & Sinh Chữ Ký HMAC-SHA512
+                    <button type="submit" id="btnTopUpVirtualWallet" class="btn btn-success fw-bold py-2">
+                        <i class="bi bi-plus-circle-fill me-1"></i>Nạp Tiền Ảo Miễn Phí Ngay
                     </button>
                 </form>
             </div>
         </div>
     </div>
 
-    <!-- BƯỚC 2: MÔ PHỎNG LUỒNG CALLBACK KIỂM TRA CHỮ KÝ HMAC-SHA512 -->
+    <!-- KHỐI 2: TẠO HÓA ĐƠN QR & THANH TOÁN HÓA ĐƠN ĐANG CHỌN -->
     <div class="col-lg-7">
         <div class="card border-0 shadow-sm rounded-4 h-100 bg-white">
             <div class="card-body p-4">
-                <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
-                    <h5 class="fw-bold mb-0"><i class="bi bi-2-circle-fill text-success me-2"></i>Bước 2: Xác Thực Kết Quả Thanh Toán</h5>
-                    <span class="badge bg-dark font-monospace">Xác thực chữ ký giao dịch</span>
-                </div>
-
-                <form id="formVerifyCallback" class="d-flex flex-column gap-3">
-                    <div class="row g-2">
-                        <div class="col-md-4">
-                            <label class="form-label small fw-bold">Mã giao dịch</label>
-                            <input type="number" id="cbTransactionId" class="form-control font-monospace fw-bold" value="@(Model.SelectedPendingTxId?.ToString() ?? "")" placeholder="VD: 3" required />
+                @if (Model.SelectedPendingTxId.HasValue)
+                {
+                    <div class="p-3 rounded-4 border border-primary bg-primary bg-opacity-10 mb-4" id="s17ActiveInvoicePanel"
+                         data-tx-id="@Model.SelectedPendingTxId"
+                         data-qr-payload="@Model.SelectedQrPayload"
+                         data-amount="@Model.SelectedPendingAmount"
+                         data-desc="@Model.SelectedDescription">
+                        <div class="row align-items-center g-3">
+                            <div class="col-sm-4 text-center">
+                                <div class="d-inline-block p-2 bg-white rounded-3 border shadow-sm">
+                                    <div id="s17SelectedQrCanvas" style="min-width:160px; min-height:160px;" class="d-flex align-items-center justify-content-center">
+                                        <span class="small text-muted">Đang vẽ QR...</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-sm-8">
+                                <span class="badge bg-primary mb-1">HÓA ĐƠN CHỜ THANH TOÁN #TX-@Model.SelectedPendingTxId</span>
+                                <h5 class="fw-bold mb-1">@Model.SelectedDescription</h5>
+                                <div class="fs-4 fw-bold text-primary mb-2">@Model.SelectedPendingAmount.ToString("N0")đ ảo</div>
+                                <p class="small text-muted mb-3">
+                                    Dùng điện thoại / Web App bấm <strong>Quét QR Thanh Toán</strong> để quét mã bên trái, xem hóa đơn và bấm Xác nhận — màn hình này sẽ tự động cập nhật ngay lập tức.
+                                </p>
+                                <div class="d-flex flex-wrap gap-2">
+                                    <button type="button" class="btn btn-success btn-sm fw-bold js-s17-pay-now" data-qr-payload="@Model.SelectedQrPayload">
+                                        <i class="bi bi-check2-circle me-1"></i>Xem Hóa Đơn &amp; Thanh Toán Ngay
+                                    </button>
+                                    <button type="button" class="btn btn-outline-primary btn-sm fw-semibold js-open-qr-pay-scanner">
+                                        <i class="bi bi-camera-fill me-1"></i>Mở Camera Quét QR
+                                    </button>
+                                </div>
+                            </div>
                         </div>
-                        <div class="col-md-8">
-                            <label class="form-label small fw-bold">Mã phản hồi cổng thanh toán</label>
-                            <select id="cbResponseCode" class="form-select">
-                                <option value="00">00 — Giao dịch thành công (Kích hoạt gói / Xóa nợ phí trễ)</option>
-                                <option value="24">24 — Hủy giao dịch (Chuyển sang Thất bại)</option>
+                    </div>
+                }
+
+                <h5 class="fw-bold mb-3"><i class="bi bi-qr-code text-primary me-2"></i>Tạo Hóa Đơn &amp; Mã QR Thanh Toán Nội Bộ</h5>
+                <form id="formCreateSandboxOrder" class="d-flex flex-column gap-3">
+                    <div class="row g-2">
+                        <div class="col-md-6">
+                            <label class="form-label small fw-bold" for="txTypeSelect">Mục đích thanh toán</label>
+                            <select id="txTypeSelect" class="form-select">
+                                <option value="Membership" data-amount="49000">👑 Đăng ký / Gia hạn Gói Hội Viên</option>
+                                <option value="Fine" data-amount="25000">⏰ Nộp phí phạt trả sách trễ hạn</option>
+                                <option value="SimulatedDeposit" data-amount="50000">🛡️ Ký quỹ bảo lãnh sách quý (Hoàn 100%)</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6" id="membershipTierPickGroup">
+                            <label class="form-label small fw-bold" for="txTargetTierSelect">Hạng gói hội viên</label>
+                            <select id="txTargetTierSelect" class="form-select">
+                                <option value="Standard" data-amount="29000">Standard — Đọc Sâu (29.000đ / 1 tháng)</option>
+                                <option value="Premium" data-amount="49000" selected>Premium — Học Thuật (49.000đ / 1 tháng)</option>
+                                <option value="Scholar" data-amount="89000">Scholar — Nghiên Cứu VIP (89.000đ / 1 tháng)</option>
                             </select>
                         </div>
                     </div>
 
-                    <div>
-                        <label class="form-label small fw-bold">Chuỗi dữ liệu xác thực gốc</label>
-                        <input type="text" id="cbRawPayload" class="form-control form-control-sm font-monospace bg-light" value="@Model.SelectedRawPayload" placeholder="Bấm Bước 1 để hệ thống tự động sinh chuỗi dữ liệu..." />
+                    <div id="loanSelectGroup">
+                        <label class="form-label small fw-bold" for="txLoanIdSelect">Hợp đồng mượn liên kết (dùng khi nộp phí trễ / ký quỹ)</label>
+                        <select id="txLoanIdSelect" class="form-select">
+                            <option value="">-- Không gắn hợp đồng (Dành cho Gói Hội Viên) --</option>
+                            @foreach (var l in Model.UnpaidFineLoans)
+                            {
+                                <option value="@l.LoanId">Hợp đồng #@l.LoanId — [@l.Barcode] @l.BookTitle (@l.BorrowerName • Phí: @l.FineAmount.ToString("N0")đ)</option>
+                            }
+                        </select>
                     </div>
 
-                    <div>
-                        <label class="form-label small fw-bold">Mã chữ ký bảo mật (128 ký tự Hex)</label>
-                        <textarea id="cbHmacSignature" class="form-control form-control-sm font-monospace" rows="2" placeholder="Chữ ký xác thực giao dịch được sinh tự động từ hệ thống..." required>@Model.SelectedExpectedHmac</textarea>
-                    </div>
-
-                    <div class="d-flex flex-wrap gap-2">
-                        <button type="submit" id="btnVerifyCallback" class="btn btn-success fw-bold flex-grow-1">
-                            <i class="bi bi-shield-fill-check me-1"></i>Xác Thực &amp; Hoàn Tất Giao Dịch
-                        </button>
-                        <button type="button" id="btnTamperSignature" class="btn btn-outline-danger btn-sm fw-semibold">
-                            <i class="bi bi-bug-fill me-1"></i>Thử chữ ký không hợp lệ
-                        </button>
+                    <div class="row g-2 align-items-end">
+                        <div class="col-md-6">
+                            <label class="form-label small fw-bold" for="txAmountInput">Số tiền hóa đơn (đồng ảo)</label>
+                            <input type="number" id="txAmountInput" class="form-control fw-bold" value="49000" min="1000" step="1000" required />
+                        </div>
+                        <div class="col-md-6">
+                            <button type="submit" id="btnCreateOrder" class="btn btn-primary fw-bold w-100">
+                                <i class="bi bi-qr-code-scan me-1"></i>Tạo Hóa Đơn &amp; Hiện Mã QR
+                            </button>
+                        </div>
                     </div>
                 </form>
+
+                <!-- Khối đối soát mã xác thực nâng cao (thu gọn mặc định) -->
+                <details class="mt-4 pt-3 border-top">
+                    <summary class="small fw-bold text-secondary" style="cursor:pointer;">
+                        <i class="bi bi-shield-lock me-1"></i>Đối soát thủ công mã xác thực hóa đơn (Nâng cao)
+                    </summary>
+                    <form id="formVerifyCallback" class="d-flex flex-column gap-2 mt-3">
+                        <div class="row g-2">
+                            <div class="col-md-4">
+                                <label class="form-label small fw-bold" for="cbTransactionId">Mã hóa đơn</label>
+                                <input type="number" id="cbTransactionId" class="form-control form-control-sm font-monospace fw-bold" value="@(Model.SelectedPendingTxId?.ToString() ?? "")" required />
+                            </div>
+                            <div class="col-md-8">
+                                <label class="form-label small fw-bold" for="cbResponseCode">Trạng thái xác nhận</label>
+                                <select id="cbResponseCode" class="form-select form-select-sm">
+                                    <option value="00">00 — Xác nhận hoàn tất hóa đơn</option>
+                                    <option value="24">24 — Hủy hóa đơn</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div>
+                            <label class="form-label small fw-bold" for="cbRawPayload">Chuỗi dữ liệu đối soát</label>
+                            <input type="text" id="cbRawPayload" class="form-control form-control-sm font-monospace bg-light" value="@Model.SelectedRawPayload" />
+                        </div>
+                        <div>
+                            <label class="form-label small fw-bold" for="cbHmacSignature">Mã đối soát toàn vẹn</label>
+                            <textarea id="cbHmacSignature" class="form-control form-control-sm font-monospace" rows="2" required>@Model.SelectedExpectedHmac</textarea>
+                        </div>
+                        <div class="d-flex gap-2">
+                            <button type="submit" id="btnVerifyCallback" class="btn btn-success btn-sm fw-bold">Xác Nhận Đối Soát</button>
+                            <button type="button" id="btnTamperSignature" class="btn btn-outline-danger btn-sm">Thử mã sai</button>
+                        </div>
+                    </form>
+                </details>
             </div>
         </div>
     </div>
 </div>
 
-<!-- BẢNG LỊCH SỬ GIAO DỊCH SANDBOX (TRANSACTIONS) -->
+<!-- BẢNG LỊCH SỬ GIAO DỊCH VÍ TIỀN ẢO & HÓA ĐƠN -->
 <section class="card border-0 shadow-sm rounded-4 p-4 bg-white">
     <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
         <div>
-            <h5 class="fw-bold mb-0"><i class="bi bi-receipt-cutoff text-primary me-2"></i>Lịch Sử Giao Dịch Phí Hội Viên, Phí Trễ &amp; Ký Quỹ</h5>
-            <small class="text-muted">Hiển thị chi tiết loại giao dịch, cổng xử lý, trạng thái xác nhận và mã đối soát</small>
+            <h5 class="fw-bold mb-0"><i class="bi bi-receipt-cutoff text-primary me-2"></i>Lịch Sử Ví Tiền Ảo &amp; Hóa Đơn Thanh Toán</h5>
+            <small class="text-muted">Theo dõi toàn bộ lượt nạp tiền ảo miễn phí, nâng cấp gói hội viên, nộp phí trễ và ký quỹ bảo lãnh</small>
         </div>
         <span class="badge bg-primary">@Model.Transactions.Count giao dịch</span>
     </div>
@@ -136,57 +208,85 @@
         <table class="table table-hover align-middle small mb-0">
             <thead class="table-light">
                 <tr>
-                    <th>Mã GD</th>
-                    <th>Độc giả</th>
-                    <th>Loại giao dịch</th>
-                    <th>Số tiền</th>
-                    <th>Cổng thanh toán</th>
+                    <th>Mã HĐ</th>
+                    <th>Thành viên</th>
+                    <th>Loại &amp; Nội dung</th>
+                    <th>Số tiền ảo</th>
+                    <th>Phương thức</th>
                     <th>Trạng thái</th>
-                    <th>Mã xác thực giao dịch</th>
                     <th>Thao tác</th>
                 </tr>
             </thead>
             <tbody>
                 @foreach (var tx in Model.Transactions)
                 {
+                    bool isTopUp = tx.TransactionType == "WalletTopUp";
+                    string typeBadge = tx.TransactionType switch
+                    {
+                        "WalletTopUp" => "bg-success",
+                        "Membership" => "bg-warning text-dark",
+                        "Fine" => "bg-danger",
+                        _ => "bg-info text-dark"
+                    };
+                    string typeLabel = tx.TransactionType switch
+                    {
+                        "WalletTopUp" => "Nạp tiền ảo",
+                        "Membership" => "Gói hội viên",
+                        "Fine" => "Phí trễ / Bồi thường",
+                        _ => "Ký quỹ bảo lãnh"
+                    };
                     <tr>
                         <td><code>#TX-@tx.TransactionId</code></td>
                         <td>
                             <strong>@tx.UserFullName</strong>
                             @if (tx.LoanId.HasValue)
                             {
-                                <div><small class="text-muted">Loan #@tx.LoanId</small></div>
+                                <div><small class="text-muted">Hợp đồng #@tx.LoanId</small></div>
                             }
                         </td>
                         <td>
-                            <span class="badge @(tx.TransactionType == "Membership" ? "bg-warning text-dark" : tx.TransactionType == "Fine" ? "bg-danger" : "bg-info text-dark")">
-                                @tx.TransactionType
+                            <span class="badge @typeBadge mb-1">@typeLabel</span>
+                            @if (!string.IsNullOrWhiteSpace(tx.Description))
+                            {
+                                <div class="text-muted">@tx.Description</div>
+                            }
+                        </td>
+                        <td class="fw-bold @(isTopUp ? "text-success" : "")">
+                            @(isTopUp ? "+" : "")@tx.Amount.ToString("N0")đ
+                        </td>
+                        <td>
+                            <span class="badge bg-light text-dark border">
+                                @(tx.PaymentGateway == "QrPay" ? "QR Thanh Toán" : tx.PaymentGateway == "VirtualWallet" ? "Ví Tiền Ảo" : tx.PaymentGateway)
                             </span>
                         </td>
-                        <td class="fw-bold">@tx.Amount.ToString("N0") đ</td>
-                        <td><code>@tx.PaymentGateway</code></td>
                         <td>
                             <span class="badge @(tx.PaymentStatus == "Completed" ? "bg-success" : tx.PaymentStatus == "Pending" ? "bg-warning text-dark" : tx.PaymentStatus == "Refunded" ? "bg-info text-dark" : "bg-danger")">
-                                @tx.PaymentStatus
+                                @(tx.PaymentStatus == "Completed" ? "Hoàn tất" : tx.PaymentStatus == "Pending" ? "Chờ thanh toán" : tx.PaymentStatus == "Refunded" ? "Đã hoàn về ví" : "Đã hủy")
                             </span>
                         </td>
                         <td>
-                            <code class="s17-hmac-code" title="@tx.HmacSignature">
-                                @(string.IsNullOrEmpty(tx.HmacSignature) ? "(Chờ Callback)" : tx.HmacSignature.Length > 28 ? tx.HmacSignature[..28] + "..." : tx.HmacSignature)
-                            </code>
-                        </td>
-                        <td>
-                            <div class="d-inline-flex align-items-center gap-1">
-                                @if (tx.TransactionType == "SimulatedDeposit" && tx.PaymentStatus == "Completed")
+                            <div class="d-inline-flex flex-wrap align-items-center gap-1">
+                                @if (tx.PaymentStatus == "Pending")
                                 {
-                                    <button type="button" class="btn btn-xs btn-outline-primary fw-bold js-refund-deposit" data-tx-id="@tx.TransactionId">
-                                        Hoàn cọc 100%
+                                    <button type="button" class="btn btn-xs btn-primary fw-bold js-s17-show-qr"
+                                            data-tx-id="@tx.TransactionId"
+                                            data-amount="@tx.Amount"
+                                            data-desc="@(tx.Description ?? typeLabel)"
+                                            data-qr-payload="@tx.QrPayload">
+                                        <i class="bi bi-qr-code me-1"></i>Mã QR
+                                    </button>
+                                    <button type="button" class="btn btn-xs btn-success fw-bold js-s17-pay-now"
+                                            data-qr-payload="@tx.QrPayload">
+                                        Thanh toán
+                                    </button>
+                                    <button type="button" class="btn btn-xs btn-outline-danger js-s17-cancel-tx" data-tx-id="@tx.TransactionId" title="Hủy hóa đơn chờ">
+                                        <i class="bi bi-trash3"></i>
                                     </button>
                                 }
-                                else if (tx.PaymentStatus != "Completed")
+                                else if (tx.TransactionType == "SimulatedDeposit" && tx.PaymentStatus == "Completed" && (User.IsInRole("Librarian") || User.IsInRole("Admin")))
                                 {
-                                    <button type="button" class="btn btn-xs btn-outline-danger js-s17-cancel-tx" data-tx-id="@tx.TransactionId" title="Hủy / Xóa lệnh giao dịch chưa hoàn tất">
-                                        <i class="bi bi-trash3"></i> Xóa
+                                    <button type="button" class="btn btn-xs btn-outline-primary fw-bold js-refund-deposit" data-tx-id="@tx.TransactionId">
+                                        Hoàn về Ví 100%
                                     </button>
                                 }
                                 else

@@ -156,9 +156,15 @@ public class S12LoanRenewalFineService : IS12LoanRenewalFineService
             return (false, $"Chỉ có thể gia hạn lượt mượn đang ở trạng thái hoạt động (Hiện tại: {loan.Status}).", null, loan.RenewCount);
         }
 
-        if (loan.RenewCount >= 2)
+        var borrowerMemberships = await _db.Memberships
+            .AsNoTracking()
+            .Where(m => m.UserId == loan.LoanRequest.BorrowerId && m.IsActive)
+            .ToListAsync();
+        var tierPlan = MembershipTierCatalog.GetEffectivePolicy(borrowerMemberships, DateTime.UtcNow);
+
+        if (loan.RenewCount >= tierPlan.MaxRenewals)
         {
-            return (false, $"Hợp đồng mượn #{loan.Id} đã đạt giới hạn gia hạn tối đa (2/2 lần).", null, loan.RenewCount);
+            return (false, $"Hợp đồng mượn #{loan.Id} đã đạt giới hạn gia hạn tối đa của gói {tierPlan.DisplayName} ({loan.RenewCount}/{tierPlan.MaxRenewals} lần).", null, loan.RenewCount);
         }
 
         bool hasQueue = loan.LoanRequest.BookCopy.Book.Reservations
@@ -170,11 +176,11 @@ public class S12LoanRenewalFineService : IS12LoanRenewalFineService
         }
 
         loan.RenewCount += 1;
-        loan.DueDate = loan.DueDate.AddDays(7);
+        loan.DueDate = loan.DueDate.AddDays(tierPlan.RenewalDays);
 
         await _db.SaveChangesAsync();
 
-        return (true, $"Đã gia hạn hợp đồng mượn #{loan.Id} ([{loan.LoanRequest.BookCopy.Barcode}]) thêm +7 ngày! Lần gia hạn: {loan.RenewCount}/2 — Hạn trả mới: {loan.DueDate:dd/MM/yyyy}.", loan.DueDate, loan.RenewCount);
+        return (true, $"Đã gia hạn hợp đồng mượn #{loan.Id} ([{loan.LoanRequest.BookCopy.Barcode}]) thêm +{tierPlan.RenewalDays} ngày theo quyền lợi gói {tierPlan.DisplayName}! Lần gia hạn: {loan.RenewCount}/{tierPlan.MaxRenewals} — Hạn trả mới: {loan.DueDate:dd/MM/yyyy}.", loan.DueDate, loan.RenewCount);
     }
 
     public async Task<(bool Success, string Message, decimal FineAmount, int TransactionId)> AssessOverdueFineAsync(
@@ -216,8 +222,9 @@ public class S12LoanRenewalFineService : IS12LoanRenewalFineService
             LoanId = loan.Id,
             TransactionType = "Fine",
             Amount = fineAmount,
-            PaymentGateway = "VNPaySandbox",
+            PaymentGateway = "QrPay",
             PaymentStatus = request.MarkPaidImmediately ? "Completed" : "Pending",
+            Description = $"Nộp phí trễ hạn {daysToCharge} ngày cho hợp đồng mượn #{loan.Id} ([{loan.LoanRequest.BookCopy.Barcode}])",
             HmacSignature = null,
             CreatedAt = now
         };

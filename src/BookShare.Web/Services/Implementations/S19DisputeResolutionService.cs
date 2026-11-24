@@ -292,8 +292,9 @@ public class S19DisputeResolutionService : IS19DisputeResolutionService
                 LoanId = dispute.LoanId,
                 TransactionType = "Fine",
                 Amount = compensationToInvoice,
-                PaymentGateway = "VNPaySandbox",
+                PaymentGateway = "QrPay",
                 PaymentStatus = "Pending",
+                Description = $"Bồi thường tranh chấp #DSP-{dispute.Id:D4} — cuốn \"{bookCopy.Book.Title}\"",
                 HmacSignature = null,
                 CreatedAt = now
             };
@@ -332,8 +333,9 @@ public class S19DisputeResolutionService : IS19DisputeResolutionService
                 LoanId = dispute.LoanId,
                 TransactionType = "Fine",
                 Amount = request.DepositDeductionAmount,
-                PaymentGateway = "VNPaySandbox",
+                PaymentGateway = "VirtualWallet",
                 PaymentStatus = "Completed",
+                Description = $"Khấu trừ ký quỹ tranh chấp #DSP-{dispute.Id:D4} — cuốn \"{bookCopy.Book.Title}\"",
                 HmacSignature = null,
                 CreatedAt = now
             };

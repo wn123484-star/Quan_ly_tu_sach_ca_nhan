@@ -1,18 +1,18 @@
 /* =========================================================================
-   S17: SANDBOX PAYMENT & HMAC-SHA512 VERIFICATION STYLES
+   S17: VIRTUAL WALLET & QR PAYMENT CENTER STYLES
    ========================================================================= */
 .s17-hero {
     background: linear-gradient(135deg, var(--portal-surface) 0%, var(--portal-surface-2) 100%);
-    border-left: 6px solid #1e3a8a !important;
+    border-left: 6px solid #16a34a !important;
 }
 
 .s17-stat-box {
     background: linear-gradient(135deg, #060d1f 0%, #0f172a 52%, #1e3a8a 100%);
     border: 1.5px solid rgba(56, 189, 248, 0.45);
     color: #ffffff;
-    padding: 14px 22px;
+    padding: 16px 22px;
     border-radius: 16px;
-    min-width: 260px;
+    min-width: 280px;
     box-shadow: 0 10px 24px rgba(6, 13, 31, 0.25);
 }
 

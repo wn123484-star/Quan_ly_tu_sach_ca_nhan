@@ -72,6 +72,8 @@ public partial class BookShareDbContext : DbContext
 
     public virtual DbSet<Transaction> Transactions { get; set; }
 
+    public virtual DbSet<UserWallet> UserWallets { get; set; }
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<AiChatMessage>(entity =>
@@ -643,13 +645,15 @@ public partial class BookShareDbContext : DbContext
 
             entity.Property(e => e.Amount).HasColumnType("decimal(18, 2)");
             entity.Property(e => e.CreatedAt).HasDefaultValueSql("(sysutcdatetime())", "DF_Transactions_CreatedAt");
+            entity.Property(e => e.Description).HasMaxLength(300);
             entity.Property(e => e.HmacSignature).HasMaxLength(256);
             entity.Property(e => e.PaymentGateway)
                 .HasMaxLength(30)
-                .HasDefaultValue("VNPaySandbox", "DF_Transactions_Gateway");
+                .HasDefaultValue("VirtualWallet", "DF_Transactions_Gateway");
             entity.Property(e => e.PaymentStatus)
                 .HasMaxLength(20)
                 .HasDefaultValue("Pending", "DF_Transactions_Status");
+            entity.Property(e => e.TargetTier).HasMaxLength(20);
             entity.Property(e => e.TransactionType).HasMaxLength(30);
 
             entity.HasOne(d => d.Loan).WithMany(p => p.Transactions)
@@ -661,6 +665,20 @@ public partial class BookShareDbContext : DbContext
                 .HasForeignKey(d => d.UserId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("FK_Transactions_AspNetUsers");
+        });
+
+        modelBuilder.Entity<UserWallet>(entity =>
+        {
+            entity.HasKey(e => e.UserId);
+
+            entity.Property(e => e.Balance).HasColumnType("decimal(18, 2)");
+            entity.Property(e => e.TotalSpent).HasColumnType("decimal(18, 2)");
+            entity.Property(e => e.TotalToppedUp).HasColumnType("decimal(18, 2)");
+            entity.Property(e => e.UpdatedAt).HasDefaultValueSql("(sysutcdatetime())", "DF_UserWallets_UpdatedAt");
+
+            entity.HasOne(d => d.User).WithOne(p => p.UserWallet)
+                .HasForeignKey<UserWallet>(d => d.UserId)
+                .HasConstraintName("FK_UserWallets_AspNetUsers");
         });
 
         OnModelCreatingPartial(modelBuilder);

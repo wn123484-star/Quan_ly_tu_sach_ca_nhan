@@ -1,5 +1,5 @@
 /* =========================================================================
-   S16: MEMBERSHIP TIER & LENDING QUOTA STYLES
+   S16: 4-TIER MEMBERSHIP & VIRTUAL WALLET STYLES
    ========================================================================= */
 .s16-hero {
     background: linear-gradient(135deg, var(--portal-surface) 0%, var(--portal-surface-2) 100%);
@@ -11,7 +11,7 @@
     color: #ffffff;
     padding: 14px 22px;
     border-radius: 16px;
-    min-width: 270px;
+    min-width: 280px;
     box-shadow: 0 6px 18px rgba(37, 99, 235, 0.22);
 }
 
@@ -21,8 +21,17 @@
 
 .s16-tier-card:hover {
     transform: translateY(-4px);
+    box-shadow: 0 12px 28px rgba(15, 23, 42, 0.12) !important;
 }
 
-.s16-tier-premium {
+.tier-card-standard {
+    border-top: 4px solid #2563eb !important;
+}
+
+.tier-card-premium {
     background: linear-gradient(145deg, #0f172a 0%, #1e3a8a 100%);
+}
+
+.tier-card-scholar {
+    background: linear-gradient(145deg, #1e1b4b 0%, #312e81 52%, #0f766e 100%);
 }

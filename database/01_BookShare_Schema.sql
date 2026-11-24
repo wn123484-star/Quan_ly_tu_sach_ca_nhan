@@ -508,13 +508,13 @@ GO
    Dịch vụ S13, S14, S15, S16, S17, S18
    ========================================================================================= */
 
--- 19. Bảng Memberships (Quản lý gói thành viên Free / Premium - Dịch vụ S16)
+-- 19. Bảng Memberships (Quản lý gói thành viên 4 cấp: Free / Standard / Premium / Scholar - Dịch vụ S16)
 IF OBJECT_ID(N'[dbo].[Memberships]', N'U') IS NULL
 BEGIN
     CREATE TABLE [dbo].[Memberships] (
         [Id]                 INT IDENTITY(1,1) NOT NULL,
         [UserId]             NVARCHAR(450)     NOT NULL,
-        [Tier]               NVARCHAR(20)      NOT NULL CONSTRAINT [DF_Memberships_Tier] DEFAULT (N'Free'), -- Free / Premium
+        [Tier]               NVARCHAR(20)      NOT NULL CONSTRAINT [DF_Memberships_Tier] DEFAULT (N'Free'), -- Free / Standard / Premium / Scholar
         [MaxConcurrentLoans] INT               NOT NULL CONSTRAINT [DF_Memberships_MaxLoans] DEFAULT (2),
         [StartDate]          DATETIME2(7)      NOT NULL CONSTRAINT [DF_Memberships_StartDate] DEFAULT (SYSUTCDATETIME()),
         [ExpiryDate]         DATETIME2(7)      NULL,
@@ -522,34 +522,37 @@ BEGIN
         CONSTRAINT [PK_Memberships] PRIMARY KEY CLUSTERED ([Id] ASC),
         CONSTRAINT [FK_Memberships_AspNetUsers] FOREIGN KEY ([UserId])
             REFERENCES [dbo].[AspNetUsers] ([Id]) ON DELETE CASCADE,
-        CONSTRAINT [CK_Memberships_Tier] CHECK ([Tier] IN (N'Free', N'Premium')),
+        CONSTRAINT [CK_Memberships_Tier] CHECK ([Tier] IN (N'Free', N'Standard', N'Premium', N'Scholar')),
         CONSTRAINT [CK_Memberships_MaxLoans] CHECK ([MaxConcurrentLoans] >= 1 AND [MaxConcurrentLoans] <= 20)
     );
     CREATE NONCLUSTERED INDEX [IX_Memberships_UserId_Active] ON [dbo].[Memberships]([UserId] ASC, [IsActive] ASC);
 END
 GO
 
--- 20. Bảng Transactions (Cổng thanh toán Sandbox cho gói Premium, phí phạt trễ hạn & cọc mô phỏng - Dịch vụ S17)
--- Lưu ý: TUYỆT ĐỐI KHÔNG có loại giao dịch mua bán sách!
+-- 20. Bảng Transactions (Ví Tiền Ảo nội bộ & QR Thanh Toán cho gói hội viên, phí trễ, cọc bảo lãnh & nạp tiền ảo - Dịch vụ S17)
+-- Lưu ý: TUYỆT ĐỐI KHÔNG có loại giao dịch mua bán sách và KHÔNG kết nối ngân hàng thật!
 IF OBJECT_ID(N'[dbo].[Transactions]', N'U') IS NULL
 BEGIN
     CREATE TABLE [dbo].[Transactions] (
         [Id]              INT IDENTITY(1,1) NOT NULL,
         [UserId]          NVARCHAR(450)     NOT NULL,
         [LoanId]          INT               NULL,
-        [TransactionType] NVARCHAR(30)      NOT NULL, -- Membership / Fine / SimulatedDeposit
+        [TransactionType] NVARCHAR(30)      NOT NULL, -- Membership / Fine / SimulatedDeposit / WalletTopUp
         [Amount]          DECIMAL(18,2)     NOT NULL,
-        [PaymentGateway]  NVARCHAR(30)      NOT NULL CONSTRAINT [DF_Transactions_Gateway] DEFAULT (N'VNPaySandbox'),
+        [PaymentGateway]  NVARCHAR(30)      NOT NULL CONSTRAINT [DF_Transactions_Gateway] DEFAULT (N'VirtualWallet'),
         [PaymentStatus]   NVARCHAR(20)      NOT NULL CONSTRAINT [DF_Transactions_Status] DEFAULT (N'Pending'),
         [HmacSignature]   NVARCHAR(256)     NULL,
+        [TargetTier]      NVARCHAR(20)      NULL,
+        [DurationMonths]  INT               NULL,
+        [Description]     NVARCHAR(300)     NULL,
         [CreatedAt]       DATETIME2(7)      NOT NULL CONSTRAINT [DF_Transactions_CreatedAt] DEFAULT (SYSUTCDATETIME()),
         CONSTRAINT [PK_Transactions] PRIMARY KEY CLUSTERED ([Id] ASC),
         CONSTRAINT [FK_Transactions_AspNetUsers] FOREIGN KEY ([UserId])
             REFERENCES [dbo].[AspNetUsers] ([Id]) ON DELETE NO ACTION,
         CONSTRAINT [FK_Transactions_Loans] FOREIGN KEY ([LoanId])
             REFERENCES [dbo].[Loans] ([Id]) ON DELETE SET NULL,
-        CONSTRAINT [CK_Transactions_Type] CHECK ([TransactionType] IN (N'Membership', N'Fine', N'SimulatedDeposit')),
-        CONSTRAINT [CK_Transactions_Gateway] CHECK ([PaymentGateway] IN (N'VNPaySandbox', N'MoMoSandbox')),
+        CONSTRAINT [CK_Transactions_Type] CHECK ([TransactionType] IN (N'Membership', N'Fine', N'SimulatedDeposit', N'WalletTopUp')),
+        CONSTRAINT [CK_Transactions_Gateway] CHECK ([PaymentGateway] IN (N'VirtualWallet', N'QrPay', N'VNPaySandbox', N'MoMoSandbox')),
         CONSTRAINT [CK_Transactions_Status] CHECK ([PaymentStatus] IN (N'Pending', N'Completed', N'Failed', N'Refunded')),
         CONSTRAINT [CK_Transactions_Amount] CHECK ([Amount] >= 0)
     );
@@ -757,6 +760,52 @@ BEGIN
         CONSTRAINT [PK_SystemIconSettings] PRIMARY KEY CLUSTERED ([IconKey] ASC)
     );
 END
+GO
+
+-- =========================================================================
+-- 29. UserWallets (Ví Tiền Ảo Miễn Phí Nội Bộ - Sprint 4) & Nâng cấp Idempotent
+-- =========================================================================
+IF OBJECT_ID(N'[dbo].[UserWallets]', N'U') IS NULL
+BEGIN
+    CREATE TABLE [dbo].[UserWallets] (
+        [UserId]        NVARCHAR(450) NOT NULL,
+        [Balance]       DECIMAL(18,2) NOT NULL CONSTRAINT [DF_UserWallets_Balance] DEFAULT (0),
+        [TotalToppedUp] DECIMAL(18,2) NOT NULL CONSTRAINT [DF_UserWallets_ToppedUp] DEFAULT (0),
+        [TotalSpent]    DECIMAL(18,2) NOT NULL CONSTRAINT [DF_UserWallets_Spent] DEFAULT (0),
+        [UpdatedAt]     DATETIME2(7)  NOT NULL CONSTRAINT [DF_UserWallets_UpdatedAt] DEFAULT (SYSUTCDATETIME()),
+        CONSTRAINT [PK_UserWallets] PRIMARY KEY CLUSTERED ([UserId] ASC),
+        CONSTRAINT [FK_UserWallets_AspNetUsers] FOREIGN KEY ([UserId])
+            REFERENCES [dbo].[AspNetUsers] ([Id]) ON DELETE CASCADE,
+        CONSTRAINT [CK_UserWallets_Balance] CHECK ([Balance] >= 0)
+    );
+END
+GO
+
+-- Đồng bộ idempotent cho CSDL sẵn có trên VPS khi nâng cấp lên Sprint 4
+IF COL_LENGTH(N'[dbo].[Transactions]', N'TargetTier') IS NULL
+    ALTER TABLE [dbo].[Transactions] ADD [TargetTier] NVARCHAR(20) NULL;
+IF COL_LENGTH(N'[dbo].[Transactions]', N'DurationMonths') IS NULL
+    ALTER TABLE [dbo].[Transactions] ADD [DurationMonths] INT NULL;
+IF COL_LENGTH(N'[dbo].[Transactions]', N'Description') IS NULL
+    ALTER TABLE [dbo].[Transactions] ADD [Description] NVARCHAR(300) NULL;
+GO
+
+IF OBJECT_ID(N'[dbo].[CK_Memberships_Tier]', N'C') IS NOT NULL
+    ALTER TABLE [dbo].[Memberships] DROP CONSTRAINT [CK_Memberships_Tier];
+ALTER TABLE [dbo].[Memberships] ADD CONSTRAINT [CK_Memberships_Tier]
+    CHECK ([Tier] IN (N'Free', N'Standard', N'Premium', N'Scholar'));
+GO
+
+IF OBJECT_ID(N'[dbo].[CK_Transactions_Type]', N'C') IS NOT NULL
+    ALTER TABLE [dbo].[Transactions] DROP CONSTRAINT [CK_Transactions_Type];
+ALTER TABLE [dbo].[Transactions] ADD CONSTRAINT [CK_Transactions_Type]
+    CHECK ([TransactionType] IN (N'Membership', N'Fine', N'SimulatedDeposit', N'WalletTopUp'));
+GO
+
+IF OBJECT_ID(N'[dbo].[CK_Transactions_Gateway]', N'C') IS NOT NULL
+    ALTER TABLE [dbo].[Transactions] DROP CONSTRAINT [CK_Transactions_Gateway];
+ALTER TABLE [dbo].[Transactions] ADD CONSTRAINT [CK_Transactions_Gateway]
+    CHECK ([PaymentGateway] IN (N'VirtualWallet', N'QrPay', N'VNPaySandbox', N'MoMoSandbox'));
 GO
 
 PRINT N'=== ĐÃ KHỞI TẠO THÀNH CÔNG SCHEMA CSDL BOOKSHAREDB (CHUẨN SCAFFOLD .NET 10) ===';

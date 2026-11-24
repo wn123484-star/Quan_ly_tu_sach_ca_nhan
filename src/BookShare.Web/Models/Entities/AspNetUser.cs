@@ -99,5 +99,7 @@ public partial class AspNetUser
 
     public virtual ICollection<Transaction> Transactions { get; set; } = new List<Transaction>();
 
+    public virtual UserWallet? UserWallet { get; set; }
+
     public virtual ICollection<AspNetRole> Roles { get; set; } = new List<AspNetRole>();
 }

@@ -1,7 +1,7 @@
 namespace BookShare.Web.Models.ViewModels;
 
 // =========================================================================
-// S16: MEMBERSHIP TIER (FREE vs PREMIUM & QUOTA CALCULATOR)
+// S16: MEMBERSHIP TIER (4 CẤP HỘI VIÊN & HẠN MỨC MƯỢN SÁCH — TIỀN ẢO NỘI BỘ)
 // =========================================================================
 public class S16MembershipTierPageViewModel
 {
@@ -9,8 +9,13 @@ public class S16MembershipTierPageViewModel
     public string CurrentUserName { get; set; } = string.Empty;
     public string CurrentUserEmail { get; set; } = string.Empty;
     public int CurrentTrustScore { get; set; }
-    public string ActiveTier { get; set; } = "Free"; // Free / Premium
+    public decimal WalletBalance { get; set; }
+    public string ActiveTier { get; set; } = "Free"; // Free / Standard / Premium / Scholar
+    public string ActiveTierDisplayName { get; set; } = "Độc Giả Cơ Bản";
     public int BaseMaxConcurrentLoans { get; set; } = 2;
+    public int MaxBorrowDays { get; set; } = 14;
+    public int MaxRenewals { get; set; } = 1;
+    public string AllowedBooksSummary { get; set; } = string.Empty;
     public int LendQuotaBonus { get; set; }
     public int TotalAllowedLoans => BaseMaxConcurrentLoans + LendQuotaBonus;
     public int CurrentActiveLoansCount { get; set; }
@@ -18,7 +23,27 @@ public class S16MembershipTierPageViewModel
     public DateTime StartDate { get; set; }
     public DateTime? ExpiryDate { get; set; }
     public int DaysRemaining { get; set; }
+    public List<MembershipTierPlanDto> TierPlans { get; set; } = new();
     public List<S16MembershipRecordDto> AllMemberships { get; set; } = new();
+}
+
+public class MembershipTierPlanDto
+{
+    public string Tier { get; set; } = "Free";
+    public string DisplayName { get; set; } = string.Empty;
+    public string ShortTag { get; set; } = string.Empty;
+    public int MaxConcurrentLoans { get; set; }
+    public int MaxBorrowDays { get; set; }
+    public int MaxRenewals { get; set; }
+    public int RenewalDays { get; set; }
+    public int PriorityRank { get; set; }
+    public decimal Price1Month { get; set; }
+    public decimal Price6Months { get; set; }
+    public decimal Price12Months { get; set; }
+    public string AllowedBooksSummary { get; set; } = string.Empty;
+    public string DepositPolicy { get; set; } = string.Empty;
+    public string QueuePriorityLabel { get; set; } = string.Empty;
+    public List<string> Highlights { get; set; } = new();
 }
 
 public class S16MembershipRecordDto
@@ -38,23 +63,30 @@ public class S16MembershipRecordDto
 
 public class S16SwitchMembershipRequestDto
 {
-    public string TargetTier { get; set; } = "Premium"; // Free / Premium
+    public string TargetTier { get; set; } = "Premium"; // Free / Standard / Premium / Scholar
     public int DurationMonths { get; set; } = 12;
-    public string PaymentGateway { get; set; } = "VNPaySandbox";
+    public string PaymentGateway { get; set; } = "QrPay"; // QrPay / VirtualWallet
+    public string PaymentMode { get; set; } = "QrInvoice"; // QrInvoice (mặc định tạo hóa đơn QR) / InstantWallet (trừ thẳng ví)
 }
 
 // =========================================================================
-// S17: SANDBOX PAYMENT (VNPAY / MOMO SANDBOX + HMAC-SHA512 VERIFICATION)
+// S17: VÍ TIỀN ẢO MIỄN PHÍ & QUÉT QR THANH TOÁN NỘI BỘ (KHÔNG NGÂN HÀNG THẬT)
 // =========================================================================
 public class S17SandboxPaymentPageViewModel
 {
     public string CurrentUserId { get; set; } = string.Empty;
     public string CurrentUserName { get; set; } = string.Empty;
     public string CurrentTier { get; set; } = "Free";
+    public decimal WalletBalance { get; set; }
+    public decimal TotalToppedUp { get; set; }
+    public decimal TotalSpent { get; set; }
     public decimal TotalCompletedAmount { get; set; }
     public decimal TotalPendingAmount { get; set; }
     public int TotalVerifiedHmacCount { get; set; }
     public int? SelectedPendingTxId { get; set; }
+    public string? SelectedQrPayload { get; set; }
+    public string? SelectedDescription { get; set; }
+    public decimal SelectedPendingAmount { get; set; }
     public string? SelectedRawPayload { get; set; }
     public string? SelectedExpectedHmac { get; set; }
     public List<S17UnpaidFineLoanDto> UnpaidFineLoans { get; set; } = new();
@@ -76,10 +108,14 @@ public class S17TransactionItemDto
     public string UserId { get; set; } = string.Empty;
     public string UserFullName { get; set; } = string.Empty;
     public int? LoanId { get; set; }
-    public string TransactionType { get; set; } = string.Empty; // Membership / Fine / SimulatedDeposit
+    public string TransactionType { get; set; } = string.Empty; // Membership / Fine / SimulatedDeposit / WalletTopUp
     public decimal Amount { get; set; }
-    public string PaymentGateway { get; set; } = "VNPaySandbox"; // VNPaySandbox / MoMoSandbox
+    public string PaymentGateway { get; set; } = "QrPay";
     public string PaymentStatus { get; set; } = "Pending"; // Pending / Completed / Failed / Refunded
+    public string? TargetTier { get; set; }
+    public int? DurationMonths { get; set; }
+    public string? Description { get; set; }
+    public string QrPayload => $"BOOKSHARE-PAY:{TransactionId}";
     public string? HmacSignature { get; set; }
     public DateTime CreatedAt { get; set; }
 }
@@ -87,9 +123,48 @@ public class S17TransactionItemDto
 public class S17CreateSandboxOrderDto
 {
     public string TransactionType { get; set; } = "Membership"; // Membership / Fine / SimulatedDeposit
-    public decimal Amount { get; set; } = 99000m;
-    public string PaymentGateway { get; set; } = "VNPaySandbox"; // VNPaySandbox / MoMoSandbox
+    public decimal Amount { get; set; } = 49000m;
+    public string PaymentGateway { get; set; } = "QrPay";
     public int? LoanId { get; set; }
+    public string? TargetTier { get; set; }
+    public int? DurationMonths { get; set; }
+    public string? Description { get; set; }
+}
+
+public class S17WalletTopUpDto
+{
+    public decimal Amount { get; set; } = 100000m;
+    public string? Note { get; set; }
+}
+
+public class S17PreviewQrInvoiceDto
+{
+    public string QrPayload { get; set; } = string.Empty;
+}
+
+public class S17QrInvoicePreviewResultDto
+{
+    public int TransactionId { get; set; }
+    public string InvoiceCode => $"#TX-{TransactionId}";
+    public string QrPayload => $"BOOKSHARE-PAY:{TransactionId}";
+    public string OwnerFullName { get; set; } = string.Empty;
+    public string TransactionType { get; set; } = string.Empty;
+    public string ServiceLabel { get; set; } = string.Empty;
+    public string Description { get; set; } = string.Empty;
+    public string? TargetTier { get; set; }
+    public int? DurationMonths { get; set; }
+    public decimal Amount { get; set; }
+    public string PaymentStatus { get; set; } = "Pending";
+    public decimal WalletBalance { get; set; }
+    public decimal BalanceAfterPayment => Math.Max(0m, WalletBalance - Amount);
+    public bool HasSufficientBalance => WalletBalance >= Amount;
+    public decimal ShortfallAmount => Math.Max(0m, Amount - WalletBalance);
+    public DateTime CreatedAt { get; set; }
+}
+
+public class S17ConfirmQrInvoiceDto
+{
+    public int TransactionId { get; set; }
 }
 
 public class S17SandboxCallbackDto
@@ -108,6 +183,11 @@ public class S17RefundDepositDto
 public class S17CancelTransactionDto
 {
     public int TransactionId { get; set; }
+}
+
+public class S22DeleteUserDto
+{
+    public string UserId { get; set; } = string.Empty;
 }
 
 // =========================================================================

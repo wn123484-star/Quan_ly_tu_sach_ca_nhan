@@ -1,6 +1,6 @@
 @model BookShare.Web.Models.ViewModels.S16MembershipTierPageViewModel
 @{
-    ViewData["Title"] = "Hạng Thẻ Thành Viên, Đặc Quyền Học Thuật & Hạn Mức Mượn Sách";
+    ViewData["Title"] = "Gói Hội Viên 4 Cấp, Đặc Quyền Mượn Sách & Thanh Toán Tiền Ảo";
 }
 
 @section Styles {
@@ -10,37 +10,48 @@
 <section class="s16-hero card border-0 shadow-sm rounded-4 p-4 mb-4">
     <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
         <div>
-            <span class="badge bg-primary mb-2 px-3 py-1 rounded-pill">HẠNG THẺ THÀNH VIÊN &amp; ĐẶC QUYỀN HẠN MỨC MƯỢN SÁCH</span>
-            <h2 class="fw-bold mb-1">👑 Quản Lý Hạng Thẻ Thành Viên &amp; Hạn Mức Mượn Sách</h2>
-            <p class="text-muted small mb-0">
-                Công thức tính hạn mức mượn đồng thời: <code>Tổng Hạn Mức = MaxConcurrentLoans (Theo Hạng Thẻ) + LendQuotaBonus (Thưởng Cho Mượn P2P)</code>. Hoàn toàn không bán sách — phí duy trì thẻ chỉ phục vụ vận hành trạm sách &amp; ưu tiên hàng chờ Sách Hot.
+            <span class="badge bg-primary mb-2 px-3 py-1 rounded-pill">GÓI HỘI VIÊN 4 CẤP • 100% TIỀN ẢO NỘI BỘ MIỄN PHÍ</span>
+            <h2 class="fw-bold mb-1">👑 Đăng Ký Gói Hội Viên &amp; Hạn Mức Mượn Sách</h2>
+            <p class="text-muted small mb-2">
+                Nâng cấp hạng hội viên bằng <strong>tiền ảo miễn phí</strong> nạp trực tiếp trên BookShare (không liên kết ngân hàng thật, tuyệt đối không bán sách). Gói cao hơn mở rộng số cuốn mượn đồng thời, thời hạn mượn dài hơn, ưu tiên hàng chờ Sách Hot và quyền mượn sách chuyên khảo hiếm.
             </p>
+            <div class="d-flex flex-wrap gap-2">
+                <a asp-controller="S17SandboxPayment" asp-action="Index" asp-fragment="walletTopUpCard" class="btn btn-success btn-sm fw-bold rounded-pill px-3">
+                    <i class="bi bi-plus-circle-fill me-1"></i>Nạp Tiền Ảo Miễn Phí (Số dư: @Model.WalletBalance.ToString("N0")đ)
+                </a>
+                <button type="button" class="btn btn-outline-primary btn-sm fw-bold rounded-pill px-3 js-open-qr-pay-scanner">
+                    <i class="bi bi-qr-code-scan me-1"></i>Quét QR Thanh Toán
+                </button>
+            </div>
         </div>
         <div class="s16-quota-pill">
             <div class="small opacity-75">Độc giả: <strong>@Model.CurrentUserName</strong></div>
-            <div class="fs-4 fw-bold">Gói hiện tại: @Model.ActiveTier</div>
+            <div class="fs-5 fw-bold">Gói hiện tại: @Model.ActiveTier (@Model.ActiveTierDisplayName)</div>
             <div class="small">
-                Tổng hạn mức: <strong>@Model.TotalAllowedLoans cuốn</strong>
-                (<code>@Model.BaseMaxConcurrentLoans</code> gói + <code>@Model.LendQuotaBonus</code> thưởng P2P)
+                Hạn mức: <strong>@Model.TotalAllowedLoans cuốn</strong>
+                (<span>@Model.BaseMaxConcurrentLoans cuốn</span> gói + <span>@Model.LendQuotaBonus</span> thưởng P2P)
+            </div>
+            <div class="small opacity-90 mt-1">
+                <i class="bi bi-calendar-check me-1"></i>Mượn tối đa <strong>@Model.MaxBorrowDays ngày/lượt</strong> • Gia hạn <strong>@Model.MaxRenewals lần</strong>
             </div>
         </div>
     </div>
 </section>
 
-<!-- 4 THẺ CHỈ SỐ HẠN MỨC & NGÀY HẾT HẠN -->
+<!-- 4 THẺ CHỈ SỐ HẠN MỨC & SỐ DƯ VÍ TIỀN ẢO -->
 <div class="row g-3 mb-4">
     <div class="col-md-3">
         <div class="card border-0 shadow-sm rounded-4 p-3 h-100 bg-white">
-            <small class="text-muted fw-semibold">Hạn mức Gói (@Model.ActiveTier)</small>
-            <h3 class="fw-bold text-primary mb-0">@Model.BaseMaxConcurrentLoans cuốn</h3>
-            <small class="text-secondary">Hạn mức cơ bản theo gói</small>
+            <small class="text-muted fw-semibold">Số dư Ví Tiền Ảo</small>
+            <h3 class="fw-bold text-success mb-0" id="s16WalletBalanceText">@Model.WalletBalance.ToString("N0")đ</h3>
+            <small class="text-secondary">Tiền ảo miễn phí • 0đ ngân hàng thật</small>
         </div>
     </div>
     <div class="col-md-3">
         <div class="card border-0 shadow-sm rounded-4 p-3 h-100 bg-white">
-            <small class="text-muted fw-semibold">Thưởng chia sẻ sách cộng đồng</small>
-            <h3 class="fw-bold text-success mb-0">+@Model.LendQuotaBonus cuốn</h3>
-            <small class="text-secondary">Tích lũy khi chia sẻ sách</small>
+            <small class="text-muted fw-semibold">Hạn mức Gói (@Model.ActiveTier)</small>
+            <h3 class="fw-bold text-primary mb-0">@Model.BaseMaxConcurrentLoans cuốn</h3>
+            <small class="text-secondary">+@Model.LendQuotaBonus cuốn thưởng chia sẻ P2P</small>
         </div>
     </div>
     <div class="col-md-3">
@@ -54,7 +65,7 @@
         <div class="card border-0 shadow-sm rounded-4 p-3 h-100 bg-white">
             <small class="text-muted fw-semibold">Thời hạn gói hiện tại</small>
             <h4 class="fw-bold text-dark mb-0">
-                @(Model.ExpiryDate.HasValue ? Model.ExpiryDate.Value.ToString("dd/MM/yyyy") : "Vĩnh viễn (Free)")
+                @(Model.ExpiryDate.HasValue ? Model.ExpiryDate.Value.ToString("dd/MM/yyyy") : "Trọn đời (Free)")
             </h4>
             <small class="text-primary fw-semibold">
                 @(Model.ExpiryDate.HasValue ? $"Còn {Model.DaysRemaining} ngày hiệu lực" : "Không giới hạn thời gian")
@@ -63,112 +74,185 @@
     </div>
 </div>
 
-<!-- SO SÁNH 2 GÓI FREE VS PREMIUM & FORM CHUYỂN ĐỔI -->
-<div class="row g-4 mb-4">
-    <!-- GÓI FREE -->
-    <div class="col-lg-4">
-        <div class="card s16-tier-card h-100 border @(Model.ActiveTier == "Free" ? "border-primary border-2" : "") rounded-4 shadow-sm">
-            <div class="card-body p-4 d-flex flex-column">
-                <div class="d-flex justify-content-between align-items-center mb-2">
-                    <span class="badge bg-secondary">GÓI CƠ BẢN</span>
-                    @if (Model.ActiveTier == "Free")
-                    {
-                        <span class="badge bg-success">Đang sử dụng</span>
-                    }
-                </div>
-                <h4 class="fw-bold">Free Reader</h4>
-                <div class="fs-3 fw-bold text-dark mb-3">0 VNĐ <small class="fs-6 text-muted fw-normal">/ trọn đời</small></div>
-                <ul class="list-unstyled small d-flex flex-column gap-2 mb-4">
-                    <li><i class="bi bi-check-circle-fill text-success me-2"></i>Mượn đồng thời tối đa <strong>2 cuốn</strong> cơ bản</li>
-                    <li><i class="bi bi-check-circle-fill text-success me-2"></i>Cộng thêm <code>+@Model.LendQuotaBonus</code> cuốn thưởng cho mượn P2P</li>
-                    <li><i class="bi bi-check-circle-fill text-success me-2"></i>Theo dõi tiến độ đọc &amp; Sổ tay ghi chú không giới hạn</li>
-                    <li><i class="bi bi-dash-circle text-muted me-2"></i>Xếp hàng chờ Sách Hot theo thứ tự thông thường</li>
-                </ul>
-                <div class="mt-auto">
-                    <button type="button" class="btn btn-outline-secondary w-100 fw-semibold js-switch-tier"
-                            data-tier="Free" data-months="12">
-                        <i class="bi bi-arrow-repeat me-1"></i>Chuyển về gói Free (2 cuốn)
-                    </button>
-                </div>
-            </div>
-        </div>
+<!-- CHỌN KỲ HẠN GÓI (1 THÁNG / 6 THÁNG / 12 THÁNG) -->
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-3">
+    <div>
+        <h5 class="fw-bold mb-0"><i class="bi bi-stars text-primary me-2"></i>Chọn Gói Hội Viên Phù Hợp Nhu Cầu Đọc</h5>
+        <small class="text-muted">Chọn kỳ hạn bên phải để xem giá tiền ảo tương ứng, sau đó nâng cấp ngay bằng Ví Tiền Ảo hoặc tạo Mã QR để quét trên điện thoại / Web App.</small>
     </div>
-
-    <!-- GÓI PREMIUM -->
-    <div class="col-lg-4">
-        <div class="card s16-tier-card s16-tier-premium h-100 border @(Model.ActiveTier == "Premium" ? "border-warning border-2" : "") rounded-4 shadow">
-            <div class="card-body p-4 d-flex flex-column">
-                <div class="d-flex justify-content-between align-items-center mb-2">
-                    <span class="badge bg-warning text-dark fw-bold">⭐ KHUYÊN DÙNG HỌC THUẬT</span>
-                    @if (Model.ActiveTier == "Premium")
-                    {
-                        <span class="badge bg-light text-dark fw-bold">Đang kích hoạt</span>
-                    }
-                </div>
-                <h4 class="fw-bold text-white">Premium Scholar</h4>
-                <div class="fs-3 fw-bold text-warning mb-3">99.000 VNĐ <small class="fs-6 text-white-50 fw-normal">/ 12 tháng</small></div>
-                <ul class="list-unstyled small text-white d-flex flex-column gap-2 mb-4">
-                    <li><i class="bi bi-stars text-warning me-2"></i>Mượn đồng thời tối đa <strong>5 cuốn</strong> (+<code>@Model.LendQuotaBonus</code> thưởng P2P = <strong>@(5 + Model.LendQuotaBonus) cuốn</strong>)</li>
-                    <li><i class="bi bi-lightning-charge-fill text-warning me-2"></i><strong>Ưu tiên nhảy lên đầu hàng chờ</strong> Đặt trước Sách Hot</li>
-                    <li><i class="bi bi-calendar2-check-fill text-warning me-2"></i>Gia hạn mượn linh hoạt &amp; hỗ trợ giao nhận tại mọi Trạm CLB</li>
-                    <li><i class="bi bi-robot text-warning me-2"></i>Tư vấn lộ trình đọc chuyên sâu với Trợ lý AI Gemini</li>
-                </ul>
-                <div class="mt-auto d-grid gap-2">
-                    <button type="button" class="btn btn-warning fw-bold text-dark js-switch-tier"
-                            data-tier="Premium" data-months="12">
-                        <i class="bi bi-crown-fill me-1"></i>Kích hoạt / Gia hạn Premium (+12 tháng)
-                    </button>
-                    <a asp-controller="S17SandboxPayment" asp-action="Index" class="btn btn-outline-light btn-sm">
-                        <i class="bi bi-shield-check me-1"></i>Mở Ví Bảo Lãnh &amp; Cổng Thanh Toán HMAC-SHA512
-                    </a>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- FORM TÙY CHỈNH KỲ HẠN GÓI -->
-    <div class="col-lg-4">
-        <div class="card border-0 shadow-sm rounded-4 h-100 bg-white">
-            <div class="card-body p-4">
-                <h5 class="fw-bold mb-3"><i class="bi bi-sliders text-primary me-2"></i>Tùy Chỉnh Kỳ Hạn & Cổng Sandbox</h5>
-                <form id="formCustomMembership" class="d-flex flex-column gap-3">
-                    <div>
-                        <label class="form-label small fw-bold">Gói thành viên mục tiêu</label>
-                        <select id="selectTargetTier" class="form-select">
-                            <option value="Premium" selected>👑 Premium (Tối đa 5 cuốn + Ưu tiên Hàng chờ)</option>
-                            <option value="Free">📘 Free (Tối đa 2 cuốn cơ bản)</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label class="form-label small fw-bold">Thời hạn đăng ký / gia hạn thêm</label>
-                        <select id="selectDurationMonths" class="form-select">
-                            <option value="1">1 tháng (19.000 VNĐ)</option>
-                            <option value="6">6 tháng (59.000 VNĐ)</option>
-                            <option value="12" selected>12 tháng — 1 Năm học (99.000 VNĐ)</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label class="form-label small fw-bold">Cổng thanh toán liên kết</label>
-                        <select id="selectGateway" class="form-select">
-                            <option value="VNPaySandbox">VNPay Sandbox (HMAC-SHA512)</option>
-                            <option value="MoMoSandbox">MoMo Sandbox (HMAC-SHA512)</option>
-                        </select>
-                    </div>
-                    <button type="submit" id="btnSubmitMembership" class="btn btn-primary fw-bold mt-2">
-                        <i class="bi bi-check2-circle me-1"></i>Xác Nhận Cập Nhật Gói Thành Viên
-                    </button>
-                </form>
-            </div>
-        </div>
+    <div class="btn-group shadow-sm" role="group" aria-label="Chọn kỳ hạn đăng ký gói" id="s16DurationGroup">
+        <button type="button" class="btn btn-outline-primary btn-sm fw-bold js-s16-duration" data-months="1">1 Tháng</button>
+        <button type="button" class="btn btn-outline-primary btn-sm fw-bold js-s16-duration" data-months="6">6 Tháng</button>
+        <button type="button" class="btn btn-primary btn-sm fw-bold js-s16-duration" data-months="12">12 Tháng (Tiết kiệm)</button>
     </div>
 </div>
 
-<!-- DANH SÁCH GÓI THÀNH VIÊN TRONG CSDL MEMBERSHIPS -->
+<!-- 4 THẺ GÓI HỘI VIÊN PHÂN CẤP CHI TIẾT -->
+<div class="row g-3 mb-4" id="s16TierGrid">
+    @foreach (var plan in Model.TierPlans)
+    {
+        bool isCurrent = string.Equals(Model.ActiveTier, plan.Tier, StringComparison.OrdinalIgnoreCase);
+        bool isDarkCard = plan.Tier is "Premium" or "Scholar";
+        string cardCls = plan.Tier switch
+        {
+            "Scholar" => "tier-card-scholar text-white",
+            "Premium" => "tier-card-premium text-white",
+            "Standard" => "tier-card-standard bg-white",
+            _ => "bg-white"
+        };
+        string badgeCls = plan.Tier switch
+        {
+            "Scholar" => "bg-info text-dark fw-bold",
+            "Premium" => "bg-warning text-dark fw-bold",
+            "Standard" => "bg-primary text-white fw-bold",
+            _ => "bg-secondary text-white"
+        };
+
+        <div class="col-md-6 col-xl-3">
+            <div class="card s16-tier-card @cardCls h-100 rounded-4 shadow-sm border @(isCurrent ? "border-warning border-2" : "")">
+                <div class="card-body p-4 d-flex flex-column">
+                    <div class="d-flex justify-content-between align-items-center gap-1 mb-2">
+                        <span class="badge @badgeCls">@plan.ShortTag</span>
+                        @if (isCurrent)
+                        {
+                            <span class="badge bg-success">Đang sử dụng</span>
+                        }
+                    </div>
+
+                    <h5 class="fw-bold mb-0">@plan.DisplayName</h5>
+                    <small class="@(isDarkCard ? "text-white-50" : "text-muted") mb-2">Hạng @plan.Tier</small>
+
+                    <div class="mb-3">
+                        <div class="fs-3 fw-bold @(isDarkCard ? "text-warning" : "text-primary") js-tier-price"
+                             data-p1="@plan.Price1Month"
+                             data-p6="@plan.Price6Months"
+                             data-p12="@plan.Price12Months">
+                            @(plan.Price12Months == 0 ? "0đ ảo" : $"{plan.Price12Months:N0}đ ảo")
+                        </div>
+                        <small class="@(isDarkCard ? "text-white-50" : "text-muted") js-tier-period">
+                            @(plan.Tier == "Free" ? "Miễn phí trọn đời" : "/ 12 tháng (Tiền ảo)")
+                        </small>
+                    </div>
+
+                    <div class="p-2 rounded-3 mb-3 small @(isDarkCard ? "bg-white bg-opacity-10" : "bg-light border")">
+                        <div class="fw-bold mb-1">
+                            <i class="bi bi-journal-bookmark-fill me-1"></i>Giới hạn: @plan.MaxConcurrentLoans cuốn • @plan.MaxBorrowDays ngày/lượt
+                        </div>
+                        <div class="@(isDarkCard ? "text-white-50" : "text-muted")">
+                            <strong>Sách được mượn:</strong> @plan.AllowedBooksSummary
+                        </div>
+                    </div>
+
+                    <ul class="list-unstyled small d-flex flex-column gap-2 mb-4">
+                        @foreach (var line in plan.Highlights)
+                        {
+                            <li>
+                                <i class="bi bi-check-circle-fill @(isDarkCard ? "text-warning" : "text-success") me-2"></i>@line
+                            </li>
+                        }
+                    </ul>
+
+                    <div class="mt-auto d-grid gap-2">
+                        @if (plan.Tier == "Free")
+                        {
+                            <button type="button" class="btn btn-outline-secondary btn-sm fw-bold js-switch-tier"
+                                    data-tier="Free" data-mode="InstantWallet">
+                                <i class="bi bi-arrow-repeat me-1"></i>Chuyển về gói Free (2 cuốn)
+                            </button>
+                        }
+                        else
+                        {
+                            <button type="button" class="btn @(isDarkCard ? "btn-warning text-dark" : "btn-primary") btn-sm fw-bold js-switch-tier"
+                                    data-tier="@plan.Tier" data-mode="InstantWallet">
+                                <i class="bi bi-wallet2 me-1"></i>Nâng Cấp Ngay Bằng Ví Tiền Ảo
+                            </button>
+                            <button type="button" class="btn @(isDarkCard ? "btn-outline-light" : "btn-outline-primary") btn-sm fw-semibold js-switch-tier"
+                                    data-tier="@plan.Tier" data-mode="QrInvoice">
+                                <i class="bi bi-qr-code me-1"></i>Tạo Mã QR Thanh Toán
+                            </button>
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+<!-- BẢNG SO SÁNH CHI TIẾT QUYỀN LỢI 4 CẤP -->
+<section class="card border-0 shadow-sm rounded-4 p-4 bg-white mb-4">
+    <h5 class="fw-bold mb-3"><i class="bi bi-table text-primary me-2"></i>Bảng So Sánh Quyền Lợi &amp; Phạm Vi Mượn Sách Từng Cấp</h5>
+    <div class="table-responsive">
+        <table class="table table-bordered align-middle small mb-0">
+            <thead class="table-light">
+                <tr>
+                    <th>Tiêu chí quyền lợi</th>
+                    <th class="text-center">Free (Cơ Bản)</th>
+                    <th class="text-center">Standard (Đọc Sâu)</th>
+                    <th class="text-center table-warning">Premium (Học Thuật)</th>
+                    <th class="text-center table-info">Scholar (Nghiên Cứu VIP)</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td class="fw-bold">Giá 1T / 6T / 12T (Tiền ảo)</td>
+                    <td class="text-center fw-bold text-success">0đ / Trọn đời</td>
+                    <td class="text-center">29k / 149k / 249k</td>
+                    <td class="text-center fw-bold">49k / 249k / 399k</td>
+                    <td class="text-center fw-bold">89k / 449k / 699k</td>
+                </tr>
+                <tr>
+                    <td class="fw-bold">Số cuốn mượn đồng thời</td>
+                    <td class="text-center">2 cuốn (+P2P)</td>
+                    <td class="text-center">3 cuốn (+P2P)</td>
+                    <td class="text-center fw-bold text-primary">5 cuốn (+P2P)</td>
+                    <td class="text-center fw-bold text-primary">10 cuốn (+P2P)</td>
+                </tr>
+                <tr>
+                    <td class="fw-bold">Thời hạn mượn / lượt</td>
+                    <td class="text-center">14 ngày</td>
+                    <td class="text-center">21 ngày</td>
+                    <td class="text-center">30 ngày</td>
+                    <td class="text-center fw-bold">45 ngày</td>
+                </tr>
+                <tr>
+                    <td class="fw-bold">Gia hạn tối đa</td>
+                    <td class="text-center">1 lần (+7 ngày)</td>
+                    <td class="text-center">2 lần (+7 ngày)</td>
+                    <td class="text-center">2 lần (+10 ngày)</td>
+                    <td class="text-center fw-bold">3 lần (+14 ngày)</td>
+                </tr>
+                <tr>
+                    <td class="fw-bold">Loại sách được mượn</td>
+                    <td>Kho Thư viện &amp; P2P phổ thông (không gồm Sách Hot ≥ 3 người chờ)</td>
+                    <td>Toàn bộ Kho Thư viện + Toàn bộ Tủ sách P2P &amp; sách chuyên ngành</td>
+                    <td>Toàn bộ Kho Thư viện + P2P + Giáo trình hiếm, sách chuyên khảo &amp; Sách Hot</td>
+                    <td>Toàn hệ sinh thái + Sách hiếm / Tài liệu nghiên cứu + Ưu tiên Trạm CLB</td>
+                </tr>
+                <tr>
+                    <td class="fw-bold">Ưu tiên Hàng chờ Sách Hot</td>
+                    <td class="text-center">Thường</td>
+                    <td class="text-center">Ưu tiên Bạc</td>
+                    <td class="text-center fw-bold text-warning-emphasis">Ưu tiên Vàng</td>
+                    <td class="text-center fw-bold text-primary">Ưu tiên VIP Top 1</td>
+                </tr>
+                <tr>
+                    <td class="fw-bold">Chính sách cọc bảo lãnh P2P</td>
+                    <td class="text-center">Tiêu chuẩn</td>
+                    <td class="text-center">Tiêu chuẩn</td>
+                    <td class="text-center text-success fw-semibold">Giảm 50%</td>
+                    <td class="text-center text-success fw-bold">Miễn 100%</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</section>
+
+<!-- LỊCH SỬ HẠN MỨC GÓI HỘI VIÊN -->
 <section class="card border-0 shadow-sm rounded-4 p-4 bg-white">
     <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
         <div>
-            <h5 class="fw-bold mb-0"><i class="bi bi-table text-primary me-2"></i>Lịch Sử &amp; Hạn Mức Gói Thành Viên</h5>
-            <small class="text-muted">Thông tin hạn mức mượn đồng thời, thưởng chia sẻ sách và ngày hết hạn gói</small>
+            <h5 class="fw-bold mb-0"><i class="bi bi-clock-history text-primary me-2"></i>Lịch Sử &amp; Hạn Mức Gói Hội Viên Của Bạn</h5>
+            <small class="text-muted">Thông tin hạn mức mượn đồng thời, thưởng chia sẻ sách và thời hạn hiệu lực</small>
         </div>
         <span class="badge bg-primary">@Model.AllMemberships.Count bản ghi</span>
     </div>
@@ -178,41 +262,30 @@
                 <tr>
                     <th>Mã #</th>
                     <th>Thành viên</th>
-                    <th>Hạng Gói (Tier)</th>
-                    <th>Hạn mức Gói</th>
-                    <th>Thưởng P2P</th>
-                    <th>Tổng Hạn Mức</th>
-                    <th>Ngày kích hoạt</th>
-                    <th>Ngày hết hạn (ExpiryDate)</th>
+                    <th>Cấp gói</th>
+                    <th>Hạn mức mượn</th>
+                    <th>Ngày bắt đầu</th>
+                    <th>Hạn sử dụng</th>
+                    <th>Trạng thái</th>
                 </tr>
             </thead>
             <tbody>
                 @foreach (var m in Model.AllMemberships)
                 {
                     <tr>
-                        <td><code>#MEM-@m.MembershipId</code></td>
+                        <td><code>#@m.MembershipId</code></td>
                         <td>
                             <div class="fw-bold">@m.UserFullName</div>
                             <small class="text-muted">@m.UserEmail</small>
                         </td>
                         <td>
-                            <span class="badge @(m.Tier == "Premium" ? "bg-warning text-dark" : "bg-secondary")">
-                                @(m.Tier == "Premium" ? "👑 Premium" : "📘 Free")
-                            </span>
+                            <span class="badge @(m.Tier == "Scholar" ? "bg-info text-dark" : m.Tier == "Premium" ? "bg-warning text-dark" : m.Tier == "Standard" ? "bg-primary" : "bg-secondary")">@m.Tier</span>
                         </td>
-                        <td><strong>@m.MaxConcurrentLoans cuốn</strong></td>
-                        <td><span class="text-success fw-bold">+@m.LendQuotaBonus cuốn</span></td>
-                        <td><span class="badge bg-primary">@m.TotalQuota cuốn cùng lúc</span></td>
+                        <td class="fw-bold">@m.TotalQuota cuốn <small class="text-muted">(@m.MaxConcurrentLoans + @m.LendQuotaBonus)</small></td>
                         <td>@m.StartDate.ToString("dd/MM/yyyy")</td>
+                        <td>@(m.ExpiryDate.HasValue ? m.ExpiryDate.Value.ToString("dd/MM/yyyy") : "Trọn đời")</td>
                         <td>
-                            @if (m.ExpiryDate.HasValue)
-                            {
-                                <span class="fw-semibold text-dark">@m.ExpiryDate.Value.ToString("dd/MM/yyyy")</span>
-                            }
-                            else
-                            {
-                                <span class="text-muted">Không thời hạn</span>
-                            }
+                            <span class="badge @(m.IsActive ? "bg-success" : "bg-secondary")">@(m.IsActive ? "Đang hoạt động" : "Hết hiệu lực")</span>
                         </td>
                     </tr>
                 }

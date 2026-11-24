@@ -29,6 +29,124 @@ public class S17SandboxPaymentController : Controller
     [HttpPost]
     [Authorize]
     [ValidateAntiForgeryToken]
+    public async Task<IActionResult> TopUpVirtualWallet([FromBody] S17WalletTopUpDto request)
+    {
+        var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
+        var (success, message, newBalance, txId) = await _paymentService.TopUpVirtualWalletAsync(
+            currentUserId,
+            request?.Amount ?? 0m,
+            request?.Note);
+
+        if (!success)
+        {
+            return BadRequest(new { message, balance = newBalance });
+        }
+
+        TempData["StatusCode"] = 200;
+        TempData["StatusTitle"] = "Nạp tiền ảo miễn phí thành công";
+        TempData["StatusDetail"] = message;
+
+        return Ok(new
+        {
+            title = "Nạp tiền ảo miễn phí thành công",
+            message,
+            balance = newBalance,
+            transactionId = txId
+        });
+    }
+
+    [HttpPost]
+    [Authorize]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> PreviewQrInvoice([FromBody] S17PreviewQrInvoiceDto request)
+    {
+        var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
+        var currentUserRole = User.FindFirstValue(ClaimTypes.Role) ?? "User";
+        try
+        {
+            var (success, message, invoice) = await _paymentService.PreviewQrInvoiceAsync(
+                currentUserId,
+                currentUserRole,
+                request?.QrPayload ?? string.Empty);
+
+            if (!success)
+            {
+                return BadRequest(new { message, invoice });
+            }
+
+            return Ok(new { title = "Đã đọc hóa đơn thanh toán", message, invoice });
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return StatusCode(403, new { message = ex.Message });
+        }
+    }
+
+    [HttpPost]
+    [Authorize]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> ConfirmQrInvoice([FromBody] S17ConfirmQrInvoiceDto request)
+    {
+        var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
+        var currentUserRole = User.FindFirstValue(ClaimTypes.Role) ?? "User";
+        try
+        {
+            var (success, message, newBalance) = await _paymentService.ConfirmQrInvoicePaymentAsync(
+                currentUserId,
+                currentUserRole,
+                request?.TransactionId ?? 0);
+
+            if (!success)
+            {
+                return BadRequest(new { message, balance = newBalance });
+            }
+
+            TempData["StatusCode"] = 200;
+            TempData["StatusTitle"] = "Thanh toán QR thành công";
+            TempData["StatusDetail"] = message;
+
+            return Ok(new
+            {
+                title = "Thanh toán hóa đơn QR thành công",
+                message,
+                balance = newBalance
+            });
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return StatusCode(403, new { message = ex.Message });
+        }
+    }
+
+    [HttpGet]
+    [Authorize]
+    public async Task<IActionResult> InvoiceStatus(int txId)
+    {
+        var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
+        var currentUserRole = User.FindFirstValue(ClaimTypes.Role) ?? "User";
+        try
+        {
+            var (found, status, amount, description) = await _paymentService.GetInvoiceStatusAsync(
+                currentUserId,
+                currentUserRole,
+                txId);
+
+            if (!found)
+            {
+                return NotFound(new { message = $"Không tìm thấy hóa đơn #TX-{txId}." });
+            }
+
+            return Ok(new { transactionId = txId, status, amount, description });
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return StatusCode(403, new { message = ex.Message });
+        }
+    }
+
+    [HttpPost]
+    [Authorize]
+    [ValidateAntiForgeryToken]
     public async Task<IActionResult> CreateOrder([FromBody] S17CreateSandboxOrderDto request)
     {
         var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
@@ -40,9 +158,10 @@ public class S17SandboxPaymentController : Controller
 
         return Ok(new
         {
-            title = "Đã khởi tạo giao dịch thanh toán",
+            title = "Đã khởi tạo hóa đơn & mã QR thanh toán",
             message,
             transactionId = txId,
+            qrPayload = $"BOOKSHARE-PAY:{txId}",
             rawPayload,
             expectedHmacSignature = expectedHmac
         });
@@ -118,9 +237,9 @@ public class S17SandboxPaymentController : Controller
             }
 
             TempData["StatusCode"] = 200;
-            TempData["StatusTitle"] = "Đã xóa lệnh giao dịch chưa hoàn tất";
+            TempData["StatusTitle"] = "Đã xóa hóa đơn chưa hoàn tất";
             TempData["StatusDetail"] = message;
-            return Ok(new { title = "Đã xóa lệnh giao dịch", message });
+            return Ok(new { title = "Đã xóa hóa đơn", message });
         }
         catch (UnauthorizedAccessException ex)
         {

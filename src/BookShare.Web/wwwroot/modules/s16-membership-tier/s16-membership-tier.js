@@ -1,48 +1,61 @@
-import { apiFetch } from '../../js/core-api.js';
+import { apiFetch, showQrPaymentInvoiceModal, celebrate } from '../../js/core-api.js';
 
 document.addEventListener('DOMContentLoaded', () => {
-    const formCustom = document.getElementById('formCustomMembership');
+    let selectedMonths = 12;
 
-    const submitSwitch = async (targetTier, durationMonths, paymentGateway) => {
-        const res = await apiFetch('/S16MembershipTier/SwitchMembership', {
-            method: 'POST',
-            body: {
-                targetTier,
-                durationMonths: parseInt(durationMonths, 10) || 12,
-                paymentGateway: paymentGateway || 'VNPaySandbox'
-            }
+    const updateCardPrices = () => {
+        document.querySelectorAll('.js-tier-price').forEach(el => {
+            const p = Number(el.getAttribute(`data-p${selectedMonths}`) || '0');
+            el.textContent = p <= 0 ? '0đ ảo' : `${Math.round(p).toLocaleString('vi-VN')}đ ảo`;
         });
-
-        if (res.ok) {
-            const targetUrl = res.data?.redirectUrl;
-            setTimeout(() => {
-                if (targetUrl) {
-                    window.location.href = targetUrl;
-                } else {
-                    window.location.reload();
-                }
-            }, 650);
-        }
+        document.querySelectorAll('.js-tier-period').forEach(el => {
+            if (el.textContent.includes('trọn đời')) return;
+            el.textContent = `/ ${selectedMonths} tháng (Tiền ảo)`;
+        });
     };
 
-    document.querySelectorAll('.js-switch-tier').forEach(btn => {
-        btn.addEventListener('click', async () => {
-            const tier = btn.getAttribute('data-tier') || 'Premium';
-            const months = btn.getAttribute('data-months') || '12';
-            btn.disabled = true;
-            try {
-                await submitSwitch(tier, months, 'VNPaySandbox');
-            } finally {
-                btn.disabled = false;
-            }
+    document.querySelectorAll('.js-s16-duration').forEach(btn => {
+        btn.addEventListener('click', () => {
+            selectedMonths = parseInt(btn.getAttribute('data-months') || '12', 10);
+            document.querySelectorAll('.js-s16-duration').forEach(b => {
+                b.classList.toggle('btn-primary', b === btn);
+                b.classList.toggle('btn-outline-primary', b !== btn);
+            });
+            updateCardPrices();
         });
     });
 
-    formCustom?.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const tier = document.getElementById('selectTargetTier')?.value || 'Premium';
-        const months = document.getElementById('selectDurationMonths')?.value || '12';
-        const gateway = document.getElementById('selectGateway')?.value || 'VNPaySandbox';
-        await submitSwitch(tier, months, gateway);
+    document.querySelectorAll('.js-switch-tier').forEach(btn => {
+        btn.addEventListener('click', async () => {
+            const targetTier = btn.getAttribute('data-tier') || 'Premium';
+            const paymentMode = btn.getAttribute('data-mode') || 'QrInvoice';
+            const priceEl = btn.closest('.s16-tier-card')?.querySelector('.js-tier-price');
+            const expectedAmount = Number(priceEl?.getAttribute(`data-p${selectedMonths}`) || '0');
+
+            const res = await apiFetch('/S16MembershipTier/SwitchMembership', {
+                method: 'POST',
+                body: {
+                    targetTier,
+                    durationMonths: selectedMonths,
+                    paymentMode,
+                    paymentGateway: paymentMode === 'InstantWallet' ? 'VirtualWallet' : 'QrPay'
+                },
+                button: btn
+            });
+
+            if (!res.ok) return;
+
+            if (res.data?.createdTransactionId) {
+                await showQrPaymentInvoiceModal({
+                    transactionId: res.data.createdTransactionId,
+                    amount: expectedAmount,
+                    description: `Nâng cấp gói hội viên ${targetTier} (${selectedMonths} tháng)`,
+                    qrPayload: res.data.qrPayload
+                });
+            } else {
+                celebrate();
+                setTimeout(() => window.location.reload(), 700);
+            }
+        });
     });
 });

@@ -693,8 +693,179 @@ export async function openUniversalScanner() {
         return false;
     }
 
+    if (upper.startsWith('BOOKSHARE-PAY:') || upper.startsWith('BOOKSHARE:PAY:') || /^#?TX-\d+$/i.test(trimmed)) {
+        return await openQrInvoiceConfirmDialog(trimmed);
+    }
+
     window.location.href = `/S06SearchDiscovery?q=${encodeURIComponent(trimmed)}`;
     return true;
+}
+
+// ---------- Quét QR Thanh Toán Tiền Ảo Giống Ứng Dụng Ngân Hàng (Đồng bộ Web <-> Android Web App) ----------
+
+function formatVndVirtual(val) {
+    return `${Math.round(Number(val) || 0).toLocaleString('vi-VN')}đ ảo`;
+}
+
+export async function openQrInvoiceConfirmDialog(qrPayloadOrTxId) {
+    const raw = String(qrPayloadOrTxId ?? '').trim();
+    if (!raw) return false;
+
+    const preview = await apiFetch('/S17SandboxPayment/PreviewQrInvoice', {
+        method: 'POST',
+        body: { qrPayload: raw }
+    });
+
+    if (!preview.ok || !preview.data?.invoice) {
+        if (preview.status === 401) {
+            toast(401, 'Cần đăng nhập', 'Vui lòng đăng nhập tài khoản trước khi quét QR thanh toán hóa đơn.');
+        }
+        return false;
+    }
+
+    const inv = preview.data.invoice;
+    const enough = Boolean(inv.hasSufficientBalance);
+    const balanceStatusHtml = enough
+        ? `<div class="p-2 rounded-3 bg-success-subtle text-success small fw-semibold"><i class="bi bi-check-circle-fill me-1"></i>Số dư Ví Tiền Ảo đủ thanh toán • Còn lại dự kiến: <strong>${escapeHtml(formatVndVirtual(inv.balanceAfterPayment))}</strong></div>`
+        : `<div class="p-2 rounded-3 bg-warning-subtle text-warning-emphasis small fw-semibold"><i class="bi bi-exclamation-triangle-fill me-1"></i>Số dư chưa đủ (còn thiếu <strong>${escapeHtml(formatVndVirtual(inv.shortfallAmount))}</strong>). Hãy nạp thêm tiền ảo miễn phí!</div>`;
+
+    const result = await window.Swal.fire({
+        title: 'Hóa Đơn Thanh Toán Tiền Ảo',
+        html: `
+            <div class="text-start border rounded-4 p-3 bg-body-tertiary">
+                <div class="d-flex justify-content-between align-items-center mb-2 pb-2 border-bottom">
+                    <span class="badge bg-primary rounded-pill">${escapeHtml(inv.invoiceCode)}</span>
+                    <span class="small text-muted">${escapeHtml(inv.serviceLabel)}</span>
+                </div>
+                <div class="text-center py-2 mb-2">
+                    <div class="small text-muted">Số tiền cần thanh toán (100% tiền ảo)</div>
+                    <div class="fs-2 fw-bold text-primary">${escapeHtml(formatVndVirtual(inv.amount))}</div>
+                </div>
+                <div class="small d-flex flex-column gap-1 mb-3">
+                    <div class="d-flex justify-content-between gap-2">
+                        <span class="text-muted">Nội dung:</span>
+                        <strong class="text-end">${escapeHtml(inv.description)}</strong>
+                    </div>
+                    <div class="d-flex justify-content-between gap-2">
+                        <span class="text-muted">Tài khoản:</span>
+                        <strong>${escapeHtml(inv.ownerFullName)}</strong>
+                    </div>
+                    <div class="d-flex justify-content-between gap-2">
+                        <span class="text-muted">Số dư Ví hiện tại:</span>
+                        <strong class="text-success">${escapeHtml(formatVndVirtual(inv.walletBalance))}</strong>
+                    </div>
+                </div>
+                ${balanceStatusHtml}
+            </div>`,
+        showCancelButton: true,
+        confirmButtonText: enough ? 'Xác Nhận Thanh Toán' : 'Đi Nạp Tiền Ảo Miễn Phí',
+        cancelButtonText: 'Hủy',
+        confirmButtonColor: enough ? '#16a34a' : '#2563eb',
+        reverseButtons: true,
+        ...swalThemeOptions()
+    });
+
+    if (!result.isConfirmed) return false;
+
+    if (!enough) {
+        window.location.href = `/S17SandboxPayment?txId=${encodeURIComponent(inv.transactionId)}#walletTopUpCard`;
+        return false;
+    }
+
+    const confirmRes = await apiFetch('/S17SandboxPayment/ConfirmQrInvoice', {
+        method: 'POST',
+        body: { transactionId: inv.transactionId }
+    });
+
+    if (confirmRes.ok) {
+        celebrate();
+        toast(200, 'Thanh toán QR thành công!', confirmRes.data?.message || `Đã thanh toán hóa đơn ${inv.invoiceCode}.`);
+        setTimeout(() => window.location.reload(), 900);
+        return true;
+    }
+    return false;
+}
+
+export async function openQrPaymentScanner() {
+    const code = await openBarcodeScanner({
+        title: 'Quét Mã QR Thanh Toán',
+        hint: 'Hướng camera vào mã QR hóa đơn BookShare (hoặc chọn ảnh QR / nhập mã #TX-...)'
+    });
+    if (!code) return false;
+    return await openQrInvoiceConfirmDialog(code);
+}
+
+export async function showQrPaymentInvoiceModal({ transactionId, amount = 0, description = '', qrPayload = '' } = {}) {
+    if (!transactionId) return false;
+    const payload = qrPayload || `BOOKSHARE-PAY:${transactionId}`;
+    let pollTimer = null;
+    let paid = false;
+
+    const stopPoll = () => {
+        if (pollTimer) {
+            clearInterval(pollTimer);
+            pollTimer = null;
+        }
+    };
+
+    const result = await window.Swal.fire({
+        title: `Mã QR Thanh Toán #TX-${escapeHtml(transactionId)}`,
+        html: `
+            <p class="small text-muted mb-2">${escapeHtml(description || 'Hóa đơn thanh toán tiền ảo nội bộ BookShare')}</p>
+            <div class="fs-4 fw-bold text-primary mb-2">${escapeHtml(formatVndVirtual(amount))}</div>
+            <div class="d-inline-block p-3 bg-white border rounded-4 shadow-sm my-1">
+                <div id="bsPayQrCanvasBox" style="min-width:220px; min-height:220px;" class="d-flex align-items-center justify-content-center">
+                    <span class="small text-muted">Đang tạo mã QR...</span>
+                </div>
+            </div>
+            <div class="mt-2 small text-muted">
+                Dùng nút <strong>Quét QR Thanh Toán</strong> trên điện thoại / Web App Android để quét và xác nhận hóa đơn.
+            </div>
+            <div id="bsPayQrPollBadge" class="mt-2 badge bg-warning-subtle text-warning-emphasis border px-3 py-2">
+                <span class="spinner-border spinner-border-sm me-1" aria-hidden="true"></span>Đang chờ quét &amp; xác nhận thanh toán...
+            </div>`,
+        showCancelButton: true,
+        confirmButtonText: 'Xem Hóa Đơn & Thanh Toán Ngay',
+        cancelButtonText: 'Đóng',
+        confirmButtonColor: '#16a34a',
+        ...swalThemeOptions(),
+        didOpen: async () => {
+            const box = document.getElementById('bsPayQrCanvasBox');
+            await renderQrCode(box, payload, 220);
+
+            pollTimer = setInterval(async () => {
+                try {
+                    const res = await fetch(`/S17SandboxPayment/InvoiceStatus?txId=${encodeURIComponent(transactionId)}`, {
+                        headers: { Accept: 'application/json' },
+                        credentials: 'same-origin'
+                    });
+                    if (!res.ok) return;
+                    const st = await res.json();
+                    if (st.status === 'Completed') {
+                        paid = true;
+                        stopPoll();
+                        const badge = document.getElementById('bsPayQrPollBadge');
+                        if (badge) {
+                            badge.className = 'mt-2 badge bg-success text-white px-3 py-2';
+                            badge.innerHTML = '<i class="bi bi-check-circle-fill me-1"></i>Đã thanh toán thành công! Đang cập nhật...';
+                        }
+                        celebrate();
+                        setTimeout(() => {
+                            window.Swal.close();
+                            window.location.reload();
+                        }, 1000);
+                    }
+                } catch { /* bỏ qua lỗi mạng tạm */ }
+            }, 2500);
+        },
+        willClose: stopPoll
+    });
+
+    stopPoll();
+    if (!paid && result.isConfirmed) {
+        return await openQrInvoiceConfirmDialog(payload);
+    }
+    return paid;
 }
 
 // ---------- AI Copilot 2 tầng: Thực thi lệnh giao diện & Dựng thẻ Xác nhận 1 chạm (Chống XSS) ----------
@@ -1065,7 +1236,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
     window.showSystemStatus = showSystemStatus;
     window.apiFetch = apiFetch;
-    window.BookShareUI = { toast, confirmDialog, celebrate, loadScript, renderMarkdown, renderSkeleton, renderQrCode, showHandoverQrModal, confirmHandoverQrModal, openBarcodeScanner, openUniversalScanner, applyClientCommands, renderCopilotExtras, setPortalThemeMode, trustTier, getRecaptchaToken, CDN };
+    window.BookShareUI = { toast, confirmDialog, celebrate, loadScript, renderMarkdown, renderSkeleton, renderQrCode, showHandoverQrModal, confirmHandoverQrModal, openBarcodeScanner, openUniversalScanner, openQrPaymentScanner, openQrInvoiceConfirmDialog, showQrPaymentInvoiceModal, applyClientCommands, renderCopilotExtras, setPortalThemeMode, trustTier, getRecaptchaToken, CDN };
+
+    document.addEventListener('click', (e) => {
+        const qrPayBtn = e.target.closest('.js-open-qr-pay-scanner');
+        if (!qrPayBtn) return;
+        e.preventDefault();
+        openQrPaymentScanner();
+    });
 
     initThemeToggle();
     initAccessibility();
