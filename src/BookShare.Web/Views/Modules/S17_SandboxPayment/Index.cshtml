@@ -221,17 +221,22 @@
                 @foreach (var tx in Model.Transactions)
                 {
                     bool isTopUp = tx.TransactionType == "WalletTopUp";
+                    bool isCancel = tx.TransactionType == "MembershipCancel";
                     string typeBadge = tx.TransactionType switch
                     {
                         "WalletTopUp" => "bg-success",
                         "Membership" => "bg-warning text-dark",
+                        "MembershipSwitch" => "bg-primary",
+                        "MembershipCancel" => "bg-secondary",
                         "Fine" => "bg-danger",
                         _ => "bg-info text-dark"
                     };
                     string typeLabel = tx.TransactionType switch
                     {
                         "WalletTopUp" => "Nạp tiền ảo",
-                        "Membership" => "Gói hội viên",
+                        "Membership" => "Đăng ký gói",
+                        "MembershipSwitch" => "Chuyển gói hội viên",
+                        "MembershipCancel" => "Hủy gói hội viên",
                         "Fine" => "Phí trễ / Bồi thường",
                         _ => "Ký quỹ bảo lãnh"
                     };
@@ -246,13 +251,23 @@
                         </td>
                         <td>
                             <span class="badge @typeBadge mb-1">@typeLabel</span>
+                            @if (tx.SwitchFee > 0)
+                            {
+                                <span class="badge bg-info-subtle text-info-emphasis border ms-1">Phí chuyển: @tx.SwitchFee.ToString("N0")đ</span>
+                            }
                             @if (!string.IsNullOrWhiteSpace(tx.Description))
                             {
                                 <div class="text-muted">@tx.Description</div>
                             }
                         </td>
-                        <td class="fw-bold @(isTopUp ? "text-success" : "")">
-                            @(isTopUp ? "+" : "")@tx.Amount.ToString("N0")đ
+                        <td class="fw-bold @(isTopUp ? "text-success" : isCancel ? "text-muted" : "")">
+                            <div>@(isTopUp ? "+" : "")@tx.Amount.ToString("N0")đ</div>
+                            @if (tx.BalanceBefore.HasValue && tx.BalanceAfter.HasValue)
+                            {
+                                <small class="fw-normal text-muted" style="font-size:0.7rem;">
+                                    Ví: @tx.BalanceBefore.Value.ToString("N0")đ &rarr; @tx.BalanceAfter.Value.ToString("N0")đ
+                                </small>
+                            }
                         </td>
                         <td>
                             <span class="badge bg-light text-dark border">

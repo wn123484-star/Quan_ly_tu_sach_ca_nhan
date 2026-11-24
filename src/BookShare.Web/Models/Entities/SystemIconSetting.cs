@@ -15,6 +15,10 @@ public partial class SystemIconSetting
 
     public string? CustomImageUrl { get; set; }
 
+    public byte[]? CustomImageData { get; set; }
+
+    public string? CustomImageContentType { get; set; }
+
     public bool UseCustomImage { get; set; }
 
     public DateTime UpdatedAt { get; set; }

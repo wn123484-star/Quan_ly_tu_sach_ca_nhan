@@ -8,6 +8,20 @@ namespace BookShare.Web.Services.Implementations;
 /// </summary>
 public static class MembershipTierCatalog
 {
+    public const decimal TierSwitchFee = 15_000m;
+
+    public sealed record TierSwitchQuote(
+        string CurrentTier,
+        string TargetTier,
+        int DurationMonths,
+        bool IsSwitch,
+        bool IsSameActiveTier,
+        int RemainingDays,
+        decimal NewPlanPrice,
+        decimal ProrationCredit,
+        decimal SwitchFee,
+        decimal TotalPayable);
+
     public sealed record TierPolicy(
         string Tier,
         string DisplayName,
@@ -167,6 +181,81 @@ public static class MembershipTierCatalog
             .FirstOrDefault();
 
         return best ?? Free;
+    }
+
+    public static TierSwitchQuote CalculateSwitchQuote(
+        Membership? activePaidRecord,
+        string? targetTier,
+        int durationMonths,
+        DateTime nowUtc)
+    {
+        string normalizedTarget = NormalizeTier(targetTier);
+        int months = NormalizeDurationMonths(durationMonths);
+        decimal newPrice = GetPrice(normalizedTarget, months);
+
+        bool hasActivePaid = activePaidRecord != null
+            && activePaidRecord.IsActive
+            && !activePaidRecord.Tier.Equals("Free", StringComparison.OrdinalIgnoreCase)
+            && (!activePaidRecord.ExpiryDate.HasValue || activePaidRecord.ExpiryDate.Value > nowUtc);
+
+        string currentTier = hasActivePaid ? NormalizeTier(activePaidRecord!.Tier) : "Free";
+        int remainingDays = hasActivePaid && activePaidRecord!.ExpiryDate.HasValue
+            ? Math.Max(0, (int)Math.Ceiling((activePaidRecord.ExpiryDate.Value - nowUtc).TotalDays))
+            : 0;
+
+        if (!hasActivePaid || normalizedTarget == "Free")
+        {
+            return new TierSwitchQuote(
+                CurrentTier: currentTier,
+                TargetTier: normalizedTarget,
+                DurationMonths: months,
+                IsSwitch: false,
+                IsSameActiveTier: false,
+                RemainingDays: remainingDays,
+                NewPlanPrice: newPrice,
+                ProrationCredit: 0m,
+                SwitchFee: 0m,
+                TotalPayable: newPrice);
+        }
+
+        if (currentTier.Equals(normalizedTarget, StringComparison.OrdinalIgnoreCase))
+        {
+            return new TierSwitchQuote(
+                CurrentTier: currentTier,
+                TargetTier: normalizedTarget,
+                DurationMonths: months,
+                IsSwitch: false,
+                IsSameActiveTier: true,
+                RemainingDays: remainingDays,
+                NewPlanPrice: newPrice,
+                ProrationCredit: 0m,
+                SwitchFee: 0m,
+                TotalPayable: 0m);
+        }
+
+        double totalSpanDays = activePaidRecord!.ExpiryDate.HasValue
+            ? Math.Max(30.0, (activePaidRecord.ExpiryDate.Value - activePaidRecord.StartDate).TotalDays)
+            : 30.0;
+        double remSpanDays = activePaidRecord.ExpiryDate.HasValue
+            ? Math.Clamp((activePaidRecord.ExpiryDate.Value - nowUtc).TotalDays, 0.0, totalSpanDays)
+            : 0.0;
+        int estimatedOldMonths = totalSpanDays <= 45 ? 1 : totalSpanDays <= 210 ? 6 : 12;
+        decimal oldPrice = GetPrice(currentTier, estimatedOldMonths);
+        decimal rawCredit = oldPrice * (decimal)(remSpanDays / totalSpanDays);
+        decimal prorationCredit = Math.Min(newPrice, Math.Floor(rawCredit / 1000m) * 1000m);
+        decimal totalPayable = Math.Max(TierSwitchFee, newPrice - prorationCredit + TierSwitchFee);
+
+        return new TierSwitchQuote(
+            CurrentTier: currentTier,
+            TargetTier: normalizedTarget,
+            DurationMonths: months,
+            IsSwitch: true,
+            IsSameActiveTier: false,
+            RemainingDays: remainingDays,
+            NewPlanPrice: newPrice,
+            ProrationCredit: prorationCredit,
+            SwitchFee: TierSwitchFee,
+            TotalPayable: totalPayable);
     }
 
     public static List<MembershipTierPlanDto> ToPlanDtos() => AllPlans.Select(p => new MembershipTierPlanDto

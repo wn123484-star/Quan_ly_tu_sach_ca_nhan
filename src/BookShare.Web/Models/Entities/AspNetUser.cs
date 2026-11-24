@@ -45,6 +45,8 @@ public partial class AspNetUser
 
     public int LendQuotaBonus { get; set; }
 
+    public string? UiPreferencesJson { get; set; }
+
     public DateTime CreatedAt { get; set; }
 
     public virtual ICollection<AiChatMessage> AiChatMessages { get; set; } = new List<AiChatMessage>();

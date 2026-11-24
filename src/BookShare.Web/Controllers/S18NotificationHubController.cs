@@ -47,6 +47,20 @@ public class S18NotificationHubController : Controller
         });
     }
 
+    // Popup nhanh trên chuông thông báo header (trả về danh sách mới nhất + link trang chi tiết)
+    [HttpGet]
+    public async Task<IActionResult> RecentPopup(int take = 8)
+    {
+        if (User.Identity?.IsAuthenticated != true)
+        {
+            return Unauthorized(new { unreadCount = 0, items = Array.Empty<object>() });
+        }
+
+        var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
+        var res = await _notificationService.GetRecentPopupNotificationsAsync(currentUserId, take);
+        return Ok(res);
+    }
+
     [HttpPost]
     [Authorize]
     [ValidateAntiForgeryToken]

@@ -13,7 +13,7 @@
             <span class="badge bg-info text-dark mb-2 px-3 py-1 rounded-pill">TRUNG TÂM THÔNG BÁO &amp; XÁC MINH EMAIL OTP</span>
             <h2 class="fw-bold mb-1">🔔 Cài Đặt Thông Báo, Xác Minh OTP Email &amp; Nhắc Hạn Tự Động</h2>
             <p class="text-muted small mb-0">
-                Xác minh địa chỉ Email nhận thông báo bằng mã OTP 6 chữ số (cấu hình qua <code>.env</code> Resend API) và quản lý thông báo nhắc hạn trả sách, thông báo có sách đặt trước theo thời gian thực.
+                Xác minh địa chỉ Email nhận thông báo bằng mã OTP 6 chữ số và quản lý thông báo nhắc hạn trả sách, thông báo có sách đặt trước theo thời gian thực.
             </p>
         </div>
         <div class="d-flex gap-2">
@@ -128,7 +128,7 @@
                 <div class="d-flex flex-column gap-3" id="notifListContainer">
                     @foreach (var n in Model.Notifications)
                     {
-                        <div class="s18-notif-card @(n.IsRead ? "is-read" : "is-unread")" data-notif-type="@n.Type">
+                        <div id="notif-card-@n.Id" class="s18-notif-card @(n.IsRead ? "is-read" : "is-unread")" data-notif-type="@n.Type">
                             <div class="d-flex justify-content-between align-items-start gap-2 flex-wrap mb-1">
                                 <div class="d-flex align-items-center gap-2 flex-wrap">
                                     <span class="badge @(n.Type == "DueReminder" ? "bg-danger" : n.Type == "QueueAvailable" ? "bg-warning text-dark" : n.Type == "Dispute" ? "bg-dark" : "bg-primary")">
@@ -137,7 +137,7 @@
                                     @if (n.EmailSentViaResend)
                                     {
                                         <span class="badge bg-success bg-opacity-10 text-success border border-success">
-                                            <i class="bi bi-envelope-check-fill me-1"></i>Đã gửi Resend Email
+                                            <i class="bi bi-envelope-check-fill me-1"></i>Đã gửi Email
                                         </span>
                                     }
                                     @if (!n.IsRead)
@@ -151,9 +151,15 @@
 
                             <p class="small text-secondary mb-2">@n.Content</p>
 
-                            <div class="d-flex justify-content-between align-items-center">
+                            <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
                                 <small class="text-muted">Người nhận: <strong>@n.UserFullName</strong> (<code>@n.UserEmail</code>)</small>
                                 <div class="d-flex align-items-center gap-2">
+                                    @if (!string.IsNullOrWhiteSpace(n.DetailUrl) && !n.DetailUrl.StartsWith("/S18NotificationHub"))
+                                    {
+                                        <a href="@n.DetailUrl" class="btn btn-xs btn-outline-info fw-semibold">
+                                            Xem trang liên quan &rarr;
+                                        </a>
+                                    }
                                     @if (!n.IsRead)
                                     {
                                         <button type="button" class="btn btn-xs btn-outline-primary js-mark-read" data-id="@n.Id">

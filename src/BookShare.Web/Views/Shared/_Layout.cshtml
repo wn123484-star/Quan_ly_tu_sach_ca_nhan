@@ -35,13 +35,40 @@
     }
     <title>@ViewData["Title"] - BookShare</title>
 
-    <!-- Mặc định luôn là nền sáng (Light Mode); chỉ bật Dark Mode khi người dùng chủ động chọn -->
+    <!-- Zero-FOUC: áp dụng ngay Chế độ Sáng/Tối, Phong cách Bootstrap, Phông chữ & Cỡ chữ cục bộ (0 CDN) -->
     <script>
         (function () {
-            var saved = null;
-            try { saved = localStorage.getItem('bookshare_theme'); } catch (e) { }
-            var theme = saved === 'dark' ? 'dark' : 'light';
-            document.documentElement.setAttribute('data-bs-theme', theme);
+            var styleMap = {
+                sketchy: '/vendor/bootswatch/sketchy.min.css',
+                flatly: '/vendor/bootswatch/flatly.min.css',
+                morph: '/vendor/bootswatch/morph.min.css',
+                cyborg: '/vendor/bootswatch/cyborg.min.css'
+            };
+            var prefs = { theme: 'light', style: 'standard', palette: 'blue', font: 'roboto', fontSize: 'md' };
+            try {
+                var raw = localStorage.getItem('bookshare_ui_prefs');
+                if (raw) {
+                    var parsed = JSON.parse(raw);
+                    if (parsed && typeof parsed === 'object') {
+                        if (parsed.theme === 'dark') prefs.theme = 'dark';
+                        if (parsed.style) prefs.style = parsed.style;
+                        if (parsed.palette) prefs.palette = parsed.palette;
+                        if (parsed.font) prefs.font = parsed.font;
+                        if (parsed.fontSize) prefs.fontSize = parsed.fontSize;
+                    }
+                } else {
+                    if (localStorage.getItem('bookshare_theme') === 'dark') prefs.theme = 'dark';
+                    var p = localStorage.getItem('bookshare_palette');
+                    if (p) prefs.palette = p;
+                }
+            } catch (e) { }
+            var html = document.documentElement;
+            html.setAttribute('data-bs-theme', prefs.style === 'cyborg' ? 'dark' : prefs.theme);
+            html.setAttribute('data-ui-style', prefs.style);
+            html.setAttribute('data-font-family', prefs.font);
+            html.setAttribute('data-font-size', prefs.fontSize);
+            window.__bsInitialUiPrefs = prefs;
+            window.__bsStyleCssUrl = styleMap[prefs.style] || '/vendor/bootstrap/bootstrap.min.css';
         })();
     </script>
 
@@ -55,12 +82,25 @@
     <meta name="apple-mobile-web-app-title" content="BookShare" />
     <link rel="apple-touch-icon" href="@faviconUrl" />
 
-    <link rel="stylesheet" href="~/vendor/bootstrap/bootstrap.min.css" />
+    <link id="bsBootstrapThemeLink" rel="stylesheet" href="~/vendor/bootstrap/bootstrap.min.css" />
+    <script>
+        (function () {
+            var lnk = document.getElementById('bsBootstrapThemeLink');
+            if (lnk && window.__bsStyleCssUrl && !lnk.getAttribute('href').endsWith(window.__bsStyleCssUrl)) {
+                lnk.setAttribute('href', window.__bsStyleCssUrl);
+            }
+        })();
+    </script>
     <link rel="stylesheet" href="~/vendor/bootstrap-icons/font/bootstrap-icons.css" />
     <link rel="stylesheet" href="~/css/core-theme.css" asp-append-version="true" />
     @await RenderSectionAsync("Styles", required: false)
 </head>
-<body data-portal-palette="blue" class="@(isMobileApp ? "is-mobile-app" : null)">
+<body data-portal-palette="blue" data-authenticated="@(isAuthenticated ? "1" : "0")" class="@(isMobileApp ? "is-mobile-app" : null)">
+    <script>
+        if (window.__bsInitialUiPrefs && window.__bsInitialUiPrefs.palette) {
+            document.body.setAttribute('data-portal-palette', window.__bsInitialUiPrefs.palette);
+        }
+    </script>
     <a href="#mainContent" class="skip-link">Bỏ qua menu, tới nội dung chính</a>
 
     <!-- Splash Screen: hiện 1 lần mỗi phiên khi app vừa khởi động -->
@@ -183,10 +223,29 @@
 
                     @if (isAuthenticated)
                     {
-                        <a asp-controller="S18NotificationHub" asp-action="Index" id="notificationBell" class="notif-bell" aria-label="Thông báo">
-                            <i class="bi bi-bell-fill" aria-hidden="true"></i>
-                            <span class="notif-dot d-none" aria-hidden="true"></span>
-                        </a>
+                        <div class="dropdown bs-notif-dropdown" id="notifBellDropdown">
+                            <button type="button" id="notificationBell" class="notif-bell border-0" data-bs-toggle="dropdown" data-bs-auto-close="outside" aria-expanded="false" aria-label="Thông báo">
+                                <i class="bi bi-bell-fill" aria-hidden="true"></i>
+                                <span class="notif-dot d-none" aria-hidden="true"></span>
+                            </button>
+                            <div id="notifBellMenu" class="dropdown-menu dropdown-menu-end bs-notif-popover" aria-labelledby="notificationBell">
+                                <div class="bs-notif-popover-head">
+                                    <strong class="small"><i class="bi bi-bell-fill text-primary me-1"></i>Thông báo nhanh</strong>
+                                    <button type="button" id="btnPopupMarkAllRead" class="btn btn-link btn-sm p-0 text-decoration-none small fw-semibold">
+                                        Đọc tất cả
+                                    </button>
+                                </div>
+                                <div id="notifPopupList" class="bs-notif-popover-list">
+                                    <div class="p-3 text-center small text-muted">Đang tải thông báo...</div>
+                                </div>
+                                <div class="bs-notif-popover-foot">
+                                    <span id="notifPopupSummary" class="small text-muted">Trung tâm thông báo</span>
+                                    <a asp-controller="S18NotificationHub" asp-action="Index" class="btn btn-primary btn-xs fw-bold">
+                                        Xem tất cả &rarr;
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
 
                         <div class="dropdown bs-domain-dropdown bs-account-dropdown">
                             <a id="accountMenuToggle" class="dropdown-toggle bs-account-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false" title="@currentUserName (@currentRole)">
@@ -205,7 +264,8 @@
                                         </span>
                                     </div>
                                 </li>
-                                <li><a class="dropdown-item" asp-controller="S01AuthOtpGoogle" asp-action="Index"><i class="bi bi-person-vcard-fill text-info"></i>Hồ Sơ &amp; Bảo Mật</a></li>
+                                <li><a class="dropdown-item" asp-controller="S01AuthOtpGoogle" asp-action="Index"><i class="bi bi-person-vcard-fill text-info"></i>Hồ Sơ, Email &amp; Bảo Mật</a></li>
+                                <li><a class="dropdown-item" href="/S01AuthOtpGoogle?tab=appearance"><i class="bi bi-palette2 text-warning"></i>Cài Đặt Giao Diện, Style &amp; Font</a></li>
                                 <li><a class="dropdown-item" asp-controller="S02PersonalShelf" asp-action="Index"><i class="bi bi-bookshelf text-warning"></i>Tủ Sách Cá Nhân</a></li>
                                 <li><a class="dropdown-item" asp-controller="S17SandboxPayment" asp-action="Index"><i class="bi bi-wallet2 text-success"></i>Ví Tiền Ảo Miễn Phí</a></li>
                                 <li><button type="button" id="btnHeaderQrPay" class="dropdown-item js-open-qr-pay-scanner"><i class="bi bi-qr-code-scan text-info"></i>Quét QR Thanh Toán</button></li>
@@ -216,17 +276,26 @@
                                 <li><hr class="dropdown-divider border-secondary opacity-25 my-1" /></li>
                                 <li class="px-3 py-2">
                                     <div class="small text-secondary mb-1 d-flex justify-content-between">
-                                        <span>Chủ đề màu sắc</span>
+                                        <span>Bảng màu nhanh</span>
                                         <span id="activePaletteLabel" class="text-info fw-semibold">Xanh Sapphire</span>
                                     </div>
-                                    <div class="bs-palette-swatch-row">
-                                        <button type="button" class="bs-palette-dot" style="background:#1d4ed8;" data-set-palette="blue" data-palette-name="Xanh Sapphire" title="Xanh Sapphire" aria-label="Chủ đề Xanh Sapphire"></button>
-                                        <button type="button" class="bs-palette-dot" style="background:#0f172a;" data-set-palette="midnight" data-palette-name="Xanh Đêm Cyber" title="Xanh Đêm Cyber" aria-label="Chủ đề Xanh Đêm Cyber"></button>
-                                        <button type="button" class="bs-palette-dot" style="background:#0284c7;" data-set-palette="ocean" data-palette-name="Xanh Đại Dương" title="Xanh Đại Dương" aria-label="Chủ đề Xanh Đại Dương"></button>
-                                        <button type="button" class="bs-palette-dot" style="background:#059669;" data-set-palette="emerald" data-palette-name="Lục Bảo Thư Viện" title="Lục Bảo Thư Viện" aria-label="Chủ đề Lục Bảo Thư Viện"></button>
-                                        <button type="button" class="bs-palette-dot" style="background:#6d28d9;" data-set-palette="royal" data-palette-name="Tím Hoàng Gia" title="Tím Hoàng Gia" aria-label="Chủ đề Tím Hoàng Gia"></button>
-                                        <button type="button" class="bs-palette-dot" style="background:#b45309;" data-set-palette="obsidian" data-palette-name="Đen Kim Tước" title="Đen Kim Tước" aria-label="Chủ đề Đen Kim Tước"></button>
-                                        <button type="button" class="bs-palette-dot" style="background:#ea580c;" data-set-palette="coral" data-palette-name="Cam Hoàng Hôn" title="Cam Hoàng Hôn" aria-label="Chủ đề Cam Hoàng Hôn"></button>
+                                    <div class="bs-palette-swatch-row mb-2">
+                                        <button type="button" class="bs-palette-dot" style="background:#1d4ed8;" data-set-palette="blue" data-palette-name="Xanh Sapphire" title="Xanh Sapphire"></button>
+                                        <button type="button" class="bs-palette-dot" style="background:#0284c7;" data-set-palette="ocean" data-palette-name="Xanh Đại Dương" title="Xanh Đại Dương"></button>
+                                        <button type="button" class="bs-palette-dot" style="background:#059669;" data-set-palette="emerald" data-palette-name="Lục Bảo Thư Viện" title="Lục Bảo Thư Viện"></button>
+                                        <button type="button" class="bs-palette-dot" style="background:#d97706;" data-set-palette="gold" data-palette-name="Vàng Mộng Mơ" title="Vàng Mộng Mơ"></button>
+                                        <button type="button" class="bs-palette-dot" style="background:#e11d48;" data-set-palette="rose" data-palette-name="Hồng Ấm Áp" title="Hồng Ấm Áp"></button>
+                                        <button type="button" class="bs-palette-dot" style="background:#7c3aed;" data-set-palette="lavender" data-palette-name="Tím Oải Hương" title="Tím Oải Hương"></button>
+                                        <button type="button" class="bs-palette-dot" style="background:#a16207;" data-set-palette="sepia" data-palette-name="Giấy Cổ Thư Viện" title="Giấy Cổ Thư Viện"></button>
+                                        <button type="button" class="bs-palette-dot" style="background:#ea580c;" data-set-palette="coral" data-palette-name="Cam Hoàng Hôn" title="Cam Hoàng Hôn"></button>
+                                        <button type="button" class="bs-palette-dot" style="background:#4f46e5;" data-set-palette="royal" data-palette-name="Tím Hoàng Gia" title="Tím Hoàng Gia"></button>
+                                        <button type="button" class="bs-palette-dot" style="background:#1e293b;" data-set-palette="midnight" data-palette-name="Đêm Ngân Hà" title="Đêm Ngân Hà"></button>
+                                    </div>
+                                    <div class="d-flex flex-wrap gap-1">
+                                        <button type="button" class="btn btn-xs btn-outline-light py-0 px-2" data-set-ui-style="standard">Chuẩn</button>
+                                        <button type="button" class="btn btn-xs btn-outline-warning py-0 px-2" data-set-ui-style="sketchy">✏️ Nghệch ngoặc</button>
+                                        <button type="button" class="btn btn-xs btn-outline-info py-0 px-2" data-set-ui-style="morph">Kính mờ</button>
+                                        <button type="button" class="btn btn-xs btn-outline-light py-0 px-2" data-set-ui-style="flatly">Phẳng</button>
                                     </div>
                                 </li>
                                 <li><hr class="dropdown-divider border-secondary opacity-25 my-1" /></li>
@@ -244,17 +313,27 @@
                     else
                     {
                         <div class="dropdown bs-domain-dropdown">
-                            <a class="dropdown-toggle py-1 px-2" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false" title="Chọn chủ đề màu sắc giao diện" aria-label="Chọn chủ đề màu sắc giao diện">
-                                <i class="bi bi-palette-fill text-info"></i><span id="activePaletteLabel" class="d-none d-xxl-inline">Chủ Đề</span>
+                            <a class="dropdown-toggle py-1 px-2" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false" title="Chọn giao diện, phong cách và màu sắc" aria-label="Chọn giao diện và màu sắc">
+                                <i class="bi bi-palette-fill text-info"></i><span id="activePaletteLabel" class="d-none d-xxl-inline">Giao Diện</span>
                             </a>
-                            <ul class="dropdown-menu dropdown-menu-end">
-                                <li><button type="button" class="dropdown-item" data-set-palette="blue" data-palette-name="Xanh Sapphire">🔵 1. Xanh Sapphire (Mặc định)</button></li>
-                                <li><button type="button" class="dropdown-item" data-set-palette="midnight" data-palette-name="Xanh Đêm Cyber">🌌 2. Xanh Đêm Cyber</button></li>
-                                <li><button type="button" class="dropdown-item" data-set-palette="ocean" data-palette-name="Xanh Đại Dương">🌊 3. Xanh Đại Dương</button></li>
-                                <li><button type="button" class="dropdown-item" data-set-palette="emerald" data-palette-name="Lục Bảo Thư Viện">🟢 4. Lục Bảo Thư Viện</button></li>
-                                <li><button type="button" class="dropdown-item" data-set-palette="royal" data-palette-name="Tím Hoàng Gia">🟣 5. Tím Hoàng Gia</button></li>
-                                <li><button type="button" class="dropdown-item" data-set-palette="obsidian" data-palette-name="Đen Kim Tước">👑 6. Đen Kim Tước</button></li>
-                                <li><button type="button" class="dropdown-item" data-set-palette="coral" data-palette-name="Cam Hoàng Hôn">🟠 7. Cam Hoàng Hôn</button></li>
+                            <ul class="dropdown-menu dropdown-menu-end" style="min-width:270px;">
+                                <li class="px-3 py-1 small text-info fw-bold">🎨 Bảng màu giao diện</li>
+                                <li><button type="button" class="dropdown-item" data-set-palette="blue" data-palette-name="Xanh Sapphire">🔵 Xanh Sapphire (Mặc định)</button></li>
+                                <li><button type="button" class="dropdown-item" data-set-palette="gold" data-palette-name="Vàng Mộng Mơ">✨ Vàng Mộng Mơ</button></li>
+                                <li><button type="button" class="dropdown-item" data-set-palette="rose" data-palette-name="Hồng Ấm Áp">🌸 Hồng Ấm Áp</button></li>
+                                <li><button type="button" class="dropdown-item" data-set-palette="lavender" data-palette-name="Tím Oải Hương">💜 Tím Oải Hương</button></li>
+                                <li><button type="button" class="dropdown-item" data-set-palette="sepia" data-palette-name="Giấy Cổ Thư Viện">📜 Giấy Cổ Thư Viện</button></li>
+                                <li><button type="button" class="dropdown-item" data-set-palette="emerald" data-palette-name="Lục Bảo Thư Viện">🟢 Lục Bảo Thư Viện</button></li>
+                                <li><button type="button" class="dropdown-item" data-set-palette="ocean" data-palette-name="Xanh Đại Dương">🌊 Xanh Đại Dương</button></li>
+                                <li><button type="button" class="dropdown-item" data-set-palette="coral" data-palette-name="Cam Hoàng Hôn">🟠 Cam Hoàng Hôn</button></li>
+                                <li><button type="button" class="dropdown-item" data-set-palette="midnight" data-palette-name="Đêm Ngân Hà">🌌 Đêm Ngân Hà</button></li>
+                                <li><hr class="dropdown-divider border-secondary opacity-25 my-1" /></li>
+                                <li class="px-3 py-1 small text-warning fw-bold">✏️ Phong cách Bootstrap</li>
+                                <li><button type="button" class="dropdown-item" data-set-ui-style="standard">📘 Chuẩn Hiện Đại</button></li>
+                                <li><button type="button" class="dropdown-item" data-set-ui-style="sketchy">✏️ Nét Vẽ Nghệch Ngoặc (Sketchy)</button></li>
+                                <li><button type="button" class="dropdown-item" data-set-ui-style="morph">🫧 Kính Mờ Mềm Mại (Morph)</button></li>
+                                <li><button type="button" class="dropdown-item" data-set-ui-style="flatly">📐 Phẳng Sắc Nét (Flatly)</button></li>
+                                <li><button type="button" class="dropdown-item" data-set-ui-style="cyborg">⚡ Đêm Công Nghệ (Cyborg)</button></li>
                             </ul>
                         </div>
 
@@ -339,10 +418,10 @@
         @RenderBody()
     </main>
 
-    <!-- 4. WIDGET TRỢ LÝ AI GỌN NHẸ Ở GÓC PHẢI DƯỚI (TỰ ẨN TRÊN TRANG TRỢ LÝ AI TOÀN MÀN HÌNH) -->
+    <!-- 4. WIDGET TRỢ LÝ AI GỌN NHẸ Ở GÓC PHẢI DƯỚI (LỊCH SỬ BỀN VỮNG THEO PHÂN QUYỀN + RESET + EMAIL + STYLE) -->
     @if (!isAiFullPage)
     {
-        <div id="aiFloatingWidget" class="ai-chat-widget">
+        <div id="aiFloatingWidget" class="ai-chat-widget" data-authenticated="@(isAuthenticated ? "1" : "0")" data-user-role="@currentRole">
             <button type="button" id="btnToggleAIChat" class="ai-chat-fab shadow" aria-expanded="false" aria-controls="aiChatPopup" title="Trợ lý AI Thủ thư" aria-label="Mở Trợ lý AI Thủ thư">
                 @IconService.RenderIconHtml("ai_fab", "bi-stars", "fs-4")
             </button>
@@ -353,10 +432,24 @@
                         @IconService.RenderIconHtml("ai_fab", "bi-stars", "fs-5")
                         <div class="min-w-0">
                             <strong class="small d-block text-truncate">Trợ lý AI BookShare</strong>
-                            <span style="font-size: 0.68rem; opacity: 0.85;" class="d-block text-truncate">Tư vấn kho sách &amp; lịch đọc</span>
+                            <span id="aiWidgetSubtitle" style="font-size: 0.68rem; opacity: 0.9;" class="d-block text-truncate">
+                                @(isAuthenticated ? $"Phiên lưu bền vững • {currentRole}" : "Tư vấn kho sách & giao diện")
+                            </span>
                         </div>
                     </div>
                     <div class="d-flex align-items-center gap-1 flex-shrink-0">
+                        <button type="button" id="btnToggleAiStyleBar" class="btn btn-sm text-white p-0 px-1" title="Chọn phong cách, font & cỡ chữ" aria-label="Chọn phong cách và font chữ">
+                            <i class="bi bi-palette2" aria-hidden="true"></i>
+                        </button>
+                        @if (isAuthenticated)
+                        {
+                            <button type="button" id="btnEmailAIChat" class="btn btn-sm text-white p-0 px-1" title="Gửi bản lưu hội thoại qua Email" aria-label="Gửi hội thoại qua Email">
+                                <i class="bi bi-envelope-arrow-up" aria-hidden="true"></i>
+                            </button>
+                        }
+                        <button type="button" id="btnResetAIChat" class="btn btn-sm text-white p-0 px-1" title="Đặt lại cuộc trò chuyện (Reset Chat)" aria-label="Đặt lại cuộc trò chuyện">
+                            <i class="bi bi-arrow-counterclockwise" aria-hidden="true"></i>
+                        </button>
                         <a asp-controller="S13GeminiAiAssistant" asp-action="Index" class="btn btn-sm text-white p-0 px-1" title="Mở toàn trang Trợ lý AI" aria-label="Mở toàn trang Trợ lý AI">
                             <i class="bi bi-arrows-angle-expand" aria-hidden="true"></i>
                         </a>
@@ -369,17 +462,54 @@
                     </div>
                 </div>
 
+                <!-- Thanh tùy biến Style/Màu/Font/Cỡ chữ nhanh ngay trong Chat AI -->
+                <div id="aiWidgetStyleBar" class="ai-chat-stylebar d-none">
+                    <select id="aiStyleSelect" class="form-select form-select-sm" aria-label="Chọn phong cách giao diện">
+                        <option value="standard">Style: Chuẩn</option>
+                        <option value="sketchy">Style: Nghệch ngoặc</option>
+                        <option value="morph">Style: Kính mờ</option>
+                        <option value="flatly">Style: Phẳng</option>
+                        <option value="cyborg">Style: Đêm Cyborg</option>
+                    </select>
+                    <select id="aiPaletteSelect" class="form-select form-select-sm" aria-label="Chọn bảng màu">
+                        <option value="blue">Màu: Sapphire</option>
+                        <option value="gold">Màu: Vàng Mộng Mơ</option>
+                        <option value="rose">Màu: Hồng Ấm Áp</option>
+                        <option value="lavender">Màu: Tím Oải Hương</option>
+                        <option value="sepia">Màu: Giấy Cổ</option>
+                        <option value="emerald">Màu: Lục Bảo</option>
+                        <option value="ocean">Màu: Đại Dương</option>
+                        <option value="coral">Màu: Cam Hoàng Hôn</option>
+                        <option value="royal">Màu: Tím Hoàng Gia</option>
+                        <option value="midnight">Màu: Đêm Ngân Hà</option>
+                    </select>
+                    <select id="aiFontSelect" class="form-select form-select-sm" aria-label="Chọn phông chữ">
+                        <option value="roboto">Font: Roboto</option>
+                        <option value="bevietnam">Font: Be Vietnam Pro</option>
+                        <option value="lora">Font: Lora (Sách giấy)</option>
+                        <option value="patrick">Font: Patrick Hand</option>
+                        <option value="jetbrains">Font: JetBrains Mono</option>
+                    </select>
+                    <select id="aiFontSizeSelect" class="form-select form-select-sm" aria-label="Chọn cỡ chữ">
+                        <option value="sm">Cỡ chữ: Nhỏ (14px)</option>
+                        <option value="md">Cỡ chữ: Chuẩn (16px)</option>
+                        <option value="lg">Cỡ chữ: Lớn (17.5px)</option>
+                        <option value="xl">Cỡ chữ: Rất lớn (19px)</option>
+                    </select>
+                </div>
+
                 <div class="px-2 py-2 border-bottom bg-body-tertiary d-flex gap-1 flex-wrap">
                     <button type="button" class="btn btn-outline-primary btn-xs ai-quick-prompt" data-prompt="Gợi ý sách sẵn sàng cho mượn trong kho ĐH CMC.">📚 Sách sẵn có</button>
-                    <button type="button" class="btn btn-outline-success btn-xs ai-quick-prompt" data-prompt="Kiểm tra tiến độ đọc và hạn trả sách hiện tại của mình.">⏰ Tiến độ &amp; hạn trả</button>
+                    <button type="button" class="btn btn-outline-success btn-xs ai-quick-prompt" data-prompt="Kiểm tra tiến độ đọc và hạn trả sách hiện tại của mình.">⏰ Hạn trả</button>
+                    <button type="button" class="btn btn-outline-warning text-dark btn-xs ai-quick-prompt" data-prompt="Đổi giao diện sang phong cách nét vẽ nghệch ngoặc màu vàng mộng mơ.">✏️ Thử Sketchy</button>
                 </div>
 
                 <div id="aiChatWidgetMessages" class="ai-chat-messages p-3" role="log" aria-live="polite">
-                    <div class="ai-msg ai-msg-bot">Xin chào! Mình là Trợ lý AI BookShare. Bạn cần tìm sách mượn miễn phí hay kiểm tra tiến độ đọc hiện tại?</div>
+                    <div class="ai-msg ai-msg-bot">Xin chào! Mình là Trợ lý AI BookShare. Bạn cần tìm sách mượn miễn phí hay tùy chỉnh giao diện, font chữ?</div>
                 </div>
 
                 <form id="aiChatWidgetForm" class="border-top p-2 d-flex gap-2 bg-white">
-                    <input type="text" id="aiChatWidgetInput" class="form-control form-control-sm" placeholder="Nhập câu hỏi cho trợ lý sách..." autocomplete="off" aria-label="Câu hỏi cho trợ lý AI" />
+                    <input type="text" id="aiChatWidgetInput" class="form-control form-control-sm" placeholder="Nhập câu hỏi hoặc lệnh đổi giao diện..." autocomplete="off" aria-label="Câu hỏi cho trợ lý AI" />
                     <button type="submit" class="btn btn-primary btn-sm px-3" aria-label="Gửi câu hỏi"><i class="bi bi-send" aria-hidden="true"></i></button>
                 </form>
             </div>
@@ -390,6 +520,12 @@
         <div class="container text-center text-muted small">
             <p class="mb-1 fw-bold">BookShare – Hệ Sinh Thái Thư Viện Số, Quản Lý Tủ Sách Cá Nhân &amp; Chia Sẻ Sách Cộng Đồng</p>
             <p class="mb-0">100% chia sẻ &amp; mượn trả sách giấy 0đ • Bảo lãnh uy tín thành viên minh bạch</p>
+            @if (RecaptchaService.IsEnabled)
+            {
+                <p class="mb-0 mt-1" style="font-size:0.72rem; opacity:0.75;">
+                    Bảo vệ chống truy cập tự động bởi Google reCAPTCHA (áp dụng Chính sách Quyền riêng tư &amp; Điều khoản của Google).
+                </p>
+            }
         </div>
     </footer>
 

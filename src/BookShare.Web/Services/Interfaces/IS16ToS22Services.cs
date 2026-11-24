@@ -6,9 +6,18 @@ public interface IS16MembershipTierService
 {
     Task<S16MembershipTierPageViewModel> GetMembershipTierPageAsync(string currentUserId);
 
+    Task<(bool Success, string Message, S16TierSwitchPreviewResultDto? Preview)> PreviewTierSwitchAsync(
+        string currentUserId,
+        string targetTier,
+        int durationMonths);
+
     Task<(bool Success, string Message, int? CreatedTransactionId, string? RawPayload, string? ExpectedHmacSignature)> SwitchOrExtendMembershipAsync(
         string currentUserId,
         S16SwitchMembershipRequestDto request);
+
+    Task<(bool Success, string Message)> CancelMembershipAsync(
+        string currentUserId,
+        string? reason = null);
 }
 
 public interface IS17SandboxPaymentService
@@ -39,10 +48,11 @@ public interface IS17SandboxPaymentService
 
     Task<decimal> GetWalletBalanceAsync(string userId);
 
-    Task<(bool Success, string Message, decimal NewBalance, int TransactionId)> TopUpVirtualWalletAsync(
+    Task<(bool Success, string Message, decimal NewBalance, int TransactionId, bool RateLimited)> TopUpVirtualWalletAsync(
         string currentUserId,
         decimal amount,
-        string? note = null);
+        string? note = null,
+        string? idempotencyKey = null);
 
     Task<(bool Success, string Message, S17QrInvoicePreviewResultDto? Invoice)> PreviewQrInvoiceAsync(
         string currentUserId,
@@ -77,6 +87,10 @@ public interface IS18NotificationHubService
         string currentUserRole = "User",
         string typeFilter = "all",
         bool viewAll = false);
+
+    Task<S18RecentPopupResultDto> GetRecentPopupNotificationsAsync(
+        string currentUserId,
+        int take = 8);
 
     Task<(bool Success, string Message)> MarkNotificationReadAsync(
         string currentUserId,

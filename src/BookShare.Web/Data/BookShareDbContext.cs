@@ -148,6 +148,7 @@ public partial class BookShareDbContext : DbContext
             entity.Property(e => e.NormalizedUserName).HasMaxLength(256);
             entity.Property(e => e.PhoneNumber).HasMaxLength(30);
             entity.Property(e => e.TrustScore).HasDefaultValue(100, "DF_AspNetUsers_TrustScore");
+            entity.Property(e => e.UiPreferencesJson).HasMaxLength(1000);
             entity.Property(e => e.UserName).HasMaxLength(256);
 
             entity.HasMany(d => d.Roles).WithMany(p => p.Users)
@@ -632,6 +633,7 @@ public partial class BookShareDbContext : DbContext
 
             entity.Property(e => e.IconKey).HasMaxLength(64);
             entity.Property(e => e.CategoryGroup).HasMaxLength(60);
+            entity.Property(e => e.CustomImageContentType).HasMaxLength(100);
             entity.Property(e => e.CustomImageUrl).HasMaxLength(300);
             entity.Property(e => e.DefaultIconClass).HasMaxLength(100);
             entity.Property(e => e.DisplayName).HasMaxLength(120);
@@ -643,16 +645,26 @@ public partial class BookShareDbContext : DbContext
         {
             entity.HasIndex(e => new { e.UserId, e.CreatedAt }, "IX_Transactions_UserId_CreatedAt").IsDescending(false, true);
 
+            entity.HasIndex(e => e.IdempotencyKey, "UX_Transactions_IdempotencyKey")
+                .IsUnique()
+                .HasFilter("([IdempotencyKey] IS NOT NULL)");
+
+            entity.Property(e => e.ActionType).HasMaxLength(30);
             entity.Property(e => e.Amount).HasColumnType("decimal(18, 2)");
+            entity.Property(e => e.BalanceAfter).HasColumnType("decimal(18, 2)");
+            entity.Property(e => e.BalanceBefore).HasColumnType("decimal(18, 2)");
             entity.Property(e => e.CreatedAt).HasDefaultValueSql("(sysutcdatetime())", "DF_Transactions_CreatedAt");
             entity.Property(e => e.Description).HasMaxLength(300);
             entity.Property(e => e.HmacSignature).HasMaxLength(256);
+            entity.Property(e => e.IdempotencyKey).HasMaxLength(100);
             entity.Property(e => e.PaymentGateway)
                 .HasMaxLength(30)
                 .HasDefaultValue("VirtualWallet", "DF_Transactions_Gateway");
             entity.Property(e => e.PaymentStatus)
                 .HasMaxLength(20)
                 .HasDefaultValue("Pending", "DF_Transactions_Status");
+            entity.Property(e => e.ProrationCredit).HasColumnType("decimal(18, 2)");
+            entity.Property(e => e.SwitchFee).HasColumnType("decimal(18, 2)");
             entity.Property(e => e.TargetTier).HasMaxLength(20);
             entity.Property(e => e.TransactionType).HasMaxLength(30);
 

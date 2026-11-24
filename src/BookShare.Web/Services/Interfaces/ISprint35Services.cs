@@ -24,4 +24,5 @@ public interface ISystemIconService
     Task<(bool Success, string Message)> ResetIconToDefaultAsync(
         string adminUserId,
         string iconKey);
+    Task<(byte[]? Bytes, string ContentType)> GetCustomIconBinaryAsync(string iconKey);
 }

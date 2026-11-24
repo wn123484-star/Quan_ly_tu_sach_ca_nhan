@@ -30,6 +30,25 @@ public class S16MembershipTierController : Controller
     [HttpPost]
     [Authorize]
     [ValidateAntiForgeryToken]
+    public async Task<IActionResult> PreviewTierSwitch([FromBody] S16PreviewTierSwitchDto request)
+    {
+        var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
+        var (success, message, preview) = await _membershipService.PreviewTierSwitchAsync(
+            currentUserId,
+            request?.TargetTier ?? "Premium",
+            request?.DurationMonths ?? 12);
+
+        if (!success)
+        {
+            return BadRequest(new { message, preview });
+        }
+
+        return Ok(new { title = "Báo giá minh bạch gói hội viên", message, preview });
+    }
+
+    [HttpPost]
+    [Authorize]
+    [ValidateAntiForgeryToken]
     public async Task<IActionResult> SwitchMembership([FromBody] S16SwitchMembershipRequestDto request)
     {
         var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
@@ -66,6 +85,29 @@ public class S16MembershipTierController : Controller
             expectedHmac,
             walletBalance,
             redirectUrl
+        });
+    }
+
+    [HttpPost]
+    [Authorize]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> CancelMembership([FromBody] S16CancelMembershipRequestDto? request)
+    {
+        var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
+        var (success, message) = await _membershipService.CancelMembershipAsync(currentUserId, request?.Reason);
+        if (!success)
+        {
+            return BadRequest(new { message });
+        }
+
+        TempData["StatusCode"] = 200;
+        TempData["StatusTitle"] = "Đã hủy gói hội viên thành công";
+        TempData["StatusDetail"] = message;
+
+        return Ok(new
+        {
+            title = "Đã hủy gói hội viên về gói Free",
+            message
         });
     }
 }

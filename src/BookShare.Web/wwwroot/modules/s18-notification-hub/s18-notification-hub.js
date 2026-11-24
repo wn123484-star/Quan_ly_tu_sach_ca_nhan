@@ -1,6 +1,16 @@
 import { apiFetch, confirmDialog, getRecaptchaToken } from '../../js/core-api.js';
 
 document.addEventListener('DOMContentLoaded', () => {
+    // 0. Tự động cuộn & làm nổi bật thông báo khi đi từ Popup nhanh (?highlight=ID)
+    const highlightId = new URLSearchParams(window.location.search).get('highlight');
+    if (highlightId) {
+        const targetCard = document.getElementById(`notif-card-${highlightId}`);
+        if (targetCard) {
+            targetCard.classList.add('bs-notif-highlight');
+            targetCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+    }
+
     // 1. Lọc nhanh theo loại thông báo trên Client
     document.querySelectorAll('.js-filter-notif').forEach(btn => {
         btn.addEventListener('click', () => {

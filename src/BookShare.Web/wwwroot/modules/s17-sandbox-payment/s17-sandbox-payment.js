@@ -18,17 +18,29 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
+    const makeIdemKey = (prefix) => (window.crypto?.randomUUID
+        ? `${prefix}-${window.crypto.randomUUID()}`
+        : `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`);
+
+    let topUpInFlight = false;
     document.getElementById('formVirtualTopUp')?.addEventListener('submit', async (e) => {
         e.preventDefault();
-        const amount = parseFloat(topUpInput?.value || '0');
-        const note = topUpNote?.value.trim() || '';
-        const res = await apiFetch('/S17SandboxPayment/TopUpVirtualWallet', {
-            method: 'POST',
-            body: { amount, note }
-        });
-        if (res.ok) {
-            celebrate();
-            setTimeout(() => window.location.reload(), 700);
+        if (topUpInFlight) return;
+        topUpInFlight = true;
+        try {
+            const amount = parseFloat(topUpInput?.value || '0');
+            const note = topUpNote?.value.trim() || '';
+            const res = await apiFetch('/S17SandboxPayment/TopUpVirtualWallet', {
+                method: 'POST',
+                body: { amount, note, idempotencyKey: makeIdemKey('topup') },
+                button: document.getElementById('btnTopUpVirtualWallet')
+            });
+            if (res.ok) {
+                celebrate();
+                setTimeout(() => window.location.reload(), 700);
+            }
+        } finally {
+            topUpInFlight = false;
         }
     });
 
@@ -79,40 +91,49 @@ document.addEventListener('DOMContentLoaded', () => {
     txTypeSelect?.addEventListener('change', syncOrderDefaults);
     txTierSelect?.addEventListener('change', syncOrderDefaults);
 
+    let orderInFlight = false;
     document.getElementById('formCreateSandboxOrder')?.addEventListener('submit', async (e) => {
         e.preventDefault();
-        const transactionType = txTypeSelect?.value || 'Membership';
-        const amount = parseFloat(txAmountInput?.value || '49000');
-        const targetTier = transactionType === 'Membership' ? (txTierSelect?.value || 'Premium') : null;
-        const loanIdRaw = document.getElementById('txLoanIdSelect')?.value;
-        const loanId = loanIdRaw ? parseInt(loanIdRaw, 10) : null;
+        if (orderInFlight) return;
+        orderInFlight = true;
+        try {
+            const transactionType = txTypeSelect?.value || 'Membership';
+            const amount = parseFloat(txAmountInput?.value || '49000');
+            const targetTier = transactionType === 'Membership' ? (txTierSelect?.value || 'Premium') : null;
+            const loanIdRaw = document.getElementById('txLoanIdSelect')?.value;
+            const loanId = loanIdRaw ? parseInt(loanIdRaw, 10) : null;
 
-        const res = await apiFetch('/S17SandboxPayment/CreateOrder', {
-            method: 'POST',
-            body: {
-                transactionType,
-                amount,
-                paymentGateway: 'QrPay',
-                loanId,
-                targetTier,
-                durationMonths: transactionType === 'Membership' ? 1 : null
-            }
-        });
-
-        if (res.ok && res.data) {
-            const cbId = document.getElementById('cbTransactionId');
-            const cbRaw = document.getElementById('cbRawPayload');
-            const cbHmac = document.getElementById('cbHmacSignature');
-            if (cbId) cbId.value = res.data.transactionId;
-            if (cbRaw) cbRaw.value = res.data.rawPayload;
-            if (cbHmac) cbHmac.value = res.data.expectedHmacSignature;
-
-            await showQrPaymentInvoiceModal({
-                transactionId: res.data.transactionId,
-                amount,
-                description: res.data.message,
-                qrPayload: res.data.qrPayload
+            const res = await apiFetch('/S17SandboxPayment/CreateOrder', {
+                method: 'POST',
+                button: document.getElementById('btnCreateOrder'),
+                body: {
+                    transactionType,
+                    amount,
+                    paymentGateway: 'QrPay',
+                    loanId,
+                    targetTier,
+                    durationMonths: transactionType === 'Membership' ? 1 : null,
+                    idempotencyKey: makeIdemKey('order')
+                }
             });
+
+            if (res.ok && res.data) {
+                const cbId = document.getElementById('cbTransactionId');
+                const cbRaw = document.getElementById('cbRawPayload');
+                const cbHmac = document.getElementById('cbHmacSignature');
+                if (cbId) cbId.value = res.data.transactionId;
+                if (cbRaw) cbRaw.value = res.data.rawPayload;
+                if (cbHmac) cbHmac.value = res.data.expectedHmacSignature;
+
+                await showQrPaymentInvoiceModal({
+                    transactionId: res.data.transactionId,
+                    amount,
+                    description: res.data.message,
+                    qrPayload: res.data.qrPayload
+                });
+            }
+        } finally {
+            orderInFlight = false;
         }
     });
 

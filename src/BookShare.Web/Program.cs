@@ -7,6 +7,7 @@ using BookShare.Web.Services.Interfaces;
 using Hangfire;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.EntityFrameworkCore;
 
@@ -22,6 +23,20 @@ var connectionString = builder.Configuration.GetConnectionString("DefaultConnect
 builder.Services.AddDbContext<BookShareDbContext>(options =>
     options.UseSqlServer(connectionString));
 
+// 2.5. Lưu bền vững khóa DataProtection (tránh lỗi CorrelationCookie Google OAuth khi container khởi động lại)
+var dpKeysDir = Path.Combine(builder.Environment.ContentRootPath, "App_Data", "dpkeys");
+try
+{
+    Directory.CreateDirectory(dpKeysDir);
+    builder.Services.AddDataProtection()
+        .SetApplicationName("BookShare.Portal")
+        .PersistKeysToFileSystem(new DirectoryInfo(dpKeysDir));
+}
+catch
+{
+    builder.Services.AddDataProtection().SetApplicationName("BookShare.Portal");
+}
+
 // 3. Cấu hình xác thực người dùng & Google OAuth 2.0
 var (googleClientId, googleClientSecret) = AuthConfigHelper.GetGoogleOAuthCredentials(builder.Configuration);
 var isGoogleOAuthConfigured = AuthConfigHelper.IsGoogleOAuthConfigured(builder.Configuration);
@@ -31,6 +46,14 @@ var authBuilder = builder.Services.AddAuthentication(options =>
     options.DefaultScheme = CookieAuthenticationDefaults.AuthenticationScheme;
     options.DefaultSignInScheme = CookieAuthenticationDefaults.AuthenticationScheme;
     options.DefaultChallengeScheme = CookieAuthenticationDefaults.AuthenticationScheme;
+})
+.AddCookie(AuthConfigHelper.ExternalCookieScheme, options =>
+{
+    options.Cookie.Name = "BookShare.ExternalCookie";
+    options.Cookie.HttpOnly = true;
+    options.Cookie.SameSite = SameSiteMode.Lax;
+    options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
+    options.ExpireTimeSpan = TimeSpan.FromMinutes(10);
 })
 .AddCookie(options =>
 {
@@ -116,7 +139,17 @@ if (isGoogleOAuthConfigured)
     {
         options.ClientId = googleClientId;
         options.ClientSecret = googleClientSecret;
+        options.SignInScheme = AuthConfigHelper.ExternalCookieScheme;
         options.CallbackPath = "/signin-google";
+        options.CorrelationCookie.SameSite = SameSiteMode.Lax;
+        options.CorrelationCookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
+        options.Events.OnRemoteFailure = context =>
+        {
+            var errText = "Không thể hoàn tất đăng nhập Google (vui lòng kiểm tra cấu hình Redirect URI hoặc thử lại).";
+            context.Response.Redirect($"/S01AuthOtpGoogle/Index?oauthError={Uri.EscapeDataString(errText)}");
+            context.HandleResponse();
+            return Task.CompletedTask;
+        };
     });
 }
 
@@ -219,6 +252,8 @@ if (!app.Environment.IsDevelopment())
 
 app.UseStatusCodePagesWithReExecute("/Home/StatusCode", "?code={0}");
 app.UseHttpsRedirection();
+// Phục vụ tệp tĩnh phát sinh lúc chạy (/uploads/icons, /uploads/conditions, ...) mà MapStaticAssets không lập chỉ mục lúc build
+app.UseStaticFiles();
 app.UseRouting();
 
 app.UseAuthentication();

@@ -48,16 +48,32 @@ public class HomeController : Controller
 
     private readonly IPortalDiscoveryService _portalService;
     private readonly IS13GeminiAiService _geminiAiService;
+    private readonly ISystemIconService _iconService;
     private readonly ILogger<HomeController> _logger;
 
     public HomeController(
         IPortalDiscoveryService portalService,
         IS13GeminiAiService geminiAiService,
+        ISystemIconService iconService,
         ILogger<HomeController> logger)
     {
         _portalService = portalService;
         _geminiAiService = geminiAiService;
+        _iconService = iconService;
         _logger = logger;
+    }
+
+    [HttpGet("/assets/system-icons/{iconKey}")]
+    [ResponseCache(Duration = 3600, Location = ResponseCacheLocation.Any)]
+    public async Task<IActionResult> GetSystemIconAsset(string iconKey)
+    {
+        var (bytes, contentType) = await _iconService.GetCustomIconBinaryAsync(iconKey);
+        if (bytes is not { Length: > 0 })
+        {
+            return NotFound();
+        }
+
+        return File(bytes, contentType);
     }
 
     [HttpGet]
@@ -65,6 +81,66 @@ public class HomeController : Controller
     {
         var vm = await _portalService.GetPortalHomeAsync(keyword, source, category);
         return View(vm);
+    }
+
+    [HttpGet("/api/ai-chat/history")]
+    public async Task<IActionResult> GetQuickAiHistory()
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (string.IsNullOrWhiteSpace(userId) || User.Identity?.IsAuthenticated != true)
+        {
+            return Ok(new
+            {
+                authenticated = false,
+                sessionId = 0,
+                roleName = "Guest",
+                userFullName = "Khách",
+                userEmail = string.Empty,
+                hasValidEmail = false,
+                messages = Array.Empty<object>()
+            });
+        }
+
+        var role = User.FindFirstValue(ClaimTypes.Role) ?? "User";
+        var history = await _geminiAiService.GetQuickWidgetHistoryAsync(userId, role);
+        return Ok(history);
+    }
+
+    [HttpPost("/api/ai-chat/reset")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> ResetQuickAiChat([FromBody] BookShare.Web.Models.ViewModels.ResetAiChatRequestDto? request)
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (string.IsNullOrWhiteSpace(userId) || User.Identity?.IsAuthenticated != true)
+        {
+            return Ok(new
+            {
+                title = "Đã làm mới khung chat",
+                message = "Đã đặt lại cuộc trò chuyện chế độ xem nhanh.",
+                sessionId = 0,
+                greeting = new
+                {
+                    sender = "Gemini",
+                    messageText = "Xin chào! Mình là Trợ lý AI BookShare. Bạn cần tìm sách mượn miễn phí 0đ hay đổi phong cách giao diện (Nét vẽ nghệch ngoặc, Vàng mộng mơ, Hồng ấm áp...)?"
+                }
+            });
+        }
+
+        var role = User.FindFirstValue(ClaimTypes.Role) ?? "User";
+        try
+        {
+            var (success, message, sessionId, greeting) = await _geminiAiService.ResetChatSessionAsync(userId, role, request?.SessionId);
+            if (!success)
+            {
+                return BadRequest(new { message });
+            }
+
+            return Ok(new { title = "Đã đặt lại cuộc trò chuyện AI", message, sessionId, greeting });
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return StatusCode(403, new { message = ex.Message });
+        }
     }
 
     [HttpPost("/api/ai-chat/quick-ask")]

@@ -27,6 +27,18 @@ public partial class Transaction
 
     public string? Description { get; set; }
 
+    public string? IdempotencyKey { get; set; }
+
+    public string? ActionType { get; set; }
+
+    public decimal SwitchFee { get; set; }
+
+    public decimal ProrationCredit { get; set; }
+
+    public decimal? BalanceBefore { get; set; }
+
+    public decimal? BalanceAfter { get; set; }
+
     public DateTime CreatedAt { get; set; }
 
     public virtual Loan? Loan { get; set; }

@@ -1,4 +1,4 @@
-import { apiFetch, showSystemStatus, renderMarkdown, confirmDialog, applyClientCommands, renderCopilotExtras } from '../../js/core-api.js';
+import { apiFetch, showSystemStatus, renderMarkdown, confirmDialog, applyClientCommands, renderCopilotExtras, getUiPrefs, applyUiPrefs } from '../../js/core-api.js';
 
 document.addEventListener('DOMContentLoaded', () => {
     const viewport = document.getElementById('s13ChatViewport');
@@ -170,4 +170,64 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
                 });
             });
+
+            // 4. Đặt lại cuộc trò chuyện (Reset Chat)
+            document.getElementById('btnS13ResetChat')?.addEventListener('click', async () => {
+                const ok = await confirmDialog({
+                    title: 'Đặt lại cuộc trò chuyện hiện tại?',
+                    text: 'Toàn bộ tin nhắn cũ trong phiên này sẽ được làm mới sạch sẽ.',
+                    confirmText: 'Reset Chat ngay',
+                    danger: true
+                });
+                if (!ok) return;
+
+                const sessionId = parseInt(sessionIdInput?.value || '0', 10) || null;
+                const res = await apiFetch('/S13GeminiAiAssistant/ResetChat', {
+                    method: 'POST',
+                    body: { sessionId }
+                });
+                if (res.ok) {
+                    window.location.reload();
+                }
+            });
+
+            // 5. Gửi tóm tắt hội thoại AI qua Email (bắt buộc đã cấu hình Email hợp lệ)
+            document.getElementById('btnS13EmailChat')?.addEventListener('click', async () => {
+                const sessionId = parseInt(sessionIdInput?.value || '0', 10) || null;
+                const res = await apiFetch('/S13GeminiAiAssistant/SendChatSummaryEmail', {
+                    method: 'POST',
+                    body: { sessionId }
+                });
+                if (!res.ok && res.data?.requiresEmailSetup) {
+                    const go = await confirmDialog({
+                        title: 'Chưa có địa chỉ Email nhận thư',
+                        text: res.message || 'Vui lòng điền Email hợp lệ trong Cài Đặt Tài Khoản trước khi gửi thư.',
+                        confirmText: 'Đi tới Cài Đặt điền Email →',
+                        cancelText: 'Để sau',
+                        danger: false
+                    });
+                    if (go) window.location.href = '/S01AuthOtpGoogle';
+                }
+            });
+
+            // 6. Thanh chọn nhanh Style / Màu / Font / Cỡ chữ ngay trên S13
+            const curPrefs = getUiPrefs();
+            const bindSel = (id, key) => {
+                const el = document.getElementById(id);
+                if (!el) return;
+                if (curPrefs[key]) el.value = curPrefs[key];
+                el.addEventListener('change', () => {
+                    const patch = { [key]: el.value };
+                    if (key === 'style' && el.value === 'sketchy') {
+                        patch.font = 'patrick';
+                        const f = document.getElementById('s13FontSelect');
+                        if (f) f.value = 'patrick';
+                    }
+                    applyUiPrefs(patch, { persistRemote: true, silent: true });
+                });
+            };
+            bindSel('s13StyleSelect', 'style');
+            bindSel('s13PaletteSelect', 'palette');
+            bindSel('s13FontSelect', 'font');
+            bindSel('s13FontSizeSelect', 'fontSize');
         });

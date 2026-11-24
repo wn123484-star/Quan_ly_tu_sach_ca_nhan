@@ -32,14 +32,19 @@ public class S17SandboxPaymentController : Controller
     public async Task<IActionResult> TopUpVirtualWallet([FromBody] S17WalletTopUpDto request)
     {
         var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
-        var (success, message, newBalance, txId) = await _paymentService.TopUpVirtualWalletAsync(
+        var (success, message, newBalance, txId, rateLimited) = await _paymentService.TopUpVirtualWalletAsync(
             currentUserId,
             request?.Amount ?? 0m,
-            request?.Note);
+            request?.Note,
+            request?.IdempotencyKey);
 
         if (!success)
         {
-            return BadRequest(new { message, balance = newBalance });
+            if (rateLimited)
+            {
+                return StatusCode(StatusCodes.Status429TooManyRequests, new { message, balance = newBalance });
+            }
+            return BadRequest(new { message, balance = newBalance, transactionId = txId });
         }
 
         TempData["StatusCode"] = 200;

@@ -130,4 +130,60 @@ public class S13GeminiAiAssistantController : Controller
                     return StatusCode(403, new { message = ex.Message });
                 }
             }
+
+    [HttpPost]
+    [Authorize]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> ResetChat([FromBody] ResetAiChatRequestDto? request)
+    {
+        var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
+        var currentUserRole = User.FindFirstValue(ClaimTypes.Role) ?? "User";
+        try
+        {
+            var (success, message, sessionId, greeting) = await _geminiService.ResetChatSessionAsync(
+                currentUserId,
+                currentUserRole,
+                request?.SessionId);
+
+            if (!success)
+            {
+                return BadRequest(new { message });
+            }
+
+            return Ok(new
+            {
+                title = "Đã đặt lại cuộc trò chuyện",
+                message,
+                sessionId,
+                greeting
+            });
         }
+        catch (UnauthorizedAccessException ex)
+        {
+            return StatusCode(403, new { message = ex.Message });
+        }
+    }
+
+    [HttpPost]
+    [Authorize]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> SendChatSummaryEmail([FromBody] SendAiChatEmailRequestDto? request)
+    {
+        var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
+        var (success, message, requiresEmailSetup) = await _geminiService.SendChatSummaryEmailAsync(
+            currentUserId,
+            request?.SessionId,
+            request?.CustomNote);
+
+        if (!success)
+        {
+            return BadRequest(new { message, requiresEmailSetup });
+        }
+
+        return Ok(new
+        {
+            title = "Đã gửi tóm tắt hội thoại qua Email",
+            message
+        });
+    }
+}

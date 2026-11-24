@@ -67,6 +67,38 @@ public class S16SwitchMembershipRequestDto
     public int DurationMonths { get; set; } = 12;
     public string PaymentGateway { get; set; } = "QrPay"; // QrPay / VirtualWallet
     public string PaymentMode { get; set; } = "QrInvoice"; // QrInvoice (mặc định tạo hóa đơn QR) / InstantWallet (trừ thẳng ví)
+    public string? IdempotencyKey { get; set; }
+}
+
+public class S16PreviewTierSwitchDto
+{
+    public string TargetTier { get; set; } = "Premium";
+    public int DurationMonths { get; set; } = 12;
+}
+
+public class S16TierSwitchPreviewResultDto
+{
+    public string CurrentTier { get; set; } = "Free";
+    public string CurrentTierDisplayName { get; set; } = "Độc Giả Cơ Bản";
+    public string TargetTier { get; set; } = "Premium";
+    public string TargetTierDisplayName { get; set; } = string.Empty;
+    public int DurationMonths { get; set; } = 12;
+    public bool IsSwitch { get; set; }
+    public bool IsSameActiveTier { get; set; }
+    public int RemainingDays { get; set; }
+    public decimal NewPlanPrice { get; set; }
+    public decimal ProrationCredit { get; set; }
+    public decimal SwitchFee { get; set; }
+    public decimal TotalPayable { get; set; }
+    public decimal WalletBalance { get; set; }
+    public decimal ShortfallAmount => Math.Max(0m, TotalPayable - WalletBalance);
+    public bool HasSufficientBalance => WalletBalance >= TotalPayable;
+    public string FormulaNote { get; set; } = string.Empty;
+}
+
+public class S16CancelMembershipRequestDto
+{
+    public string? Reason { get; set; }
 }
 
 // =========================================================================
@@ -115,6 +147,11 @@ public class S17TransactionItemDto
     public string? TargetTier { get; set; }
     public int? DurationMonths { get; set; }
     public string? Description { get; set; }
+    public string? ActionType { get; set; }
+    public decimal SwitchFee { get; set; }
+    public decimal ProrationCredit { get; set; }
+    public decimal? BalanceBefore { get; set; }
+    public decimal? BalanceAfter { get; set; }
     public string QrPayload => $"BOOKSHARE-PAY:{TransactionId}";
     public string? HmacSignature { get; set; }
     public DateTime CreatedAt { get; set; }
@@ -122,19 +159,24 @@ public class S17TransactionItemDto
 
 public class S17CreateSandboxOrderDto
 {
-    public string TransactionType { get; set; } = "Membership"; // Membership / Fine / SimulatedDeposit
+    public string TransactionType { get; set; } = "Membership"; // Membership / MembershipSwitch / Fine / SimulatedDeposit
     public decimal Amount { get; set; } = 49000m;
     public string PaymentGateway { get; set; } = "QrPay";
     public int? LoanId { get; set; }
     public string? TargetTier { get; set; }
     public int? DurationMonths { get; set; }
     public string? Description { get; set; }
+    public string? ActionType { get; set; }
+    public decimal SwitchFee { get; set; }
+    public decimal ProrationCredit { get; set; }
+    public string? IdempotencyKey { get; set; }
 }
 
 public class S17WalletTopUpDto
 {
     public decimal Amount { get; set; } = 100000m;
     public string? Note { get; set; }
+    public string? IdempotencyKey { get; set; }
 }
 
 public class S17PreviewQrInvoiceDto
@@ -154,6 +196,9 @@ public class S17QrInvoicePreviewResultDto
     public string? TargetTier { get; set; }
     public int? DurationMonths { get; set; }
     public decimal Amount { get; set; }
+    public decimal SwitchFee { get; set; }
+    public decimal ProrationCredit { get; set; }
+    public string? ActionType { get; set; }
     public string PaymentStatus { get; set; } = "Pending";
     public decimal WalletBalance { get; set; }
     public decimal BalanceAfterPayment => Math.Max(0m, WalletBalance - Amount);
@@ -216,6 +261,14 @@ public class S18NotificationItemDto
     public bool IsRead { get; set; }
     public bool EmailSentViaResend { get; set; }
     public DateTime CreatedAt { get; set; }
+    public string DetailUrl { get; set; } = "/S18NotificationHub";
+}
+
+public class S18RecentPopupResultDto
+{
+    public int UnreadCount { get; set; }
+    public int TotalCount { get; set; }
+    public List<S18NotificationItemDto> Items { get; set; } = new();
 }
 
 public class S18MarkNotificationRequestDto

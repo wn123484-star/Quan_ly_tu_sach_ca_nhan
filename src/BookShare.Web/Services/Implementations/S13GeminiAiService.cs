@@ -74,11 +74,11 @@ public class S13GeminiAiService : IS13GeminiAiService
             currentUserId = string.Empty;
         }
 
-        string modelName = _config["Gemini:Model"]
-            ?? Environment.GetEnvironmentVariable("GEMINI_MODEL")
-            ?? "gemini-2.5-flash";
-        string? apiKey = _config["Gemini:ApiKey"]
-            ?? Environment.GetEnvironmentVariable("GEMINI_API_KEY");
+        string modelName = AuthConfigHelper.SanitizeEnvValue(_config["Gemini:Model"]
+            ?? Environment.GetEnvironmentVariable("GEMINI_MODEL"));
+        if (string.IsNullOrWhiteSpace(modelName)) modelName = "gemini-2.5-flash";
+        string apiKey = AuthConfigHelper.SanitizeEnvValue(_config["Gemini:ApiKey"]
+            ?? Environment.GetEnvironmentVariable("GEMINI_API_KEY"));
         bool hasKey = !string.IsNullOrWhiteSpace(apiKey) && !apiKey.StartsWith("demo", StringComparison.OrdinalIgnoreCase);
 
         var sessions = !string.IsNullOrWhiteSpace(currentUserId)
@@ -257,11 +257,11 @@ public class S13GeminiAiService : IS13GeminiAiService
         }
 
         string cleanMsg = userMessage.Trim();
-        string modelName = _config["Gemini:Model"]
-            ?? Environment.GetEnvironmentVariable("GEMINI_MODEL")
-            ?? "gemini-2.5-flash";
-        string? apiKey = _config["Gemini:ApiKey"]
-            ?? Environment.GetEnvironmentVariable("GEMINI_API_KEY");
+        string modelName = AuthConfigHelper.SanitizeEnvValue(_config["Gemini:Model"]
+            ?? Environment.GetEnvironmentVariable("GEMINI_MODEL"));
+        if (string.IsNullOrWhiteSpace(modelName)) modelName = "gemini-2.5-flash";
+        string apiKey = AuthConfigHelper.SanitizeEnvValue(_config["Gemini:ApiKey"]
+            ?? Environment.GetEnvironmentVariable("GEMINI_API_KEY"));
 
         // 1. Xác định Session thuộc đúng chủ sở hữu (Anti-IDOR)
         AiChatSession? session = null;
@@ -469,9 +469,9 @@ public class S13GeminiAiService : IS13GeminiAiService
             case "send_my_reminder_email":
             {
                 var user = await _db.AspNetUsers.AsNoTracking().FirstOrDefaultAsync(u => u.Id == currentUserId);
-                if (user == null || string.IsNullOrWhiteSpace(user.Email))
+                if (user == null || !AuthConfigHelper.IsValidEmailFormat(user.Email))
                 {
-                    return (false, "Không tìm thấy địa chỉ email tài khoản để gửi tóm tắt hạn trả.");
+                    return (false, "Bạn chưa có địa chỉ Email hợp lệ. Vui lòng vào Cài Đặt Tài Khoản (/S01AuthOtpGoogle) để điền Email trước khi gửi thư!");
                 }
 
                 var myLoans = await _db.Loans
@@ -500,7 +500,7 @@ public class S13GeminiAiService : IS13GeminiAiService
                 htmlBody.Append("</div>");
 
                 var (_, _, statusNote) = await _resendEmailService.SendNotificationEmailAsync(
-                    user.Email,
+                    user.Email!,
                     "[BookShare] Tóm tắt lịch hạn trả sách cá nhân",
                     htmlBody.ToString());
 
@@ -517,6 +517,13 @@ public class S13GeminiAiService : IS13GeminiAiService
                 await _db.SaveChangesAsync();
 
                 return (true, $"Đã gửi email nhắc hạn trả cá nhân cho {user.Email}: {statusNote}");
+            }
+
+            case "send_chat_summary_email":
+            {
+                int sid = ExtractIntArg(parameters, "sessionId");
+                var (ok, msg, _) = await SendChatSummaryEmailAsync(currentUserId, sid > 0 ? sid : null, null);
+                return (ok, msg);
             }
 
             case "send_due_reminders_batch":
@@ -562,6 +569,256 @@ public class S13GeminiAiService : IS13GeminiAiService
 
         return (true, $"Đã xóa phiên hội thoại \"{session.Title}\" cùng toàn bộ lịch sử tin nhắn!");
     }
+
+    public async Task<AiQuickHistoryResultDto> GetQuickWidgetHistoryAsync(string currentUserId, string currentUserRole)
+    {
+        if (string.IsNullOrWhiteSpace(currentUserId))
+        {
+            return new AiQuickHistoryResultDto { Authenticated = false, RoleName = "Guest" };
+        }
+
+        var user = await _db.AspNetUsers.AsNoTracking().FirstOrDefaultAsync(u => u.Id == currentUserId);
+        if (user == null)
+        {
+            return new AiQuickHistoryResultDto { Authenticated = false, RoleName = "Guest" };
+        }
+
+        string modelName = AuthConfigHelper.SanitizeEnvValue(_config["Gemini:Model"] ?? Environment.GetEnvironmentVariable("GEMINI_MODEL"));
+        if (string.IsNullOrWhiteSpace(modelName)) modelName = "gemini-2.5-flash";
+
+        var session = await _db.AiChatSessions
+            .Where(s => s.UserId == currentUserId)
+            .OrderByDescending(s => s.UpdatedAt)
+            .FirstOrDefaultAsync();
+
+        if (session == null)
+        {
+            session = new AiChatSession
+            {
+                UserId = currentUserId,
+                Title = $"Hội thoại {ResolveRoleVietnamese(currentUserRole)}",
+                ModelName = modelName,
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow
+            };
+            _db.AiChatSessions.Add(session);
+            await _db.SaveChangesAsync();
+
+            _db.AiChatMessages.Add(new AiChatMessage
+            {
+                SessionId = session.Id,
+                UserId = currentUserId,
+                Sender = "Gemini",
+                MessageText = BuildRoleGreeting(user.FullName, currentUserRole),
+                PromptTokens = 40,
+                CreatedAt = DateTime.UtcNow
+            });
+            await _db.SaveChangesAsync();
+        }
+
+        var messages = await _db.AiChatMessages
+            .AsNoTracking()
+            .Where(m => m.SessionId == session.Id && m.UserId == currentUserId)
+            .OrderByDescending(m => m.Id)
+            .Take(30)
+            .OrderBy(m => m.Id)
+            .Select(m => new S13ChatMessageDto
+            {
+                MessageId = m.Id,
+                Sender = m.Sender,
+                MessageText = m.MessageText,
+                PromptTokens = m.PromptTokens,
+                ReferencedBookIdsJson = m.ReferencedBookIdsJson,
+                CreatedAt = m.CreatedAt
+            })
+            .ToListAsync();
+
+        return new AiQuickHistoryResultDto
+        {
+            Authenticated = true,
+            SessionId = session.Id,
+            RoleName = currentUserRole,
+            UserFullName = user.FullName,
+            UserEmail = user.Email ?? string.Empty,
+            HasValidEmail = AuthConfigHelper.IsValidEmailFormat(user.Email),
+            Messages = messages
+        };
+    }
+
+    public async Task<(bool Success, string Message, int SessionId, S13ChatMessageDto? Greeting)> ResetChatSessionAsync(
+        string currentUserId,
+        string currentUserRole,
+        int? sessionId = null)
+    {
+        var user = await _db.AspNetUsers.AsNoTracking().FirstOrDefaultAsync(u => u.Id == currentUserId);
+        if (user == null)
+        {
+            return (false, "Không tìm thấy tài khoản người dùng.", 0, null);
+        }
+
+        AiChatSession? session = null;
+        if (sessionId.HasValue && sessionId.Value > 0)
+        {
+            session = await _db.AiChatSessions
+                .Include(s => s.AiChatMessages)
+                .FirstOrDefaultAsync(s => s.Id == sessionId.Value);
+            if (session != null && session.UserId != currentUserId)
+            {
+                throw new UnauthorizedAccessException("Bạn không có quyền đặt lại phiên hội thoại của thành viên khác.");
+            }
+        }
+
+        if (session == null)
+        {
+            session = await _db.AiChatSessions
+                .Include(s => s.AiChatMessages)
+                .Where(s => s.UserId == currentUserId)
+                .OrderByDescending(s => s.UpdatedAt)
+                .FirstOrDefaultAsync();
+        }
+
+        string modelName = AuthConfigHelper.SanitizeEnvValue(_config["Gemini:Model"] ?? Environment.GetEnvironmentVariable("GEMINI_MODEL"));
+        if (string.IsNullOrWhiteSpace(modelName)) modelName = "gemini-2.5-flash";
+
+        if (session == null)
+        {
+            session = new AiChatSession
+            {
+                UserId = currentUserId,
+                Title = $"Hội thoại {ResolveRoleVietnamese(currentUserRole)}",
+                ModelName = modelName,
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow
+            };
+            _db.AiChatSessions.Add(session);
+            await _db.SaveChangesAsync();
+        }
+        else if (session.AiChatMessages.Any())
+        {
+            _db.AiChatMessages.RemoveRange(session.AiChatMessages);
+        }
+
+        var greeting = new AiChatMessage
+        {
+            SessionId = session.Id,
+            UserId = currentUserId,
+            Sender = "Gemini",
+            MessageText = BuildRoleGreeting(user.FullName, currentUserRole),
+            PromptTokens = 40,
+            CreatedAt = DateTime.UtcNow
+        };
+        _db.AiChatMessages.Add(greeting);
+        session.UpdatedAt = DateTime.UtcNow;
+        await _db.SaveChangesAsync();
+
+        var dto = new S13ChatMessageDto
+        {
+            MessageId = greeting.Id,
+            Sender = greeting.Sender,
+            MessageText = greeting.MessageText,
+            PromptTokens = greeting.PromptTokens,
+            CreatedAt = greeting.CreatedAt
+        };
+
+        return (true, "Đã làm mới cuộc trò chuyện Trợ lý AI sạch sẽ!", session.Id, dto);
+    }
+
+    public async Task<(bool Success, string Message, bool RequiresEmailSetup)> SendChatSummaryEmailAsync(
+        string currentUserId,
+        int? sessionId = null,
+        string? customNote = null)
+    {
+        var user = await _db.AspNetUsers.AsNoTracking().FirstOrDefaultAsync(u => u.Id == currentUserId);
+        if (user == null)
+        {
+            return (false, "Không tìm thấy tài khoản người dùng.", false);
+        }
+
+        if (!AuthConfigHelper.IsValidEmailFormat(user.Email))
+        {
+            return (false,
+                "Tài khoản của bạn chưa có địa chỉ Email hợp lệ. Vui lòng vào Cài Đặt Tài Khoản để nhập Email trước khi gửi thư!",
+                true);
+        }
+
+        var session = sessionId.HasValue && sessionId.Value > 0
+            ? await _db.AiChatSessions.AsNoTracking().FirstOrDefaultAsync(s => s.Id == sessionId.Value && s.UserId == currentUserId)
+            : await _db.AiChatSessions.AsNoTracking().Where(s => s.UserId == currentUserId).OrderByDescending(s => s.UpdatedAt).FirstOrDefaultAsync();
+
+        if (session == null)
+        {
+            return (false, "Chưa có nội dung hội thoại Trợ lý AI nào để gửi qua Email.", false);
+        }
+
+        var recentMsgs = await _db.AiChatMessages
+            .AsNoTracking()
+            .Where(m => m.SessionId == session.Id && m.UserId == currentUserId)
+            .OrderByDescending(m => m.Id)
+            .Take(10)
+            .OrderBy(m => m.Id)
+            .ToListAsync();
+
+        if (!recentMsgs.Any())
+        {
+            return (false, "Phiên hội thoại hiện đang trống, chưa có nội dung để gửi Email.", false);
+        }
+
+        var html = new StringBuilder();
+        html.Append("<div style='font-family:Roboto,Arial,sans-serif;padding:20px;border:1px solid #cbd5e1;border-radius:14px;max-width:680px;'>");
+        html.Append($"<h3 style='color:#1d4ed8;margin-top:0;'>Bản ghi hội thoại Trợ lý AI BookShare</h3>");
+        html.Append($"<p>Xin chào <strong>{System.Net.WebUtility.HtmlEncode(user.FullName)}</strong>,</p>");
+        html.Append($"<p>Dưới đây là nội dung mới nhất từ phiên <strong>{System.Net.WebUtility.HtmlEncode(session.Title)}</strong>:</p>");
+        if (!string.IsNullOrWhiteSpace(customNote))
+        {
+            html.Append($"<p style='background:#f8fafc;padding:10px;border-left:4px solid #2563eb;'><em>Ghi chú của bạn: {System.Net.WebUtility.HtmlEncode(customNote.Trim())}</em></p>");
+        }
+        foreach (var m in recentMsgs)
+        {
+            bool isBot = m.Sender.Equals("Gemini", StringComparison.OrdinalIgnoreCase);
+            string bg = isBot ? "#eff6ff" : "#f1f5f9";
+            string who = isBot ? "Trợ lý AI BookShare" : user.FullName;
+            html.Append($"<div style='margin:10px 0;padding:10px 12px;border-radius:10px;background:{bg};'>");
+            html.Append($"<div style='font-size:12px;color:#475569;margin-bottom:4px;'><strong>{System.Net.WebUtility.HtmlEncode(who)}</strong> • {m.CreatedAt:dd/MM/yyyy HH:mm}</div>");
+            html.Append($"<div style='white-space:pre-line;color:#0f172a;'>{System.Net.WebUtility.HtmlEncode(m.MessageText)}</div>");
+            html.Append("</div>");
+        }
+        html.Append("</div>");
+
+        var (sentViaApi, _, statusNote) = await _resendEmailService.SendNotificationEmailAsync(
+            user.Email!,
+            $"[BookShare AI] Bản lưu hội thoại: {session.Title}",
+            html.ToString());
+
+        _db.Notifications.Add(new Notification
+        {
+            UserId = user.Id,
+            Title = $"Đã gửi tóm tắt chat AI tới {user.Email}",
+            Content = statusNote,
+            Type = "System",
+            IsRead = false,
+            EmailSentViaResend = sentViaApi,
+            CreatedAt = DateTime.UtcNow
+        });
+        await _db.SaveChangesAsync();
+
+        return (true, $"Đã gửi bản lưu hội thoại Trợ lý AI tới địa chỉ {user.Email}! ({statusNote})", false);
+    }
+
+    private static string ResolveRoleVietnamese(string role) => role switch
+    {
+        "Admin" => "Quản Trị Viên",
+        "Librarian" => "Thủ Thư",
+        "Curator" => "Chủ Nhiệm CLB",
+        _ => "Độc Giả"
+    };
+
+    private static string BuildRoleGreeting(string fullName, string role) => role switch
+    {
+        "Admin" => $"Xin chào Quản trị viên **{fullName}**! Mình là Trợ lý AI BookShare. Bạn có thể hỏi thống kê hệ thống, gửi email nhắc hạn hàng loạt, đổi phong cách giao diện (Nét vẽ nghệch ngoặc, Vàng mộng mơ, Hồng ấm áp...), chỉnh font/cỡ chữ hoặc gửi tóm tắt qua Email.",
+        "Librarian" => $"Xin chào Thủ thư **{fullName}**! Mình có thể hỗ trợ tra cứu kho sách, gửi nhắc hạn trả sách, đổi kiểu giao diện/font/cỡ chữ hoặc gửi tóm tắt chat qua Email.",
+        "Curator" => $"Xin chào Chủ nhiệm CLB **{fullName}**! Mình có thể hỗ trợ kiểm tra lịch giao nhận tại Trạm CLB, gợi ý sách, đổi giao diện/font/cỡ chữ hoặc gửi tóm tắt qua Email.",
+        _ => $"Xin chào **{fullName}**! Mình là Trợ lý AI BookShare. Bạn có thể tìm sách mượn miễn phí 0đ, kiểm tra hạn trả, đổi giao diện (Nét vẽ nghệch ngoặc, Vàng mộng mơ, Hồng ấm áp, Tối/Sáng), đổi phông chữ/cỡ chữ hoặc gửi tóm tắt qua Email!"
+    };
 
     private static StringBuilder BuildSystemInstruction(
         AspNetUser? user,
@@ -795,6 +1052,85 @@ public class S13GeminiAiService : IS13GeminiAiService
             AddUniqueCommand(clientCommands, "set_theme", "Chuyển giao diện sáng", new() { ["theme"] = "light" });
         }
 
+        // Lệnh đổi Phong cách Bootstrap (Sketchy / Morph / Flatly / Cyborg / Standard)
+        if (q.Contains("nghệch ngoặc") || q.Contains("sketchy") || q.Contains("vẽ tay") || q.Contains("phác thảo"))
+        {
+            AddUniqueCommand(clientCommands, "set_ui_prefs", "Bật phong cách Nét vẽ nghệch ngoặc", new() { ["style"] = "sketchy", ["font"] = "patrick" });
+        }
+        else if (q.Contains("kính mờ") || q.Contains("morph"))
+        {
+            AddUniqueCommand(clientCommands, "set_ui_prefs", "Bật phong cách Kính mờ Morph", new() { ["style"] = "morph" });
+        }
+        else if (q.Contains("flatly") || q.Contains("phẳng"))
+        {
+            AddUniqueCommand(clientCommands, "set_ui_prefs", "Bật phong cách Phẳng Flatly", new() { ["style"] = "flatly" });
+        }
+        else if (q.Contains("cyborg") || q.Contains("công nghệ"))
+        {
+            AddUniqueCommand(clientCommands, "set_ui_prefs", "Bật phong cách Đêm Cyborg", new() { ["style"] = "cyborg", ["theme"] = "dark" });
+        }
+        else if (q.Contains("style mặc định") || q.Contains("phong cách chuẩn") || q.Contains("giao diện mặc định"))
+        {
+            AddUniqueCommand(clientCommands, "set_ui_prefs", "Khôi phục phong cách Chuẩn", new() { ["style"] = "standard", ["font"] = "roboto" });
+        }
+
+        // Lệnh đổi Bảng màu (Vàng mộng mơ, Hồng ấm áp, Tím oải hương, Giấy cổ...)
+        if (q.Contains("vàng mộng mơ") || q.Contains("màu vàng"))
+        {
+            AddUniqueCommand(clientCommands, "set_ui_prefs", "Đổi màu Vàng Mộng Mơ", new() { ["palette"] = "gold" });
+        }
+        else if (q.Contains("hồng ấm áp") || q.Contains("màu hồng") || q.Contains("sakura"))
+        {
+            AddUniqueCommand(clientCommands, "set_ui_prefs", "Đổi màu Hồng Ấm Áp", new() { ["palette"] = "rose" });
+        }
+        else if (q.Contains("oải hương") || q.Contains("lavender"))
+        {
+            AddUniqueCommand(clientCommands, "set_ui_prefs", "Đổi màu Tím Oải Hương", new() { ["palette"] = "lavender" });
+        }
+        else if (q.Contains("giấy cổ") || q.Contains("sepia"))
+        {
+            AddUniqueCommand(clientCommands, "set_ui_prefs", "Đổi màu Giấy Cổ Thư Viện", new() { ["palette"] = "sepia" });
+        }
+        else if (q.Contains("lục bảo") || q.Contains("xanh lá"))
+        {
+            AddUniqueCommand(clientCommands, "set_ui_prefs", "Đổi màu Lục Bảo Thư Viện", new() { ["palette"] = "emerald" });
+        }
+
+        // Lệnh đổi Font chữ & Cỡ chữ
+        if (q.Contains("font viết tay") || q.Contains("chữ viết tay") || q.Contains("patrick"))
+        {
+            AddUniqueCommand(clientCommands, "set_ui_prefs", "Đổi font Viết tay Patrick Hand", new() { ["font"] = "patrick" });
+        }
+        else if (q.Contains("font có chân") || q.Contains("font sách") || q.Contains("lora"))
+        {
+            AddUniqueCommand(clientCommands, "set_ui_prefs", "Đổi font Sách giấy Lora", new() { ["font"] = "lora" });
+        }
+        else if (q.Contains("be vietnam") || q.Contains("font hiện đại"))
+        {
+            AddUniqueCommand(clientCommands, "set_ui_prefs", "Đổi font Be Vietnam Pro", new() { ["font"] = "bevietnam" });
+        }
+        else if (q.Contains("jetbrains") || q.Contains("font code") || q.Contains("đơn cách"))
+        {
+            AddUniqueCommand(clientCommands, "set_ui_prefs", "Đổi font JetBrains Mono", new() { ["font"] = "jetbrains" });
+        }
+
+        if (q.Contains("chữ rất lớn") || q.Contains("cỡ chữ lớn nhất") || q.Contains("cỡ xl"))
+        {
+            AddUniqueCommand(clientCommands, "set_ui_prefs", "Đặt cỡ chữ Rất lớn (20px)", new() { ["fontSize"] = "xl" });
+        }
+        else if (q.Contains("chữ lớn") || q.Contains("to chữ") || q.Contains("tăng cỡ chữ"))
+        {
+            AddUniqueCommand(clientCommands, "set_ui_prefs", "Đặt cỡ chữ Lớn (18px)", new() { ["fontSize"] = "lg" });
+        }
+        else if (q.Contains("chữ nhỏ") || q.Contains("giảm cỡ chữ"))
+        {
+            AddUniqueCommand(clientCommands, "set_ui_prefs", "Đặt cỡ chữ Nhỏ (14px)", new() { ["fontSize"] = "sm" });
+        }
+        else if (q.Contains("cỡ chữ chuẩn") || q.Contains("chữ mặc định"))
+        {
+            AddUniqueCommand(clientCommands, "set_ui_prefs", "Đặt cỡ chữ Tiêu chuẩn (16px)", new() { ["fontSize"] = "md" });
+        }
+
         if (q.Contains("tủ sách") || q.Contains("kệ sách"))
         {
             AddUniqueCommand(clientCommands, "navigate_to", "Mở Tủ sách Cá nhân", new() { ["url"] = "/S02PersonalShelf" });
@@ -850,9 +1186,32 @@ public class S13GeminiAiService : IS13GeminiAiService
                 AddBatchReminderCard(actionCards);
             }
         }
-        else if ((q.Contains("email") || q.Contains("nhắc hạn cho tôi") || q.Contains("gửi nhắc")) && user != null)
+        else if ((q.Contains("gửi mail") || q.Contains("gửi email") || q.Contains("email") || q.Contains("nhắc hạn cho tôi") || q.Contains("gửi nhắc")) && user != null)
         {
-            AddPersonalReminderCard(actionCards, user.Email ?? string.Empty);
+            if (q.Contains("tóm tắt") || q.Contains("hội thoại") || q.Contains("chat"))
+            {
+                if (!actionCards.Any(c => c.ActionKey == "send_chat_summary_email"))
+                {
+                    bool hasMail = AuthConfigHelper.IsValidEmailFormat(user.Email);
+                    actionCards.Add(new AiActionCardDto
+                    {
+                        ActionKey = "send_chat_summary_email",
+                        Title = hasMail ? "Gửi Bản Lưu Hội Thoại AI Qua Email" : "Cần Bổ Sung Email Trước Khi Gửi Thư",
+                        Description = hasMail
+                            ? $"Gửi nội dung hội thoại hiện tại tới địa chỉ {user.Email}."
+                            : "Tài khoản chưa có Email nhận thư hợp lệ. Vui lòng cập nhật Email tại Cài Đặt Tài Khoản.",
+                        ConfirmLabel = hasMail ? "Xác nhận gửi Email ngay" : "Kiểm tra & gửi Email",
+                        Parameters = new Dictionary<string, JsonElement>
+                        {
+                            ["email"] = JsonSerializer.SerializeToElement(user.Email ?? string.Empty)
+                        }
+                    });
+                }
+            }
+            else
+            {
+                AddPersonalReminderCard(actionCards, user.Email ?? string.Empty);
+            }
         }
     }
 

@@ -118,16 +118,31 @@ public class DatabaseBootstrapService : IDatabaseBootstrapService
             IF OBJECT_ID(N'[dbo].[SystemIconSettings]', N'U') IS NULL
             BEGIN
                 CREATE TABLE [dbo].[SystemIconSettings] (
-                    [IconKey]          NVARCHAR(64)  NOT NULL,
-                    [DisplayName]      NVARCHAR(120) NOT NULL,
-                    [CategoryGroup]    NVARCHAR(60)  NOT NULL,
-                    [DefaultIconClass] NVARCHAR(100) NOT NULL,
-                    [CustomImageUrl]   NVARCHAR(300) NULL,
-                    [UseCustomImage]   BIT           NOT NULL CONSTRAINT [DF_SystemIconSettings_UseCustom] DEFAULT (0),
-                    [UpdatedAt]        DATETIME2(7)  NOT NULL CONSTRAINT [DF_SystemIconSettings_UpdatedAt] DEFAULT (SYSUTCDATETIME()),
-                    [UpdatedByUserId]  NVARCHAR(450) NULL,
+                    [IconKey]                NVARCHAR(64)   NOT NULL,
+                    [DisplayName]            NVARCHAR(120)  NOT NULL,
+                    [CategoryGroup]          NVARCHAR(60)   NOT NULL,
+                    [DefaultIconClass]       NVARCHAR(100)  NOT NULL,
+                    [CustomImageUrl]         NVARCHAR(300)  NULL,
+                    [CustomImageData]        VARBINARY(MAX) NULL,
+                    [CustomImageContentType] NVARCHAR(100)  NULL,
+                    [UseCustomImage]         BIT            NOT NULL CONSTRAINT [DF_SystemIconSettings_UseCustom] DEFAULT (0),
+                    [UpdatedAt]              DATETIME2(7)   NOT NULL CONSTRAINT [DF_SystemIconSettings_UpdatedAt] DEFAULT (SYSUTCDATETIME()),
+                    [UpdatedByUserId]        NVARCHAR(450)  NULL,
                     CONSTRAINT [PK_SystemIconSettings] PRIMARY KEY CLUSTERED ([IconKey] ASC)
                 );
+            END
+            ELSE
+            BEGIN
+                IF COL_LENGTH(N'[dbo].[SystemIconSettings]', N'CustomImageData') IS NULL
+                    ALTER TABLE [dbo].[SystemIconSettings] ADD [CustomImageData] VARBINARY(MAX) NULL;
+                IF COL_LENGTH(N'[dbo].[SystemIconSettings]', N'CustomImageContentType') IS NULL
+                    ALTER TABLE [dbo].[SystemIconSettings] ADD [CustomImageContentType] NVARCHAR(100) NULL;
+            END
+
+            IF OBJECT_ID(N'[dbo].[AspNetUsers]', N'U') IS NOT NULL
+            BEGIN
+                IF COL_LENGTH(N'[dbo].[AspNetUsers]', N'UiPreferencesJson') IS NULL
+                    ALTER TABLE [dbo].[AspNetUsers] ADD [UiPreferencesJson] NVARCHAR(1000) NULL;
             END
 
             IF OBJECT_ID(N'[dbo].[UserWallets]', N'U') IS NULL
@@ -153,10 +168,28 @@ public class DatabaseBootstrapService : IDatabaseBootstrapService
                     ALTER TABLE [dbo].[Transactions] ADD [DurationMonths] INT NULL;
                 IF COL_LENGTH(N'[dbo].[Transactions]', N'Description') IS NULL
                     ALTER TABLE [dbo].[Transactions] ADD [Description] NVARCHAR(300) NULL;
+                IF COL_LENGTH(N'[dbo].[Transactions]', N'IdempotencyKey') IS NULL
+                    ALTER TABLE [dbo].[Transactions] ADD [IdempotencyKey] NVARCHAR(100) NULL;
+                IF COL_LENGTH(N'[dbo].[Transactions]', N'ActionType') IS NULL
+                    ALTER TABLE [dbo].[Transactions] ADD [ActionType] NVARCHAR(30) NULL;
+                IF COL_LENGTH(N'[dbo].[Transactions]', N'SwitchFee') IS NULL
+                    ALTER TABLE [dbo].[Transactions] ADD [SwitchFee] DECIMAL(18,2) NOT NULL CONSTRAINT [DF_Transactions_SwitchFee] DEFAULT (0);
+                IF COL_LENGTH(N'[dbo].[Transactions]', N'ProrationCredit') IS NULL
+                    ALTER TABLE [dbo].[Transactions] ADD [ProrationCredit] DECIMAL(18,2) NOT NULL CONSTRAINT [DF_Transactions_ProrationCredit] DEFAULT (0);
+                IF COL_LENGTH(N'[dbo].[Transactions]', N'BalanceBefore') IS NULL
+                    ALTER TABLE [dbo].[Transactions] ADD [BalanceBefore] DECIMAL(18,2) NULL;
+                IF COL_LENGTH(N'[dbo].[Transactions]', N'BalanceAfter') IS NULL
+                    ALTER TABLE [dbo].[Transactions] ADD [BalanceAfter] DECIMAL(18,2) NULL;
+                IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'UX_Transactions_IdempotencyKey' AND object_id = OBJECT_ID(N'[dbo].[Transactions]'))
+                    CREATE UNIQUE NONCLUSTERED INDEX [UX_Transactions_IdempotencyKey] ON [dbo].[Transactions]([IdempotencyKey] ASC) WHERE ([IdempotencyKey] IS NOT NULL);
                 IF OBJECT_ID(N'[dbo].[CK_Transactions_Type]', N'C') IS NOT NULL
                     ALTER TABLE [dbo].[Transactions] DROP CONSTRAINT [CK_Transactions_Type];
                 ALTER TABLE [dbo].[Transactions] ADD CONSTRAINT [CK_Transactions_Type]
-                    CHECK ([TransactionType] IN (N'Membership', N'Fine', N'SimulatedDeposit', N'WalletTopUp'));
+                    CHECK ([TransactionType] IN (N'Membership', N'MembershipSwitch', N'MembershipCancel', N'Fine', N'SimulatedDeposit', N'WalletTopUp'));
+                IF OBJECT_ID(N'[dbo].[CK_Transactions_Amount]', N'C') IS NOT NULL
+                    ALTER TABLE [dbo].[Transactions] DROP CONSTRAINT [CK_Transactions_Amount];
+                ALTER TABLE [dbo].[Transactions] ADD CONSTRAINT [CK_Transactions_Amount]
+                    CHECK ([Amount] >= 0);
                 IF OBJECT_ID(N'[dbo].[CK_Transactions_Gateway]', N'C') IS NOT NULL
                     ALTER TABLE [dbo].[Transactions] DROP CONSTRAINT [CK_Transactions_Gateway];
                 ALTER TABLE [dbo].[Transactions] ADD CONSTRAINT [CK_Transactions_Gateway]

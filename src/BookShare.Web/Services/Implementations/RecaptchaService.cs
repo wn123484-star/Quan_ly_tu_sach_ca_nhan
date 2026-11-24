@@ -108,7 +108,7 @@ public class RecaptchaService : IRecaptchaService
             return string.Empty;
         }
 
-        var trimmed = raw.Trim();
+        var trimmed = AuthConfigHelper.SanitizeEnvValue(raw);
         if (trimmed.Contains("xxxx", StringComparison.OrdinalIgnoreCase) ||
             trimmed.Equals("demo", StringComparison.OrdinalIgnoreCase))
         {

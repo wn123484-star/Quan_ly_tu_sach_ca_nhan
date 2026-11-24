@@ -1,3 +1,4 @@
+using System.Data;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -6,21 +7,27 @@ using BookShare.Web.Models.Entities;
 using BookShare.Web.Models.ViewModels;
 using BookShare.Web.Services.Interfaces;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Memory;
 
 namespace BookShare.Web.Services.Implementations;
 
 public class S17SandboxPaymentService : IS17SandboxPaymentService
 {
-    private const decimal MinTopUpAmount = 1000m;
+    private const decimal MinTopUpAmount = 1_000m;
     private const decimal MaxTopUpAmount = 10_000_000m;
+    private const decimal MaxWalletBalanceCap = 50_000_000m;
+    private const int MaxTopUpsPerMinute = 5;
+    private const int MaxConcurrentPendingInvoices = 3;
 
     private readonly BookShareDbContext _db;
     private readonly IConfiguration _config;
+    private readonly IMemoryCache _cache;
 
-    public S17SandboxPaymentService(BookShareDbContext db, IConfiguration config)
+    public S17SandboxPaymentService(BookShareDbContext db, IConfiguration config, IMemoryCache cache)
     {
         _db = db;
         _config = config;
+        _cache = cache;
     }
 
     public async Task<decimal> GetWalletBalanceAsync(string userId)
@@ -119,6 +126,11 @@ public class S17SandboxPaymentService : IS17SandboxPaymentService
                 TargetTier = t.TargetTier,
                 DurationMonths = t.DurationMonths,
                 Description = t.Description,
+                ActionType = t.ActionType,
+                SwitchFee = t.SwitchFee,
+                ProrationCredit = t.ProrationCredit,
+                BalanceBefore = t.BalanceBefore,
+                BalanceAfter = t.BalanceAfter,
                 HmacSignature = t.HmacSignature,
                 CreatedAt = t.CreatedAt
             })
@@ -173,65 +185,162 @@ public class S17SandboxPaymentService : IS17SandboxPaymentService
         };
     }
 
-    public async Task<(bool Success, string Message, decimal NewBalance, int TransactionId)> TopUpVirtualWalletAsync(
+    public async Task<(bool Success, string Message, decimal NewBalance, int TransactionId, bool RateLimited)> TopUpVirtualWalletAsync(
         string currentUserId,
         decimal amount,
-        string? note = null)
+        string? note = null,
+        string? idempotencyKey = null)
     {
         if (amount < MinTopUpAmount || amount > MaxTopUpAmount)
         {
-            return (false, $"Số tiền ảo mỗi lần nạp phải từ {MinTopUpAmount:N0}đ đến {MaxTopUpAmount:N0}đ ảo.", await GetWalletBalanceAsync(currentUserId), 0);
+            return (false, $"Số tiền ảo mỗi lần nạp phải từ {MinTopUpAmount:N0}đ đến {MaxTopUpAmount:N0}đ ảo.", await GetWalletBalanceAsync(currentUserId), 0, false);
         }
 
-        var user = await _db.AspNetUsers.FirstOrDefaultAsync(u => u.Id == currentUserId);
+        string? cleanIdemKey = string.IsNullOrWhiteSpace(idempotencyKey)
+            ? null
+            : idempotencyKey.Trim()[..Math.Min(100, idempotencyKey.Trim().Length)];
+
+        if (!string.IsNullOrWhiteSpace(cleanIdemKey))
+        {
+            var existingIdem = await _db.Transactions
+                .AsNoTracking()
+                .FirstOrDefaultAsync(t => t.IdempotencyKey == cleanIdemKey);
+            if (existingIdem != null)
+            {
+                return (false,
+                    $"Lượt nạp tiền này đã được ghi nhận (Mã biên lai #TX-{existingIdem.Id}). Hệ thống tự động chặn ghi lặp để đảm bảo minh bạch sổ cái.",
+                    await GetWalletBalanceAsync(currentUserId),
+                    existingIdem.Id,
+                    false);
+            }
+        }
+
+        // Chống spam nạp tiền liên tục (Sliding window 5 lần / 60 giây mỗi tài khoản)
+        string rateKey = $"bookshare:topup-rate:{currentUserId}";
+        var now = DateTime.UtcNow;
+        var timestamps = _cache.GetOrCreate(rateKey, entry =>
+        {
+            entry.SlidingExpiration = TimeSpan.FromMinutes(2);
+            return new List<DateTime>();
+        }) ?? new List<DateTime>();
+
+        lock (timestamps)
+        {
+            timestamps.RemoveAll(ts => ts < now.AddSeconds(-60));
+            if (timestamps.Count >= MaxTopUpsPerMinute)
+            {
+                return (false,
+                    $"Bạn đã nạp tiền ảo {MaxTopUpsPerMinute} lần trong 1 phút gần đây. Vui lòng chờ giây lát để tránh gửi trùng lặp!",
+                    0m,
+                    0,
+                    true);
+            }
+        }
+
+        var user = await _db.AspNetUsers.AsNoTracking().FirstOrDefaultAsync(u => u.Id == currentUserId);
         if (user == null)
         {
-            return (false, "Không tìm thấy tài khoản thành viên.", 0m, 0);
+            return (false, "Không tìm thấy tài khoản thành viên.", 0m, 0, false);
         }
 
-        var now = DateTime.UtcNow;
-        var wallet = await EnsureWalletEntityAsync(currentUserId, now);
-        wallet.Balance += amount;
-        wallet.TotalToppedUp += amount;
-        wallet.UpdatedAt = now;
-
-        string cleanDesc = string.IsNullOrWhiteSpace(note)
-            ? $"Nạp {amount:N0}đ tiền ảo miễn phí vào Ví BookShare"
-            : note.Trim()[..Math.Min(250, note.Trim().Length)];
-
-        var tx = new Transaction
+        await using var dbTx = await _db.Database.BeginTransactionAsync(IsolationLevel.Serializable);
+        try
         {
-            UserId = currentUserId,
-            LoanId = null,
-            TransactionType = "WalletTopUp",
-            Amount = amount,
-            PaymentGateway = "VirtualWallet",
-            PaymentStatus = "Completed",
-            Description = cleanDesc,
-            CreatedAt = now
-        };
-        _db.Transactions.Add(tx);
-        await _db.SaveChangesAsync();
+            var wallet = await EnsureWalletLockedAsync(currentUserId, now);
+            decimal balBefore = wallet.Balance;
 
-        string canonical = BuildCanonicalPayload(tx.Id, currentUserId, tx.TransactionType, amount, tx.PaymentGateway, null);
-        tx.HmacSignature = ComputeHmacSha512(canonical);
-        await _db.SaveChangesAsync();
+            if (balBefore + amount > MaxWalletBalanceCap)
+            {
+                await dbTx.RollbackAsync();
+                return (false,
+                    $"Số dư Ví Tiền Ảo tối đa cho phép là {MaxWalletBalanceCap:N0}đ ảo (hiện có {balBefore:N0}đ). Hãy dùng số dư hiện tại trước khi nạp thêm!",
+                    balBefore,
+                    0,
+                    false);
+            }
 
-        return (true,
-            $"Đã nạp miễn phí +{amount:N0}đ tiền ảo vào ví! Số dư hiện tại: {wallet.Balance:N0}đ ảo.",
-            wallet.Balance,
-            tx.Id);
+            wallet.Balance += amount;
+            wallet.TotalToppedUp += amount;
+            wallet.UpdatedAt = now;
+            decimal balAfter = wallet.Balance;
+
+            string cleanDesc = string.IsNullOrWhiteSpace(note)
+                ? $"Nạp +{amount:N0}đ tiền ảo miễn phí vào Ví BookShare"
+                : note.Trim()[..Math.Min(250, note.Trim().Length)];
+
+            var tx = new Transaction
+            {
+                UserId = currentUserId,
+                LoanId = null,
+                TransactionType = "WalletTopUp",
+                ActionType = "TopUp",
+                Amount = amount,
+                SwitchFee = 0m,
+                ProrationCredit = 0m,
+                BalanceBefore = balBefore,
+                BalanceAfter = balAfter,
+                IdempotencyKey = cleanIdemKey,
+                PaymentGateway = "VirtualWallet",
+                PaymentStatus = "Completed",
+                Description = cleanDesc,
+                CreatedAt = now
+            };
+            _db.Transactions.Add(tx);
+            await _db.SaveChangesAsync();
+
+            string canonical = BuildCanonicalPayload(tx.Id, currentUserId, tx.TransactionType, amount, tx.PaymentGateway, null);
+            tx.HmacSignature = ComputeHmacSha512(canonical);
+            await _db.SaveChangesAsync();
+
+            await dbTx.CommitAsync();
+
+            lock (timestamps)
+            {
+                timestamps.Add(now);
+            }
+
+            return (true,
+                $"Nạp miễn phí +{amount:N0}đ thành công (Mã #TX-{tx.Id})! Số dư Ví: {balBefore:N0}đ -> {balAfter:N0}đ ảo.",
+                balAfter,
+                tx.Id,
+                false);
+        }
+        catch
+        {
+            try { await dbTx.RollbackAsync(); } catch { /* giao dịch đã đóng hoặc đã rollback */ }
+            throw;
+        }
     }
 
     public async Task<(bool Success, string Message, int TransactionId, string RawPayload, string ExpectedHmacSignature)> CreateSandboxOrderAsync(
         string currentUserId,
         S17CreateSandboxOrderDto request)
     {
-        var allowedTypes = new[] { "Membership", "Fine", "SimulatedDeposit" };
+        var allowedTypes = new[] { "Membership", "MembershipSwitch", "Fine", "SimulatedDeposit" };
         string txType = allowedTypes.Contains(request.TransactionType) ? request.TransactionType : "Membership";
 
         var allowedGateways = new[] { "QrPay", "VirtualWallet", "VNPaySandbox", "MoMoSandbox" };
         string gateway = allowedGateways.Contains(request.PaymentGateway) ? request.PaymentGateway : "QrPay";
+
+        string? cleanIdemKey = string.IsNullOrWhiteSpace(request.IdempotencyKey)
+            ? null
+            : request.IdempotencyKey.Trim()[..Math.Min(100, request.IdempotencyKey.Trim().Length)];
+
+        if (!string.IsNullOrWhiteSpace(cleanIdemKey))
+        {
+            var existingByIdem = await _db.Transactions
+                .AsNoTracking()
+                .FirstOrDefaultAsync(t => t.IdempotencyKey == cleanIdemKey);
+            if (existingByIdem != null)
+            {
+                string existingRaw = BuildCanonicalPayload(existingByIdem.Id, existingByIdem.UserId, existingByIdem.TransactionType, existingByIdem.Amount, existingByIdem.PaymentGateway, existingByIdem.LoanId);
+                return (true,
+                    $"Đang sử dụng lại hóa đơn #TX-{existingByIdem.Id} đã khởi tạo trước đó (chống tạo trùng lặp).",
+                    existingByIdem.Id,
+                    existingRaw,
+                    ComputeHmacSha512(existingRaw));
+            }
+        }
 
         if (request.LoanId.HasValue)
         {
@@ -242,28 +351,109 @@ public class S17SandboxPaymentService : IS17SandboxPaymentService
             }
         }
 
-        string? targetTier = txType == "Membership"
+        var now = DateTime.UtcNow;
+        bool isMembershipTx = txType is "Membership" or "MembershipSwitch";
+
+        string? targetTier = isMembershipTx
             ? (string.IsNullOrWhiteSpace(request.TargetTier) ? "Premium" : MembershipTierCatalog.NormalizeTier(request.TargetTier))
             : null;
-        int? durationMonths = txType == "Membership"
+        int? durationMonths = isMembershipTx
             ? MembershipTierCatalog.NormalizeDurationMonths(request.DurationMonths ?? 12)
             : null;
 
-        decimal amount = request.Amount > 0
-            ? request.Amount
-            : (txType == "Membership"
-                ? MembershipTierCatalog.GetPrice(targetTier, durationMonths ?? 12)
-                : txType == "SimulatedDeposit" ? 50000m : 25000m);
+        decimal switchFee = request.SwitchFee;
+        decimal prorationCredit = request.ProrationCredit;
+        decimal amount = request.Amount;
+
+        // Đồng bộ luật chống mua trùng gói & tự tính phí chuyển gói nếu gọi thẳng từ trang S17
+        if (isMembershipTx)
+        {
+            var activePaid = await _db.Memberships
+                .AsNoTracking()
+                .Where(m => m.UserId == currentUserId && m.IsActive && m.Tier != "Free" && (!m.ExpiryDate.HasValue || m.ExpiryDate.Value > now))
+                .OrderByDescending(m => m.StartDate)
+                .FirstOrDefaultAsync();
+
+            var quote = MembershipTierCatalog.CalculateSwitchQuote(activePaid, targetTier, durationMonths ?? 12, now);
+            if (quote.IsSameActiveTier)
+            {
+                return (false,
+                    $"Bạn đang sở hữu gói {quote.CurrentTier} còn {quote.RemainingDays} ngày hiệu lực, không thể tạo hóa đơn mua trùng. Hãy chọn chuyển sang gói khác hoặc hủy gói tại mục Gói Hội Viên.",
+                    0, string.Empty, string.Empty);
+            }
+
+            if (quote.IsSwitch)
+            {
+                txType = "MembershipSwitch";
+                switchFee = quote.SwitchFee;
+                prorationCredit = quote.ProrationCredit;
+                amount = quote.TotalPayable;
+            }
+            else if (amount <= 0)
+            {
+                amount = MembershipTierCatalog.GetPrice(targetTier, durationMonths ?? 12);
+            }
+        }
+        else if (amount <= 0)
+        {
+            amount = txType == "SimulatedDeposit" ? 50000m : 25000m;
+        }
+
+        // Chống spam hóa đơn Pending: nếu đã có hóa đơn Pending giống hệt trong 10 phút gần đây -> tái sử dụng ngay
+        var recentCutoff = now.AddMinutes(-10);
+        var reusablePending = await _db.Transactions
+            .Where(t => t.UserId == currentUserId
+                && t.PaymentStatus == "Pending"
+                && t.TransactionType == txType
+                && t.TargetTier == targetTier
+                && t.DurationMonths == durationMonths
+                && t.LoanId == request.LoanId
+                && t.Amount == amount
+                && t.CreatedAt >= recentCutoff)
+            .OrderByDescending(t => t.CreatedAt)
+            .FirstOrDefaultAsync();
+
+        if (reusablePending != null)
+        {
+            string reuseRaw = BuildCanonicalPayload(reusablePending.Id, reusablePending.UserId, reusablePending.TransactionType, reusablePending.Amount, reusablePending.PaymentGateway, reusablePending.LoanId);
+            return (true,
+                $"Hóa đơn #TX-{reusablePending.Id} ({reusablePending.Amount:N0}đ ảo) vẫn đang chờ thanh toán — hệ thống tái sử dụng ngay để tránh trùng lặp!",
+                reusablePending.Id,
+                reuseRaw,
+                ComputeHmacSha512(reuseRaw));
+        }
+
+        // Chặn tạo quá 3 hóa đơn Pending đồng thời (tránh spam rác CSDL)
+        int currentPendingCount = await _db.Transactions
+            .CountAsync(t => t.UserId == currentUserId && t.PaymentStatus == "Pending");
+        if (currentPendingCount >= MaxConcurrentPendingInvoices)
+        {
+            return (false,
+                $"Bạn hiện có {currentPendingCount} hóa đơn đang chờ thanh toán. Vui lòng thanh toán hoặc hủy bớt hóa đơn cũ tại Ví Tiền Ảo trước khi tạo hóa đơn mới.",
+                0, string.Empty, string.Empty);
+        }
 
         string description = ResolveDescription(txType, targetTier, durationMonths, request.LoanId, request.Description);
-        var now = DateTime.UtcNow;
+        string actionType = !string.IsNullOrWhiteSpace(request.ActionType)
+            ? request.ActionType.Trim()
+            : txType switch
+            {
+                "MembershipSwitch" => "Switch",
+                "Membership" => "Register",
+                "Fine" => "Fine",
+                _ => "Deposit"
+            };
 
         var tx = new Transaction
         {
             UserId = currentUserId,
             LoanId = request.LoanId,
             TransactionType = txType,
+            ActionType = actionType,
             Amount = amount,
+            SwitchFee = switchFee,
+            ProrationCredit = prorationCredit,
+            IdempotencyKey = cleanIdemKey,
             PaymentGateway = gateway,
             PaymentStatus = "Pending",
             TargetTier = targetTier,
@@ -324,6 +514,9 @@ public class S17SandboxPaymentService : IS17SandboxPaymentService
             TargetTier = tx.TargetTier,
             DurationMonths = tx.DurationMonths,
             Amount = tx.Amount,
+            SwitchFee = tx.SwitchFee,
+            ProrationCredit = tx.ProrationCredit,
+            ActionType = tx.ActionType,
             PaymentStatus = tx.PaymentStatus,
             WalletBalance = balance,
             CreatedAt = tx.CreatedAt
@@ -342,63 +535,82 @@ public class S17SandboxPaymentService : IS17SandboxPaymentService
         string currentUserRole,
         int transactionId)
     {
-        var tx = await _db.Transactions
-            .Include(t => t.User)
-            .FirstOrDefaultAsync(t => t.Id == transactionId);
-
-        if (tx == null)
+        await using var dbTx = await _db.Database.BeginTransactionAsync(IsolationLevel.Serializable);
+        try
         {
-            return (false, $"Không tìm thấy hóa đơn #TX-{transactionId}.", await GetWalletBalanceAsync(currentUserId));
+            var tx = await _db.Transactions
+                .FromSqlRaw("SELECT * FROM [dbo].[Transactions] WITH (UPDLOCK, HOLDLOCK) WHERE [Id] = {0}", transactionId)
+                .FirstOrDefaultAsync();
+
+            if (tx == null)
+            {
+                await dbTx.RollbackAsync();
+                return (false, $"Không tìm thấy hóa đơn #TX-{transactionId}.", await GetWalletBalanceAsync(currentUserId));
+            }
+
+            bool isAdmin = string.Equals(currentUserRole, "Admin", StringComparison.OrdinalIgnoreCase);
+            if (tx.UserId != currentUserId && !isAdmin)
+            {
+                throw new UnauthorizedAccessException("Bạn không có quyền thanh toán hóa đơn của thành viên khác.");
+            }
+
+            if (tx.PaymentStatus != "Pending")
+            {
+                decimal curBal = await GetWalletBalanceAsync(tx.UserId);
+                await dbTx.RollbackAsync();
+                return (false, $"Hóa đơn #TX-{tx.Id} đã ở trạng thái '{tx.PaymentStatus}', không thể thanh toán lặp lại.", curBal);
+            }
+
+            var now = DateTime.UtcNow;
+            var wallet = await EnsureWalletLockedAsync(tx.UserId, now);
+            decimal balBefore = wallet.Balance;
+
+            if (balBefore < tx.Amount)
+            {
+                decimal shortfall = tx.Amount - balBefore;
+                await dbTx.RollbackAsync();
+                return (false,
+                    $"Số dư Ví Tiền Ảo không đủ ({balBefore:N0}đ / cần {tx.Amount:N0}đ, còn thiếu {shortfall:N0}đ). Hãy nạp thêm tiền ảo miễn phí rồi xác nhận lại!",
+                    balBefore);
+            }
+
+            wallet.Balance -= tx.Amount;
+            wallet.TotalSpent += tx.Amount;
+            wallet.UpdatedAt = now;
+            decimal balAfter = wallet.Balance;
+
+            tx.PaymentStatus = "Completed";
+            tx.PaymentGateway = "QrPay";
+            tx.BalanceBefore = balBefore;
+            tx.BalanceAfter = balAfter;
+            string canonical = BuildCanonicalPayload(tx.Id, tx.UserId, tx.TransactionType, tx.Amount, tx.PaymentGateway, tx.LoanId);
+            tx.HmacSignature = ComputeHmacSha512(canonical);
+
+            string extraEffect = await ApplyCompletedTransactionEffectsAsync(tx, now);
+
+            _db.Notifications.Add(new Notification
+            {
+                UserId = tx.UserId,
+                Title = $"Thanh toán QR hóa đơn #TX-{tx.Id} thành công",
+                Content = $"Đã trừ {tx.Amount:N0}đ từ Ví Tiền Ảo (Số dư: {balBefore:N0}đ -> {balAfter:N0}đ) cho hóa đơn #{tx.Id}. {extraEffect}",
+                Type = "System",
+                IsRead = false,
+                EmailSentViaResend = false,
+                CreatedAt = now
+            });
+
+            await _db.SaveChangesAsync();
+            await dbTx.CommitAsync();
+
+            return (true,
+                $"Thanh toán QR thành công hóa đơn #TX-{tx.Id} ({tx.Amount:N0}đ ảo)! Số dư Ví: {balBefore:N0}đ -> {balAfter:N0}đ. {extraEffect}",
+                balAfter);
         }
-
-        bool isAdmin = string.Equals(currentUserRole, "Admin", StringComparison.OrdinalIgnoreCase);
-        if (tx.UserId != currentUserId && !isAdmin)
+        catch
         {
-            throw new UnauthorizedAccessException("Bạn không có quyền thanh toán hóa đơn của thành viên khác.");
+            try { await dbTx.RollbackAsync(); } catch { /* giao dịch đã đóng hoặc đã rollback */ }
+            throw;
         }
-
-        if (tx.PaymentStatus != "Pending")
-        {
-            return (false, $"Hóa đơn #TX-{tx.Id} đã ở trạng thái '{tx.PaymentStatus}', không thể thanh toán lặp lại.", await GetWalletBalanceAsync(tx.UserId));
-        }
-
-        var now = DateTime.UtcNow;
-        var wallet = await EnsureWalletEntityAsync(tx.UserId, now);
-        if (wallet.Balance < tx.Amount)
-        {
-            decimal shortfall = tx.Amount - wallet.Balance;
-            return (false,
-                $"Số dư Ví Tiền Ảo không đủ ({wallet.Balance:N0}đ / cần {tx.Amount:N0}đ, còn thiếu {shortfall:N0}đ). Hãy nạp thêm tiền ảo miễn phí rồi xác nhận lại!",
-                wallet.Balance);
-        }
-
-        wallet.Balance -= tx.Amount;
-        wallet.TotalSpent += tx.Amount;
-        wallet.UpdatedAt = now;
-
-        tx.PaymentStatus = "Completed";
-        tx.PaymentGateway = "QrPay";
-        string canonical = BuildCanonicalPayload(tx.Id, tx.UserId, tx.TransactionType, tx.Amount, tx.PaymentGateway, tx.LoanId);
-        tx.HmacSignature = ComputeHmacSha512(canonical);
-
-        string extraEffect = await ApplyCompletedTransactionEffectsAsync(tx, now);
-
-        _db.Notifications.Add(new Notification
-        {
-            UserId = tx.UserId,
-            Title = $"Thanh toán QR hóa đơn #TX-{tx.Id} thành công",
-            Content = $"Đã trừ {tx.Amount:N0}đ từ Ví Tiền Ảo cho hóa đơn #{tx.Id}. Số dư còn lại: {wallet.Balance:N0}đ. {extraEffect}",
-            Type = "System",
-            IsRead = false,
-            EmailSentViaResend = false,
-            CreatedAt = now
-        });
-
-        await _db.SaveChangesAsync();
-
-        return (true,
-            $"Thanh toán QR thành công hóa đơn #TX-{tx.Id} ({tx.Amount:N0}đ ảo)! Số dư còn lại: {wallet.Balance:N0}đ. {extraEffect}",
-            wallet.Balance);
     }
 
     public async Task<(bool Found, string Status, decimal Amount, string? Description)> GetInvoiceStatusAsync(
@@ -429,75 +641,90 @@ public class S17SandboxPaymentService : IS17SandboxPaymentService
         string currentUserRole,
         S17SandboxCallbackDto callback)
     {
-        var tx = await _db.Transactions
-            .Include(t => t.User)
-            .FirstOrDefaultAsync(t => t.Id == callback.TransactionId);
-
-        if (tx == null)
+        await using var dbTx = await _db.Database.BeginTransactionAsync(IsolationLevel.Serializable);
+        try
         {
-            return (false, $"Không tìm thấy giao dịch #{callback.TransactionId}.");
-        }
+            var tx = await _db.Transactions
+                .FromSqlRaw("SELECT * FROM [dbo].[Transactions] WITH (UPDLOCK, HOLDLOCK) WHERE [Id] = {0}", callback.TransactionId)
+                .FirstOrDefaultAsync();
 
-        bool isPrivileged = currentUserRole is "Librarian" or "Admin";
-        if (tx.UserId != currentUserId && !isPrivileged)
-        {
-            throw new UnauthorizedAccessException("Bạn không có quyền xác thực giao dịch của thành viên khác.");
-        }
+            if (tx == null)
+            {
+                await dbTx.RollbackAsync();
+                return (false, $"Không tìm thấy giao dịch #{callback.TransactionId}.");
+            }
 
-        if (tx.PaymentStatus != "Pending")
-        {
-            return (false, $"Giao dịch #{tx.Id} đã ở trạng thái '{tx.PaymentStatus}', không thể xử lý lặp lại.");
-        }
+            bool isPrivileged = currentUserRole is "Librarian" or "Admin";
+            if (tx.UserId != currentUserId && !isPrivileged)
+            {
+                throw new UnauthorizedAccessException("Bạn không có quyền xác thực giao dịch của thành viên khác.");
+            }
 
-        string canonicalPayload = BuildCanonicalPayload(tx.Id, tx.UserId, tx.TransactionType, tx.Amount, tx.PaymentGateway, tx.LoanId);
-        if (!string.IsNullOrWhiteSpace(callback.RawPayload) &&
-            !string.Equals(callback.RawPayload.Trim(), canonicalPayload, StringComparison.Ordinal))
-        {
-            return (false, "Dữ liệu xác thực không khớp với bản ghi giao dịch gốc trên máy chủ.");
-        }
+            if (tx.PaymentStatus != "Pending")
+            {
+                await dbTx.RollbackAsync();
+                return (false, $"Giao dịch #{tx.Id} đã ở trạng thái '{tx.PaymentStatus}', không thể xử lý lặp lại.");
+            }
 
-        string expectedHmac = ComputeHmacSha512(canonicalPayload);
-        string providedHmac = (callback.HmacSignature ?? string.Empty).Trim().ToLowerInvariant();
+            string canonicalPayload = BuildCanonicalPayload(tx.Id, tx.UserId, tx.TransactionType, tx.Amount, tx.PaymentGateway, tx.LoanId);
+            if (!string.IsNullOrWhiteSpace(callback.RawPayload) &&
+                !string.Equals(callback.RawPayload.Trim(), canonicalPayload, StringComparison.Ordinal))
+            {
+                await dbTx.RollbackAsync();
+                return (false, "Dữ liệu xác thực không khớp với bản ghi giao dịch gốc trên máy chủ.");
+            }
 
-        byte[] expectedBytes = Encoding.UTF8.GetBytes(expectedHmac);
-        byte[] providedBytes = Encoding.UTF8.GetBytes(providedHmac);
+            string expectedHmac = ComputeHmacSha512(canonicalPayload);
+            string providedHmac = (callback.HmacSignature ?? string.Empty).Trim().ToLowerInvariant();
 
-        if (expectedBytes.Length != providedBytes.Length ||
-            !CryptographicOperations.FixedTimeEquals(expectedBytes, providedBytes))
-        {
-            return (false,
-                $"Từ chối xác thực: Mã xác nhận giao dịch không hợp lệ hoặc dữ liệu đã bị thay đổi! Hóa đơn #{tx.Id} vẫn giữ nguyên chờ xử lý.");
-        }
+            byte[] expectedBytes = Encoding.UTF8.GetBytes(expectedHmac);
+            byte[] providedBytes = Encoding.UTF8.GetBytes(providedHmac);
 
-        if (callback.ResponseCode != "00")
-        {
-            tx.PaymentStatus = "Failed";
+            if (expectedBytes.Length != providedBytes.Length ||
+                !CryptographicOperations.FixedTimeEquals(expectedBytes, providedBytes))
+            {
+                await dbTx.RollbackAsync();
+                return (false,
+                    $"Từ chối xác thực: Mã xác nhận giao dịch không hợp lệ hoặc dữ liệu đã bị thay đổi! Hóa đơn #{tx.Id} vẫn giữ nguyên chờ xử lý.");
+            }
+
+            if (callback.ResponseCode != "00")
+            {
+                tx.PaymentStatus = "Failed";
+                tx.HmacSignature = expectedHmac;
+                await _db.SaveChangesAsync();
+                await dbTx.CommitAsync();
+                return (false, $"Giao dịch #{tx.Id} đã được hủy (Mã phản hồi = {callback.ResponseCode}).");
+            }
+
+            tx.PaymentStatus = "Completed";
             tx.HmacSignature = expectedHmac;
+
+            var now = DateTime.UtcNow;
+            string extraEffect = await ApplyCompletedTransactionEffectsAsync(tx, now);
+
+            _db.Notifications.Add(new Notification
+            {
+                UserId = tx.UserId,
+                Title = $"Xác thực giao dịch #{tx.Id} thành công",
+                Content = $"Giao dịch {GetServiceLabel(tx.TransactionType)} trị giá {tx.Amount:N0}đ ảo đã hoàn tất. {extraEffect}",
+                Type = "System",
+                IsRead = false,
+                EmailSentViaResend = false,
+                CreatedAt = now
+            });
+
             await _db.SaveChangesAsync();
-            return (false, $"Giao dịch #{tx.Id} đã được hủy (Mã phản hồi = {callback.ResponseCode}).");
+            await dbTx.CommitAsync();
+
+            return (true,
+                $"Xác thực giao dịch #{tx.Id} ({tx.Amount:N0}đ ảo) thành công! {extraEffect}");
         }
-
-        tx.PaymentStatus = "Completed";
-        tx.HmacSignature = expectedHmac;
-
-        var now = DateTime.UtcNow;
-        string extraEffect = await ApplyCompletedTransactionEffectsAsync(tx, now);
-
-        _db.Notifications.Add(new Notification
+        catch
         {
-            UserId = tx.UserId,
-            Title = $"Xác thực giao dịch #{tx.Id} thành công",
-            Content = $"Giao dịch {GetServiceLabel(tx.TransactionType)} trị giá {tx.Amount:N0}đ ảo đã hoàn tất. {extraEffect}",
-            Type = "System",
-            IsRead = false,
-            EmailSentViaResend = false,
-            CreatedAt = now
-        });
-
-        await _db.SaveChangesAsync();
-
-        return (true,
-            $"Xác thực giao dịch #{tx.Id} ({tx.Amount:N0}đ ảo) thành công! {extraEffect}");
+            try { await dbTx.RollbackAsync(); } catch { /* giao dịch đã đóng hoặc đã rollback */ }
+            throw;
+        }
     }
 
     public async Task<(bool Success, string Message)> RefundSimulatedDepositAsync(
@@ -510,44 +737,62 @@ public class S17SandboxPaymentService : IS17SandboxPaymentService
             throw new UnauthorizedAccessException("Chỉ Thủ thư hoặc Quản trị viên mới được xác nhận hoàn cọc bảo lãnh.");
         }
 
-        var tx = await _db.Transactions.FirstOrDefaultAsync(t => t.Id == transactionId);
-        if (tx == null)
+        await using var dbTx = await _db.Database.BeginTransactionAsync(IsolationLevel.Serializable);
+        try
         {
-            return (false, "Không tìm thấy giao dịch tiền cọc cần hoàn trả.");
+            var tx = await _db.Transactions
+                .FromSqlRaw("SELECT * FROM [dbo].[Transactions] WITH (UPDLOCK, HOLDLOCK) WHERE [Id] = {0}", transactionId)
+                .FirstOrDefaultAsync();
+            if (tx == null)
+            {
+                await dbTx.RollbackAsync();
+                return (false, "Không tìm thấy giao dịch tiền cọc cần hoàn trả.");
+            }
+
+            if (tx.TransactionType != "SimulatedDeposit")
+            {
+                await dbTx.RollbackAsync();
+                return (false, "Chỉ các giao dịch Tiền cọc bảo lãnh mới hỗ trợ hoàn cọc.");
+            }
+
+            if (tx.PaymentStatus != "Completed")
+            {
+                await dbTx.RollbackAsync();
+                return (false, $"Chỉ có thể hoàn cọc cho giao dịch đã hoàn tất thanh toán (Trạng thái hiện tại: {tx.PaymentStatus}).");
+            }
+
+            var now = DateTime.UtcNow;
+            tx.PaymentStatus = "Refunded";
+
+            var wallet = await EnsureWalletLockedAsync(tx.UserId, now);
+            decimal balBefore = wallet.Balance;
+            wallet.Balance += tx.Amount;
+            wallet.UpdatedAt = now;
+            decimal balAfter = wallet.Balance;
+            tx.BalanceBefore ??= balBefore;
+            tx.BalanceAfter = balAfter;
+
+            _db.Notifications.Add(new Notification
+            {
+                UserId = tx.UserId,
+                Title = $"Đã hoàn trả tiền cọc #{tx.Id} về Ví Tiền Ảo",
+                Content = $"Khoản tiền cọc bảo lãnh {tx.Amount:N0}đ ảo đã được cộng lại 100% vào Ví Tiền Ảo (Số dư: {balBefore:N0}đ -> {balAfter:N0}đ).",
+                Type = "System",
+                IsRead = false,
+                EmailSentViaResend = false,
+                CreatedAt = now
+            });
+
+            await _db.SaveChangesAsync();
+            await dbTx.CommitAsync();
+
+            return (true, $"Đã hoàn trả 100% tiền cọc bảo lãnh ({tx.Amount:N0}đ ảo) của giao dịch #{tx.Id} về Ví Tiền Ảo!");
         }
-
-        if (tx.TransactionType != "SimulatedDeposit")
+        catch
         {
-            return (false, "Chỉ các giao dịch Tiền cọc bảo lãnh mới hỗ trợ hoàn cọc.");
+            try { await dbTx.RollbackAsync(); } catch { /* giao dịch đã đóng hoặc đã rollback */ }
+            throw;
         }
-
-        if (tx.PaymentStatus != "Completed")
-        {
-            return (false, $"Chỉ có thể hoàn cọc cho giao dịch đã hoàn tất thanh toán (Trạng thái hiện tại: {tx.PaymentStatus}).");
-        }
-
-        var now = DateTime.UtcNow;
-        tx.PaymentStatus = "Refunded";
-
-        // Hoàn thẳng khoản ký quỹ ảo về Ví Tiền Ảo của thành viên
-        var wallet = await EnsureWalletEntityAsync(tx.UserId, now);
-        wallet.Balance += tx.Amount;
-        wallet.UpdatedAt = now;
-
-        _db.Notifications.Add(new Notification
-        {
-            UserId = tx.UserId,
-            Title = $"Đã hoàn trả tiền cọc #{tx.Id} về Ví Tiền Ảo",
-            Content = $"Khoản tiền cọc bảo lãnh {tx.Amount:N0}đ ảo đã được cộng lại 100% vào Ví Tiền Ảo của bạn (Số dư mới: {wallet.Balance:N0}đ).",
-            Type = "System",
-            IsRead = false,
-            EmailSentViaResend = false,
-            CreatedAt = now
-        });
-
-        await _db.SaveChangesAsync();
-
-        return (true, $"Đã hoàn trả 100% tiền cọc bảo lãnh ({tx.Amount:N0}đ ảo) của giao dịch #{tx.Id} về Ví Tiền Ảo!");
     }
 
     public async Task<(bool Success, string Message)> CancelPendingTransactionAsync(
@@ -601,9 +846,12 @@ public class S17SandboxPaymentService : IS17SandboxPaymentService
         return Convert.ToHexString(hashBytes).ToLowerInvariant();
     }
 
-    private async Task<UserWallet> EnsureWalletEntityAsync(string userId, DateTime now)
+    private async Task<UserWallet> EnsureWalletLockedAsync(string userId, DateTime now)
     {
-        var wallet = await _db.UserWallets.FirstOrDefaultAsync(w => w.UserId == userId);
+        var wallet = await _db.UserWallets
+            .FromSqlRaw("SELECT * FROM [dbo].[UserWallets] WITH (UPDLOCK, HOLDLOCK) WHERE [UserId] = {0}", userId)
+            .FirstOrDefaultAsync();
+
         if (wallet == null)
         {
             wallet = new UserWallet
@@ -615,13 +863,14 @@ public class S17SandboxPaymentService : IS17SandboxPaymentService
                 UpdatedAt = now
             };
             _db.UserWallets.Add(wallet);
+            await _db.SaveChangesAsync();
         }
         return wallet;
     }
 
     private async Task<string> ApplyCompletedTransactionEffectsAsync(Transaction tx, DateTime now)
     {
-        if (tx.TransactionType == "Membership")
+        if (tx.TransactionType is "Membership" or "MembershipSwitch")
         {
             string targetTier = !string.IsNullOrWhiteSpace(tx.TargetTier)
                 ? MembershipTierCatalog.NormalizeTier(tx.TargetTier)
@@ -633,35 +882,44 @@ public class S17SandboxPaymentService : IS17SandboxPaymentService
                 ? tx.DurationMonths.Value
                 : (tx.Amount <= 50000m ? 1 : tx.Amount <= 250000m ? 6 : 12);
 
-            var membership = await _db.Memberships
+            var activeRecords = await _db.Memberships
                 .Where(m => m.UserId == tx.UserId && m.IsActive)
-                .OrderByDescending(m => m.StartDate)
-                .FirstOrDefaultAsync();
+                .ToListAsync();
 
-            if (membership != null)
+            foreach (var oldRec in activeRecords)
             {
-                bool sameTierValid = membership.Tier.Equals(policy.Tier, StringComparison.OrdinalIgnoreCase)
-                    && membership.ExpiryDate.HasValue
-                    && membership.ExpiryDate.Value > now;
-                membership.Tier = policy.Tier;
-                membership.MaxConcurrentLoans = policy.MaxConcurrentLoans;
-                var baseDate = sameTierValid ? membership.ExpiryDate!.Value : now;
-                membership.ExpiryDate = baseDate.AddMonths(durationMonths);
-            }
-            else
-            {
-                _db.Memberships.Add(new Membership
+                oldRec.IsActive = false;
+                if (!oldRec.ExpiryDate.HasValue || oldRec.ExpiryDate.Value > now)
                 {
-                    UserId = tx.UserId,
-                    Tier = policy.Tier,
-                    MaxConcurrentLoans = policy.MaxConcurrentLoans,
-                    StartDate = now,
-                    ExpiryDate = now.AddMonths(durationMonths),
-                    IsActive = true
-                });
+                    oldRec.ExpiryDate = now;
+                }
             }
 
-            return $"Đã kích hoạt gói {policy.DisplayName} ({policy.Tier} +{durationMonths} tháng — tối đa {policy.MaxConcurrentLoans} cuốn, {policy.MaxBorrowDays} ngày/lượt).";
+            _db.Memberships.Add(new Membership
+            {
+                UserId = tx.UserId,
+                Tier = policy.Tier,
+                MaxConcurrentLoans = policy.MaxConcurrentLoans,
+                StartDate = now,
+                ExpiryDate = now.AddMonths(durationMonths),
+                IsActive = true
+            });
+
+            // Hủy các hóa đơn đăng ký/chuyển gói Pending khác của cùng user để tránh quét trùng
+            var stalePending = await _db.Transactions
+                .Where(t => t.UserId == tx.UserId
+                    && t.Id != tx.Id
+                    && t.PaymentStatus == "Pending"
+                    && (t.TransactionType == "Membership" || t.TransactionType == "MembershipSwitch"))
+                .ToListAsync();
+            foreach (var p in stalePending)
+            {
+                p.PaymentStatus = "Failed";
+            }
+
+            return tx.TransactionType == "MembershipSwitch"
+                ? $"Đã chuyển đổi thành công sang gói {policy.DisplayName} ({policy.Tier} +{durationMonths} tháng — tối đa {policy.MaxConcurrentLoans} cuốn, {policy.MaxBorrowDays} ngày/lượt; lệ phí chuyển {tx.SwitchFee:N0}đ)."
+                : $"Đã kích hoạt gói {policy.DisplayName} ({policy.Tier} +{durationMonths} tháng — tối đa {policy.MaxConcurrentLoans} cuốn, {policy.MaxBorrowDays} ngày/lượt).";
         }
 
         if (tx.TransactionType == "Fine" && tx.LoanId.HasValue)
@@ -715,7 +973,9 @@ public class S17SandboxPaymentService : IS17SandboxPaymentService
 
     private static string GetServiceLabel(string txType) => txType switch
     {
-        "Membership" => "Đăng ký / Nâng cấp Gói Hội Viên",
+        "Membership" => "Đăng ký Gói Hội Viên mới",
+        "MembershipSwitch" => "Chuyển đổi Gói Hội Viên (kèm lệ phí chuyển)",
+        "MembershipCancel" => "Hủy Gói Hội Viên về Free",
         "Fine" => "Thanh toán Phí trễ hạn / Bồi thường",
         "SimulatedDeposit" => "Ký quỹ Bảo lãnh Sách quý",
         "WalletTopUp" => "Nạp Tiền Ảo Miễn Phí",
@@ -725,11 +985,17 @@ public class S17SandboxPaymentService : IS17SandboxPaymentService
     private static string ResolveDescription(string txType, string? targetTier, int? durationMonths, int? loanId, string? explicitDesc)
     {
         if (!string.IsNullOrWhiteSpace(explicitDesc)) return explicitDesc;
-        if (txType == "Membership")
+        if (txType is "Membership" or "MembershipSwitch")
         {
             var policy = MembershipTierCatalog.GetPolicy(string.IsNullOrWhiteSpace(targetTier) ? "Premium" : targetTier);
             int months = durationMonths ?? 12;
-            return $"Đăng ký / Gia hạn gói {policy.DisplayName} ({policy.Tier} — {months} tháng)";
+            return txType == "MembershipSwitch"
+                ? $"Chuyển đổi sang gói {policy.DisplayName} ({policy.Tier} — {months} tháng)"
+                : $"Đăng ký gói {policy.DisplayName} ({policy.Tier} — {months} tháng)";
+        }
+        if (txType == "MembershipCancel")
+        {
+            return "Hủy gói hội viên trả phí về Free";
         }
         if (txType == "Fine")
         {

@@ -101,13 +101,18 @@
                     else
                     {
                         <li class="nav-item" role="presentation">
-                            <button class="nav-link active fw-bold" data-bs-toggle="pill" data-bs-target="#tabProfile" type="button">
-                                <i class="bi bi-person-vcard-fill me-1"></i>Hồ Sơ &amp; Bảo Mật
+                            <button class="nav-link active fw-bold" id="btnTabProfile" data-bs-toggle="pill" data-bs-target="#tabProfile" type="button">
+                                <i class="bi bi-person-vcard-fill me-1"></i>Hồ Sơ &amp; Email
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link fw-bold" id="btnTabAppearance" data-bs-toggle="pill" data-bs-target="#tabAppearance" type="button">
+                                <i class="bi bi-palette2 me-1"></i>Giao Diện &amp; Font
                             </button>
                         </li>
                         <li class="nav-item" role="presentation">
                             <button class="nav-link fw-bold" id="btnTabQrLogin" data-bs-toggle="pill" data-bs-target="#tabQrLogin" type="button">
-                                @IconService.RenderIconHtml("qr_scan", "bi-qr-code-scan", "me-1")Liên Kết Thiết Bị QR
+                                @IconService.RenderIconHtml("qr_scan", "bi-qr-code-scan", "me-1")Liên Kết QR
                             </button>
                         </li>
                     }
@@ -250,20 +255,44 @@
                                      class="rounded-circle border shadow-sm" style="width:64px; height:64px; object-fit:cover;"
                                      onerror="this.onerror=null;this.src='@defaultAvatarUrl'" />
                                 <div>
-                                    <div class="fw-bold">@Model.CurrentUserFullName</div>
-                                    <div class="small text-muted">Email: @Model.CurrentUserEmail • Vai trò: <span class="badge bg-primary">@Model.CurrentUserRole</span></div>
+                                    <div class="fw-bold">@Model.CurrentUserFullName <span class="badge bg-primary ms-1">@Model.CurrentUserRole</span></div>
+                                    <div class="small text-muted">Tên đăng nhập: <code>@Model.CurrentUserName</code></div>
+                                    <div class="small text-muted">
+                                        Email nhận thư:
+                                        @if (Model.HasValidEmail)
+                                        {
+                                            <strong>@Model.CurrentUserEmail</strong>
+                                            <span class="badge @(Model.EmailConfirmed ? "bg-success" : "bg-warning text-dark") ms-1">
+                                                @(Model.EmailConfirmed ? "Đã xác minh OTP" : "Chưa xác minh OTP")
+                                            </span>
+                                        }
+                                        else
+                                        {
+                                            <span class="badge bg-danger">Chưa có Email — Cần điền để gửi thư</span>
+                                        }
+                                    </div>
                                     <div class="small text-success fw-semibold"><i class="bi bi-award-fill me-1"></i>Điểm uy tín: @Model.CurrentTrustScore điểm</div>
                                 </div>
                             </div>
 
                             <form id="s01UpdateProfileForm" class="mb-4 pb-3 border-bottom">
                                 <h6 class="fw-bold small text-primary text-uppercase mb-3">
-                                    <i class="bi bi-pencil-square me-1"></i>Cập nhật Thông tin Hồ sơ Cá nhân
+                                    <i class="bi bi-pencil-square me-1"></i>Cài Đặt Thông Tin Hiển Thị &amp; Email Nhận Thư (Mọi Cấp)
                                 </h6>
                                 <div class="row g-3">
                                     <div class="col-md-6">
-                                        <label class="form-label small fw-bold" for="profFullName">Họ và tên *</label>
-                                        <input type="text" id="profFullName" class="form-control" value="@Model.CurrentUserFullName" required />
+                                        <label class="form-label small fw-bold" for="profFullName">Tên hiển thị (khác với Email) *</label>
+                                        <input type="text" id="profFullName" class="form-control" value="@Model.CurrentUserFullName" placeholder="VD: Nguyễn Minh Anh" required />
+                                        <div class="form-text small">Tên hiển thị trên đầu trang, phiếu mượn &amp; hội thoại AI.</div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label small fw-bold" for="profEmail">Email liên hệ &amp; nhận thư</label>
+                                        <input type="email" id="profEmail" class="form-control" value="@Model.CurrentUserEmail" placeholder="VD: tenban@gmail.com" />
+                                        <div class="form-text small">Dùng để gửi OTP, nhắc hạn trả sách và bản lưu chat AI.</div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label small fw-bold" for="profUserNameReadonly">Tên đăng nhập hệ thống</label>
+                                        <input type="text" id="profUserNameReadonly" class="form-control bg-body-tertiary" value="@Model.CurrentUserName" readonly />
                                     </div>
                                     <div class="col-md-6">
                                         <label class="form-label small fw-bold" for="profPhone">Số điện thoại</label>
@@ -279,7 +308,7 @@
                                     </div>
                                     <div class="col-12 text-end">
                                         <button type="submit" class="btn btn-primary fw-bold px-4">
-                                            <i class="bi bi-check2-circle me-1"></i>Lưu Thay Đổi Hồ Sơ
+                                            <i class="bi bi-check2-circle me-1"></i>Lưu Tên Hiển Thị &amp; Email
                                         </button>
                                     </div>
                                 </div>
@@ -367,6 +396,82 @@
                                     }
                                 </div>
                             }
+                        </div>
+
+                        <!-- TAB 4: CÀI ĐẶT GIAO DIỆN BOOTSTRAP, BẢNG MÀU, PHÔNG CHỮ & CỠ CHỮ (MỌI CẤP) -->
+                        <div class="tab-pane fade" id="tabAppearance" role="tabpanel">
+                            <h6 class="fw-bold text-primary mb-2"><i class="bi bi-palette2 me-1"></i>Tùy Biến Giao Diện, Phong Cách &amp; Phông Chữ Nội Bộ</h6>
+                            <p class="small text-muted mb-3">
+                                Toàn bộ giao diện Bootstrap, biểu tượng và 5 bộ phông chữ tiếng Việt đều được tích hợp sẵn cục bộ — đổi tức thì và lưu đồng bộ vào tài khoản của bạn.
+                            </p>
+
+                            <div class="row g-3 mb-3">
+                                <div class="col-md-6">
+                                    <label class="form-label small fw-bold" for="prefThemeMode">Chế độ Sáng / Tối</label>
+                                    <select id="prefThemeMode" class="form-select">
+                                        <option value="light">☀️ Nền Sáng (Mặc định dễ đọc)</option>
+                                        <option value="dark">🌙 Nền Tối (Bảo vệ mắt ban đêm)</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label small fw-bold" for="prefUiStyle">Phong cách thiết kế (Bootstrap)</label>
+                                    <select id="prefUiStyle" class="form-select">
+                                        <option value="standard">📘 Chuẩn Hiện Đại (BookShare Default)</option>
+                                        <option value="sketchy">✏️ Nét Vẽ Nghệch Ngoặc (Sketchy Hand-Drawn)</option>
+                                        <option value="morph">🫧 Kính Mờ Mềm Mại (Neumorphism Morph)</option>
+                                        <option value="flatly">📐 Phẳng Sắc Nét (Flatly Minimal)</option>
+                                        <option value="cyborg">⚡ Đêm Công Nghệ (Cyborg Dark)</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label small fw-bold" for="prefPalette">Bảng màu chủ đạo (10 lựa chọn)</label>
+                                    <select id="prefPalette" class="form-select">
+                                        <option value="blue">🔵 Xanh Sapphire (Mặc định)</option>
+                                        <option value="gold">✨ Vàng Mộng Mơ (Ấm áp &amp; Dịu mắt)</option>
+                                        <option value="rose">🌸 Hồng Ấm Áp (Sakura Nhẹ Nhàng)</option>
+                                        <option value="lavender">💜 Tím Oải Hương (Mộng Mơ)</option>
+                                        <option value="sepia">📜 Giấy Cổ Thư Viện (Cảm giác sách giấy)</option>
+                                        <option value="emerald">🟢 Lục Bảo Thư Viện</option>
+                                        <option value="ocean">🌊 Xanh Đại Dương</option>
+                                        <option value="coral">🟠 Cam Hoàng Hôn</option>
+                                        <option value="royal">🟣 Tím Hoàng Gia</option>
+                                        <option value="midnight">🌌 Đêm Ngân Hà</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label small fw-bold" for="prefFontFamily">Phông chữ tiếng Việt (Tải sẵn cục bộ)</label>
+                                    <select id="prefFontFamily" class="form-select">
+                                        <option value="roboto">Roboto — Chuẩn cân đối</option>
+                                        <option value="bevietnam">Be Vietnam Pro — Hiện đại sắc nét</option>
+                                        <option value="lora">Lora — Có chân cổ điển đọc sách</option>
+                                        <option value="patrick">Patrick Hand — Viết tay nghệch ngoặc</option>
+                                        <option value="jetbrains">JetBrains Mono — Đơn cách kỹ thuật</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label small fw-bold" for="prefFontSize">Cỡ chữ hiển thị</label>
+                                    <select id="prefFontSize" class="form-select">
+                                        <option value="sm">Nhỏ gọn (14px)</option>
+                                        <option value="md">Tiêu chuẩn (16px)</option>
+                                        <option value="lg">Lớn dễ đọc (17.5px)</option>
+                                        <option value="xl">Rất lớn trợ thị (19px)</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-6 d-flex align-items-end gap-2">
+                                    <button type="button" id="btnSaveUiPrefs" class="btn btn-primary fw-bold flex-grow-1">
+                                        <i class="bi bi-save2-fill me-1"></i>Lưu Cài Đặt Giao Diện
+                                    </button>
+                                    <button type="button" id="btnResetUiPrefs" class="btn btn-outline-secondary fw-semibold">
+                                        Mặc định
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div class="p-3 rounded-4 border bg-body-tertiary">
+                                <div class="small fw-bold text-primary mb-1"><i class="bi bi-eye-fill me-1"></i>Xem trước trực tiếp phong cách &amp; phông chữ</div>
+                                <p class="mb-1">“Mỗi cuốn sách giấy được trao tay là một cánh cửa tri thức mở ra cho cộng đồng — 100% chia sẻ miễn phí 0đ.”</p>
+                                <small class="text-muted">BookShare hỗ trợ đầy đủ dấu tiếng Việt trên cả 5 bộ phông chữ cục bộ.</small>
+                            </div>
                         </div>
                     }
                 </div>

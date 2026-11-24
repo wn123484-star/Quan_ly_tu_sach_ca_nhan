@@ -1949,7 +1949,11 @@ class QARunner:
         bad_top_c, _, _ = u2.post_json("/S17SandboxPayment/TopUpVirtualWallet", {"amount": 500})
         self.check("L8", "TopUpVirtualWallet rejects amount below 1,000đ (400)", bad_top_c == 400, f"HTTP {bad_top_c}")
 
-        # Instant upgrade before topping up must fail 400 (insufficient balance)
+        # Reset u2 from seeded Premium to Free first so L8 tests pure Free -> Register Standard -> Switch Scholar lifecycle
+        u2.refresh_csrf("/S16MembershipTier")
+        u2.post_json("/S16MembershipTier/CancelMembership", {"reason": "L8 setup Free baseline"})
+
+        # Instant upgrade before topping up must fail 400 (insufficient balance: 50k < 89k)
         short_c, _, _ = u2.post_json(
             "/S16MembershipTier/SwitchMembership",
             {"targetTier": "Scholar", "durationMonths": 1, "paymentMode": "InstantWallet"},
@@ -1999,13 +2003,17 @@ class QARunner:
             f"prev={idor_prev_c}, conf={idor_conf_c}, poll={idor_poll_c}",
         )
 
-        # Owner u2 previews invoice before enough money (bal ~121,000 vs 449,000)
+        # Owner u2 previews invoice before enough money (Standard->Scholar 6M = 449k - 29k proration + 15k switchFee = 435,000đ)
         prev1_c, prev1_j, _ = u2.post_json("/S17SandboxPayment/PreviewQrInvoice", {"qrPayload": pay_qr})
         inv1 = (prev1_j or {}).get("invoice", {}) if isinstance(prev1_j, dict) else {}
         self.check(
             "L8",
-            "PreviewQrInvoice returns full invoice details & flags insufficient balance accurately",
-            prev1_c == 200 and float(inv1.get("amount", 0)) == 449000 and inv1.get("hasSufficientBalance") is False,
+            "PreviewQrInvoice returns full switch-fee invoice details & flags insufficient balance accurately",
+            prev1_c == 200
+            and float(inv1.get("switchFee", 0)) == 15000
+            and float(inv1.get("prorationCredit", 0)) > 0
+            and 420000 <= float(inv1.get("amount", 0)) <= 464000
+            and inv1.get("hasSufficientBalance") is False,
             f"HTTP {prev1_c}, inv={inv1}",
         )
 
@@ -2114,6 +2122,259 @@ class QARunner:
                 f"HTTP {after_del_sess_c}, auth={after_del_auth}",
             )
 
+    def run_layer9_sprint5(self, actors: dict[str, SessionClient]) -> None:
+        print("\n=== LAYER 9: SPRINT 5 — ICON 200 OK, GOOGLE OAUTH SCHEME, THEMES/FONTS, SETTINGS, NOTIF POPUP, PERSISTENT AI & ANTI-SPAM ===")
+        admin = actors["admin"]
+        u1 = actors["u1"]
+        u2 = actors["u2"]
+
+        # 9.1 Static & Local Asset Verification (0 CDN in Bootswatch, 6 local fonts HTTP 200, Program.cs UseStaticFiles + ExternalCookieScheme)
+        bw_dir = WEB_DIR / "wwwroot" / "vendor" / "bootswatch"
+        bw_files = list(bw_dir.glob("*.min.css"))
+        bw_no_cdn = len(bw_files) >= 4 and all("fonts.googleapis.com" not in f.read_text(encoding="utf-8", errors="ignore") for f in bw_files)
+        self.check("L9", "All local Bootswatch CSS files have 0 external Google Fonts @import", bw_no_cdn, f"count={len(bw_files)}")
+
+        for font_rel in [
+            "/fonts/BeVietnamPro-Regular.ttf",
+            "/fonts/PatrickHand-Regular.ttf",
+            "/fonts/Lora-Variable.ttf",
+            "/fonts/JetBrainsMono-Regular.ttf",
+        ]:
+            fc, fbody, _ = u1.get(font_rel)
+            self.check("L9", f"Local Vietnamese font serves HTTP 200 ({font_rel})", fc == 200 and len(fbody) > 10000, f"HTTP {fc}")
+
+        prog_src = (WEB_DIR / "Program.cs").read_text(encoding="utf-8", errors="ignore")
+        self.check(
+            "L9",
+            "Program.cs enables UseStaticFiles() and dedicated ExternalCookieScheme for Google OAuth",
+            "app.UseStaticFiles()" in prog_src and "ExternalCookieScheme" in prog_src,
+        )
+
+        theme_css = (WEB_DIR / "wwwroot" / "css" / "core-theme.css").read_text(encoding="utf-8", errors="ignore")
+        self.check(
+            "L9",
+            "core-theme.css defines balanced 180deg header, bottom-left reCAPTCHA tuck, Gold/Rose palettes & Sketchy style",
+            "linear-gradient(180deg" in theme_css
+            and ".grecaptcha-badge" in theme_css
+            and "left: -186px" in theme_css
+            and 'data-portal-palette="gold"' in theme_css
+            and 'data-portal-palette="rose"' in theme_css
+            and 'data-ui-style="sketchy"' in theme_css,
+        )
+
+        # 9.2 Uploaded Icon returns HTTP 200 (disk static file + SQL binary fallback endpoint)
+        admin.refresh_csrf("/S22AdminAnalytics")
+        tiny_png = (
+            b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01"
+            b"\x08\x02\x00\x00\x00\x90wS\xde\x00\x00\x00\x0cIDATx\x9cc`\x00\x00\x00\x02\x00\x01"
+            b"\xe2!\xbc3\x00\x00\x00\x00IEND\xaeB`\x82"
+        )
+        up_ic, up_ij, up_iraw = admin.post_multipart(
+            "/S22AdminAnalytics/UploadCustomIcon",
+            {"iconKey": "brand_logo"},
+            ("file", "brand_test_s5.png", tiny_png, "image/png"),
+        )
+        icon_url = ((up_ij or {}).get("item") or {}).get("customImageUrl", "") if isinstance(up_ij, dict) else ""
+        self.check("L9", "Admin uploads custom brand_logo icon successfully", up_ic == 200 and icon_url.startswith("/uploads/icons/"), up_iraw[:140])
+
+        if icon_url:
+            # Fetch raw bytes to ensure real 200 OK (not 404!)
+            req_disk = urllib.request.Request(self.base_url + icon_url)
+            try:
+                with urllib.request.urlopen(req_disk, timeout=5) as r_disk:
+                    disk_status = r_disk.status
+                    disk_bytes = r_disk.read()
+            except Exception as exc:
+                disk_status, disk_bytes = 0, str(exc).encode()
+            self.check(
+                "L9",
+                "Uploaded icon static URL serves HTTP 200 PNG bytes (fixes 404 bug)",
+                disk_status == 200 and disk_bytes.startswith(b"\x89PNG"),
+                f"HTTP {disk_status}, len={len(disk_bytes)}",
+            )
+
+            req_db = urllib.request.Request(self.base_url + "/assets/system-icons/brand_logo")
+            try:
+                with urllib.request.urlopen(req_db, timeout=5) as r_db:
+                    db_status = r_db.status
+                    db_bytes = r_db.read()
+            except Exception as exc:
+                db_status, db_bytes = 0, str(exc).encode()
+            self.check(
+                "L9",
+                "SQL-backed fallback icon endpoint /assets/system-icons/brand_logo returns HTTP 200 PNG",
+                db_status == 200 and db_bytes.startswith(b"\x89PNG"),
+                f"HTTP {db_status}, len={len(db_bytes)}",
+            )
+            admin.post_json("/S22AdminAnalytics/ResetIcon", {"iconKey": "brand_logo"})
+
+        # 9.3 All-Role Settings: FullName vs Email separation, Email edit, UI Preferences persistence & Email Gate
+        u1.refresh_csrf("/S01AuthOtpGoogle")
+        bad_fn_c, _, _ = u1.post_json("/S01AuthOtpGoogle/UpdateProfile", {"fullName": "nguyenhung@cmc.edu.vn", "email": "nguyenhung@cmc.edu.vn"})
+        self.check("L9", "UpdateProfile rejects using raw email as display FullName (400)", bad_fn_c == 400, f"HTTP {bad_fn_c}")
+
+        # Save UI Preferences (Sketchy + Gold + Patrick + lg) and read back
+        sp_c, sp_j, _ = u1.post_json(
+            "/S01AuthOtpGoogle/SaveUiPreferences",
+            {"theme": "light", "style": "sketchy", "palette": "gold", "font": "patrick", "fontSize": "lg"},
+        )
+        gp_c, gp_raw, _ = u1.get("/S01AuthOtpGoogle/GetUiPreferences", accept_json=True)
+        gp_prefs = (json.loads(gp_raw).get("preferences") or {}) if gp_c == 200 else {}
+        self.check(
+            "L9",
+            "User saves & reloads UI Preferences (sketchy/gold/patrick/lg) from DB",
+            sp_c == 200 and gp_c == 200 and gp_prefs.get("style") == "sketchy" and gp_prefs.get("palette") == "gold" and gp_prefs.get("font") == "patrick" and gp_prefs.get("fontSize") == "lg",
+            f"save={sp_c}, prefs={gp_prefs}",
+        )
+        # Restore standard prefs cleanly
+        u1.post_json("/S01AuthOtpGoogle/SaveUiPreferences", {"theme": "light", "style": "standard", "palette": "blue", "font": "roboto", "fontSize": "md"})
+
+        # Clear email temporarily -> verify AI SendChatSummaryEmail blocks with requiresEmailSetup=true -> restore email -> verify succeeds!
+        clr_c, _, _ = u1.post_json("/S01AuthOtpGoogle/UpdateProfile", {"fullName": "Nguyễn Quang Hùng", "email": ""})
+        self.check("L9", "Member can clear/edit Email separately from FullName & UserName", clr_c == 200, f"HTTP {clr_c}")
+        no_mail_c, no_mail_j, _ = u1.post_json("/S13GeminiAiAssistant/SendChatSummaryEmail", {})
+        self.check(
+            "L9",
+            "SendChatSummaryEmail blocks 400 & sets requiresEmailSetup=true when user has no valid Email",
+            no_mail_c == 400 and (no_mail_j or {}).get("requiresEmailSetup") is True,
+            f"HTTP {no_mail_c}, body={no_mail_j}",
+        )
+        # Restore u1's email cleanly
+        rest_c, _, _ = u1.post_json("/S01AuthOtpGoogle/UpdateProfile", {"fullName": "Nguyễn Quang Hùng", "email": "nguyenhung@cmc.edu.vn"})
+        self.check("L9", "Member restores valid Email in Settings (200)", rest_c == 200, f"HTTP {rest_c}")
+
+        # 9.4 Notification Quick Popup API (S18/RecentPopup)
+        pop_c, pop_raw, _ = u1.get("/S18NotificationHub/RecentPopup?take=8", accept_json=True)
+        pop_data = json.loads(pop_raw) if pop_c == 200 else {}
+        pop_items = pop_data.get("items") or []
+        self.check(
+            "L9",
+            "S18 RecentPopup returns unreadCount & notifications with clickable detailUrl",
+            pop_c == 200 and isinstance(pop_items, list) and (len(pop_items) == 0 or str(pop_items[0].get("detailUrl", "")).startswith("/")),
+            f"HTTP {pop_c}, count={len(pop_items)}",
+        )
+
+        # 9.5 Persistent Role-Scoped AI Chat + Reset Chat + AI Style/Font Commands + Send Chat Email
+        u1.refresh_csrf("/S13GeminiAiAssistant")
+        marker_msg = f"Đổi phong cách nét vẽ nghệch ngoặc màu hồng ấm áp {int(time.time())}"
+        ask_c, ask_j, _ = u1.post_json("/api/ai-chat/quick-ask", {"message": marker_msg})
+        cmds = (ask_j or {}).get("clientCommands") or []
+        has_ui_cmd = any(c.get("command") == "set_ui_prefs" for c in cmds)
+        self.check("L9", "AI QuickAsk returns set_ui_prefs command for Sketchy/Rose prompt", ask_c == 200 and has_ui_cmd, f"HTTP {ask_c}, cmds={cmds}")
+
+        h1_c, h1_raw, _ = u1.get("/api/ai-chat/history", accept_json=True)
+        h1_msgs = (json.loads(h1_raw).get("messages") or []) if h1_c == 200 else []
+        h2_c, h2_raw, _ = u2.get("/api/ai-chat/history", accept_json=True)
+        h2_msgs = (json.loads(h2_raw).get("messages") or []) if h2_c == 200 else []
+        self.check(
+            "L9",
+            "AI chat history persists across requests for u1 & stays strictly isolated from u2",
+            h1_c == 200
+            and any(marker_msg in (m.get("messageText") or "") for m in h1_msgs)
+            and not any(marker_msg in (m.get("messageText") or "") for m in h2_msgs),
+            f"u1_msgs={len(h1_msgs)}, u2_msgs={len(h2_msgs)}",
+        )
+
+        em_c, em_j, _ = u1.post_json("/S13GeminiAiAssistant/SendChatSummaryEmail", {})
+        self.check("L9", "AI SendChatSummaryEmail succeeds (200) once valid Email is set", em_c == 200, f"HTTP {em_c}, body={em_j}")
+
+        rst_c, rst_j, _ = u1.post_json("/api/ai-chat/reset", {})
+        h1_after_c, h1_after_raw, _ = u1.get("/api/ai-chat/history", accept_json=True)
+        h1_after_msgs = (json.loads(h1_after_raw).get("messages") or []) if h1_after_c == 200 else []
+        self.check(
+            "L9",
+            "AI Reset Chat clears old messages & creates clean role-aware greeting",
+            rst_c == 200
+            and len(h1_after_msgs) == 1
+            and not any(marker_msg in (m.get("messageText") or "") for m in h1_after_msgs),
+            f"rst={rst_c}, remaining={len(h1_after_msgs)}",
+        )
+
+        # 9.6 Membership Anti-Duplicate Purchase, Switch Fee Preview, Cancel Membership & Anti-Spam Ledger
+        u2.refresh_csrf("/S16MembershipTier")
+        dup_buy_c, dup_buy_j, _ = u2.post_json(
+            "/S16MembershipTier/SwitchMembership",
+            {"targetTier": "Scholar", "durationMonths": 1, "paymentMode": "InstantWallet"},
+        )
+        self.check(
+            "L9",
+            "S16 blocks purchasing duplicate active paid tier Scholar (400)",
+            dup_buy_c == 400 and "đang sở hữu" in str(dup_buy_j).lower(),
+            f"HTTP {dup_buy_c}, body={dup_buy_j}",
+        )
+
+        pv_sw_c, pv_sw_j, _ = u2.post_json(
+            "/S16MembershipTier/PreviewTierSwitch",
+            {"targetTier": "Premium", "durationMonths": 6},
+        )
+        pv_sw = (pv_sw_j or {}).get("preview") or {}
+        self.check(
+            "L9",
+            "S16 PreviewTierSwitch computes transparent 15,000đ switch fee & proration credit",
+            pv_sw_c == 200 and pv_sw.get("isSwitch") is True and float(pv_sw.get("switchFee", 0)) == 15000 and float(pv_sw.get("prorationCredit", 0)) > 0,
+            f"HTTP {pv_sw_c}, pv={pv_sw}",
+        )
+
+        can_c, can_j, _ = u2.post_json("/S16MembershipTier/CancelMembership", {"reason": "L9 test cancel"})
+        _, h16_free, _ = u2.get("/S16MembershipTier")
+        self.check(
+            "L9",
+            "S16 CancelMembership downgrades active Scholar cleanly to Free (200)",
+            can_c == 200 and "Gói hiện tại: Free" in h16_free,
+            f"HTTP {can_c}, body={can_j}",
+        )
+        can2_c, _, _ = u2.post_json("/S16MembershipTier/CancelMembership", {})
+        self.check("L9", "S16 CancelMembership rejects cancelling when already on Free (400)", can2_c == 400, f"HTTP {can2_c}")
+
+        # IdempotencyKey duplicate block on TopUpVirtualWallet
+        u2.refresh_csrf("/S17SandboxPayment")
+        idem_key = f"l9-idem-{int(time.time())}"
+        t_first_c, t_first_j, _ = u2.post_json("/S17SandboxPayment/TopUpVirtualWallet", {"amount": 25000, "idempotencyKey": idem_key})
+        bal_after_first = float((t_first_j or {}).get("balance", 0))
+        t_dup_c, t_dup_j, _ = u2.post_json("/S17SandboxPayment/TopUpVirtualWallet", {"amount": 25000, "idempotencyKey": idem_key})
+        bal_after_dup = float((t_dup_j or {}).get("balance", -1))
+        self.check(
+            "L9",
+            "S17 IdempotencyKey blocks duplicate TopUpVirtualWallet (400, balance unchanged)",
+            t_first_c == 200 and t_dup_c == 400 and abs(bal_after_first - bal_after_dup) < 0.01,
+            f"c1={t_first_c}, c2={t_dup_c}, b1={bal_after_first}, b2={bal_after_dup}",
+        )
+
+        # Pending invoice anti-spam deduplication
+        ord1_c, ord1_j, _ = u2.post_json("/S17SandboxPayment/CreateOrder", {"transactionType": "Membership", "targetTier": "Standard", "durationMonths": 1, "amount": 29000})
+        ord2_c, ord2_j, _ = u2.post_json("/S17SandboxPayment/CreateOrder", {"transactionType": "Membership", "targetTier": "Standard", "durationMonths": 1, "amount": 29000})
+        tx1_id = (ord1_j or {}).get("transactionId")
+        tx2_id = (ord2_j or {}).get("transactionId")
+        self.check(
+            "L9",
+            "S17 CreateOrder deduplicates identical recent Pending invoice (reuses exact #TX-ID)",
+            ord1_c == 200 and ord2_c == 200 and tx1_id and tx1_id == tx2_id,
+            f"tx1={tx1_id}, tx2={tx2_id}",
+        )
+        if tx1_id:
+            u2.post_json("/S17SandboxPayment/CancelTransaction", {"transactionId": tx1_id})
+
+        # Rate-limit anti-spam on TopUpVirtualWallet (6 rapid calls -> 6th hits 429)
+        spam_email = f"spam.l9.{int(time.time())}@cmc.edu.vn"
+        spammer = SessionClient(self.base_url)
+        spammer.refresh_csrf("/S01AuthOtpGoogle")
+        spammer.post_form(
+            "/S01AuthOtpGoogle/Register",
+            {"FullName": "Kiem Thu Chong Spam L9", "Email": spam_email, "Password": "User@123", "Address": "Ha Noi"},
+            follow_redirects=True,
+        )
+        spammer.refresh_csrf("/S17SandboxPayment")
+        rate_codes = []
+        for idx in range(6):
+            rc, _, _ = spammer.post_json("/S17SandboxPayment/TopUpVirtualWallet", {"amount": 5000, "idempotencyKey": f"spam-{int(time.time())}-{idx}"})
+            rate_codes.append(rc)
+        self.check(
+            "L9",
+            "S17 TopUpVirtualWallet enforces anti-spam rate limit (5 OK -> 6th HTTP 429)",
+            rate_codes[:5] == [200, 200, 200, 200, 200] and rate_codes[5] == 429,
+            f"codes={rate_codes}",
+        )
+
 
 def wait_for_server(base_url: str, timeout_s: float = 40.0) -> bool:
     deadline = time.time() + timeout_s
@@ -2192,6 +2453,7 @@ def main() -> int:
         runner.run_layer4_business_loops(actors)
         runner.run_layer6_sprint3(actors)
         runner.run_layer8_sprint4(actors)
+        runner.run_layer9_sprint5(actors)
         runner.run_layer7_sprint35(actors)
         runner.run_layer5_cleanup_and_integrity(actors["admin"])
 

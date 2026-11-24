@@ -18,12 +18,54 @@
     font-style: normal;
     font-display: swap;
 }
+@font-face {
+    font-family: 'Be Vietnam Pro';
+    src: url('../fonts/BeVietnamPro-Regular.ttf') format('truetype');
+    font-weight: 400;
+    font-style: normal;
+    font-display: swap;
+}
+@font-face {
+    font-family: 'Be Vietnam Pro';
+    src: url('../fonts/BeVietnamPro-Bold.ttf') format('truetype');
+    font-weight: 700;
+    font-style: normal;
+    font-display: swap;
+}
+@font-face {
+    font-family: 'Lora';
+    src: url('../fonts/Lora-Variable.ttf') format('truetype');
+    font-weight: 400 700;
+    font-style: normal;
+    font-display: swap;
+}
+@font-face {
+    font-family: 'Patrick Hand';
+    src: url('../fonts/PatrickHand-Regular.ttf') format('truetype');
+    font-weight: 400;
+    font-style: normal;
+    font-display: swap;
+}
+@font-face {
+    font-family: 'JetBrains Mono';
+    src: url('../fonts/JetBrainsMono-Regular.ttf') format('truetype');
+    font-weight: 400;
+    font-style: normal;
+    font-display: swap;
+}
+@font-face {
+    font-family: 'JetBrains Mono';
+    src: url('../fonts/JetBrainsMono-Bold.ttf') format('truetype');
+    font-weight: 700;
+    font-style: normal;
+    font-display: swap;
+}
 
 :root {
-    --portal-grad-deep: #060d1f;
-    --portal-grad-start: #0f172a;
-    --portal-grad-mid: #1e3a8a;
-    --portal-grad-end: #1d4ed8;
+    --portal-grad-deep: #172554;
+    --portal-grad-start: #1e3a8a;
+    --portal-grad-mid: #1d4ed8;
+    --portal-grad-end: #2563eb;
     --portal-accent: #2563eb;
     --portal-accent-glow: #38bdf8;
     --portal-light-bg: #f1f5f9;
@@ -36,6 +78,19 @@
     --card-radius: 18px;
     --bs-font-sans-serif: 'Roboto', 'Segoe UI', system-ui, -apple-system, sans-serif;
 }
+
+/* Tùy chỉnh Phông chữ cục bộ (5 bộ Font tiếng Việt nội bộ 0 CDN) */
+html[data-font-family="roboto"] { --bs-font-sans-serif: 'Roboto', 'Segoe UI', system-ui, sans-serif; }
+html[data-font-family="bevietnam"] { --bs-font-sans-serif: 'Be Vietnam Pro', 'Roboto', system-ui, sans-serif; }
+html[data-font-family="lora"] { --bs-font-sans-serif: 'Lora', Georgia, 'Times New Roman', serif; }
+html[data-font-family="patrick"] { --bs-font-sans-serif: 'Patrick Hand', 'Be Vietnam Pro', cursive, sans-serif; }
+html[data-font-family="jetbrains"] { --bs-font-sans-serif: 'JetBrains Mono', Consolas, monospace; }
+
+/* Tùy chỉnh Cỡ chữ toàn trang mượt mà theo rem */
+html[data-font-size="sm"] { font-size: 14px; }
+html[data-font-size="md"] { font-size: 16px; }
+html[data-font-size="lg"] { font-size: 17.5px; }
+html[data-font-size="xl"] { font-size: 19px; }
 
 /* Dark Mode: Bootstrap 5.3 tự đổi màu component qua data-bs-theme, phần dưới phủ các màu tự định nghĩa */
 [data-bs-theme="dark"] {
@@ -54,18 +109,19 @@
     color-scheme: dark;
 }
 
+/* 10 Bảng màu hài hòa, cân đối sáng/tối đều toàn chiều ngang Header */
 body[data-portal-palette="midnight"] {
-    --portal-grad-deep: #020617;
-    --portal-grad-start: #090d16;
-    --portal-grad-mid: #172554;
-    --portal-grad-end: #1e40af;
+    --portal-grad-deep: #0f172a;
+    --portal-grad-start: #111c33;
+    --portal-grad-mid: #1e293b;
+    --portal-grad-end: #334155;
     --portal-accent: #3b82f6;
     --portal-accent-glow: #60a5fa;
 }
 
 body[data-portal-palette="ocean"] {
-    --portal-grad-deep: #041322;
-    --portal-grad-start: #082f49;
+    --portal-grad-deep: #073854;
+    --portal-grad-start: #0c4a6e;
     --portal-grad-mid: #0369a1;
     --portal-grad-end: #0284c7;
     --portal-accent: #0284c7;
@@ -73,17 +129,66 @@ body[data-portal-palette="ocean"] {
 }
 
 body[data-portal-palette="emerald"] {
-    --portal-grad-deep: #022c22;
-    --portal-grad-start: #064e3b;
+    --portal-grad-deep: #064e3b;
+    --portal-grad-start: #065f46;
     --portal-grad-mid: #047857;
     --portal-grad-end: #059669;
     --portal-accent: #059669;
     --portal-accent-glow: #34d399;
 }
 
+body[data-portal-palette="gold"] {
+    --portal-grad-deep: #78350f;
+    --portal-grad-start: #92400e;
+    --portal-grad-mid: #b45309;
+    --portal-grad-end: #d97706;
+    --portal-accent: #d97706;
+    --portal-accent-glow: #fbbf24;
+    --portal-light-bg: #fffbeb;
+    --portal-surface-2: #fef9c3;
+    --portal-border: #fde68a;
+}
+
+body[data-portal-palette="rose"] {
+    --portal-grad-deep: #881337;
+    --portal-grad-start: #9f1239;
+    --portal-grad-mid: #be123c;
+    --portal-grad-end: #e11d48;
+    --portal-accent: #e11d48;
+    --portal-accent-glow: #fb7185;
+    --portal-light-bg: #fff1f2;
+    --portal-surface-2: #ffe4e6;
+    --portal-border: #fecdd3;
+}
+
+body[data-portal-palette="lavender"] {
+    --portal-grad-deep: #4c1d95;
+    --portal-grad-start: #5b21b6;
+    --portal-grad-mid: #6d28d9;
+    --portal-grad-end: #7c3aed;
+    --portal-accent: #7c3aed;
+    --portal-accent-glow: #a78bfa;
+    --portal-light-bg: #f5f3ff;
+    --portal-surface-2: #ede9fe;
+    --portal-border: #ddd6fe;
+}
+
+body[data-portal-palette="sepia"] {
+    --portal-grad-deep: #573415;
+    --portal-grad-start: #713f12;
+    --portal-grad-mid: #854d0e;
+    --portal-grad-end: #a16207;
+    --portal-accent: #a16207;
+    --portal-accent-glow: #eab308;
+    --portal-light-bg: #fefce8;
+    --portal-surface: #fffdf5;
+    --portal-surface-2: #fef9c3;
+    --portal-border: #e5d5a8;
+}
+
 body[data-portal-palette="royal"] {
-    --portal-grad-deep: #0f0728;
-    --portal-grad-start: #1e1b4b;
+    --portal-grad-deep: #312e81;
+    --portal-grad-start: #3730a3;
     --portal-grad-mid: #4338ca;
     --portal-grad-end: #4f46e5;
     --portal-accent: #4f46e5;
@@ -91,8 +196,8 @@ body[data-portal-palette="royal"] {
 }
 
 body[data-portal-palette="obsidian"] {
-    --portal-grad-deep: #09090b;
-    --portal-grad-start: #18181b;
+    --portal-grad-deep: #27272a;
+    --portal-grad-start: #3f3f46;
     --portal-grad-mid: #78350f;
     --portal-grad-end: #b45309;
     --portal-accent: #d97706;
@@ -100,12 +205,23 @@ body[data-portal-palette="obsidian"] {
 }
 
 body[data-portal-palette="coral"] {
-    --portal-grad-deep: #270905;
-    --portal-grad-start: #431407;
-    --portal-grad-mid: #9a3412;
+    --portal-grad-deep: #7c2d12;
+    --portal-grad-start: #9a3412;
+    --portal-grad-mid: #c2410c;
     --portal-grad-end: #ea580c;
     --portal-accent: #ea580c;
     --portal-accent-glow: #fb923c;
+}
+
+/* Giữ nền tối chuẩn khi bật Dark Mode kết hợp với bảng màu sáng ấm */
+[data-bs-theme="dark"] body[data-portal-palette="gold"],
+[data-bs-theme="dark"] body[data-portal-palette="rose"],
+[data-bs-theme="dark"] body[data-portal-palette="lavender"],
+[data-bs-theme="dark"] body[data-portal-palette="sepia"] {
+    --portal-light-bg: #0f172a;
+    --portal-surface: #1e293b;
+    --portal-surface-2: #172033;
+    --portal-border: #334155;
 }
 
 body {
@@ -122,15 +238,15 @@ main {
     flex: 1;
 }
 
-/* 1. PORTAL HEADER & GIANT SEARCH BAR */
+/* 1. PORTAL HEADER & GIANT SEARCH BAR (Đổ màu dọc cân đối đồng đều trái-phải) */
 .portal-header-wrapper {
-    background: linear-gradient(135deg, var(--portal-grad-deep) 0%, var(--portal-grad-start) 48%, var(--portal-grad-mid) 100%);
+    background: linear-gradient(180deg, var(--portal-grad-start) 0%, var(--portal-grad-mid) 100%);
     color: #ffffff;
     position: sticky;
     top: 0;
     z-index: 1030;
-    border-bottom: 1.5px solid rgba(56, 189, 248, 0.35);
-    box-shadow: 0 10px 28px rgba(6, 13, 31, 0.32);
+    border-bottom: 1.5px solid rgba(255, 255, 255, 0.2);
+    box-shadow: 0 8px 24px rgba(15, 23, 42, 0.2);
 }
 
 .bs-utility-row {
@@ -258,19 +374,19 @@ main {
     border-radius: 999px;
     font-size: 0.78rem;
     font-weight: 700;
-    color: #f8fafc !important;
-    background: rgba(30, 58, 138, 0.45);
-    border: 1px solid rgba(56, 189, 248, 0.32);
+    color: #ffffff !important;
+    background: rgba(255, 255, 255, 0.14);
+    border: 1px solid rgba(255, 255, 255, 0.28);
     text-decoration: none;
     transition: all 0.18s ease;
 }
 
 .bs-domain-dropdown .dropdown-toggle:hover,
 .bs-domain-dropdown .dropdown-toggle:focus {
-    background: linear-gradient(135deg, #1d4ed8 0%, #0284c7 100%);
-    border-color: #7dd3fc;
+    background: rgba(255, 255, 255, 0.26);
+    border-color: rgba(255, 255, 255, 0.55);
     transform: translateY(-1px);
-    box-shadow: 0 4px 14px rgba(2, 132, 199, 0.35);
+    box-shadow: 0 4px 12px rgba(15, 23, 42, 0.18);
 }
 
 .bs-domain-dropdown .dropdown-menu {
@@ -1776,4 +1892,164 @@ body.is-mobile-app .ai-chat-widget {
 
 [data-bs-theme="dark"] .bs-error-code-pill.is-danger {
     color: #f87171;
+}
+
+
+/* =========================================================================
+   SPRINT 5: RECAPTCHA COMPACT GÓC TRÁI, POPUP THÔNG BÁO, SKETCHY & AI STYLEBAR
+   ========================================================================= */
+
+/* Thu nhỏ và giấu gọn huy hiệu chống bot reCAPTCHA v3 sang góc trái dưới -> KHÔNG đè lên Trợ lý AI góc phải */
+.grecaptcha-badge {
+    left: -186px !important;
+    right: auto !important;
+    bottom: 14px !important;
+    transform: scale(0.76) !important;
+    transform-origin: bottom left !important;
+    opacity: 0.72 !important;
+    z-index: 990 !important;
+    border-radius: 0 10px 10px 0 !important;
+    box-shadow: 0 4px 14px rgba(15, 23, 42, 0.14) !important;
+    transition: left 0.25s ease, opacity 0.2s ease !important;
+}
+
+.grecaptcha-badge:hover {
+    left: 0 !important;
+    opacity: 1 !important;
+}
+
+@media (max-width: 767.98px) {
+    .grecaptcha-badge {
+        bottom: 84px !important;
+        transform: scale(0.68) !important;
+    }
+}
+
+body.is-mobile-app .grecaptcha-badge {
+    bottom: 86px !important;
+    transform: scale(0.68) !important;
+}
+
+/* Phong cách Nét vẽ nghệch ngoặc (Bootswatch Sketchy) tương thích hài hòa với BookShare */
+html[data-ui-style="sketchy"] .card,
+html[data-ui-style="sketchy"] .bs-adaptive-card,
+html[data-ui-style="sketchy"] .portal-search-box,
+html[data-ui-style="sketchy"] .ai-chat-popup,
+html[data-ui-style="sketchy"] .bs-notif-popover {
+    border: 2px solid var(--portal-text) !important;
+    border-radius: 255px 15px 225px 15px / 15px 225px 15px 255px !important;
+    box-shadow: 3px 4px 0 rgba(15, 23, 42, 0.18) !important;
+}
+
+html[data-ui-style="sketchy"] .btn,
+html[data-ui-style="sketchy"] .badge,
+html[data-ui-style="sketchy"] .bs-domain-dropdown .dropdown-toggle {
+    border-radius: 255px 20px 225px 20px / 20px 225px 20px 255px !important;
+}
+
+/* Đảm bảo nền Bootswatch Cyborg vẫn giữ chữ đọc rõ trên các thẻ nội bộ */
+html[data-ui-style="cyborg"] .bg-white,
+[data-bs-theme="dark"] .bg-white {
+    background-color: var(--portal-surface) !important;
+    color: var(--portal-text) !important;
+}
+
+/* Popup Thông báo nhanh trên Chuông Header */
+.bs-notif-dropdown {
+    position: relative;
+}
+
+.bs-notif-popover {
+    width: min(370px, calc(100vw - 24px)) !important;
+    max-height: 460px;
+    padding: 0 !important;
+    overflow: hidden;
+    background: var(--portal-surface) !important;
+    color: var(--portal-text) !important;
+    border: 1.5px solid var(--portal-border) !important;
+    border-radius: 16px !important;
+    box-shadow: 0 18px 42px rgba(15, 23, 42, 0.22) !important;
+}
+
+.bs-notif-popover-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--portal-border);
+    background: var(--portal-surface-2);
+}
+
+.bs-notif-popover-list {
+    max-height: 320px;
+    overflow-y: auto;
+}
+
+.bs-notif-item {
+    display: block;
+    width: 100%;
+    text-align: left;
+    border: 0;
+    border-bottom: 1px solid var(--portal-border);
+    background: transparent;
+    color: var(--portal-text);
+    padding: 10px 14px;
+    cursor: pointer;
+    transition: background-color 0.15s ease;
+}
+
+.bs-notif-item:hover {
+    background: rgba(37, 99, 235, 0.08);
+}
+
+.bs-notif-item.is-unread {
+    background: rgba(37, 99, 235, 0.06);
+    border-left: 3px solid var(--portal-accent);
+}
+
+.bs-notif-item-title {
+    font-weight: 700;
+    font-size: 0.84rem;
+    line-height: 1.3;
+    margin-bottom: 2px;
+}
+
+.bs-notif-item-body {
+    font-size: 0.77rem;
+    color: var(--bs-secondary-color, #64748b);
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.bs-notif-popover-foot {
+    padding: 8px 12px;
+    border-top: 1px solid var(--portal-border);
+    background: var(--portal-surface-2);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+}
+
+/* Thanh chọn nhanh Giao diện/Font/Cỡ chữ ngay trong Widget Trợ lý AI */
+.ai-chat-stylebar {
+    padding: 8px 10px;
+    border-bottom: 1px solid var(--portal-border);
+    background: var(--portal-surface-2);
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 6px;
+}
+
+.ai-chat-stylebar select {
+    font-size: 0.74rem;
+    padding: 3px 6px;
+    border-radius: 8px;
+}
+
+.bs-notif-highlight {
+    outline: 2px solid var(--portal-accent) !important;
+    box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.16) !important;
 }

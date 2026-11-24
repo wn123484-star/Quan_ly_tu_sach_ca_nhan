@@ -47,8 +47,12 @@ public class S01AuthOtpService : IS01AuthOtpService
             {
                 vm.IsAuthenticated = true;
                 vm.CurrentUserId = user.Id;
+                vm.CurrentUserName = user.UserName ?? user.Email ?? user.Id;
                 vm.CurrentUserFullName = user.FullName;
-                vm.CurrentUserEmail = user.Email;
+                vm.CurrentUserEmail = user.Email ?? string.Empty;
+                vm.EmailConfirmed = user.EmailConfirmed;
+                vm.HasValidEmail = AuthConfigHelper.IsValidEmailFormat(user.Email);
+                vm.UiPreferencesJson = user.UiPreferencesJson;
                 vm.CurrentUserPhoneNumber = user.PhoneNumber ?? string.Empty;
                 vm.CurrentUserAddress = user.Address ?? string.Empty;
                 vm.CurrentUserAvatarUrl = string.IsNullOrWhiteSpace(user.AvatarUrl)
@@ -77,7 +81,18 @@ public class S01AuthOtpService : IS01AuthOtpService
     {
         if (string.IsNullOrWhiteSpace(request.FullName))
         {
-            return (false, "Họ và tên không được để trống.", null);
+            return (false, "Tên hiển thị không được để trống.", null);
+        }
+
+        string cleanFullName = request.FullName.Trim();
+        if (cleanFullName.Length < 2 || cleanFullName.Length > 150)
+        {
+            return (false, "Tên hiển thị phải từ 2 đến 150 ký tự.", null);
+        }
+
+        if (AuthConfigHelper.IsValidEmailFormat(cleanFullName))
+        {
+            return (false, "Tên hiển thị phải tách biệt với địa chỉ Email. Vui lòng nhập tên gọi hiển thị của bạn (VD: Nguyễn Văn An) và điền Email ở ô Email riêng.", null);
         }
 
         var user = await _db.AspNetUsers
@@ -89,7 +104,44 @@ public class S01AuthOtpService : IS01AuthOtpService
             return (false, "Không tìm thấy thông tin hồ sơ người dùng.", null);
         }
 
-        user.FullName = request.FullName.Trim();
+        bool emailChanged = false;
+        if (request.Email != null)
+        {
+            string trimmedEmail = request.Email.Trim();
+            if (string.IsNullOrEmpty(trimmedEmail))
+            {
+                user.Email = null;
+                user.NormalizedEmail = null;
+                user.EmailConfirmed = false;
+                emailChanged = true;
+            }
+            else
+            {
+                if (!AuthConfigHelper.IsValidEmailFormat(trimmedEmail))
+                {
+                    return (false, "Địa chỉ Email nhận thư không đúng định dạng hợp lệ (VD: tenban@gmail.com).", null);
+                }
+
+                string normalizedNewEmail = trimmedEmail.ToUpperInvariant();
+                bool duplicateEmail = await _db.AspNetUsers
+                    .AsNoTracking()
+                    .AnyAsync(u => u.Id != userId && u.NormalizedEmail == normalizedNewEmail);
+                if (duplicateEmail)
+                {
+                    return (false, "Địa chỉ Email này đã được gắn cho một tài khoản khác trên hệ thống.", null);
+                }
+
+                if (!string.Equals(user.NormalizedEmail, normalizedNewEmail, StringComparison.OrdinalIgnoreCase))
+                {
+                    user.Email = trimmedEmail;
+                    user.NormalizedEmail = normalizedNewEmail;
+                    user.EmailConfirmed = false;
+                    emailChanged = true;
+                }
+            }
+        }
+
+        user.FullName = cleanFullName;
         user.PhoneNumber = request.PhoneNumber?.Trim();
         user.Address = request.Address?.Trim();
         if (!string.IsNullOrWhiteSpace(request.AvatarUrl))
@@ -103,13 +155,89 @@ public class S01AuthOtpService : IS01AuthOtpService
         var claims = new AuthUserClaimsDto
         {
             UserId = user.Id,
-            Email = user.Email ?? "user@bookshare.vn",
+            Email = user.Email ?? string.Empty,
             FullName = user.FullName,
             PrimaryRole = roleName,
             TrustScore = user.TrustScore
         };
 
-        return (true, $"Đã cập nhật hồ sơ cá nhân của {user.FullName} thành công.", claims);
+        string note = emailChanged
+            ? (string.IsNullOrWhiteSpace(user.Email)
+                ? $"Đã cập nhật tên hiển thị \"{user.FullName}\" (chưa gắn Email nhận thư)."
+                : $"Đã cập nhật tên hiển thị \"{user.FullName}\" và Email nhận thư mới ({user.Email}). Bạn có thể xác minh OTP Email trong Trung tâm Thông báo!")
+            : $"Đã cập nhật hồ sơ cá nhân của {user.FullName} thành công.";
+
+        return (true, note, claims);
+    }
+
+    public async Task<UiPreferencesDto> GetUiPreferencesAsync(string userId)
+    {
+        if (string.IsNullOrWhiteSpace(userId))
+        {
+            return new UiPreferencesDto();
+        }
+
+        var raw = await _db.AspNetUsers
+            .AsNoTracking()
+            .Where(u => u.Id == userId)
+            .Select(u => u.UiPreferencesJson)
+            .FirstOrDefaultAsync();
+
+        if (string.IsNullOrWhiteSpace(raw))
+        {
+            return new UiPreferencesDto();
+        }
+
+        try
+        {
+            var parsed = System.Text.Json.JsonSerializer.Deserialize<UiPreferencesDto>(
+                raw,
+                new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+            return SanitizeUiPreferences(parsed);
+        }
+        catch
+        {
+            return new UiPreferencesDto();
+        }
+    }
+
+    public async Task<(bool Success, string Message, UiPreferencesDto Saved)> SaveUiPreferencesAsync(
+        string userId,
+        UiPreferencesDto request)
+    {
+        var clean = SanitizeUiPreferences(request);
+        var user = await _db.AspNetUsers.FirstOrDefaultAsync(u => u.Id == userId);
+        if (user == null)
+        {
+            return (false, "Không tìm thấy tài khoản để lưu cài đặt giao diện.", clean);
+        }
+
+        user.UiPreferencesJson = System.Text.Json.JsonSerializer.Serialize(clean);
+        await _db.SaveChangesAsync();
+        return (true, "Đã lưu cài đặt giao diện, phong cách, phông chữ và cỡ chữ vào tài khoản của bạn!", clean);
+    }
+
+    private static UiPreferencesDto SanitizeUiPreferences(UiPreferencesDto? raw)
+    {
+        var allowedStyles = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "standard", "sketchy", "flatly", "morph", "cyborg" };
+        var allowedPalettes = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "blue", "ocean", "emerald", "gold", "rose", "lavender", "sepia", "coral", "royal", "midnight", "obsidian" };
+        var allowedFonts = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "roboto", "bevietnam", "lora", "patrick", "jetbrains" };
+        var allowedSizes = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "sm", "md", "lg", "xl" };
+
+        var t = raw?.Theme?.Trim().ToLowerInvariant() == "dark" ? "dark" : "light";
+        var st = raw?.Style?.Trim().ToLowerInvariant() ?? "standard";
+        var pl = raw?.Palette?.Trim().ToLowerInvariant() ?? "blue";
+        var fn = raw?.Font?.Trim().ToLowerInvariant() ?? "roboto";
+        var sz = raw?.FontSize?.Trim().ToLowerInvariant() ?? "md";
+
+        return new UiPreferencesDto
+        {
+            Theme = t,
+            Style = allowedStyles.Contains(st) ? st : "standard",
+            Palette = allowedPalettes.Contains(pl) ? pl : "blue",
+            Font = allowedFonts.Contains(fn) ? fn : "roboto",
+            FontSize = allowedSizes.Contains(sz) ? sz : "md"
+        };
     }
 
     public async Task<(bool Success, string Message)> ChangeUserPasswordAsync(

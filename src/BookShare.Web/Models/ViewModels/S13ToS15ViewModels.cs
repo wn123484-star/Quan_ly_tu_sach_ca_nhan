@@ -62,6 +62,28 @@ public class DeleteAiSessionRequestDto
     public int SessionId { get; set; }
 }
 
+public class ResetAiChatRequestDto
+{
+    public int? SessionId { get; set; }
+}
+
+public class SendAiChatEmailRequestDto
+{
+    public int? SessionId { get; set; }
+    public string? CustomNote { get; set; }
+}
+
+public class AiQuickHistoryResultDto
+{
+    public bool Authenticated { get; set; }
+    public int SessionId { get; set; }
+    public string RoleName { get; set; } = "Guest";
+    public string UserFullName { get; set; } = "Khách";
+    public string UserEmail { get; set; } = string.Empty;
+    public bool HasValidEmail { get; set; }
+    public List<S13ChatMessageDto> Messages { get; set; } = new();
+}
+
 /* =========================================================================
    S14: AI PERSONALIZED BOOK RECOMMENDATION VIEWMODELS
    ========================================================================= */

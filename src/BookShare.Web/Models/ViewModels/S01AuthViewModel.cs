@@ -5,8 +5,12 @@ public class S01AuthPageViewModel
     public bool IsAuthenticated { get; set; }
     public bool IsGoogleOAuthConfigured { get; set; }
     public string? CurrentUserId { get; set; }
+    public string? CurrentUserName { get; set; }
     public string? CurrentUserFullName { get; set; }
     public string? CurrentUserEmail { get; set; }
+    public bool EmailConfirmed { get; set; }
+    public bool HasValidEmail { get; set; }
+    public string? UiPreferencesJson { get; set; }
     public string? CurrentUserPhoneNumber { get; set; }
     public string? CurrentUserAddress { get; set; }
     public string? CurrentUserAvatarUrl { get; set; }
@@ -59,9 +63,19 @@ public class VerifyOtpRequestDto
 public class UpdateProfileRequestDto
 {
     public string FullName { get; set; } = string.Empty;
+    public string? Email { get; set; }
     public string? PhoneNumber { get; set; }
     public string? Address { get; set; }
     public string? AvatarUrl { get; set; }
+}
+
+public class UiPreferencesDto
+{
+    public string Theme { get; set; } = "light";       // light / dark
+    public string Style { get; set; } = "standard";    // standard / sketchy / flatly / morph / cyborg
+    public string Palette { get; set; } = "blue";      // blue / ocean / emerald / gold / rose / lavender / sepia / coral / royal / midnight
+    public string Font { get; set; } = "roboto";       // roboto / bevietnam / lora / patrick / jetbrains
+    public string FontSize { get; set; } = "md";       // sm / md / lg / xl
 }
 
 public class ChangePasswordRequestDto

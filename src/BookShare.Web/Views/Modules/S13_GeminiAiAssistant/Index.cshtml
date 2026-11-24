@@ -97,10 +97,51 @@
     <section class="bs-card s13-chat-card">
         <div class="s13-chat-header">
             <div>
-                <h2>Phiên #@Model.SelectedSessionId — Hỏi đáp Học thuật & Kho sách</h2>
-                <span class="bs-muted" style="font-size:0.82rem;">Người dùng: <strong>@Model.CurrentUserName</strong> • Bảo mật: Chống XSS bằng <code>innerText</code> & khóa API phía Server</span>
+                <h2>Phiên #@Model.SelectedSessionId — Hỏi đáp Học thuật &amp; Kho sách</h2>
+                <span class="bs-muted" style="font-size:0.82rem;">Người dùng: <strong>@Model.CurrentUserName</strong> • Lịch sử lưu bền vững theo tài khoản</span>
             </div>
-            <a href="/S14AiRecommendation" class="bs-btn bs-btn-outline">🎯 Mở Gợi Ý Sách AI</a>
+            <div class="d-flex flex-wrap gap-2">
+                <button type="button" id="btnS13EmailChat" class="btn btn-outline-primary btn-sm fw-bold">
+                    <i class="bi bi-envelope-arrow-up me-1"></i>Gửi qua Email
+                </button>
+                <button type="button" id="btnS13ResetChat" class="btn btn-outline-danger btn-sm fw-bold">
+                    <i class="bi bi-arrow-counterclockwise me-1"></i>Reset Chat
+                </button>
+                <a href="/S14AiRecommendation" class="btn btn-outline-secondary btn-sm fw-bold">🎯 Gợi Ý Sách AI</a>
+            </div>
+        </div>
+
+        <!-- THANH CHỌN NHANH PHONG CÁCH / MÀU / FONT / CỠ CHỮ NGAY TRONG CHAT AI -->
+        <div class="px-3 py-2 border-bottom bg-body-tertiary d-flex flex-wrap gap-2 align-items-center small">
+            <span class="fw-bold text-primary"><i class="bi bi-palette2 me-1"></i>Tùy chỉnh nhanh:</span>
+            <select id="s13StyleSelect" class="form-select form-select-sm w-auto" aria-label="Phong cách giao diện">
+                <option value="standard">Style: Chuẩn</option>
+                <option value="sketchy">Style: Nét vẽ nghệch ngoặc</option>
+                <option value="morph">Style: Kính mờ</option>
+                <option value="flatly">Style: Phẳng</option>
+                <option value="cyborg">Style: Đêm Cyborg</option>
+            </select>
+            <select id="s13PaletteSelect" class="form-select form-select-sm w-auto" aria-label="Bảng màu">
+                <option value="blue">Màu: Sapphire</option>
+                <option value="gold">Màu: Vàng Mộng Mơ</option>
+                <option value="rose">Màu: Hồng Ấm Áp</option>
+                <option value="lavender">Màu: Tím Oải Hương</option>
+                <option value="sepia">Màu: Giấy Cổ</option>
+                <option value="emerald">Màu: Lục Bảo</option>
+            </select>
+            <select id="s13FontSelect" class="form-select form-select-sm w-auto" aria-label="Phông chữ">
+                <option value="roboto">Font: Roboto</option>
+                <option value="bevietnam">Font: Be Vietnam Pro</option>
+                <option value="lora">Font: Lora</option>
+                <option value="patrick">Font: Patrick Hand</option>
+                <option value="jetbrains">Font: JetBrains Mono</option>
+            </select>
+            <select id="s13FontSizeSelect" class="form-select form-select-sm w-auto" aria-label="Cỡ chữ">
+                <option value="sm">Chữ nhỏ</option>
+                <option value="md">Chữ chuẩn</option>
+                <option value="lg">Chữ lớn</option>
+                <option value="xl">Rất lớn</option>
+            </select>
         </div>
 
         <!-- GỢI Ý PROMPT NHANH -->

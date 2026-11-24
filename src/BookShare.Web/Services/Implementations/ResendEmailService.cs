@@ -67,12 +67,11 @@ public class ResendEmailService : IResendEmailService
         }
 
         string? resendMessageId = null;
-        string apiKey = _config["Resend:ApiKey"]
-            ?? Environment.GetEnvironmentVariable("RESEND_API_KEY")
-            ?? string.Empty;
-        string fromEmail = _config["Resend:FromEmail"]
-            ?? Environment.GetEnvironmentVariable("RESEND_FROM_EMAIL")
-            ?? "BookShare <onboarding@resend.dev>";
+        string apiKey = AuthConfigHelper.SanitizeEnvValue(_config["Resend:ApiKey"]
+            ?? Environment.GetEnvironmentVariable("RESEND_API_KEY"));
+        string fromEmail = AuthConfigHelper.SanitizeEnvValue(_config["Resend:FromEmail"]
+            ?? Environment.GetEnvironmentVariable("RESEND_FROM_EMAIL"));
+        if (string.IsNullOrWhiteSpace(fromEmail)) fromEmail = "BookShare <onboarding@resend.dev>";
         bool sentViaRealResend = false;
 
         if (!string.IsNullOrWhiteSpace(apiKey) && !apiKey.Contains("DIEN_KEY"))
@@ -230,8 +229,14 @@ public class ResendEmailService : IResendEmailService
         string htmlBody)
     {
         var normalizedEmail = toEmail.Trim().ToLowerInvariant();
-        string apiKey = _config["Resend:ApiKey"] ?? Environment.GetEnvironmentVariable("RESEND_API_KEY") ?? string.Empty;
-        string fromEmail = _config["Resend:FromEmail"] ?? Environment.GetEnvironmentVariable("RESEND_FROM_EMAIL") ?? "BookShare <onboarding@resend.dev>";
+        if (!AuthConfigHelper.IsValidEmailFormat(normalizedEmail))
+        {
+            return (false, string.Empty, "Địa chỉ Email người nhận không hợp lệ hoặc chưa được thiết lập.");
+        }
+
+        string apiKey = AuthConfigHelper.SanitizeEnvValue(_config["Resend:ApiKey"] ?? Environment.GetEnvironmentVariable("RESEND_API_KEY"));
+        string fromEmail = AuthConfigHelper.SanitizeEnvValue(_config["Resend:FromEmail"] ?? Environment.GetEnvironmentVariable("RESEND_FROM_EMAIL"));
+        if (string.IsNullOrWhiteSpace(fromEmail)) fromEmail = "BookShare <onboarding@resend.dev>";
 
         if (!string.IsNullOrWhiteSpace(apiKey) && !apiKey.Contains("DIEN_KEY", StringComparison.OrdinalIgnoreCase))
         {

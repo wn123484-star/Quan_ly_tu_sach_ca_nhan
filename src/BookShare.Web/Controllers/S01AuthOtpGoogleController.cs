@@ -30,8 +30,14 @@ public class S01AuthOtpGoogleController : Controller
     }
 
     [HttpGet]
-    public async Task<IActionResult> Index(string? returnUrl = null)
+    public async Task<IActionResult> Index(string? returnUrl = null, string? oauthError = null)
     {
+        if (!string.IsNullOrWhiteSpace(oauthError))
+        {
+            TempData["StatusCode"] = 400;
+            TempData["StatusTitle"] = "Xác thực Google không thành công";
+            TempData["StatusDetail"] = oauthError.Trim();
+        }
         var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
         var vm = await _authService.GetAuthPageViewModelAsync(currentUserId, returnUrl);
         return View("~/Views/Modules/S01_AuthOtpGoogle/Index.cshtml", vm);
@@ -123,9 +129,19 @@ public class S01AuthOtpGoogleController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> SendOtp([FromBody] SendOtpRequestDto request)
     {
+        if (!AuthConfigHelper.IsValidEmailFormat(request?.Email))
+        {
+            return BadRequest(new
+            {
+                title = "Chưa có địa chỉ Email hợp lệ",
+                message = "Vui lòng điền địa chỉ Email nhận thư hợp lệ trong Cài Đặt Tài Khoản trước khi gửi mã OTP.",
+                requiresEmailSetup = true
+            });
+        }
+
         // [BOT-GUARD] Xác thực Google reCAPTCHA v3 chống spam gửi Email OTP qua Resend
         var remoteIp = HttpContext.Connection.RemoteIpAddress?.ToString();
-        var (captchaOk, _, captchaMsg) = await _recaptchaService.VerifyTokenAsync(request.RecaptchaToken, "send_otp", remoteIp);
+        var (captchaOk, _, captchaMsg) = await _recaptchaService.VerifyTokenAsync(request!.RecaptchaToken, "send_otp", remoteIp);
         if (!captchaOk)
         {
             return StatusCode(StatusCodes.Status403Forbidden, new
@@ -205,13 +221,15 @@ public class S01AuthOtpGoogleController : Controller
     [HttpGet]
     public async Task<IActionResult> GoogleCallback(string? returnUrl = null)
     {
-        var result = await HttpContext.AuthenticateAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+        // Đọc thông tin xác thực từ External Cookie riêng (không bị OnValidatePrincipal chặn vì Google sub chưa phải AspNetUsers.Id)
+        var result = await HttpContext.AuthenticateAsync(AuthConfigHelper.ExternalCookieScheme);
+        await HttpContext.SignOutAsync(AuthConfigHelper.ExternalCookieScheme);
+
         if (!result.Succeeded || result.Principal == null)
         {
-            await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
             TempData["StatusCode"] = 400;
             TempData["StatusTitle"] = "Xác thực Google không thành công";
-            TempData["StatusDetail"] = "Không nhận được thông tin định danh hợp lệ từ Google.";
+            TempData["StatusDetail"] = "Không nhận được thông tin định danh hợp lệ từ Google. Vui lòng thử lại.";
             return RedirectToAction(nameof(Index));
         }
 
@@ -221,7 +239,6 @@ public class S01AuthOtpGoogleController : Controller
 
         if (string.IsNullOrWhiteSpace(providerKey) || string.IsNullOrWhiteSpace(email))
         {
-            await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
             TempData["StatusCode"] = 400;
             TempData["StatusTitle"] = "Thiếu thông tin tài khoản Google";
             TempData["StatusDetail"] = "Không thể xác minh địa chỉ Email từ tài khoản Google của bạn.";
@@ -315,6 +332,34 @@ public class S01AuthOtpGoogleController : Controller
         TempData["StatusTitle"] = "Đã gửi đề nghị nâng quyền Chủ nhiệm CLB";
         TempData["StatusDetail"] = message;
         return Ok(new { title = "Đã gửi đề nghị nâng quyền Chủ nhiệm CLB", message });
+    }
+
+    [HttpGet]
+    public async Task<IActionResult> GetUiPreferences()
+    {
+        if (User.Identity?.IsAuthenticated != true)
+        {
+            return Ok(new { authenticated = false, preferences = new UiPreferencesDto() });
+        }
+
+        var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
+        var prefs = await _authService.GetUiPreferencesAsync(currentUserId);
+        return Ok(new { authenticated = true, preferences = prefs });
+    }
+
+    [HttpPost]
+    [Authorize]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> SaveUiPreferences([FromBody] UiPreferencesDto request)
+    {
+        var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
+        var (success, message, saved) = await _authService.SaveUiPreferencesAsync(currentUserId, request ?? new UiPreferencesDto());
+        if (!success)
+        {
+            return BadRequest(new { message });
+        }
+
+        return Ok(new { title = "Đã lưu cài đặt giao diện", message, preferences = saved });
     }
 
     private async Task SignInCookieAsync(AuthUserClaimsDto userClaims, bool isPersistent)

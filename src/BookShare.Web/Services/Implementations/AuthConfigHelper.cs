@@ -9,6 +9,8 @@ namespace BookShare.Web.Services.Implementations;
 
 public static class AuthConfigHelper
 {
+    public const string ExternalCookieScheme = "BookShare.External";
+
     private static readonly string[] PlaceholderTokens =
     [
         "demo",
@@ -19,14 +21,48 @@ public static class AuthConfigHelper
         "changeme"
     ];
 
+    public static string SanitizeEnvValue(string? raw)
+    {
+        if (string.IsNullOrWhiteSpace(raw))
+        {
+            return string.Empty;
+        }
+
+        return raw.Trim().Trim('"', '\'').Trim();
+    }
+
+    public static bool IsValidEmailFormat(string? email)
+    {
+        if (string.IsNullOrWhiteSpace(email))
+        {
+            return false;
+        }
+
+        string trimmed = email.Trim();
+        if (trimmed.Length < 5 || trimmed.Length > 254 || trimmed.Contains(' '))
+        {
+            return false;
+        }
+
+        try
+        {
+            var addr = new System.Net.Mail.MailAddress(trimmed);
+            return string.Equals(addr.Address, trimmed, StringComparison.OrdinalIgnoreCase)
+                && trimmed.Contains('.')
+                && !trimmed.EndsWith('.');
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
     public static (string ClientId, string ClientSecret) GetGoogleOAuthCredentials(IConfiguration config)
     {
-        var clientId = (config["Authentication:Google:ClientId"]
-            ?? Environment.GetEnvironmentVariable("GOOGLE_CLIENT_ID")
-            ?? string.Empty).Trim();
-        var clientSecret = (config["Authentication:Google:ClientSecret"]
-            ?? Environment.GetEnvironmentVariable("GOOGLE_CLIENT_SECRET")
-            ?? string.Empty).Trim();
+        var clientId = SanitizeEnvValue(config["Authentication:Google:ClientId"]
+            ?? Environment.GetEnvironmentVariable("GOOGLE_CLIENT_ID"));
+        var clientSecret = SanitizeEnvValue(config["Authentication:Google:ClientSecret"]
+            ?? Environment.GetEnvironmentVariable("GOOGLE_CLIENT_SECRET"));
         return (clientId, clientSecret);
     }
 

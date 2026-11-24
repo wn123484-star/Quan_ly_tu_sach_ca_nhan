@@ -77,6 +77,11 @@ public class S18NotificationHubService : IS18NotificationHubService
             })
             .ToListAsync();
 
+        foreach (var item in items)
+        {
+            item.DetailUrl = ResolveNotificationDetailUrl(item.Id, item.Type, item.Title, item.Content);
+        }
+
         return new S18NotificationHubPageViewModel
         {
             CurrentUserId = user.Id,
@@ -87,6 +92,88 @@ public class S18NotificationHubService : IS18NotificationHubService
             TypeFilter = typeFilter,
             Notifications = items
         };
+    }
+
+    public async Task<S18RecentPopupResultDto> GetRecentPopupNotificationsAsync(string currentUserId, int take = 8)
+    {
+        if (string.IsNullOrWhiteSpace(currentUserId))
+        {
+            return new S18RecentPopupResultDto();
+        }
+
+        int safeTake = Math.Clamp(take, 1, 20);
+        var query = _db.Notifications
+            .AsNoTracking()
+            .Include(n => n.User)
+            .Where(n => n.UserId == currentUserId);
+
+        int totalCount = await query.CountAsync();
+        int unreadCount = await query.CountAsync(n => !n.IsRead);
+
+        var items = await query
+            .OrderBy(n => n.IsRead)
+            .ThenByDescending(n => n.CreatedAt)
+            .Take(safeTake)
+            .Select(n => new S18NotificationItemDto
+            {
+                Id = n.Id,
+                UserId = n.UserId,
+                UserFullName = n.User.FullName,
+                UserEmail = n.User.Email ?? string.Empty,
+                Title = n.Title,
+                Content = n.Content,
+                Type = n.Type,
+                IsRead = n.IsRead,
+                EmailSentViaResend = n.EmailSentViaResend,
+                CreatedAt = n.CreatedAt
+            })
+            .ToListAsync();
+
+        foreach (var item in items)
+        {
+            item.DetailUrl = ResolveNotificationDetailUrl(item.Id, item.Type, item.Title, item.Content);
+        }
+
+        return new S18RecentPopupResultDto
+        {
+            UnreadCount = unreadCount,
+            TotalCount = totalCount,
+            Items = items
+        };
+    }
+
+    private static string ResolveNotificationDetailUrl(int notifId, string? type, string? title, string? content)
+    {
+        string combined = $"{title} {content}".ToLowerInvariant();
+        if (string.Equals(type, "DueReminder", StringComparison.OrdinalIgnoreCase))
+        {
+            return "/S12LoanRenewalFine";
+        }
+        if (string.Equals(type, "QueueAvailable", StringComparison.OrdinalIgnoreCase))
+        {
+            return "/S11HotBookQueue";
+        }
+        if (string.Equals(type, "Dispute", StringComparison.OrdinalIgnoreCase))
+        {
+            return "/S19DisputeResolution";
+        }
+        if (string.Equals(type, "LoanApproved", StringComparison.OrdinalIgnoreCase))
+        {
+            return combined.Contains("p2p") ? "/S09P2PLoanFlow" : "/S08LibraryLoanFlow";
+        }
+        if (combined.Contains("gói") || combined.Contains("hội viên") || combined.Contains("premium") || combined.Contains("scholar"))
+        {
+            return "/S16MembershipTier";
+        }
+        if (combined.Contains("ví tiền ảo") || combined.Contains("hóa đơn") || combined.Contains("#tx-") || combined.Contains("cọc"))
+        {
+            return "/S17SandboxPayment";
+        }
+        if (combined.Contains("chủ nhiệm clb") || combined.Contains("nâng quyền"))
+        {
+            return "/S22AdminAnalytics";
+        }
+        return $"/S18NotificationHub?highlight={notifId}";
     }
 
     public async Task<(bool Success, string Message)> MarkNotificationReadAsync(string currentUserId, int notificationId)
@@ -224,6 +311,11 @@ public class S18NotificationHubService : IS18NotificationHubService
             if (targetUser == null)
             {
                 return (false, "Không tìm thấy tài khoản nhận thông báo.", 0);
+            }
+
+            if (!AuthConfigHelper.IsValidEmailFormat(targetUser.Email))
+            {
+                return (false, "Tài khoản của bạn chưa có địa chỉ Email hợp lệ. Vui lòng vào Cài Đặt Tài Khoản điền Email trước khi gửi thư!", 0);
             }
 
             string title = string.IsNullOrWhiteSpace(request.CustomTitle)

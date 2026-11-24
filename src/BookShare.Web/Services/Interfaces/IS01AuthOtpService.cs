@@ -47,6 +47,12 @@ public interface IS01AuthOtpService
     Task<(bool Success, string Message)> SubmitCuratorRequestAsync(
         string userId,
         SubmitCuratorRequestDto request);
+
+    Task<UiPreferencesDto> GetUiPreferencesAsync(string userId);
+
+    Task<(bool Success, string Message, UiPreferencesDto Saved)> SaveUiPreferencesAsync(
+        string userId,
+        UiPreferencesDto request);
 }
 
 public class AuthUserClaimsDto

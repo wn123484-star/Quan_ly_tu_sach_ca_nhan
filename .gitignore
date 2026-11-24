@@ -61,3 +61,7 @@ src/BookShare.Web/wwwroot/uploads/icons/*.jpg
 src/BookShare.Web/wwwroot/uploads/icons/*.jpeg
 src/BookShare.Web/wwwroot/uploads/icons/*.webp
 src/BookShare.Web/wwwroot/uploads/icons/*.svg
+
+# ASP.NET Core DataProtection runtime keys
+dpkeys/
+src/BookShare.Web/App_Data/dpkeys/

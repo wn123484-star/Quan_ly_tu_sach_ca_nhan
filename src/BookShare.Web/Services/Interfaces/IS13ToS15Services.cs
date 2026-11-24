@@ -29,6 +29,20 @@ public interface IS13GeminiAiService
         Task<(bool Success, string Message)> DeleteSessionAsync(
             string currentUserId,
             int sessionId);
+
+        Task<AiQuickHistoryResultDto> GetQuickWidgetHistoryAsync(
+            string currentUserId,
+            string currentUserRole);
+
+        Task<(bool Success, string Message, int SessionId, S13ChatMessageDto? Greeting)> ResetChatSessionAsync(
+            string currentUserId,
+            string currentUserRole,
+            int? sessionId = null);
+
+        Task<(bool Success, string Message, bool RequiresEmailSetup)> SendChatSummaryEmailAsync(
+            string currentUserId,
+            int? sessionId = null,
+            string? customNote = null);
     }
 
 public interface IS14AiRecommendationService

@@ -74,3 +74,14 @@ Theo dõi tiến độ thực thi 7 pha chuẩn hóa hệ thống BookShare (.NE
 - [x] **Pha 2–3:** Xây dựng `MembershipTierCatalog` (4 cấp `Free`/`Standard`/`Premium`/`Scholar` thực thi thật ở `LoanFlowCoordinatorService`, `S08`, `S09`, `S11`, `S12`), trang Nạp Tiền Ảo miễn phí thoải mái (`/S17SandboxPayment`), bảng so sánh & nâng cấp 4 cấp (`/S16MembershipTier`), và luồng **Quét QR Thanh Toán** đồng bộ Web ↔ Android Web App (mở camera -> xem hóa đơn & số dư Ví -> bấm Xác nhận thanh toán -> polling tự cập nhật).
 - [x] **Pha 4:** Thêm tính năng **Admin Xóa Tài Khoản** (`POST /S22AdminAnalytics/DeleteUser`) có chốt bảo vệ sách đang mượn/tranh chấp mở/tài khoản gốc và xóa nguyên tử khóa ngoại.
 - [x] **Pha 5–6:** Mở rộng `scripts/qa_full_bot.py` Lớp 8 đạt **368/368 PASS (0 FAIL)**, `scripts/smoke_test.py` đạt **100% PASS (0 lỗi)** và đồng bộ toàn bộ tài liệu `.md`.
+
+
+---
+
+## SPRINT 5: Vá Lỗi Icon 404 & Google OAuth, Đa Giao Diện Bootstrap/Font Cục Bộ, Cài Đặt Email Mọi Cấp, Popup Thông Báo, AI Chat Bền Vững & Chống Spam Hội Viên
+- [x] **Pha 0:** Tạo bộ 3 tài liệu đặc tả & theo dõi tiến độ trước khi sửa mã nguồn (`docs/SPRINT5_FIXES_AND_UX_PLAN.md`, `docs/THEME_TYPOGRAPHY_AND_SETTINGS_SPEC.md`, `docs/MEMBERSHIP_SWITCH_AND_ANTISPAM_SPEC.md`).
+- [x] **Pha 1:** Tải cục bộ 4 bộ font tiếng Việt (`Be Vietnam Pro`, `Lora`, `Patrick Hand`, `JetBrains Mono`) vào `wwwroot/fonts/`, gỡ `@import` CDN khỏi `wwwroot/vendor/bootswatch/*.min.css`, nâng cấp `01_BookShare_Schema.sql` + `DatabaseBootstrapService` + chạy lại EF Core Scaffold (`--schema dbo`).
+- [x] **Pha 2:** Vá triệt để lỗi 404 ảnh biểu tượng tải lên (`app.UseStaticFiles()` + lưu nhị phân SQL Server + tự phục hồi đĩa + `/assets/system-icons/{iconKey}`) và lỗi đăng nhập Google OAuth 2.0 (tách `BookShare.External` Cookie Scheme + DataProtection + chuẩn hóa dấu ngoặc `.env`).
+- [x] **Pha 3:** Nâng cấp `S16` & `S17`: chặn mua trùng gói đang sở hữu (`400`), cơ chế Chuyển Gói minh bạch lệ phí `15.000đ` + khấu trừ ngày dư (`PreviewTierSwitch`), nút Hủy Gói (`CancelMembership`), khóa `IdempotencyKey`, gộp hóa đơn `Pending`, chống spam nạp ví `429` và minh bạch `BalanceBefore -> BalanceAfter`.
+- [x] **Pha 4–5:** Xây dựng Cài đặt tài khoản mọi cấp phân tách rạch ròi `UserName`/`FullName`/`Email` + chốt bắt buộc Email khi gửi thư, Popup Thông Báo nhanh (`RecentPopup`), lịch sử Chat AI bền vững theo phân quyền + nút **Reset Chat** + gửi chat qua Email + chọn Style/Màu/Font/Cỡ chữ trong chat, cân bằng Header `180deg`, 5 phong cách Bootstrap (gồm Sketchy nghệch ngoặc) + 10 bảng màu (gồm Vàng Mộng Mơ, Hồng Ấm Áp) và thu gọn reCAPTCHA về góc trái dưới không đè AI Chatbot.
+- [x] **Pha 6:** Bổ sung Lớp 9 vào `scripts/qa_full_bot.py` đạt **395/395 PASS (0 FAIL)**, `scripts/smoke_test.py` đạt **100% PASS (0 lỗi)** và đồng bộ toàn bộ tài liệu `.md`.

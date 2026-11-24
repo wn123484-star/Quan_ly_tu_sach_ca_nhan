@@ -106,9 +106,10 @@ public class SystemIconService : ISystemIconService
             && !string.IsNullOrWhiteSpace(item.CustomImageUrl))
         {
             var safeUrl = encoder.Encode(item.CustomImageUrl);
+            var safeFallbackUrl = encoder.Encode($"/assets/system-icons/{Uri.EscapeDataString(iconKey)}");
             var safeAlt = encoder.Encode(item.DisplayName);
             var safeFallback = encoder.Encode(string.IsNullOrWhiteSpace(item.DefaultIconClass) ? fallbackClass : item.DefaultIconClass);
-            var html = $"<img src=\"{safeUrl}\" alt=\"{safeAlt}\" class=\"bs-sys-icon{safeExtra}\" onerror=\"this.style.display='none';if(this.nextElementSibling)this.nextElementSibling.classList.remove('d-none');\" /><i class=\"bi {safeFallback}{safeExtra} d-none\" aria-hidden=\"true\"></i>";
+            var html = $"<img src=\"{safeUrl}\" alt=\"{safeAlt}\" class=\"bs-sys-icon{safeExtra}\" onerror=\"if(!this.dataset.dbTried){{this.dataset.dbTried='1';this.src='{safeFallbackUrl}';return;}}this.style.display='none';if(this.nextElementSibling)this.nextElementSibling.classList.remove('d-none');\" /><i class=\"bi {safeFallback}{safeExtra} d-none\" aria-hidden=\"true\"></i>";
             return new HtmlString(html);
         }
 
@@ -182,6 +183,7 @@ public class SystemIconService : ISystemIconService
         await File.WriteAllBytesAsync(fullPath, bytes);
 
         string publicUrl = $"/uploads/icons/{fileName}";
+        string contentType = ResolveContentType(ext);
 
         var entity = await _db.SystemIconSettings.FirstOrDefaultAsync(x => x.IconKey == cleanKey);
         string? previousUrl = entity?.CustomImageUrl;
@@ -195,6 +197,8 @@ public class SystemIconService : ISystemIconService
                 CategoryGroup = def.CategoryGroup,
                 DefaultIconClass = def.DefaultIconClass,
                 CustomImageUrl = publicUrl,
+                CustomImageData = bytes,
+                CustomImageContentType = contentType,
                 UseCustomImage = true,
                 UpdatedAt = DateTime.UtcNow,
                 UpdatedByUserId = adminUserId
@@ -204,6 +208,8 @@ public class SystemIconService : ISystemIconService
         else
         {
             entity.CustomImageUrl = publicUrl;
+            entity.CustomImageData = bytes;
+            entity.CustomImageContentType = contentType;
             entity.UseCustomImage = true;
             entity.UpdatedAt = DateTime.UtcNow;
             entity.UpdatedByUserId = adminUserId;
@@ -276,6 +282,8 @@ public class SystemIconService : ISystemIconService
             {
                 TryDeleteOldIconFile(webRoot, item.CustomImageUrl);
                 item.CustomImageUrl = null;
+                item.CustomImageData = null;
+                item.CustomImageContentType = null;
                 item.UseCustomImage = false;
                 item.UpdatedAt = DateTime.UtcNow;
                 item.UpdatedByUserId = adminUserId;
@@ -295,6 +303,8 @@ public class SystemIconService : ISystemIconService
         {
             TryDeleteOldIconFile(webRoot, entity.CustomImageUrl);
             entity.CustomImageUrl = null;
+            entity.CustomImageData = null;
+            entity.CustomImageContentType = null;
             entity.UseCustomImage = false;
             entity.UpdatedAt = DateTime.UtcNow;
             entity.UpdatedByUserId = adminUserId;
@@ -303,6 +313,49 @@ public class SystemIconService : ISystemIconService
 
         _cache.Remove(CacheKey);
         return (true, $"Đã khôi phục biểu tượng \"{entity?.DisplayName ?? cleanKey}\" về mặc định hệ thống.");
+    }
+
+    public async Task<(byte[]? Bytes, string ContentType)> GetCustomIconBinaryAsync(string iconKey)
+    {
+        string cleanKey = (iconKey ?? string.Empty).Trim();
+        if (string.IsNullOrWhiteSpace(cleanKey))
+        {
+            return (null, "application/octet-stream");
+        }
+
+        var entity = await _db.SystemIconSettings
+            .AsNoTracking()
+            .FirstOrDefaultAsync(x => x.IconKey == cleanKey);
+
+        if (entity == null || !entity.UseCustomImage)
+        {
+            return (null, "application/octet-stream");
+        }
+
+        if (entity.CustomImageData is { Length: > 0 })
+        {
+            string ct = string.IsNullOrWhiteSpace(entity.CustomImageContentType)
+                ? ResolveContentType(Path.GetExtension(entity.CustomImageUrl ?? ".png"))
+                : entity.CustomImageContentType;
+            EnsureDiskIconFile(entity.CustomImageUrl, entity.CustomImageData);
+            return (entity.CustomImageData, ct);
+        }
+
+        if (!string.IsNullOrWhiteSpace(entity.CustomImageUrl) &&
+            entity.CustomImageUrl.StartsWith("/uploads/icons/", StringComparison.OrdinalIgnoreCase))
+        {
+            string webRoot = string.IsNullOrWhiteSpace(_env.WebRootPath)
+                ? Path.Combine(Directory.GetCurrentDirectory(), "wwwroot")
+                : _env.WebRootPath;
+            string fullPath = Path.Combine(webRoot, "uploads", "icons", Path.GetFileName(entity.CustomImageUrl));
+            if (File.Exists(fullPath))
+            {
+                var diskBytes = await File.ReadAllBytesAsync(fullPath);
+                return (diskBytes, ResolveContentType(Path.GetExtension(fullPath)));
+            }
+        }
+
+        return (null, "application/octet-stream");
     }
 
     private Dictionary<string, SystemIconItemDto> GetCachedMap()
@@ -329,6 +382,10 @@ public class SystemIconService : ISystemIconService
             var rows = _db.SystemIconSettings.AsNoTracking().ToList();
             foreach (var row in rows)
             {
+                if (row.UseCustomImage && row.CustomImageData is { Length: > 0 } && !string.IsNullOrWhiteSpace(row.CustomImageUrl))
+                {
+                    EnsureDiskIconFile(row.CustomImageUrl, row.CustomImageData);
+                }
                 fallback[row.IconKey] = ToDto(row);
             }
 
@@ -341,6 +398,44 @@ public class SystemIconService : ISystemIconService
 
         return fallback;
     }
+
+    private void EnsureDiskIconFile(string? customImageUrl, byte[]? bytes)
+    {
+        if (string.IsNullOrWhiteSpace(customImageUrl) || bytes is not { Length: > 0 } ||
+            !customImageUrl.StartsWith("/uploads/icons/", StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        try
+        {
+            string webRoot = string.IsNullOrWhiteSpace(_env.WebRootPath)
+                ? Path.Combine(Directory.GetCurrentDirectory(), "wwwroot")
+                : _env.WebRootPath;
+            string iconsDir = Path.Combine(webRoot, "uploads", "icons");
+            string fileName = Path.GetFileName(customImageUrl);
+            if (string.IsNullOrWhiteSpace(fileName)) return;
+            string fullPath = Path.Combine(iconsDir, fileName);
+            if (!File.Exists(fullPath))
+            {
+                Directory.CreateDirectory(iconsDir);
+                File.WriteAllBytes(fullPath, bytes);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Could not restore custom icon file {Url} to disk.", customImageUrl);
+        }
+    }
+
+    private static string ResolveContentType(string ext) => ext.ToLowerInvariant() switch
+    {
+        ".png" => "image/png",
+        ".jpg" or ".jpeg" => "image/jpeg",
+        ".webp" => "image/webp",
+        ".svg" => "image/svg+xml",
+        _ => "application/octet-stream"
+    };
 
     private static (bool IsValid, string ErrorMessage) ValidateImagePayload(string ext, byte[] bytes)
     {

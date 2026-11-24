@@ -725,6 +725,17 @@ export async function openQrInvoiceConfirmDialog(qrPayloadOrTxId) {
 
     const inv = preview.data.invoice;
     const enough = Boolean(inv.hasSufficientBalance);
+    const breakdownHtml = (Number(inv.switchFee) > 0 || Number(inv.prorationCredit) > 0)
+        ? `
+            <div class="d-flex justify-content-between gap-2 text-primary">
+                <span>Lệ phí chuyển gói:</span>
+                <strong>+${escapeHtml(formatVndVirtual(inv.switchFee))}</strong>
+            </div>
+            <div class="d-flex justify-content-between gap-2 text-success">
+                <span>Khấu trừ ngày dư gói cũ:</span>
+                <strong>-${escapeHtml(formatVndVirtual(inv.prorationCredit))}</strong>
+            </div>`
+        : '';
     const balanceStatusHtml = enough
         ? `<div class="p-2 rounded-3 bg-success-subtle text-success small fw-semibold"><i class="bi bi-check-circle-fill me-1"></i>Số dư Ví Tiền Ảo đủ thanh toán • Còn lại dự kiến: <strong>${escapeHtml(formatVndVirtual(inv.balanceAfterPayment))}</strong></div>`
         : `<div class="p-2 rounded-3 bg-warning-subtle text-warning-emphasis small fw-semibold"><i class="bi bi-exclamation-triangle-fill me-1"></i>Số dư chưa đủ (còn thiếu <strong>${escapeHtml(formatVndVirtual(inv.shortfallAmount))}</strong>). Hãy nạp thêm tiền ảo miễn phí!</div>`;
@@ -746,6 +757,7 @@ export async function openQrInvoiceConfirmDialog(qrPayloadOrTxId) {
                         <span class="text-muted">Nội dung:</span>
                         <strong class="text-end">${escapeHtml(inv.description)}</strong>
                     </div>
+                    ${breakdownHtml}
                     <div class="d-flex justify-content-between gap-2">
                         <span class="text-muted">Tài khoản:</span>
                         <strong>${escapeHtml(inv.ownerFullName)}</strong>
@@ -868,23 +880,127 @@ export async function showQrPaymentInvoiceModal({ transactionId, amount = 0, des
     return paid;
 }
 
-// ---------- AI Copilot 2 tầng: Thực thi lệnh giao diện & Dựng thẻ Xác nhận 1 chạm (Chống XSS) ----------
+// ---------- Hệ thống Đa Giao Diện Bootstrap (Style / Palette / Font / FontSize / Dark Mode) ----------
 
-export function setPortalThemeMode(mode) {
-    const next = mode === 'dark' ? 'dark' : 'light';
-    document.documentElement.setAttribute('data-bs-theme', next);
-    try { localStorage.setItem('bookshare_theme', next); } catch { /* bỏ qua */ }
+const STYLE_CSS_MAP = {
+    standard: '/vendor/bootstrap/bootstrap.min.css',
+    sketchy: '/vendor/bootswatch/sketchy.min.css',
+    flatly: '/vendor/bootswatch/flatly.min.css',
+    morph: '/vendor/bootswatch/morph.min.css',
+    cyborg: '/vendor/bootswatch/cyborg.min.css'
+};
+
+export const PALETTE_LABELS = {
+    blue: 'Xanh Sapphire',
+    ocean: 'Xanh Đại Dương',
+    emerald: 'Lục Bảo Thư Viện',
+    gold: 'Vàng Mộng Mơ',
+    rose: 'Hồng Ấm Áp',
+    lavender: 'Tím Oải Hương',
+    sepia: 'Giấy Cổ Thư Viện',
+    coral: 'Cam Hoàng Hôn',
+    royal: 'Tím Hoàng Gia',
+    midnight: 'Đêm Ngân Hà',
+    obsidian: 'Đen Kim Tước'
+};
+
+export function getUiPrefs() {
+    const def = { theme: 'light', style: 'standard', palette: 'blue', font: 'roboto', fontSize: 'md' };
+    try {
+        const raw = localStorage.getItem('bookshare_ui_prefs');
+        if (raw) {
+            const p = JSON.parse(raw);
+            return {
+                theme: p.theme === 'dark' ? 'dark' : 'light',
+                style: STYLE_CSS_MAP[p.style] ? p.style : 'standard',
+                palette: PALETTE_LABELS[p.palette] ? p.palette : 'blue',
+                font: ['roboto', 'bevietnam', 'lora', 'patrick', 'jetbrains'].includes(p.font) ? p.font : 'roboto',
+                fontSize: ['sm', 'md', 'lg', 'xl'].includes(p.fontSize) ? p.fontSize : 'md'
+            };
+        }
+        const legacyTheme = localStorage.getItem('bookshare_theme');
+        const legacyPalette = localStorage.getItem('bookshare_palette');
+        if (legacyTheme === 'dark') def.theme = 'dark';
+        if (legacyPalette && PALETTE_LABELS[legacyPalette]) def.palette = legacyPalette;
+    } catch { /* chế độ riêng tư */ }
+    return def;
+}
+
+export function applyUiPrefs(partial = {}, { persistRemote = false, silent = true } = {}) {
+    const current = getUiPrefs();
+    const next = {
+        theme: partial.theme !== undefined ? (partial.theme === 'dark' ? 'dark' : 'light') : current.theme,
+        style: partial.style !== undefined && STYLE_CSS_MAP[partial.style] ? partial.style : current.style,
+        palette: partial.palette !== undefined && PALETTE_LABELS[partial.palette] ? partial.palette : current.palette,
+        font: partial.font !== undefined && ['roboto', 'bevietnam', 'lora', 'patrick', 'jetbrains'].includes(partial.font) ? partial.font : current.font,
+        fontSize: partial.fontSize !== undefined && ['sm', 'md', 'lg', 'xl'].includes(partial.fontSize) ? partial.fontSize : current.fontSize
+    };
+
+    const effectiveTheme = next.style === 'cyborg' ? 'dark' : next.theme;
+    const html = document.documentElement;
+    html.setAttribute('data-bs-theme', effectiveTheme);
+    html.setAttribute('data-ui-style', next.style);
+    html.setAttribute('data-font-family', next.font);
+    html.setAttribute('data-font-size', next.fontSize);
+    document.body?.setAttribute('data-portal-palette', next.palette);
+
+    const bsLink = document.getElementById('bsBootstrapThemeLink');
+    const targetHref = STYLE_CSS_MAP[next.style] || STYLE_CSS_MAP.standard;
+    if (bsLink && !bsLink.getAttribute('href')?.endsWith(targetHref)) {
+        bsLink.setAttribute('href', targetHref);
+    }
+
+    try {
+        localStorage.setItem('bookshare_ui_prefs', JSON.stringify(next));
+        localStorage.setItem('bookshare_theme', effectiveTheme);
+        localStorage.setItem('bookshare_palette', next.palette);
+    } catch { /* bỏ qua */ }
+
     const btn = document.getElementById('btnThemeToggle');
     const metaTheme = document.querySelector('meta[name="theme-color"]');
-    if (metaTheme) metaTheme.setAttribute('content', next === 'dark' ? '#0f172a' : '#f8fafc');
+    if (metaTheme) metaTheme.setAttribute('content', effectiveTheme === 'dark' ? '#0f172a' : '#f8fafc');
     if (btn) {
-        btn.setAttribute('aria-pressed', String(next === 'dark'));
-        btn.setAttribute('aria-label', next === 'dark' ? 'Tắt chế độ tối' : 'Bật chế độ tối');
-        btn.innerHTML = next === 'dark'
+        btn.setAttribute('aria-pressed', String(effectiveTheme === 'dark'));
+        btn.setAttribute('aria-label', effectiveTheme === 'dark' ? 'Tắt chế độ tối' : 'Bật chế độ tối');
+        btn.innerHTML = effectiveTheme === 'dark'
             ? '<i class="bi bi-sun-fill" aria-hidden="true"></i><span>Sáng</span>'
             : '<i class="bi bi-moon-stars-fill" aria-hidden="true"></i><span>Tối</span>';
     }
-    applyChartTheme(next === 'dark');
+
+    const activeLabel = document.getElementById('activePaletteLabel');
+    if (activeLabel) activeLabel.innerText = PALETTE_LABELS[next.palette] || 'Giao Diện';
+
+    document.querySelectorAll('[data-set-palette]').forEach(el => {
+        el.classList.toggle('active', el.getAttribute('data-set-palette') === next.palette);
+    });
+    document.querySelectorAll('[data-set-ui-style]').forEach(el => {
+        el.classList.toggle('active', el.getAttribute('data-set-ui-style') === next.style);
+    });
+
+    const syncSel = (id, val) => { const s = document.getElementById(id); if (s && s.value !== val) s.value = val; };
+    syncSel('aiStyleSelect', next.style);
+    syncSel('aiPaletteSelect', next.palette);
+    syncSel('aiFontSelect', next.font);
+    syncSel('aiFontSizeSelect', next.fontSize);
+
+    applyChartTheme(effectiveTheme === 'dark');
+
+    if (persistRemote && document.body?.getAttribute('data-authenticated') === '1') {
+        apiFetch('/S01AuthOtpGoogle/SaveUiPreferences', {
+            method: 'POST',
+            body: next,
+            button: null
+        }).catch(() => { /* lưu cục bộ đã thành công */ });
+    }
+
+    if (!silent) {
+        showSystemStatus(200, 'Đã cập nhật giao diện', `Màu: ${PALETTE_LABELS[next.palette] || next.palette} • Phong cách: ${next.style}`);
+    }
+    return next;
+}
+
+export function setPortalThemeMode(mode) {
+    applyUiPrefs({ theme: mode === 'dark' ? 'dark' : 'light' }, { persistRemote: true, silent: true });
 }
 
 export function applyClientCommands(clientCommands = []) {
@@ -892,6 +1008,8 @@ export function applyClientCommands(clientCommands = []) {
     for (const cmd of clientCommands) {
         if (cmd?.command === 'set_theme' && cmd.args?.theme) {
             setPortalThemeMode(cmd.args.theme);
+        } else if (cmd?.command === 'set_ui_prefs' && cmd.args) {
+            applyUiPrefs(cmd.args, { persistRemote: true, silent: true });
         }
     }
 }
@@ -917,6 +1035,8 @@ export function renderCopilotExtras(containerEl, { clientCommands = [], actionCa
                 if (cmd.command === 'set_theme') {
                     setPortalThemeMode(cmd.args?.theme || 'light');
                     showSystemStatus(200, 'Đã cập nhật giao diện', `Chuyển sang chế độ ${cmd.args?.theme === 'dark' ? 'Tối' : 'Sáng'}.`);
+                } else if (cmd.command === 'set_ui_prefs') {
+                    applyUiPrefs(cmd.args || {}, { persistRemote: true, silent: false });
                 } else if ((cmd.command === 'navigate_to' || cmd.command === 'search_catalog') && cmd.args?.url) {
                     window.location.href = cmd.args.url;
                 }
@@ -1121,37 +1241,196 @@ function applyChartTheme(isDark) {
 
 function initThemeToggle() {
     const btn = document.getElementById('btnThemeToggle');
-    const metaTheme = document.querySelector('meta[name="theme-color"]');
-    const render = () => {
-        const isDark = document.documentElement.getAttribute('data-bs-theme') === 'dark';
-        if (metaTheme) {
-            metaTheme.setAttribute('content', isDark ? '#0f172a' : '#f8fafc');
-        }
-        if (btn) {
-            btn.setAttribute('aria-pressed', String(isDark));
-            btn.setAttribute('aria-label', isDark ? 'Tắt chế độ tối' : 'Bật chế độ tối');
-            btn.innerHTML = isDark
-                ? '<i class="bi bi-sun-fill" aria-hidden="true"></i><span>Sáng</span>'
-                : '<i class="bi bi-moon-stars-fill" aria-hidden="true"></i><span>Tối</span>';
-        }
-        applyChartTheme(isDark);
-    };
-    render();
+    applyUiPrefs({}, { persistRemote: false, silent: true });
+
     btn?.addEventListener('click', () => {
-        const next = document.documentElement.getAttribute('data-bs-theme') === 'dark' ? 'light' : 'dark';
-        document.documentElement.setAttribute('data-bs-theme', next);
-        try { localStorage.setItem('bookshare_theme', next); } catch { /* chế độ riêng tư */ }
-        render();
+        const isDark = document.documentElement.getAttribute('data-bs-theme') === 'dark';
+        const nextTheme = isDark ? 'light' : 'dark';
+        const current = getUiPrefs();
+        const patch = { theme: nextTheme };
+        if (nextTheme === 'light' && current.style === 'cyborg') {
+            patch.style = 'standard';
+        }
+        applyUiPrefs(patch, { persistRemote: true, silent: true });
     });
+
+    // Đồng bộ cấu hình giao diện đã lưu từ máy chủ khi người dùng đã đăng nhập (chỉ áp dụng nếu máy chưa tùy biến hoặc lần đầu vào)
+    if (document.body?.getAttribute('data-authenticated') === '1') {
+        fetch('/S01AuthOtpGoogle/GetUiPreferences', { headers: { Accept: 'application/json' }, credentials: 'same-origin' })
+            .then(r => (r.ok ? r.json() : null))
+            .then(data => {
+                if (!data?.authenticated || !data.preferences) return;
+                const hasLocal = Boolean(localStorage.getItem('bookshare_ui_prefs'));
+                if (!hasLocal) {
+                    applyUiPrefs(data.preferences, { persistRemote: false, silent: true });
+                }
+            })
+            .catch(() => { /* bỏ qua */ });
+    }
 }
 
-// ---------- Chuông thông báo Real-time bằng Polling 30 giây (S18) ----------
+// ---------- Chuông thông báo Real-time + Popup Nhanh & Xem Chi Tiết (S18) ----------
+
+function formatShortTime(iso) {
+    if (!iso) return '';
+    try {
+        const d = new Date(iso);
+        return d.toLocaleString('vi-VN', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+    } catch { return ''; }
+}
 
 function initNotificationPolling() {
     const bell = document.getElementById('notificationBell');
     if (!bell) return;
     const dot = bell.querySelector('.notif-dot');
+    const popupList = document.getElementById('notifPopupList');
+    const popupSummary = document.getElementById('notifPopupSummary');
+    const btnPopupMarkAll = document.getElementById('btnPopupMarkAllRead');
     const storageKey = 'bookshare_unread_seen';
+
+    const updateBadge = (count) => {
+        if (dot) {
+            dot.textContent = count > 99 ? '99+' : String(count);
+            dot.classList.toggle('d-none', count === 0);
+        }
+        bell.setAttribute('aria-label', count ? `Thông báo: ${count} chưa đọc` : 'Thông báo');
+
+        const mobileBadge = document.getElementById('mobileUnreadBadge');
+        if (mobileBadge) {
+            mobileBadge.textContent = count > 99 ? '99+' : String(count);
+            mobileBadge.classList.toggle('d-none', count === 0);
+        }
+    };
+
+    const openNotificationDetailModal = async (item) => {
+        if (!item.isRead) {
+            await apiFetch('/S18NotificationHub/MarkRead', {
+                method: 'POST',
+                body: { notificationId: item.id },
+                button: null
+            });
+            item.isRead = true;
+            loadPopupList();
+        }
+
+        const targetUrl = item.detailUrl || `/S18NotificationHub?highlight=${item.id}`;
+        const res = await window.Swal.fire({
+            title: item.title || 'Chi tiết thông báo',
+            html: `
+                <div class="text-start">
+                    <div class="d-flex justify-content-between align-items-center mb-2 small text-muted">
+                        <span class="badge bg-primary">${escapeHtml(item.type || 'Hệ thống')}</span>
+                        <span>${escapeHtml(formatShortTime(item.createdAt))}</span>
+                    </div>
+                    <div class="p-3 rounded-3 border bg-body-tertiary small" style="white-space:pre-line;line-height:1.55;">
+                        ${escapeHtml(item.content || '')}
+                    </div>
+                </div>`,
+            showCancelButton: true,
+            confirmButtonText: 'Đi tới trang chi tiết →',
+            cancelButtonText: 'Đóng',
+            confirmButtonColor: '#2563eb',
+            ...swalThemeOptions()
+        });
+        if (res.isConfirmed) {
+            window.location.href = targetUrl;
+        }
+    };
+
+    const loadPopupList = async () => {
+        if (!popupList) return;
+        try {
+            const res = await fetch('/S18NotificationHub/RecentPopup?take=8', {
+                headers: { Accept: 'application/json' },
+                credentials: 'same-origin'
+            });
+            if (!res.ok) return;
+            const data = await res.json();
+            const count = Number(data.unreadCount) || 0;
+            const items = Array.isArray(data.items) ? data.items : [];
+            updateBadge(count);
+            if (popupSummary) {
+                popupSummary.textContent = count > 0 ? `${count} chưa đọc / ${data.totalCount || items.length} thông báo` : 'Bạn đã đọc hết thông báo';
+            }
+
+            if (!items.length) {
+                popupList.innerHTML = '<div class="p-4 text-center small text-muted"><i class="bi bi-bell-slash d-block fs-4 mb-1"></i>Chưa có thông báo nào.</div>';
+                return;
+            }
+
+            popupList.innerHTML = '';
+            for (const item of items) {
+                const row = document.createElement('div');
+                row.className = `bs-notif-item ${item.isRead ? '' : 'is-unread'}`;
+
+                const header = document.createElement('div');
+                header.className = 'd-flex justify-content-between align-items-center gap-2 mb-1';
+                header.innerHTML = `
+                    <span class="badge ${item.isRead ? 'bg-secondary' : 'bg-primary'}" style="font-size:0.65rem;">${escapeHtml(item.type || 'Hệ thống')}</span>
+                    <small class="text-muted" style="font-size:0.68rem;">${escapeHtml(formatShortTime(item.createdAt))}</small>`;
+
+                const titleEl = document.createElement('div');
+                titleEl.className = 'bs-notif-item-title';
+                titleEl.innerText = item.title || '';
+
+                const bodyEl = document.createElement('div');
+                bodyEl.className = 'bs-notif-item-body';
+                bodyEl.innerText = item.content || '';
+
+                const actions = document.createElement('div');
+                actions.className = 'd-flex justify-content-between align-items-center mt-2 pt-1';
+
+                const btnQuick = document.createElement('button');
+                btnQuick.type = 'button';
+                btnQuick.className = 'btn btn-xs btn-outline-primary py-0 px-2';
+                btnQuick.innerText = 'Xem nhanh';
+                btnQuick.addEventListener('click', (ev) => {
+                    ev.stopPropagation();
+                    openNotificationDetailModal(item);
+                });
+
+                const linkGo = document.createElement('a');
+                linkGo.href = item.detailUrl || `/S18NotificationHub?highlight=${item.id}`;
+                linkGo.className = 'small fw-semibold text-decoration-none';
+                linkGo.innerHTML = 'Mở trang chi tiết <i class="bi bi-arrow-right-short"></i>';
+                linkGo.addEventListener('click', async (ev) => {
+                    ev.stopPropagation();
+                    if (!item.isRead) {
+                        ev.preventDefault();
+                        await apiFetch('/S18NotificationHub/MarkRead', {
+                            method: 'POST',
+                            body: { notificationId: item.id },
+                            button: null
+                        });
+                        window.location.href = linkGo.href;
+                    }
+                });
+
+                actions.appendChild(btnQuick);
+                actions.appendChild(linkGo);
+
+                row.appendChild(header);
+                row.appendChild(titleEl);
+                row.appendChild(bodyEl);
+                row.appendChild(actions);
+                row.addEventListener('click', () => openNotificationDetailModal(item));
+                popupList.appendChild(row);
+            }
+        } catch {
+            popupList.innerHTML = '<div class="p-3 text-center small text-muted">Không tải được danh sách thông báo lúc này.</div>';
+        }
+    };
+
+    bell.addEventListener('show.bs.dropdown', loadPopupList);
+    bell.addEventListener('click', loadPopupList);
+
+    btnPopupMarkAll?.addEventListener('click', async (ev) => {
+        ev.preventDefault();
+        const res = await apiFetch('/S18NotificationHub/MarkAllRead', { method: 'POST', body: {}, button: btnPopupMarkAll });
+        if (res.ok) {
+            await loadPopupList();
+        }
+    });
 
     const poll = async () => {
         if (document.hidden) return;
@@ -1163,22 +1442,13 @@ function initNotificationPolling() {
             if (!res.ok || !(res.headers.get('content-type') || '').includes('application/json')) return;
             const data = await res.json();
             const count = Number(data.unreadCount) || 0;
-
-            dot.textContent = count > 99 ? '99+' : String(count);
-            dot.classList.toggle('d-none', count === 0);
-            bell.setAttribute('aria-label', count ? `Thông báo: ${count} chưa đọc` : 'Thông báo');
-
-            const mobileBadge = document.getElementById('mobileUnreadBadge');
-            if (mobileBadge) {
-                mobileBadge.textContent = count > 99 ? '99+' : String(count);
-                mobileBadge.classList.toggle('d-none', count === 0);
-            }
+            updateBadge(count);
 
             let seen = 0;
             try { seen = Number(sessionStorage.getItem(storageKey)) || 0; } catch { /* bỏ qua */ }
             if (count > seen) {
                 bell.classList.remove('is-ringing');
-                void bell.offsetWidth; // khởi động lại animation
+                void bell.offsetWidth;
                 bell.classList.add('is-ringing');
                 if (seen > 0 || data.latestTitle) {
                     toast(300, `Bạn có ${count} thông báo chưa đọc`, data.latestTitle || '');
@@ -1236,7 +1506,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     window.showSystemStatus = showSystemStatus;
     window.apiFetch = apiFetch;
-    window.BookShareUI = { toast, confirmDialog, celebrate, loadScript, renderMarkdown, renderSkeleton, renderQrCode, showHandoverQrModal, confirmHandoverQrModal, openBarcodeScanner, openUniversalScanner, openQrPaymentScanner, openQrInvoiceConfirmDialog, showQrPaymentInvoiceModal, applyClientCommands, renderCopilotExtras, setPortalThemeMode, trustTier, getRecaptchaToken, CDN };
+    window.BookShareUI = { toast, confirmDialog, celebrate, loadScript, renderMarkdown, renderSkeleton, renderQrCode, showHandoverQrModal, confirmHandoverQrModal, openBarcodeScanner, openUniversalScanner, openQrPaymentScanner, openQrInvoiceConfirmDialog, showQrPaymentInvoiceModal, applyClientCommands, renderCopilotExtras, setPortalThemeMode, getUiPrefs, applyUiPrefs, PALETTE_LABELS, trustTier, getRecaptchaToken, CDN };
 
     document.addEventListener('click', (e) => {
         const qrPayBtn = e.target.closest('.js-open-qr-pay-scanner');
@@ -1255,7 +1525,7 @@ document.addEventListener('DOMContentLoaded', () => {
     initMobileCompanionBridge();
     initTrustTierCelebration();
 
-    // Nút đóng thanh trạng thái (tránh phát lặp Toast khi TempData flash banner đã hiển thị trực tiếp)
+    // Nút đóng thanh trạng thái
     const btnCloseStatus = document.getElementById('btnHideStatusBox');
     if (btnCloseStatus) {
         btnCloseStatus.addEventListener('click', () => {
@@ -1263,45 +1533,118 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // Chuyển đổi tông màu Portal (Blue / Coral / Emerald)
-    const savedPalette = localStorage.getItem('bookshare_palette') || 'blue';
-    document.body.setAttribute('data-portal-palette', savedPalette);
-    const activeThemeLabelEl = document.getElementById('activePaletteLabel');
-    const syncPaletteMenuState = (paletteKey) => {
-        document.querySelectorAll('[data-set-palette]').forEach(btn => {
-            const isMatch = btn.getAttribute('data-set-palette') === paletteKey;
-            btn.classList.toggle('active', isMatch);
-            if (isMatch && activeThemeLabelEl) {
-                activeThemeLabelEl.innerText = btn.getAttribute('data-palette-name') || 'Giao Diện';
-            }
-        });
-    };
-    syncPaletteMenuState(savedPalette);
+    // Gắn sự kiện chọn Bảng màu & Phong cách Bootstrap trên toàn Header/Menu
     document.querySelectorAll('[data-set-palette]').forEach(btn => {
         btn.addEventListener('click', () => {
             const p = btn.getAttribute('data-set-palette') || 'blue';
-            const pName = btn.getAttribute('data-palette-name') || p.toUpperCase();
-            document.body.setAttribute('data-portal-palette', p);
-            localStorage.setItem('bookshare_palette', p);
-            syncPaletteMenuState(p);
-            showSystemStatus(200, 'Đã chuyển đổi chủ đề giao diện', `Đang áp dụng chủ đề: ${pName}`);
+            applyUiPrefs({ palette: p }, { persistRemote: true, silent: false });
         });
     });
 
-    // Khung Chat AI Gemini nổi góc phải
+    document.querySelectorAll('[data-set-ui-style]').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const st = btn.getAttribute('data-set-ui-style') || 'standard';
+            const patch = { style: st };
+            if (st === 'sketchy') patch.font = 'patrick';
+            else if (st === 'standard' && getUiPrefs().font === 'patrick') patch.font = 'roboto';
+            applyUiPrefs(patch, { persistRemote: true, silent: false });
+        });
+    });
+
+    // Khung Chat AI Gemini nổi góc phải (Tải lịch sử bền vững theo phân quyền + Reset + Gửi Email + Style/Font)
+    const aiWidget = document.getElementById('aiFloatingWidget');
     const btnToggleChat = document.getElementById('btnToggleAIChat');
     const btnMinimizeChat = document.getElementById('btnMinimizeAIChat');
     const btnCloseChat = document.getElementById('btnCloseAIChat');
+    const btnResetChat = document.getElementById('btnResetAIChat');
+    const btnEmailChat = document.getElementById('btnEmailAIChat');
+    const btnToggleStyleBar = document.getElementById('btnToggleAiStyleBar');
+    const aiStyleBar = document.getElementById('aiWidgetStyleBar');
     const chatPopup = document.getElementById('aiChatPopup');
     const chatForm = document.getElementById('aiChatWidgetForm');
     const chatInput = document.getElementById('aiChatWidgetInput');
     const chatMessages = document.getElementById('aiChatWidgetMessages');
+    const isAuthUser = aiWidget?.getAttribute('data-authenticated') === '1';
+    const guestChatKey = 'bookshare_guest_ai_chat_v1';
+    let activeAiSessionId = 0;
+    let historyLoaded = false;
+
+    const scrollChatToBottom = () => {
+        if (chatMessages) chatMessages.scrollTo({ top: chatMessages.scrollHeight, behavior: 'smooth' });
+    };
+
+    const appendWidgetMsg = (text, isBot, extras = null, { saveGuest = false } = {}) => {
+        if (!chatMessages) return;
+        const div = document.createElement('div');
+        div.className = `ai-msg ${isBot ? 'ai-msg-bot ai-md' : 'ai-msg-user'}`;
+        if (isBot) {
+            div.innerHTML = renderMarkdown(text);
+            if (extras) {
+                renderCopilotExtras(div, extras);
+            }
+        } else {
+            div.innerText = text;
+        }
+        chatMessages.appendChild(div);
+        scrollChatToBottom();
+
+        if (saveGuest && !isAuthUser) {
+            try {
+                const list = JSON.parse(sessionStorage.getItem(guestChatKey) || '[]');
+                list.push({ sender: isBot ? 'Gemini' : 'User', text });
+                sessionStorage.setItem(guestChatKey, JSON.stringify(list.slice(-30)));
+            } catch { /* bỏ qua */ }
+        }
+    };
+
+    const loadPersistentAiHistory = async () => {
+        if (!chatMessages || historyLoaded) return;
+        historyLoaded = true;
+        if (isAuthUser) {
+            try {
+                const res = await fetch('/api/ai-chat/history', {
+                    headers: { Accept: 'application/json' },
+                    credentials: 'same-origin'
+                });
+                if (!res.ok) return;
+                const data = await res.json();
+                activeAiSessionId = Number(data.sessionId) || 0;
+                const msgs = Array.isArray(data.messages) ? data.messages : [];
+                if (msgs.length > 0) {
+                    chatMessages.innerHTML = '';
+                    for (const m of msgs) {
+                        const isBot = String(m.sender || '').toLowerCase() === 'gemini';
+                        appendWidgetMsg(m.messageText || '', isBot);
+                    }
+                }
+            } catch { /* giữ lời chào mặc định nếu mất mạng tạm */ }
+        } else {
+            try {
+                const saved = JSON.parse(sessionStorage.getItem(guestChatKey) || '[]');
+                if (Array.isArray(saved) && saved.length > 0) {
+                    chatMessages.innerHTML = '';
+                    for (const m of saved) {
+                        appendWidgetMsg(m.text || '', m.sender === 'Gemini');
+                    }
+                }
+            } catch { /* bỏ qua */ }
+        }
+    };
+
+    // Nạp lịch sử nền ngay khi tải trang (giữ đúng lịch sử theo tài khoản & phân quyền)
+    if (aiWidget) {
+        loadPersistentAiHistory();
+    }
 
     const setChatOpen = (open) => {
         if (!chatPopup) return;
         chatPopup.classList.toggle('d-none', !open);
         btnToggleChat?.setAttribute('aria-expanded', String(open));
-        if (open) chatInput?.focus();
+        if (open) {
+            loadPersistentAiHistory();
+            scrollChatToBottom();
+            chatInput?.focus();
+        }
     };
     if (btnToggleChat && chatPopup) {
         btnToggleChat.addEventListener('click', () => setChatOpen(chatPopup.classList.contains('d-none')));
@@ -1325,25 +1668,78 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    const scrollChatToBottom = () => {
-        if (chatMessages) chatMessages.scrollTo({ top: chatMessages.scrollHeight, behavior: 'smooth' });
-    };
+    // Thanh chọn Style/Màu/Font/Cỡ chữ ngay trong Widget Chat AI
+    btnToggleStyleBar?.addEventListener('click', () => {
+        aiStyleBar?.classList.toggle('d-none');
+        applyUiPrefs({}, { persistRemote: false, silent: true });
+    });
+    document.getElementById('aiStyleSelect')?.addEventListener('change', (e) => {
+        const st = e.target.value;
+        const patch = { style: st };
+        if (st === 'sketchy') patch.font = 'patrick';
+        applyUiPrefs(patch, { persistRemote: true, silent: true });
+    });
+    document.getElementById('aiPaletteSelect')?.addEventListener('change', (e) => {
+        applyUiPrefs({ palette: e.target.value }, { persistRemote: true, silent: true });
+    });
+    document.getElementById('aiFontSelect')?.addEventListener('change', (e) => {
+        applyUiPrefs({ font: e.target.value }, { persistRemote: true, silent: true });
+    });
+    document.getElementById('aiFontSizeSelect')?.addEventListener('change', (e) => {
+        applyUiPrefs({ fontSize: e.target.value }, { persistRemote: true, silent: true });
+    });
 
-    const appendWidgetMsg = (text, isBot, extras = null) => {
-        if (!chatMessages) return;
-        const div = document.createElement('div');
-        div.className = `ai-msg ${isBot ? 'ai-msg-bot ai-md' : 'ai-msg-user'}`;
-        if (isBot) {
-            div.innerHTML = renderMarkdown(text); // renderMarkdown đã escape HTML (chống XSS theo RULES.md)
-            if (extras) {
-                renderCopilotExtras(div, extras);
+    // Nút Reset Chat (xóa lịch sử phiên hiện tại & làm mới lời chào theo phân quyền)
+    btnResetChat?.addEventListener('click', async () => {
+        const ok = await confirmDialog({
+            title: 'Đặt lại cuộc trò chuyện AI?',
+            text: 'Lịch sử tin nhắn trong phiên chat hiện tại sẽ được làm mới sạch sẽ.',
+            confirmText: 'Đặt lại ngay',
+            danger: true
+        });
+        if (!ok) return;
+
+        if (!isAuthUser) {
+            try { sessionStorage.removeItem(guestChatKey); } catch { /* bỏ qua */ }
+            if (chatMessages) {
+                chatMessages.innerHTML = '';
+                appendWidgetMsg('Đã làm mới cuộc trò chuyện! Bạn cần tìm sách mượn miễn phí hay đổi phong cách giao diện?', true);
             }
-        } else {
-            div.innerText = text;
+            toast(200, 'Đã đặt lại khung chat AI', 'Bạn có thể bắt đầu cuộc trò chuyện mới.');
+            return;
         }
-        chatMessages.appendChild(div);
-        scrollChatToBottom();
-    };
+
+        const res = await apiFetch('/api/ai-chat/reset', {
+            method: 'POST',
+            body: { sessionId: activeAiSessionId || null },
+            button: btnResetChat
+        });
+        if (res.ok && chatMessages) {
+            activeAiSessionId = Number(res.data?.sessionId) || activeAiSessionId;
+            chatMessages.innerHTML = '';
+            const greet = res.data?.greeting?.messageText || 'Đã làm mới cuộc trò chuyện Trợ lý AI!';
+            appendWidgetMsg(greet, true);
+        }
+    });
+
+    // Nút Gửi tóm tắt hội thoại AI qua Email (bắt buộc có Email hợp lệ trong Cài Đặt)
+    btnEmailChat?.addEventListener('click', async () => {
+        const res = await apiFetch('/S13GeminiAiAssistant/SendChatSummaryEmail', {
+            method: 'POST',
+            body: { sessionId: activeAiSessionId || null },
+            button: btnEmailChat
+        });
+        if (!res.ok && res.data?.requiresEmailSetup) {
+            const go = await confirmDialog({
+                title: 'Chưa thiết lập Email nhận thư',
+                text: res.message || 'Vui lòng điền địa chỉ Email hợp lệ trong Cài Đặt Tài Khoản trước khi gửi thư.',
+                confirmText: 'Đi tới Cài Đặt điền Email →',
+                cancelText: 'Để sau',
+                danger: false
+            });
+            if (go) window.location.href = '/S01AuthOtpGoogle';
+        }
+    });
 
     document.querySelectorAll('.ai-quick-prompt').forEach(btn => {
         btn.addEventListener('click', () => {
@@ -1359,7 +1755,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const promptText = chatInput.value.trim();
             if (!promptText) return;
 
-            appendWidgetMsg(promptText, false);
+            appendWidgetMsg(promptText, false, null, { saveGuest: true });
             chatInput.value = '';
             chatInput.disabled = true;
 
@@ -1374,13 +1770,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 });
                 typing.remove();
                 if (res.ok && res.data && res.data.reply) {
+                    if (res.data.sessionId) activeAiSessionId = Number(res.data.sessionId) || activeAiSessionId;
                     applyClientCommands(res.data.clientCommands);
                     appendWidgetMsg(res.data.reply, true, {
                         clientCommands: res.data.clientCommands || [],
                         actionCards: res.data.actionCards || []
-                    });
+                    }, { saveGuest: true });
                 } else {
-                    appendWidgetMsg('Trợ lý AI: Bạn có thể tra cứu sách trong **Kho chung ĐH CMC** hoặc kiểm tra tiến độ đọc tại mục **Tiến Độ Đọc Sách**.', true);
+                    appendWidgetMsg('Trợ lý AI: Bạn có thể tra cứu sách trong **Kho chung ĐH CMC** hoặc kiểm tra tiến độ đọc tại mục **Tiến Độ Đọc Sách**.', true, null, { saveGuest: true });
                 }
             } finally {
                 typing.remove();

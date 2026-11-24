@@ -22,6 +22,12 @@
                 <button type="button" class="btn btn-outline-primary btn-sm fw-bold rounded-pill px-3 js-open-qr-pay-scanner">
                     <i class="bi bi-qr-code-scan me-1"></i>Quét QR Thanh Toán
                 </button>
+                @if (Model.ActiveTier != "Free")
+                {
+                    <button type="button" id="btnHeroCancelTier" class="btn btn-outline-danger btn-sm fw-bold rounded-pill px-3 js-cancel-membership" data-active-tier="@Model.ActiveTier">
+                        <i class="bi bi-x-circle me-1"></i>Hủy Gói @Model.ActiveTier
+                    </button>
+                }
             </div>
         </div>
         <div class="s16-quota-pill">
@@ -155,19 +161,50 @@
                     <div class="mt-auto d-grid gap-2">
                         @if (plan.Tier == "Free")
                         {
-                            <button type="button" class="btn btn-outline-secondary btn-sm fw-bold js-switch-tier"
-                                    data-tier="Free" data-mode="InstantWallet">
-                                <i class="bi bi-arrow-repeat me-1"></i>Chuyển về gói Free (2 cuốn)
+                            if (isCurrent)
+                            {
+                                <button type="button" class="btn btn-outline-secondary btn-sm fw-bold" disabled>
+                                    <i class="bi bi-check-circle-fill me-1"></i>Đang Sử Dụng Gói Free
+                                </button>
+                            }
+                            else
+                            {
+                                <button type="button" class="btn btn-outline-danger btn-sm fw-bold js-cancel-membership" data-active-tier="@Model.ActiveTier">
+                                    <i class="bi bi-x-circle me-1"></i>Hủy Gói @Model.ActiveTier Về Free
+                                </button>
+                            }
+                        }
+                        else if (isCurrent)
+                        {
+                            <button type="button" class="btn btn-success btn-sm fw-bold" disabled>
+                                <i class="bi bi-patch-check-fill me-1"></i>Đang Sở Hữu (Không Mua Trùng)
                             </button>
+                            <button type="button" class="btn @(isDarkCard ? "btn-outline-warning" : "btn-outline-danger") btn-sm fw-semibold js-cancel-membership" data-active-tier="@Model.ActiveTier">
+                                <i class="bi bi-x-octagon me-1"></i>Hủy Gói Hội Viên Này
+                            </button>
+                        }
+                        else if (Model.ActiveTier != "Free")
+                        {
+                            <button type="button" class="btn @(isDarkCard ? "btn-warning text-dark" : "btn-primary") btn-sm fw-bold js-switch-tier"
+                                    data-tier="@plan.Tier" data-mode="InstantWallet" data-is-switch="1">
+                                <i class="bi bi-arrow-left-right me-1"></i>Chuyển Sang Gói Này (Ví Tiền Ảo)
+                            </button>
+                            <button type="button" class="btn @(isDarkCard ? "btn-outline-light" : "btn-outline-primary") btn-sm fw-semibold js-switch-tier"
+                                    data-tier="@plan.Tier" data-mode="QrInvoice" data-is-switch="1">
+                                <i class="bi bi-qr-code me-1"></i>Tạo Mã QR Chuyển Gói
+                            </button>
+                            <small class="text-center @(isDarkCard ? "text-white-50" : "text-muted")" style="font-size:0.72rem;">
+                                Lệ phí chuyển gói minh bạch: 15.000đ ảo (đã khấu trừ ngày dư gói cũ)
+                            </small>
                         }
                         else
                         {
                             <button type="button" class="btn @(isDarkCard ? "btn-warning text-dark" : "btn-primary") btn-sm fw-bold js-switch-tier"
-                                    data-tier="@plan.Tier" data-mode="InstantWallet">
-                                <i class="bi bi-wallet2 me-1"></i>Nâng Cấp Ngay Bằng Ví Tiền Ảo
+                                    data-tier="@plan.Tier" data-mode="InstantWallet" data-is-switch="0">
+                                <i class="bi bi-wallet2 me-1"></i>Đăng Ký Ngay Bằng Ví Tiền Ảo
                             </button>
                             <button type="button" class="btn @(isDarkCard ? "btn-outline-light" : "btn-outline-primary") btn-sm fw-semibold js-switch-tier"
-                                    data-tier="@plan.Tier" data-mode="QrInvoice">
+                                    data-tier="@plan.Tier" data-mode="QrInvoice" data-is-switch="0">
                                 <i class="bi bi-qr-code me-1"></i>Tạo Mã QR Thanh Toán
                             </button>
                         }

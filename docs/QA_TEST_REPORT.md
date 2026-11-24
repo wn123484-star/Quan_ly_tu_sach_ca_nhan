@@ -8,7 +8,7 @@ Báo cáo tổng hợp kết quả biên dịch, kiến trúc kiểm thử tự 
 
 Hệ thống được xác minh đồng thời bằng 2 kịch bản Python chạy trực tiếp trên tiến trình **ASP.NET Core 10 Kestrel thật** kết nối cơ sở dữ liệu **SQL Server (`(localdb)\MSSQLLocalDB` — `BookShareDb`)**:
 
-1. **`scripts/qa_full_bot.py` (Kiểm thử E2E 8 Tầng — 368 Assertions):**
+1. **`scripts/qa_full_bot.py` (Kiểm thử E2E 9 Tầng — 395 Assertions):**
    - **Tầng 1 (`L1` — 8 checks):** Kiểm tra cấu trúc mã nguồn, xóa sạch các tệp mẫu thừa (`site.css`, `site.js`, `_Layout.cshtml.css`), Strict Service Layer (0 tham chiếu `BookShareDbContext` tại Controllers), 0 User ID fallback, mặc định Light Mode trong `_Layout.cshtml`, nền sáng `#f8fafc` tại `.app-splash` và `manifest.json`, `service-worker.js` bản `bookshare-static-v2`, và kiểm tra `s01-auth-otp-google.js` không còn tài khoản mẫu/mật khẩu.
    - **Tầng 2 (`L2` — 141 checks):** Quét toàn bộ 23 trang (`/` + `S01` → `S22`) bảo đảm `HTTP 200`, Light Mode mặc định trên HTML trả về, 0 thuật ngữ kỹ thuật nội bộ, 0 nội dung thương mại bán sách, 100% thẻ `<img>` có `alt` + `onerror`, kiểm tra UI `/S01AuthOtpGoogle` (ẩn tài khoản mẫu, vô hiệu hóa nút Google), xác nhận `POST /S01AuthOtpGoogle/GoogleLogin` fail-closed `HTTP 400`, kiểm tra `/S21` & `/S22` không rò rỉ PII với Guest, `/api/ai-chat/quick-ask` phân tách khách và thành viên, và chặn `HTTP 401` đối với toàn bộ 18 endpoint ghi dữ liệu khi chưa đăng nhập.
    - **Tầng 3 (`L3` — 59 checks):** Kiểm thử đăng nhập 6 tài khoản 4 vai trò (`Admin`, `Librarian`, `Curator`, `User1`, `User2`, `User3`), chặn mật khẩu yếu, chặn leo thang đặc quyền `SelectedRole=Admin` khi đăng ký công khai, kiểm tra đổi mật khẩu Admin & vô hiệu hóa hoàn toàn mật khẩu cũ (0 backdoor), kiểm tra khóa/mở khóa tài khoản thực thi `LockoutEnd`, ma trận phân quyền `403 Forbidden` cho toàn bộ API đặc quyền (`User` & `Curator`), và kiểm tra chặn chéo người dùng `403` (IDOR) trên `S02`, `S03`, `S04`, `S18`, `S20`.
@@ -32,6 +32,9 @@ Hệ thống được xác minh đồng thời bằng 2 kịch bản Python ch�
      - Xác minh nạp tiền ảo miễn phí (`TopUpVirtualWallet` chặn `< 1.000đ` `400`, cộng `+100.000đ` `200`), nâng cấp trực tiếp bằng Ví Tiền Ảo (`InstantWallet` chặn `400` khi thiếu tiền, nâng cấp `Standard` `3 cuốn` trừ đúng `29.000đ`).
      - Xác minh trọn luồng **QR Thanh Toán giống ngân hàng**: tạo hóa đơn `Scholar 6 tháng` (`449.000đ` ảo) -> chặn IDOR `403` từ thành viên khác trên `Preview`/`Confirm`/`InvoiceStatus` -> đọc hóa đơn báo đúng thiếu tiền (`hasSufficientBalance=false`, `Confirm` trả `400`) -> nạp thêm `+400.000đ` miễn phí -> `Preview` báo đủ tiền -> `Confirm` trừ ví thành công, `InvoiceStatus` chuyển `Completed` đồng bộ real-time về Web, nâng cấp ngay lên `Scholar` (`10 cuốn`), chặn thanh toán lặp replay `400`.
      - Xác minh **Admin Xóa Tài Khoản (`POST /S22AdminAnalytics/DeleteUser`)**: chặn `User` `403` (RBAC), chặn tự xóa `u-admin-01` `400`, chặn xóa `400` khi thành viên đang giữ sách chưa trả, xóa sạch nguyên tử `200` sau khi trả sách và `OnValidatePrincipal` lập tức hủy phiên Cookie của tài khoản vừa bị xóa (`authenticated=false`).
+   - **Tầng 9 (`L9` — 27 checks Sprint 5: Vá 404 Icon + SQL Binary, Google OAuth External Scheme, Đa Giao Diện Bootstrap & Font Cục Bộ, Cài Đặt Mọi Cấp, Popup Thông Báo, AI Chat Bền Vững + Reset, Chuyển/Hủy Gói & Chống Spam):**
+     - Xác minh 4 tệp CSS Bootswatch cục bộ có 0 `@import` Google Fonts CDN, 4 phông tiếng Việt mới trả `HTTP 200`, `Program.cs` kích hoạt `UseStaticFiles()` + `ExternalCookieScheme`, `core-theme.css` đổ màu Header `180deg` + thu gọn `.grecaptcha-badge` góc trái dưới + `gold`/`rose`/`sketchy`.
+     - Xác minh upload `brand_logo` -> cả `/uploads/icons/...` lẫn `/assets/system-icons/brand_logo` đều trả `HTTP 200` PNG hợp lệ; Cài đặt tài khoản mọi cấp phân tách `FullName`/`Email`, lưu `UiPreferencesJson`, chặn gửi Email khi thiếu Email (`requiresEmailSetup=true`); Popup Thông báo nhanh (`RecentPopup`); AI chat lưu bền vững theo phân quyền + lệnh `set_ui_prefs` + nút Reset Chat; S16/S17 chặn mua trùng gói (`400`), Chuyển gói lệ phí `15.000đ` (`PreviewTierSwitch`), Hủy gói (`CancelMembership`), khóa `IdempotencyKey` (`400`), gộp `Pending` và chặn spam nạp ví (`429`).
    - **Tầng 5 (`L5` — 3 checks):** Gọi `POST /S22AdminAnalytics/ManageSampleData (SeedSampleData)` khôi phục sạch CSDL gốc về đúng mốc **6 Thành viên, 55 Bản sao** và xác minh `User1` đăng nhập lại thành công với `User@123`.
 
 2. **`scripts/smoke_test.py` (Kiểm thử Khói 3 Lớp):**
@@ -42,7 +45,7 @@ Hệ thống được xác minh đồng thời bằng 2 kịch bản Python ch�
 ## 2. Kết Quả Xác Minh Đạt Được (Observed Outputs)
 
 - **Biên dịch giải pháp (`dotnet build BookShare.sln --nologo`):** `Build succeeded. 0 Error(s)` (4 cảnh báo NuGet `NU1902`/`NU1903` từ package `System.Security.Cryptography.Pkcs` 10.0.5).
-- **Bot E2E 8 Tầng (`python scripts/qa_full_bot.py --autostart`):**
+- **Bot E2E 9 Tầng (`python scripts/qa_full_bot.py --autostart`):**
 
 | Tầng kiểm thử | Số lượng Assertions | Đạt (`PASS`) | Thất bại (`FAIL`) | Tỷ lệ |
 | :--- | :---: | :---: | :---: | :---: |
@@ -53,8 +56,9 @@ Hệ thống được xác minh đồng thời bằng 2 kịch bản Python ch�
 | **L6** — Sprint 3 & Hệ thống Xử lý Ngoại lệ / Trang Lỗi (400/401/403/404/405/500) | 38 | 38 | 0 | **100%** |
 | **L7** — Sprint 3.5 (0 CDN, 0 Schema Drift, QR ổn định, Header, Admin Icon Manager, Blank DB & Stale Cookie) | 31 | 31 | 0 | **100%** |
 | **L8** — Sprint 4 (0 VNPay `.env`, Ví Tiền Ảo Miễn Phí, Gói 4 Cấp, QR Thanh Toán & Admin Xóa TK) | 22 | 22 | 0 | **100%** |
+| **L9** — Sprint 5 (Icon 200 OK, Google OAuth Scheme, Đa Style/Font, Cài Đặt Email, Popup Thông Báo, AI Bền Vững + Reset, Chuyển/Hủy Gói & Chống Spam) | 27 | 27 | 0 | **100%** |
 | **L5** — Reset CSDL mẫu & Khôi phục nguyên trạng 6 Users / 55 Copies | 3 | 3 | 0 | **100%** |
-| **TỔNG CỘNG (`qa_full_bot.py`)** | **368** | **368** | **0** | **100% PASS** |
+| **TỔNG CỘNG (`qa_full_bot.py`)** | **395** | **395** | **0** | **100% PASS** |
 
 - **Kiểm thử Khói 3 Lớp (`python scripts/smoke_test.py --autostart --skip-build`):** **100% PASS (0 lỗi)** — toàn bộ 23 routes trả về `HTTP 200 OK`, 0 lỗi UI, 8/8 lần gọi POST nhạy cảm bị chặn `HTTP 401`.
 

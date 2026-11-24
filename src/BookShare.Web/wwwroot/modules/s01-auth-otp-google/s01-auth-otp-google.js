@@ -1,7 +1,7 @@
 /**
  * XÁC THỰC, ĐĂNG NHẬP QR & HỒ SƠ CÁ NHÂN (s01-auth-otp-google.js)
  */
-import { apiFetch, showSystemStatus, getRecaptchaToken, renderQrCode, openBarcodeScanner, openUniversalScanner, toast, confirmDialog } from '../../js/core-api.js';
+import { apiFetch, showSystemStatus, getRecaptchaToken, renderQrCode, openBarcodeScanner, openUniversalScanner, toast, confirmDialog, getUiPrefs, applyUiPrefs } from '../../js/core-api.js';
 
 document.addEventListener('DOMContentLoaded', () => {
     const bindRecaptchaForm = (formId, tokenInputId, actionName) => {
@@ -29,19 +29,85 @@ document.addEventListener('DOMContentLoaded', () => {
         updateProfileForm.addEventListener('submit', async (e) => {
             e.preventDefault();
             const fullName = document.getElementById('profFullName')?.value.trim() || '';
+            const email = document.getElementById('profEmail')?.value.trim() || '';
             const phoneNumber = document.getElementById('profPhone')?.value.trim() || '';
             const address = document.getElementById('profAddress')?.value.trim() || '';
             const avatarUrl = document.getElementById('profAvatarUrl')?.value.trim() || '';
 
             const res = await apiFetch('/S01AuthOtpGoogle/UpdateProfile', {
                 method: 'POST',
-                body: { fullName, phoneNumber, address, avatarUrl }
+                body: { fullName, email, phoneNumber, address, avatarUrl }
             });
 
             if (res.ok) {
                 window.location.reload();
             }
         });
+    }
+
+    // ---------- TAB CÀI ĐẶT GIAO DIỆN, PHONG CÁCH, PHÔNG CHỮ & CỠ CHỮ ----------
+    const prefTheme = document.getElementById('prefThemeMode');
+    const prefStyle = document.getElementById('prefUiStyle');
+    const prefPalette = document.getElementById('prefPalette');
+    const prefFont = document.getElementById('prefFontFamily');
+    const prefSize = document.getElementById('prefFontSize');
+
+    const syncPrefInputs = (p) => {
+        if (prefTheme) prefTheme.value = p.theme || 'light';
+        if (prefStyle) prefStyle.value = p.style || 'standard';
+        if (prefPalette) prefPalette.value = p.palette || 'blue';
+        if (prefFont) prefFont.value = p.font || 'roboto';
+        if (prefSize) prefSize.value = p.fontSize || 'md';
+    };
+
+    const readPrefInputs = () => ({
+        theme: prefTheme?.value || 'light',
+        style: prefStyle?.value || 'standard',
+        palette: prefPalette?.value || 'blue',
+        font: prefFont?.value || 'roboto',
+        fontSize: prefSize?.value || 'md'
+    });
+
+    if (prefStyle) {
+        syncPrefInputs(getUiPrefs());
+        [prefTheme, prefStyle, prefPalette, prefFont, prefSize].forEach(sel => {
+            sel?.addEventListener('change', () => {
+                const next = readPrefInputs();
+                if (sel === prefStyle && next.style === 'sketchy' && prefFont) {
+                    next.font = 'patrick';
+                    prefFont.value = 'patrick';
+                }
+                applyUiPrefs(next, { persistRemote: false, silent: true });
+            });
+        });
+
+        document.getElementById('btnSaveUiPrefs')?.addEventListener('click', async () => {
+            const next = readPrefInputs();
+            applyUiPrefs(next, { persistRemote: false, silent: true });
+            const res = await apiFetch('/S01AuthOtpGoogle/SaveUiPreferences', {
+                method: 'POST',
+                body: next
+            });
+            if (res.ok) {
+                toast(200, 'Đã lưu cài đặt giao diện', 'Phong cách, màu sắc, phông chữ & cỡ chữ đã đồng bộ vào tài khoản.');
+            }
+        });
+
+        document.getElementById('btnResetUiPrefs')?.addEventListener('click', async () => {
+            const def = { theme: 'light', style: 'standard', palette: 'blue', font: 'roboto', fontSize: 'md' };
+            syncPrefInputs(def);
+            applyUiPrefs(def, { persistRemote: false, silent: true });
+            await apiFetch('/S01AuthOtpGoogle/SaveUiPreferences', { method: 'POST', body: def });
+            toast(200, 'Đã khôi phục mặc định', 'Giao diện đã trở về chuẩn sáng BookShare.');
+        });
+    }
+
+    // Tự động mở đúng tab Giao Diện khi điều hướng từ /S01AuthOtpGoogle?tab=appearance
+    if (new URLSearchParams(window.location.search).get('tab') === 'appearance') {
+        const tabBtn = document.getElementById('btnTabAppearance');
+        if (tabBtn && window.bootstrap?.Tab) {
+            window.bootstrap.Tab.getOrCreateInstance(tabBtn).show();
+        }
     }
 
     const changePassForm = document.getElementById('s01ChangePasswordForm');
