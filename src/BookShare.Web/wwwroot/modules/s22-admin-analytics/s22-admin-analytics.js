@@ -225,4 +225,176 @@ document.addEventListener('DOMContentLoaded', () => {
             btn.innerHTML = original;
         }
     });
+
+    // 6. Tab Quản Lý & Tùy Chỉnh Biểu Tượng Toàn Trang (Sprint 3.5)
+    const iconGrid = document.getElementById('s22IconGrid');
+    if (iconGrid) {
+        const escapeAttr = (v) => String(v ?? '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+        const updateIconCardUi = (card, item) => {
+            if (!card || !item) return;
+            const stage = card.querySelector('.js-icon-preview-stage');
+            const toggle = card.querySelector('.js-icon-toggle');
+            const badge = card.querySelector('.js-icon-mode-badge');
+            const fileHint = card.querySelector('.js-icon-file-hint');
+            const useCustom = Boolean(item.useCustomImage && item.customImageUrl);
+
+            if (stage) {
+                if (useCustom) {
+                    const safeUrl = escapeAttr(item.customImageUrl);
+                    const safeAlt = escapeAttr(item.displayName || item.iconKey);
+                    const safeCls = escapeAttr(item.defaultIconClass || 'bi-app');
+                    stage.innerHTML = `<img src="${safeUrl}" alt="${safeAlt}" class="s22-icon-preview-img" onerror="this.style.display='none';if(this.nextElementSibling)this.nextElementSibling.classList.remove('d-none');" /><i class="bi ${safeCls} fs-3 text-primary d-none" aria-hidden="true"></i>`;
+                } else {
+                    const safeCls = escapeAttr(item.defaultIconClass || 'bi-app');
+                    stage.innerHTML = `<i class="bi ${safeCls} fs-3 text-primary" aria-hidden="true"></i>`;
+                }
+            }
+
+            if (toggle) {
+                toggle.checked = useCustom;
+            }
+
+            if (badge) {
+                badge.className = `badge js-icon-mode-badge ${useCustom ? 'bg-success' : 'bg-secondary'}`;
+                badge.textContent = useCustom ? 'Ảnh tùy chỉnh' : 'Mặc định';
+            }
+
+            if (fileHint) {
+                fileHint.textContent = item.customImageUrl
+                    ? 'Đã lưu ảnh tùy chỉnh trên máy chủ'
+                    : 'Chưa có ảnh tùy chỉnh';
+            }
+        };
+
+        document.querySelectorAll('.js-icon-cat-filter').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const selectedCat = btn.getAttribute('data-cat') || 'ALL';
+                document.querySelectorAll('.js-icon-cat-filter').forEach(b => {
+                    b.classList.toggle('btn-primary', b === btn);
+                    b.classList.toggle('btn-outline-secondary', b !== btn);
+                });
+                iconGrid.querySelectorAll('.s22-icon-col').forEach(col => {
+                    const colCat = col.getAttribute('data-category') || '';
+                    col.classList.toggle('d-none', selectedCat !== 'ALL' && colCat !== selectedCat);
+                });
+            });
+        });
+
+        iconGrid.querySelectorAll('.js-icon-upload-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const key = btn.getAttribute('data-icon-key');
+                const input = iconGrid.querySelector(`.js-icon-file-input[data-icon-key="${key}"]`);
+                input?.click();
+            });
+        });
+
+        iconGrid.querySelectorAll('.js-icon-file-input').forEach(input => {
+            input.addEventListener('change', async () => {
+                const file = input.files?.[0];
+                if (!file) return;
+                const key = input.getAttribute('data-icon-key') || '';
+                const card = input.closest('.s22-icon-card');
+                const uploadBtn = card?.querySelector('.js-icon-upload-btn');
+
+                if (file.size > 2 * 1024 * 1024) {
+                    showSystemStatus(400, 'Tệp quá dung lượng cho phép', 'Ảnh biểu tượng không được vượt quá 2MB.');
+                    input.value = '';
+                    return;
+                }
+
+                const formData = new FormData();
+                formData.append('iconKey', key);
+                formData.append('file', file);
+
+                const res = await apiFetch('/S22AdminAnalytics/UploadCustomIcon', {
+                    method: 'POST',
+                    body: formData,
+                    button: uploadBtn
+                });
+                input.value = '';
+
+                if (res.ok && res.data?.item) {
+                    updateIconCardUi(card, res.data.item);
+                }
+            });
+        });
+
+        iconGrid.querySelectorAll('.js-icon-toggle').forEach(toggle => {
+            toggle.addEventListener('change', async () => {
+                const key = toggle.getAttribute('data-icon-key') || '';
+                const card = toggle.closest('.s22-icon-card');
+                const desired = toggle.checked;
+                toggle.disabled = true;
+
+                try {
+                    const res = await apiFetch('/S22AdminAnalytics/ToggleIconMode', {
+                        method: 'POST',
+                        body: { iconKey: key, useCustomImage: desired }
+                    });
+
+                    if (res.ok && res.data?.item) {
+                        updateIconCardUi(card, res.data.item);
+                    } else {
+                        toggle.checked = !desired;
+                    }
+                } finally {
+                    toggle.disabled = false;
+                }
+            });
+        });
+
+        iconGrid.querySelectorAll('.js-icon-reset-btn').forEach(btn => {
+            btn.addEventListener('click', async () => {
+                const key = btn.getAttribute('data-icon-key') || '';
+                const name = btn.getAttribute('data-icon-name') || key;
+                const card = btn.closest('.s22-icon-card');
+
+                const ok = await confirmDialog({
+                    title: `Khôi phục "${name}" về mặc định?`,
+                    text: 'Biểu tượng sẽ quay về thiết kế chuẩn của hệ thống và xóa ảnh tùy chỉnh đã tải lên.',
+                    confirmText: 'Khôi phục',
+                    danger: true
+                });
+                if (!ok) return;
+
+                const res = await apiFetch('/S22AdminAnalytics/ResetIconToDefault', {
+                    method: 'POST',
+                    body: { iconKey: key },
+                    button: btn
+                });
+
+                if (res.ok && card) {
+                    const defaultCls = card.getAttribute('data-default-class') || 'bi-app';
+                    updateIconCardUi(card, {
+                        iconKey: key,
+                        displayName: name,
+                        defaultIconClass: defaultCls,
+                        customImageUrl: null,
+                        useCustomImage: false
+                    });
+                }
+            });
+        });
+
+        document.getElementById('btnResetAllIcons')?.addEventListener('click', async (e) => {
+            const btn = e.currentTarget;
+            const ok = await confirmDialog({
+                title: 'Khôi phục tất cả 18 biểu tượng về mặc định?',
+                text: 'Toàn bộ ảnh biểu tượng tùy chỉnh sẽ được dọn sạch và trả về giao diện tiêu chuẩn BookShare.',
+                confirmText: 'Khôi phục tất cả',
+                danger: true
+            });
+            if (!ok) return;
+
+            const res = await apiFetch('/S22AdminAnalytics/ResetIconToDefault', {
+                method: 'POST',
+                body: { iconKey: 'ALL' },
+                button: btn
+            });
+            if (res.ok) {
+                setTimeout(() => window.location.reload(), 650);
+            }
+        });
+    }
 });

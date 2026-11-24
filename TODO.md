@@ -54,4 +54,14 @@ Theo dõi tiến độ thực thi 7 pha chuẩn hóa hệ thống BookShare (.NE
 - [x] **Pha 3:** Xây dựng Đăng nhập QR 2 chiều (`WebLoginByMobile` 120s & `MobileLoginByWeb` 60s, token 32 byte lưu SHA-256 hash, rate limit 20/phút, atomic `Consumed`, kiểm tra `LockoutEnd`) cùng Máy quét QR đa năng `openUniversalScanner()`.
 - [x] **Pha 4:** Xây dựng Mobile Companion API (`/api/mobile/notifications/unread`, `/api/mobile/session`), `Program.cs` trả `401`/`403` JSON cho `/api/*`, nhận diện `BookShareAndroidApp` trong `_Layout.cshtml` (`is-mobile-app`) và Bottom Navigation Bar 5 mục nền sáng.
 - [x] **Pha 5:** Viết sạch mã nguồn Android Native WebView Shell tại `mobile/bookshare-android/` (`BuildConfig.BASE_URL` không hộp thoại hỏi URL, nền `#F8FAFC` `NoActionBar`, Custom Tabs Google OAuth `bookshare://open`, Camera/FileChooser, `NotificationPoller` gắn `CookieManager`) và workflow GitHub Actions `.github/workflows/build-bookshare-android-apk.yml`.
-- [x] **Pha 6–7:** Mở rộng `scripts/qa_full_bot.py` Lớp 6 đạt **310/310 PASS (0 FAIL)**, `scripts/smoke_test.py` **100% PASS**, và đồng bộ toàn bộ tài liệu `.md`.
+- [x] **Pha 6–7:** Mở rộng `scripts/qa_full_bot.py` Lớp 6 đạt **315/315 PASS (0 FAIL)**, `scripts/smoke_test.py` **100% PASS**, và đồng bộ toàn bộ tài liệu `.md`.
+
+---
+
+## SPRINT 3.5: Tự Host 100% Tài Nguyên, Vá Triệt Để QR/Header/DB Trắng & Tab Admin Quản Lý Biểu Tượng
+- [x] **Pha 0:** Tạo 3 tệp đặc tả trước khi chỉnh sửa mã nguồn (`docs/SPRINT35_POLISH_PLAN.md`, `docs/ICON_CUSTOMIZATION_SPEC.md`, `docs/LOCAL_ASSETS_AUDIT.md`).
+- [x] **Pha 1:** Đóng gói 100% thư viện cục bộ vào `wwwroot/vendor/` & ảnh dự phòng SVG vào `wwwroot/images/` (0 CDN ngoài, 0 Unsplash fallback, 0 chuỗi mẫu/kỹ thuật); sửa tận gốc lỗi QR nháy trắng sau 1 giây bằng `<canvas>` sở hữu riêng có quiet zone 12px.
+- [x] **Pha 2:** Thiết kế lại Header 1 hàng gọn cân đối (`>= 1200px` `nowrap`), gom Dropdown Tài khoản & Chủ đề bên phải, ẩn `#systemStatusBox` mặc định & bỏ trùng Toast/Banner; tách rạch ròi trạng thái `S01`; xây dựng `DatabaseBootstrapService` + `OnValidatePrincipal` tự hủy Cookie mồ côi khi reset CSDL + đồng bộ mật khẩu `Admin@123`.
+- [x] **Pha 3:** Thu gọn nút nổi Trợ lý AI thành nút tròn `52x52px`, pop-up `350x460px` có nút Mở rộng/Thu gọn/Đóng, tự ẩn trên `/S13GeminiAiAssistant`; đồng bộ trang lỗi thân thiện (`400`–`500`) cả Dev & Production Docker.
+- [x] **Pha 4:** Bổ sung bảng `SystemIconSettings` (28 bảng `dbo`) + EF Core Scaffold, triển khai `SystemIconService` (`IMemoryCache`, 18 biểu tượng, kiểm tra magic bytes & chống SVG XSS <= 2MB), 4 API `[Authorize(Roles="Admin")]` tại `S22` và giao diện Tab **"Tùy Chỉnh Biểu Tượng"** có công tắc gạt 2 chiều từng icon.
+- [x] **Pha 5–6:** Mở rộng `scripts/qa_full_bot.py` Lớp 7 (kèm chốt chặn chống lệch schema Docker) đạt **346/346 PASS (0 FAIL)**, `scripts/smoke_test.py` **100% PASS (0 lỗi)**, và đồng bộ toàn bộ tài liệu `.md`.

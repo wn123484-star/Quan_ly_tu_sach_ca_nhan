@@ -10,10 +10,14 @@ namespace BookShare.Web.Services.Implementations;
 public class S22AdminAnalyticsService : IS22AdminAnalyticsService
 {
     private readonly BookShareDbContext _db;
+    private readonly IDatabaseBootstrapService _bootstrap;
 
-    public S22AdminAnalyticsService(BookShareDbContext db)
+    public S22AdminAnalyticsService(
+        BookShareDbContext db,
+        IDatabaseBootstrapService bootstrap)
     {
         _db = db;
+        _bootstrap = bootstrap;
     }
 
     public async Task<S22AdminAnalyticsPageViewModel> GetAdminAnalyticsPageAsync(
@@ -413,6 +417,7 @@ public class S22AdminAnalyticsService : IS22AdminAnalyticsService
             ";
 
             await ExecuteRawBatchAsync(clearCatalogSql);
+            await _bootstrap.EnsureInitializedAsync();
             return (true, "Đã đưa hệ thống về trạng thái trống ban đầu (chỉ giữ lại Quản trị viên gốc, danh mục thể loại và 3 điểm trạm).");
         }
 
@@ -467,6 +472,8 @@ public class S22AdminAnalyticsService : IS22AdminAnalyticsService
 
             await ExecuteRawBatchAsync(batch);
         }
+
+        await _bootstrap.EnsureInitializedAsync();
 
         int booksCount = await _db.Books.CountAsync();
         int copiesCount = await _db.BookCopies.CountAsync();

@@ -14,6 +14,10 @@ const PRECACHE_URLS = [
     '/vendor/bootstrap-icons/font/bootstrap-icons.css',
     '/vendor/sweetalert2/sweetalert2.all.min.js',
     '/vendor/chartjs/chart.umd.js',
+    '/vendor/qr/qrcode.min.js',
+    '/vendor/qr/html5-qrcode.min.js',
+    '/images/book-placeholder.svg',
+    '/images/avatar-default.svg',
     '/images/icons/icon-192.png',
     '/images/icons/icon-512.png',
     '/manifest.json'

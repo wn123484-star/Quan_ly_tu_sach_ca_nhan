@@ -91,6 +91,8 @@ document.addEventListener('DOMContentLoaded', () => {
     let webQrState = null; // { sessionId, token, remainingSeconds }
     let webCountdownTimer = null;
     let webPollTimer = null;
+    let isCreatingWebQr = false;
+    let isClaimingWebQr = false;
 
     const stopWebQrTimers = () => {
         if (webCountdownTimer) { clearInterval(webCountdownTimer); webCountdownTimer = null; }
@@ -98,68 +100,79 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     const startWebQrSession = async () => {
+        if (isCreatingWebQr || !qrWebBox) return;
+        isCreatingWebQr = true;
+        isClaimingWebQr = false;
         stopWebQrTimers();
-        if (!qrWebBox) return;
+
         qrWebBox.innerHTML = '<div class="spinner-border spinner-border-sm text-primary" role="status"></div>';
         if (qrWebStatus) qrWebStatus.innerText = 'Đang khởi tạo mã mới...';
 
-        const res = await apiFetch('/api/qr-login/create', { method: 'POST', body: {} });
-        if (!res.ok || !res.data?.data) {
-            qrWebBox.innerHTML = '<span class="small text-danger">Không thể tạo mã lúc này.</span>';
-            return;
-        }
+        try {
+            const res = await apiFetch('/api/qr-login/create', { method: 'POST', body: {}, button: null });
+            if (!res.ok || !res.data?.data) {
+                qrWebBox.innerHTML = '<span class="small text-danger">Không thể tạo mã lúc này.</span>';
+                return;
+            }
 
-        const data = res.data.data;
-        webQrState = {
-            sessionId: data.sessionId,
-            token: data.token,
-            remainingSeconds: Number(data.expiresInSeconds) || 120
-        };
-        await renderQrCode(qrWebBox, data.qrPayload, 200);
-        if (qrWebStatus) qrWebStatus.innerText = 'Hãy dùng thiết bị đã đăng nhập để quét mã này...';
-        if (qrWebTimer) qrWebTimer.innerText = `Hiệu lực: ${webQrState.remainingSeconds}s`;
-
-        webCountdownTimer = setInterval(() => {
-            if (!webQrState) return;
-            webQrState.remainingSeconds = Math.max(0, webQrState.remainingSeconds - 1);
+            const data = res.data.data;
+            webQrState = {
+                sessionId: data.sessionId,
+                token: data.token,
+                remainingSeconds: Number(data.expiresInSeconds) || 120
+            };
+            await renderQrCode(qrWebBox, data.qrPayload, 220);
+            if (qrWebStatus) qrWebStatus.innerText = 'Hãy dùng thiết bị đã đăng nhập để quét mã này...';
             if (qrWebTimer) qrWebTimer.innerText = `Hiệu lực: ${webQrState.remainingSeconds}s`;
-            if (webQrState.remainingSeconds <= 0) {
-                stopWebQrTimers();
-                if (qrWebStatus) qrWebStatus.innerText = 'Mã đã hết hạn. Vui lòng bấm "Tạo Mã Mới".';
-            }
-        }, 1000);
 
-        webPollTimer = setInterval(async () => {
-            const pane = document.getElementById('tabQrLogin');
-            if (!webQrState || !pane?.classList.contains('active')) return;
-            try {
-                const statusRes = await fetch(`/api/qr-login/status/${webQrState.sessionId}`, {
-                    headers: { Accept: 'application/json' },
-                    credentials: 'same-origin'
-                });
-                if (!statusRes.ok) return;
-                const st = await statusRes.json();
-                if (st.status === 'Approved') {
+            webCountdownTimer = setInterval(() => {
+                if (!webQrState) return;
+                webQrState.remainingSeconds = Math.max(0, webQrState.remainingSeconds - 1);
+                if (qrWebTimer) qrWebTimer.innerText = `Hiệu lực: ${webQrState.remainingSeconds}s`;
+                if (webQrState.remainingSeconds <= 0) {
                     stopWebQrTimers();
-                    if (qrWebStatus) qrWebStatus.innerText = 'Đã xác nhận! Đang hoàn tất đăng nhập...';
-                    const claim = await apiFetch('/api/qr-login/claim', {
-                        method: 'POST',
-                        body: { sessionId: webQrState.sessionId, token: webQrState.token }
-                    });
-                    if (claim.ok) {
-                        setTimeout(() => { window.location.href = claim.data?.redirectUrl || '/'; }, 600);
-                    }
-                } else if (st.status === 'Rejected') {
-                    stopWebQrTimers();
-                    if (qrWebStatus) qrWebStatus.innerText = 'Thiết bị xác nhận đã từ chối yêu cầu đăng nhập.';
-                } else if (st.status === 'Expired') {
-                    stopWebQrTimers();
-                    if (qrWebStatus) qrWebStatus.innerText = 'Mã đã hết hạn. Vui lòng tạo mã mới.';
+                    if (qrWebStatus) qrWebStatus.innerText = 'Mã đã hết hạn. Vui lòng bấm "Tạo Mã Mới".';
                 }
-            } catch {
-                // Bỏ qua lỗi mạng tạm thời giữa chu kỳ thăm dò
-            }
-        }, 2500);
+            }, 1000);
+
+            webPollTimer = setInterval(async () => {
+                const pane = document.getElementById('tabQrLogin');
+                if (!webQrState || isClaimingWebQr || !pane?.classList.contains('active')) return;
+                try {
+                    const statusRes = await fetch(`/api/qr-login/status/${webQrState.sessionId}`, {
+                        headers: { Accept: 'application/json' },
+                        credentials: 'same-origin'
+                    });
+                    if (!statusRes.ok) return;
+                    const st = await statusRes.json();
+                    if (st.status === 'Approved' && !isClaimingWebQr) {
+                        isClaimingWebQr = true;
+                        stopWebQrTimers();
+                        if (qrWebStatus) qrWebStatus.innerText = 'Đã xác nhận! Đang hoàn tất đăng nhập...';
+                        const claim = await apiFetch('/api/qr-login/claim', {
+                            method: 'POST',
+                            body: { sessionId: webQrState.sessionId, token: webQrState.token },
+                            button: null
+                        });
+                        if (claim.ok) {
+                            setTimeout(() => { window.location.href = claim.data?.redirectUrl || '/'; }, 500);
+                        } else {
+                            isClaimingWebQr = false;
+                        }
+                    } else if (st.status === 'Rejected') {
+                        stopWebQrTimers();
+                        if (qrWebStatus) qrWebStatus.innerText = 'Thiết bị xác nhận đã từ chối yêu cầu đăng nhập.';
+                    } else if (st.status === 'Expired') {
+                        stopWebQrTimers();
+                        if (qrWebStatus) qrWebStatus.innerText = 'Mã đã hết hạn. Vui lòng tạo mã mới.';
+                    }
+                } catch {
+                    // Bỏ qua lỗi mạng tạm thời giữa chu kỳ thăm dò
+                }
+            }, 2500);
+        } finally {
+            isCreatingWebQr = false;
+        }
     };
 
     if (btnTabQrLogin) {

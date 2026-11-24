@@ -1,9 +1,11 @@
 @inject Microsoft.AspNetCore.Antiforgery.IAntiforgery Antiforgery
 @inject BookShare.Web.Services.Interfaces.IRecaptchaService RecaptchaService
+@inject BookShare.Web.Services.Interfaces.ISystemIconService IconService
 @{
     var antiForgeryToken = Antiforgery.GetAndStoreTokens(Context).RequestToken;
     var isAuthenticated = User.Identity?.IsAuthenticated ?? false;
     var isMobileApp = Context.Request.Headers.UserAgent.ToString().Contains("BookShareAndroidApp", StringComparison.OrdinalIgnoreCase);
+    var isAiFullPage = Context.Request.Path.StartsWithSegments("/S13GeminiAiAssistant", StringComparison.OrdinalIgnoreCase);
     var currentUserName = User.Identity?.Name ?? "Khách (Chế độ Xem nhanh)";
     var currentRole = User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value ?? "User";
     var currentTrust = User.FindFirst("TrustScore")?.Value ?? "100";
@@ -18,6 +20,7 @@
     // Huy hiệu TrustScore: Bronze < 110 <= Silver < 130 <= Gold < 150 <= Platinum
     var trustValue = int.TryParse(currentTrust, out var parsedTrust) ? parsedTrust : 0;
     var trustTier = trustValue >= 150 ? "Platinum" : trustValue >= 130 ? "Gold" : trustValue >= 110 ? "Silver" : "Bronze";
+    var faviconUrl = IconService.GetImageUrl("brand_favicon", "/images/icons/icon-192.png");
 }
 <!DOCTYPE html>
 <html lang="vi" data-bs-theme="light">
@@ -42,14 +45,15 @@
         })();
     </script>
 
-    <!-- PWA: cài đặt BookShare như ứng dụng di động -->
+    <!-- PWA & Favicon tùy biến -->
+    <link rel="icon" href="@faviconUrl" />
     <link rel="manifest" href="~/manifest.json" />
     <meta name="theme-color" content="#f8fafc" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="BookShare" />
-    <link rel="apple-touch-icon" href="~/images/icons/icon-192.png" />
+    <link rel="apple-touch-icon" href="@faviconUrl" />
 
     <link rel="stylesheet" href="~/vendor/bootstrap/bootstrap.min.css" />
     <link rel="stylesheet" href="~/vendor/bootstrap-icons/font/bootstrap-icons.css" />
@@ -61,7 +65,7 @@
 
     <!-- Splash Screen: hiện 1 lần mỗi phiên khi app vừa khởi động -->
     <div id="appSplash" class="app-splash" role="status" aria-label="Đang khởi động BookShare">
-        <div class="app-splash-logo" aria-hidden="true"><i class="bi bi-book-half"></i></div>
+        <div class="app-splash-logo" aria-hidden="true">@IconService.RenderIconHtml("brand_logo", "bi-book-half")</div>
         <div class="fs-4 fw-bold">BookShare</div>
         <div class="small opacity-75">Mượn sách giấy cộng đồng • Không bán sách</div>
         <div class="spinner-border spinner-border-sm mt-2" aria-hidden="true"></div>
@@ -81,20 +85,19 @@
         })();
     </script>
 
-    <!-- 1. HEADER CỔNG DỊCH VỤ BOOKSHARE PORTAL -->
+    <!-- 1. HEADER CỔNG DỊCH VỤ BOOKSHARE PORTAL (1 HÀNG CÂN ĐỐI DESKTOP) -->
     <header class="portal-header-wrapper">
-        <!-- [LOCKED-DESIGN] Thanh Điều Hướng 6 Phân Hệ Nghiệp Vụ & Phân Quyền Chặt Chẽ (RBAC) -->
         <nav aria-label="Điều hướng phân hệ nghiệp vụ BookShare">
         <div class="portal-utility-bar">
-            <div class="container d-flex flex-wrap justify-content-between align-items-center gap-2">
+            <div class="container bs-utility-row">
                 <div class="bs-domain-nav-bar">
-                    <a asp-controller="Home" asp-action="Index" class="btn btn-xs btn-primary fw-bold px-3 py-1 rounded-pill">
-                        <i class="bi bi-compass me-1"></i>Trang Chủ
+                    <a asp-controller="Home" asp-action="Index" class="btn btn-xs btn-primary fw-bold px-3 py-1 rounded-pill bs-nav-home-btn">
+                        @IconService.RenderIconHtml("nav_home", "bi-compass", "me-1")<span>Trang Chủ</span>
                     </a>
 
                     <div class="dropdown bs-domain-dropdown">
                         <a class="dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                            <i class="bi bi-globe2 text-info"></i>Khám Phá
+                            @IconService.RenderIconHtml("nav_discover", "bi-globe2", "text-info")<span>Khám Phá</span>
                         </a>
                         <ul class="dropdown-menu">
                             <li><a class="dropdown-item" asp-controller="S06SearchDiscovery" asp-action="Index"><i class="bi bi-funnel-fill text-info"></i>Tìm Kiếm &amp; Bộ Lọc</a></li>
@@ -106,7 +109,7 @@
 
                     <div class="dropdown bs-domain-dropdown">
                         <a class="dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                            <i class="bi bi-bookshelf text-warning"></i>Tủ Sách &amp; Đọc
+                            @IconService.RenderIconHtml("nav_shelf", "bi-bookshelf", "text-warning")<span>Tủ Sách &amp; Đọc</span>
                         </a>
                         <ul class="dropdown-menu">
                             <li><a class="dropdown-item" asp-controller="S02PersonalShelf" asp-action="Index"><i class="bi bi-journal-bookmark-fill text-warning"></i>Tủ Sách Cá Nhân</a></li>
@@ -119,7 +122,7 @@
 
                     <div class="dropdown bs-domain-dropdown">
                         <a class="dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                            <i class="bi bi-arrow-left-right text-success"></i>Mượn Trả &amp; P2P
+                            @IconService.RenderIconHtml("nav_loan", "bi-arrow-left-right", "text-success")<span>Mượn Trả &amp; P2P</span>
                         </a>
                         <ul class="dropdown-menu">
                             <li><a class="dropdown-item" asp-controller="S08LibraryLoanFlow" asp-action="Index"><i class="bi bi-journal-arrow-down text-primary"></i>Mượn Kho Thư Viện</a></li>
@@ -131,7 +134,7 @@
 
                     <div class="dropdown bs-domain-dropdown">
                         <a class="dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                            <i class="bi bi-gem text-info"></i>Ví &amp; Cộng Đồng
+                            @IconService.RenderIconHtml("nav_community", "bi-gem", "text-info")<span>Ví &amp; Cộng Đồng</span>
                         </a>
                         <ul class="dropdown-menu">
                             <li><a class="dropdown-item" asp-controller="S17SandboxPayment" asp-action="Index"><i class="bi bi-credit-card-2-front-fill text-info"></i>Ví Bảo Lãnh</a></li>
@@ -139,16 +142,20 @@
                             <li><a class="dropdown-item" asp-controller="S15TrustScoreReview" asp-action="Index"><i class="bi bi-star-half text-success"></i>Điểm Uy Tín</a></li>
                             <li><a class="dropdown-item" asp-controller="S20ExchangeHubClub" asp-action="Index"><i class="bi bi-geo-alt-fill text-primary"></i>Trạm CLB &amp; Hub</a></li>
                             <li><a class="dropdown-item" asp-controller="S18NotificationHub" asp-action="Index"><i class="bi bi-bell-fill text-warning"></i>Thông Báo &amp; OTP</a></li>
+                            <li><hr class="dropdown-divider border-secondary opacity-25" /></li>
+                            <li><a class="dropdown-item" asp-controller="S19DisputeResolution" asp-action="Index"><i class="bi bi-gavel text-warning"></i>Khiếu Nại &amp; Tranh Chấp</a></li>
                         </ul>
                     </div>
 
-                    @if (currentRole == "Curator" || currentRole == "Librarian" || currentRole == "Admin")
+                    @if (isAuthenticated && (currentRole == "Curator" || currentRole == "Librarian" || currentRole == "Admin"))
                     {
                         <div class="dropdown bs-domain-dropdown">
                             <a class="dropdown-toggle border-warning" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                                <i class="bi bi-shield-lock-fill text-warning"></i>Điều Hành (@currentRole)
+                                @IconService.RenderIconHtml("nav_admin", "bi-shield-lock-fill", "text-warning")<span>Điều Hành</span>
                             </a>
                             <ul class="dropdown-menu">
+                                <li class="px-3 py-1 small text-info fw-semibold">Vai trò: @currentRole</li>
+                                <li><hr class="dropdown-divider border-secondary opacity-25 my-1" /></li>
                                 @if (currentRole == "Curator" || currentRole == "Admin")
                                 {
                                     <li><a class="dropdown-item" asp-controller="S20ExchangeHubClub" asp-action="Index"><i class="bi bi-geo-alt-fill text-info"></i>Điều Phối Trạm CLB</a></li>
@@ -165,53 +172,89 @@
                             </ul>
                         </div>
                     }
-                    else
-                    {
-                        <a asp-controller="S19DisputeResolution" asp-action="Index" class="btn btn-xs btn-outline-light rounded-pill px-2 py-1" title="Khiếu nại & Bảo vệ quyền lợi mượn trả">
-                            <i class="bi bi-gavel me-1"></i>Khiếu Nại
-                        </a>
-                    }
                 </div>
 
-                <!-- [LOCKED-DESIGN] Gom nhóm Bộ Chọn 7 Giao Diện Hiện Đại & Khu Vực Tài Khoản Tinh Gọn -->
-                <div class="d-flex align-items-center gap-2 flex-wrap">
-                    <div class="dropdown bs-domain-dropdown">
-                        <a class="dropdown-toggle py-1 px-2" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false" title="Chọn chủ đề màu sắc giao diện">
-                            <i class="bi bi-palette-fill text-info"></i><span id="activePaletteLabel">Giao Diện</span>
-                        </a>
-                        <ul class="dropdown-menu dropdown-menu-end">
-                            <li><button type="button" class="dropdown-item" data-set-palette="blue" data-palette-name="Xanh Sapphire">🔵 1. Xanh Sapphire (Mặc định)</button></li>
-                            <li><button type="button" class="dropdown-item" data-set-palette="midnight" data-palette-name="Xanh Đêm Cyber">🌌 2. Xanh Đêm Cyber (Midnight)</button></li>
-                            <li><button type="button" class="dropdown-item" data-set-palette="ocean" data-palette-name="Xanh Đại Dương">🌊 3. Xanh Đại Dương (Ocean)</button></li>
-                            <li><button type="button" class="dropdown-item" data-set-palette="emerald" data-palette-name="Lục Bảo Thư Viện">🟢 4. Lục Bảo Thư Viện (Emerald)</button></li>
-                            <li><button type="button" class="dropdown-item" data-set-palette="royal" data-palette-name="Tím Hoàng Gia">🟣 5. Tím Hoàng Gia (Royal Indigo)</button></li>
-                            <li><button type="button" class="dropdown-item" data-set-palette="obsidian" data-palette-name="Đen Kim Tước">👑 6. Đen Kim Tước (Obsidian Gold)</button></li>
-                            <li><button type="button" class="dropdown-item" data-set-palette="coral" data-palette-name="Cam Hoàng Hôn">🟠 7. Cam Hoàng Hôn (Sunset Coral)</button></li>
-                        </ul>
-                    </div>
-
+                <!-- Khu vực Tiện ích & Tài khoản gọn gàng bên phải -->
+                <div class="bs-utility-actions">
                     <button type="button" id="btnThemeToggle" class="theme-toggle" aria-pressed="false" aria-label="Bật chế độ tối">
                         <i class="bi bi-moon-stars-fill" aria-hidden="true"></i><span>Tối</span>
                     </button>
 
                     @if (isAuthenticated)
                     {
-                        <span class="badge bg-warning text-dark"><i class="bi bi-award-fill me-1"></i>@currentTrust đ</span>
-                        <span class="badge bg-light text-dark">@currentRole</span>
                         <a asp-controller="S18NotificationHub" asp-action="Index" id="notificationBell" class="notif-bell" aria-label="Thông báo">
                             <i class="bi bi-bell-fill" aria-hidden="true"></i>
                             <span class="notif-dot d-none" aria-hidden="true"></span>
                         </a>
-                        <a asp-controller="S01AuthOtpGoogle" asp-action="Index" class="fw-bold text-white text-decoration-none">
-                            <i class="bi bi-person-check-fill me-1"></i>@currentUserName
-                        </a>
-                        <span id="headerTrustTier" class="trust-tier trust-tier-@trustTier.ToLowerInvariant()" data-trust-score="@trustValue" data-user-id="@(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value)"
-                              title="Hạng uy tín @trustTier (TrustScore @trustValue)" aria-label="Hạng uy tín @trustTier">
-                            <i class="bi bi-gem" aria-hidden="true"></i>@trustTier
-                        </span>
+
+                        <div class="dropdown bs-domain-dropdown bs-account-dropdown">
+                            <a id="accountMenuToggle" class="dropdown-toggle bs-account-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false" title="@currentUserName (@currentRole)">
+                                <i class="bi bi-person-circle text-info" aria-hidden="true"></i>
+                                <span class="bs-account-name">@currentUserName</span>
+                                <span class="badge bg-warning text-dark bs-role-chip">@currentRole</span>
+                            </a>
+                            <ul class="dropdown-menu dropdown-menu-end bs-account-menu">
+                                <li class="px-3 py-2 border-bottom border-secondary border-opacity-25">
+                                    <div class="fw-bold text-white small text-truncate">@currentUserName</div>
+                                    <div class="d-flex align-items-center justify-content-between gap-2 mt-1">
+                                        <span class="badge bg-info text-dark">@currentRole • @currentTrust đ</span>
+                                        <span id="headerTrustTier" class="trust-tier trust-tier-@trustTier.ToLowerInvariant()" data-trust-score="@trustValue" data-user-id="@(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value)"
+                                              title="Hạng uy tín @trustTier (Điểm uy tín @trustValue)" aria-label="Hạng uy tín @trustTier">
+                                            <i class="bi bi-gem" aria-hidden="true"></i>@trustTier
+                                        </span>
+                                    </div>
+                                </li>
+                                <li><a class="dropdown-item" asp-controller="S01AuthOtpGoogle" asp-action="Index"><i class="bi bi-person-vcard-fill text-info"></i>Hồ Sơ &amp; Bảo Mật</a></li>
+                                <li><a class="dropdown-item" asp-controller="S02PersonalShelf" asp-action="Index"><i class="bi bi-bookshelf text-warning"></i>Tủ Sách Cá Nhân</a></li>
+                                @if (currentRole == "Admin")
+                                {
+                                    <li><a class="dropdown-item" asp-controller="S22AdminAnalytics" asp-action="Index"><i class="bi bi-speedometer2 text-danger"></i>Trung Tâm Quản Trị</a></li>
+                                }
+                                <li><hr class="dropdown-divider border-secondary opacity-25 my-1" /></li>
+                                <li class="px-3 py-2">
+                                    <div class="small text-secondary mb-1 d-flex justify-content-between">
+                                        <span>Chủ đề màu sắc</span>
+                                        <span id="activePaletteLabel" class="text-info fw-semibold">Xanh Sapphire</span>
+                                    </div>
+                                    <div class="bs-palette-swatch-row">
+                                        <button type="button" class="bs-palette-dot" style="background:#1d4ed8;" data-set-palette="blue" data-palette-name="Xanh Sapphire" title="Xanh Sapphire" aria-label="Chủ đề Xanh Sapphire"></button>
+                                        <button type="button" class="bs-palette-dot" style="background:#0f172a;" data-set-palette="midnight" data-palette-name="Xanh Đêm Cyber" title="Xanh Đêm Cyber" aria-label="Chủ đề Xanh Đêm Cyber"></button>
+                                        <button type="button" class="bs-palette-dot" style="background:#0284c7;" data-set-palette="ocean" data-palette-name="Xanh Đại Dương" title="Xanh Đại Dương" aria-label="Chủ đề Xanh Đại Dương"></button>
+                                        <button type="button" class="bs-palette-dot" style="background:#059669;" data-set-palette="emerald" data-palette-name="Lục Bảo Thư Viện" title="Lục Bảo Thư Viện" aria-label="Chủ đề Lục Bảo Thư Viện"></button>
+                                        <button type="button" class="bs-palette-dot" style="background:#6d28d9;" data-set-palette="royal" data-palette-name="Tím Hoàng Gia" title="Tím Hoàng Gia" aria-label="Chủ đề Tím Hoàng Gia"></button>
+                                        <button type="button" class="bs-palette-dot" style="background:#b45309;" data-set-palette="obsidian" data-palette-name="Đen Kim Tước" title="Đen Kim Tước" aria-label="Chủ đề Đen Kim Tước"></button>
+                                        <button type="button" class="bs-palette-dot" style="background:#ea580c;" data-set-palette="coral" data-palette-name="Cam Hoàng Hôn" title="Cam Hoàng Hôn" aria-label="Chủ đề Cam Hoàng Hôn"></button>
+                                    </div>
+                                </li>
+                                <li><hr class="dropdown-divider border-secondary opacity-25 my-1" /></li>
+                                <li>
+                                    <form asp-controller="S01AuthOtpGoogle" asp-action="Logout" method="post" class="m-0">
+                                        @Html.AntiForgeryToken()
+                                        <button type="submit" class="dropdown-item text-danger fw-bold">
+                                            <i class="bi bi-box-arrow-right"></i>Đăng xuất
+                                        </button>
+                                    </form>
+                                </li>
+                            </ul>
+                        </div>
                     }
                     else
                     {
+                        <div class="dropdown bs-domain-dropdown">
+                            <a class="dropdown-toggle py-1 px-2" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false" title="Chọn chủ đề màu sắc giao diện" aria-label="Chọn chủ đề màu sắc giao diện">
+                                <i class="bi bi-palette-fill text-info"></i><span id="activePaletteLabel" class="d-none d-xxl-inline">Chủ Đề</span>
+                            </a>
+                            <ul class="dropdown-menu dropdown-menu-end">
+                                <li><button type="button" class="dropdown-item" data-set-palette="blue" data-palette-name="Xanh Sapphire">🔵 1. Xanh Sapphire (Mặc định)</button></li>
+                                <li><button type="button" class="dropdown-item" data-set-palette="midnight" data-palette-name="Xanh Đêm Cyber">🌌 2. Xanh Đêm Cyber</button></li>
+                                <li><button type="button" class="dropdown-item" data-set-palette="ocean" data-palette-name="Xanh Đại Dương">🌊 3. Xanh Đại Dương</button></li>
+                                <li><button type="button" class="dropdown-item" data-set-palette="emerald" data-palette-name="Lục Bảo Thư Viện">🟢 4. Lục Bảo Thư Viện</button></li>
+                                <li><button type="button" class="dropdown-item" data-set-palette="royal" data-palette-name="Tím Hoàng Gia">🟣 5. Tím Hoàng Gia</button></li>
+                                <li><button type="button" class="dropdown-item" data-set-palette="obsidian" data-palette-name="Đen Kim Tước">👑 6. Đen Kim Tước</button></li>
+                                <li><button type="button" class="dropdown-item" data-set-palette="coral" data-palette-name="Cam Hoàng Hôn">🟠 7. Cam Hoàng Hôn</button></li>
+                            </ul>
+                        </div>
+
                         <a asp-controller="S01AuthOtpGoogle" asp-action="Index" class="btn btn-xs btn-warning text-dark fw-bold px-3 py-1 rounded-pill text-decoration-none">
                             <i class="bi bi-box-arrow-in-right me-1"></i>Đăng Nhập
                         </a>
@@ -221,14 +264,14 @@
         </div>
         </nav>
 
-        <!-- Thanh Header Chính: Logo + Thanh Tìm Kiếm Lớn + Balô Phiếu Mượn (Không có Giỏ hàng mua bán!) -->
+        <!-- Thanh Header Chính: Logo + Thanh Tìm Kiếm Lớn + Kệ Sách -->
         <div class="portal-main-bar">
             <div class="container">
                 <div class="row align-items-center g-3">
                     <div class="col-lg-3 col-md-4">
                         <a asp-controller="Home" asp-action="Index" class="portal-logo">
-                            <div class="bg-white text-primary rounded-3 d-flex align-items-center justify-content-center shadow-sm" style="width:44px; height:44px;">
-                                <i class="bi bi-book-half fs-3"></i>
+                            <div class="bg-white text-primary rounded-3 d-flex align-items-center justify-content-center shadow-sm brand-logo-box" style="width:44px; height:44px;">
+                                @IconService.RenderIconHtml("brand_logo", "bi-book-half", "fs-3")
                             </div>
                             <div>
                                 <div class="fs-4 fw-bold lh-1">BookShare</div>
@@ -252,18 +295,18 @@
                             </div>
                         </form>
                         <div class="portal-quick-tags">
-                            <a href="/?source=System">🏛️ Kho Chung Thư Viện</a>
-                            <a href="/?source=User">🤝 Tủ Sách P2P Cộng Đồng</a>
-                            <a href="/S06SearchDiscovery">🔍 Bộ Lọc Đa Tiêu Chí</a>
-                            <a href="/S05IsbnAutoCatalog">🏷️ Biên Mục Mã ISBN</a>
-                            <a href="/S11HotBookQueue">🔥 Hàng Chờ Sách Hot</a>
+                            <a href="/?source=System">@IconService.RenderIconHtml("quick_library", "bi-buildings-fill", "me-1")Kho Chung Thư Viện</a>
+                            <a href="/?source=User">@IconService.RenderIconHtml("quick_p2p", "bi-people-fill", "me-1")Tủ Sách P2P Cộng Đồng</a>
+                            <a href="/S06SearchDiscovery">@IconService.RenderIconHtml("quick_filter", "bi-funnel-fill", "me-1")Bộ Lọc Đa Tiêu Chí</a>
+                            <a href="/S05IsbnAutoCatalog">@IconService.RenderIconHtml("quick_isbn", "bi-upc-scan", "me-1")Biên Mục Mã ISBN</a>
+                            <a href="/S11HotBookQueue">@IconService.RenderIconHtml("quick_hot", "bi-fire", "me-1")Hàng Chờ Sách Hot</a>
                         </div>
                     </div>
 
                     <div class="col-lg-2 col-md-2 text-end">
                         <a asp-controller="S02PersonalShelf" asp-action="Index" class="text-white text-decoration-none d-inline-flex flex-column align-items-center">
                             <div class="position-relative">
-                                <i class="bi bi-journal-bookmark-fill fs-3"></i>
+                                @IconService.RenderIconHtml("nav_cart_shelf", "bi-journal-bookmark-fill", "fs-3")
                                 <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-info text-dark">Kệ Sách</span>
                             </div>
                             <span style="font-size:0.74rem;" class="fw-semibold">Tủ Sách &amp; Phiếu Mượn</span>
@@ -274,9 +317,9 @@
         </div>
     </header>
 
-    <!-- 2. KHUNG HIỂN THỊ TRẠNG THÁI HỆ THỐNG -->
-    <div class="container mt-3">
-        <div id="systemStatusBox" class="status-banner @statusClass" role="status" aria-live="polite" data-flash="@(hasFlash ? "1" : "0")">
+    <!-- 2. KHUNG HIỂN THỊ TRẠNG THÁI HỆ THỐNG (CHỈ HIỆN KHI CÓ THÔNG BÁO THỰC TẾ) -->
+    <div class="container status-banner-container">
+        <div id="systemStatusBox" class="status-banner @statusClass @(hasFlash ? "" : "hidden-banner")" role="status" aria-live="polite" data-flash="@(hasFlash ? "1" : "0")">
             <div class="status-banner-left">
                 <span id="statusCodeBadge" class="status-code-pill">MÃ @statusCode</span>
                 <div class="status-text-group">
@@ -293,40 +336,52 @@
         @RenderBody()
     </main>
 
-    <!-- 4. WIDGET TRỢ LÝ AI NỔI Ở GÓC PHẢI DƯỚI -->
-    <div id="aiFloatingWidget" class="ai-chat-widget">
-        <button type="button" id="btnToggleAIChat" class="ai-chat-fab shadow" aria-expanded="false" aria-controls="aiChatPopup">
-            <i class="bi bi-stars fs-5" aria-hidden="true"></i>
-            <span>Trợ Lý AI Thủ Thư</span>
-        </button>
+    <!-- 4. WIDGET TRỢ LÝ AI GỌN NHẸ Ở GÓC PHẢI DƯỚI (TỰ ẨN TRÊN TRANG TRỢ LÝ AI TOÀN MÀN HÌNH) -->
+    @if (!isAiFullPage)
+    {
+        <div id="aiFloatingWidget" class="ai-chat-widget">
+            <button type="button" id="btnToggleAIChat" class="ai-chat-fab shadow" aria-expanded="false" aria-controls="aiChatPopup" title="Trợ lý AI Thủ thư" aria-label="Mở Trợ lý AI Thủ thư">
+                @IconService.RenderIconHtml("ai_fab", "bi-stars", "fs-4")
+            </button>
 
-        <div id="aiChatPopup" class="ai-chat-popup shadow-lg d-none" role="dialog" aria-label="Trợ lý AI BookShare">
-            <div class="ai-chat-header text-white d-flex justify-content-between align-items-center px-3 py-2">
-                <div class="d-flex align-items-center gap-2">
-                    <i class="bi bi-robot"></i>
-                    <div>
-                        <strong class="small d-block">Trợ lý AI BookShare</strong>
-                        <span style="font-size: 0.68rem; opacity: 0.85;">Tư vấn kho sách &amp; theo dõi lịch đọc</span>
+            <div id="aiChatPopup" class="ai-chat-popup shadow-lg d-none" role="dialog" aria-label="Trợ lý AI BookShare">
+                <div class="ai-chat-header text-white d-flex justify-content-between align-items-center px-3 py-2">
+                    <div class="d-flex align-items-center gap-2 min-w-0">
+                        @IconService.RenderIconHtml("ai_fab", "bi-stars", "fs-5")
+                        <div class="min-w-0">
+                            <strong class="small d-block text-truncate">Trợ lý AI BookShare</strong>
+                            <span style="font-size: 0.68rem; opacity: 0.85;" class="d-block text-truncate">Tư vấn kho sách &amp; lịch đọc</span>
+                        </div>
+                    </div>
+                    <div class="d-flex align-items-center gap-1 flex-shrink-0">
+                        <a asp-controller="S13GeminiAiAssistant" asp-action="Index" class="btn btn-sm text-white p-0 px-1" title="Mở toàn trang Trợ lý AI" aria-label="Mở toàn trang Trợ lý AI">
+                            <i class="bi bi-arrows-angle-expand" aria-hidden="true"></i>
+                        </a>
+                        <button type="button" id="btnMinimizeAIChat" class="btn btn-sm text-white p-0 px-1" title="Thu gọn khung chat" aria-label="Thu gọn khung chat">
+                            <i class="bi bi-dash-lg" aria-hidden="true"></i>
+                        </button>
+                        <button type="button" id="btnCloseAIChat" class="btn btn-sm text-white p-0 px-1" title="Đóng trợ lý AI" aria-label="Đóng trợ lý AI">
+                            <i class="bi bi-x-lg" aria-hidden="true"></i>
+                        </button>
                     </div>
                 </div>
-                <button type="button" id="btnCloseAIChat" class="btn btn-sm text-white p-0 px-1" aria-label="Đóng trợ lý AI"><i class="bi bi-x-lg" aria-hidden="true"></i></button>
-            </div>
 
-            <div class="px-2 py-2 border-bottom bg-body-tertiary d-flex gap-1 flex-wrap">
-                <button type="button" class="btn btn-outline-primary btn-xs ai-quick-prompt" data-prompt="Gợi ý sách sẵn sàng cho mượn trong kho ĐH CMC.">📚 Gợi ý sách sẵn có</button>
-                <button type="button" class="btn btn-outline-success btn-xs ai-quick-prompt" data-prompt="Kiểm tra tiến độ đọc và hạn trả sách hiện tại của mình.">⏰ Kiểm tra tiến độ & hạn trả</button>
-            </div>
+                <div class="px-2 py-2 border-bottom bg-body-tertiary d-flex gap-1 flex-wrap">
+                    <button type="button" class="btn btn-outline-primary btn-xs ai-quick-prompt" data-prompt="Gợi ý sách sẵn sàng cho mượn trong kho ĐH CMC.">📚 Sách sẵn có</button>
+                    <button type="button" class="btn btn-outline-success btn-xs ai-quick-prompt" data-prompt="Kiểm tra tiến độ đọc và hạn trả sách hiện tại của mình.">⏰ Tiến độ &amp; hạn trả</button>
+                </div>
 
-            <div id="aiChatWidgetMessages" class="ai-chat-messages p-3" role="log" aria-live="polite">
-                <div class="ai-msg ai-msg-bot">Xin chào! Mình là Trợ lý AI BookShare. Bạn cần tìm sách mượn miễn phí hay kiểm tra tiến độ đọc hiện tại?</div>
-            </div>
+                <div id="aiChatWidgetMessages" class="ai-chat-messages p-3" role="log" aria-live="polite">
+                    <div class="ai-msg ai-msg-bot">Xin chào! Mình là Trợ lý AI BookShare. Bạn cần tìm sách mượn miễn phí hay kiểm tra tiến độ đọc hiện tại?</div>
+                </div>
 
-            <form id="aiChatWidgetForm" class="border-top p-2 d-flex gap-2 bg-white">
-                <input type="text" id="aiChatWidgetInput" class="form-control form-control-sm" placeholder="Nhập câu hỏi cho trợ lý sách..." autocomplete="off" aria-label="Câu hỏi cho trợ lý AI" />
-                <button type="submit" class="btn btn-primary btn-sm px-3" aria-label="Gửi câu hỏi"><i class="bi bi-send" aria-hidden="true"></i></button>
-            </form>
+                <form id="aiChatWidgetForm" class="border-top p-2 d-flex gap-2 bg-white">
+                    <input type="text" id="aiChatWidgetInput" class="form-control form-control-sm" placeholder="Nhập câu hỏi cho trợ lý sách..." autocomplete="off" aria-label="Câu hỏi cho trợ lý AI" />
+                    <button type="submit" class="btn btn-primary btn-sm px-3" aria-label="Gửi câu hỏi"><i class="bi bi-send" aria-hidden="true"></i></button>
+                </form>
+            </div>
         </div>
-    </div>
+    }
 
     <footer class="py-4 mt-auto border-top bg-white">
         <div class="container text-center text-muted small">
@@ -337,15 +392,15 @@
 
     <nav id="mobileBottomNav" class="mobile-bottom-nav" aria-label="Điều hướng nhanh trên di động">
         <a asp-controller="Home" asp-action="Index" class="mobile-nav-item">
-            <i class="bi bi-house-door-fill"></i>
+            @IconService.RenderIconHtml("nav_home", "bi-house-door-fill")
             <span>Trang chủ</span>
         </a>
         <a asp-controller="S02PersonalShelf" asp-action="Index" class="mobile-nav-item">
-            <i class="bi bi-bookshelf"></i>
+            @IconService.RenderIconHtml("nav_shelf", "bi-bookshelf")
             <span>Tủ sách</span>
         </a>
         <button type="button" id="btnMobileCenterQr" class="mobile-nav-qr-btn" aria-label="Quét mã đa năng">
-            <i class="bi bi-qr-code-scan"></i>
+            @IconService.RenderIconHtml("qr_scan", "bi-qr-code-scan")
         </button>
         <a asp-controller="S18NotificationHub" asp-action="Index" class="mobile-nav-item position-relative">
             <i class="bi bi-bell-fill"></i>
@@ -353,7 +408,7 @@
             <span id="mobileUnreadBadge" class="mobile-nav-badge d-none">0</span>
         </a>
         <a asp-controller="S01AuthOtpGoogle" asp-action="Index" class="mobile-nav-item">
-            <i class="bi bi-person-circle"></i>
+            @IconService.RenderIconHtml("avatar_default", "bi-person-circle")
             <span>@(isAuthenticated ? "Hồ sơ" : "Tài khoản")</span>
         </a>
     </nav>

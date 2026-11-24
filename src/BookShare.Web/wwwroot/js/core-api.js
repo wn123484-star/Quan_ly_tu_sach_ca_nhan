@@ -1,19 +1,19 @@
 /**
  * BOOKSHARE CORE API & UI HELPER (wwwroot/js/core-api.js)
  * - Tự động đính kèm AntiForgeryToken (CSRF) vào mọi request POST/PUT/DELETE
- * - Cập nhật thanh trạng thái #systemStatusBox (Mã 200, 300, 400, 404, 500) kế thừa book-tracker-ver07 + Toast SweetAlert2
+ * - Cập nhật thanh trạng thái #systemStatusBox (Mã 200, 300, 400, 404, 500) & Toast SweetAlert2
  * - Spinner & khóa nút khi chờ API, Skeleton Loading, Dark Mode, ảnh Lazy Blur-up, Hover 3D, Bảng dạng Thẻ trên Mobile
- * - Chuông thông báo Polling 30 giây (S18), Hiệu ứng chúc mừng (canvas-confetti), Trợ năng (a11y)
- * - Điều khiển hộp thoại Trợ lý AI Gemini nổi ở góc phải dưới màn hình (Markdown + "AI đang gõ...")
+ * - Chuông thông báo Polling 30 giây, Hiệu ứng chúc mừng, Trợ năng (a11y)
+ * - Điều khiển hộp thoại Trợ lý AI nổi ở góc phải dưới màn hình (Markdown + "AI đang gõ...")
  */
 
-// Thư viện ngoài chỉ nạp khi trang thật sự cần (giữ trang nhẹ)
+// 100% thư viện nội bộ tự host trong wwwroot/vendor/ (0 phụ thuộc CDN ngoài)
 export const CDN = {
-    confetti: 'https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js',
-    html5Qrcode: '/lib/qr/html5-qrcode.min.js',
-    qrcode: '/lib/qr/qrcode.min.js',
-    jspdf: 'https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js',
-    html2canvas: 'https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js'
+    confetti: '/vendor/confetti/confetti.browser.min.js',
+    html5Qrcode: '/vendor/qr/html5-qrcode.min.js',
+    qrcode: '/vendor/qr/qrcode.min.js',
+    jspdf: '/vendor/jspdf/jspdf.umd.min.js',
+    html2canvas: '/vendor/html2canvas/html2canvas.min.js'
 };
 
 const loadedScripts = new Map();
@@ -78,7 +78,7 @@ export function toast(code, title, detail) {
     const icon = code >= 500 ? 'error' : code >= 400 ? 'warning' : code >= 300 ? 'info' : 'success';
     window.Swal.fire({
         toast: true,
-        position: 'top-end',
+        position: 'bottom-end',
         icon,
         title,
         text: detail || '',
@@ -119,6 +119,7 @@ export function showSystemStatus(code, title, detail, { silent = false } = {}) {
     const titleEl = document.getElementById('statusTitleText');
     const detailEl = document.getElementById('statusDetailText');
 
+    let bannerVisibleInViewport = false;
     if (box && badge && titleEl && detailEl) {
         box.classList.remove('hidden-banner', 'd-none', 'status-200', 'status-300', 'status-400', 'status-404', 'status-500');
         let cls = 'status-200';
@@ -131,9 +132,14 @@ export function showSystemStatus(code, title, detail, { silent = false } = {}) {
         badge.innerText = `MÃ ${code}`;
         titleEl.innerText = title;
         detailEl.innerText = detail || '';
+
+        const rect = box.getBoundingClientRect();
+        bannerVisibleInViewport = rect.height > 0 && rect.top >= 0 && rect.bottom <= window.innerHeight;
     }
 
-    if (!silent) toast(code, title, detail);
+    if (!silent && !bannerVisibleInViewport) {
+        toast(code, title, detail);
+    }
 }
 
 // ---------- Spinner & chống click 2 lần cho nút đang gọi API ----------
@@ -351,26 +357,75 @@ function initTrustTierCelebration() {
     try { localStorage.setItem(key, tier); } catch { /* bỏ qua */ }
 }
 
-// ---------- Vẽ mã QR chuẩn ISO & Máy quét Camera Đa Năng (Tự host trong /lib/qr/) ----------
+// ---------- Vẽ mã QR chuẩn ISO & Máy quét Camera Đa Năng (Tự host trong /vendor/qr/) ----------
 
-export async function renderQrCode(containerEl, payloadText, size = 190) {
+export async function renderQrCode(containerEl, payloadText, size = 220) {
     if (!containerEl || !payloadText) return;
     await loadScript(CDN.qrcode);
-    containerEl.innerHTML = '';
-    new window.QRCode(containerEl, {
-        text: String(payloadText),
-        width: size,
-        height: size,
-        colorDark: '#0f172a',
-        colorLight: '#ffffff',
-        correctLevel: window.QRCode.CorrectLevel.M
-    });
-    containerEl.querySelectorAll('img').forEach(img => img.remove());
-    const canvas = containerEl.querySelector('canvas');
-    if (canvas) {
-        canvas.style.display = 'block';
-        canvas.style.margin = '0 auto';
-        canvas.style.borderRadius = '8px';
+
+    const safeSize = Math.max(140, Number(size) || 220);
+    const quietZone = 12;
+
+    // Vẽ vào phần tử tạm ngoài DOM để ngắt hoàn toàn img.onload bất đồng bộ của qrcodejs
+    // (tránh lỗi kinh điển: mã QR hiện 1 giây rồi img.onload ẩn canvas thành ô trắng).
+    const offscreen = document.createElement('div');
+    offscreen.style.position = 'fixed';
+    offscreen.style.left = '-9999px';
+    offscreen.style.top = '-9999px';
+    offscreen.style.visibility = 'hidden';
+    document.body.appendChild(offscreen);
+
+    try {
+        new window.QRCode(offscreen, {
+            text: String(payloadText),
+            width: safeSize,
+            height: safeSize,
+            colorDark: '#0f172a',
+            colorLight: '#ffffff',
+            correctLevel: window.QRCode.CorrectLevel.M
+        });
+
+        offscreen.querySelectorAll('img').forEach(img => {
+            img.onload = null;
+            img.onerror = null;
+            img.src = '';
+            img.remove();
+        });
+
+        const srcCanvas = offscreen.querySelector('canvas');
+        containerEl.innerHTML = '';
+
+        if (srcCanvas && srcCanvas.width > 0 && srcCanvas.height > 0) {
+            const ownedCanvas = document.createElement('canvas');
+            ownedCanvas.width = safeSize + quietZone * 2;
+            ownedCanvas.height = safeSize + quietZone * 2;
+            ownedCanvas.setAttribute('role', 'img');
+            ownedCanvas.setAttribute('aria-label', 'Mã QR xác nhận BookShare');
+            ownedCanvas.style.display = 'block';
+            ownedCanvas.style.margin = '0 auto';
+            ownedCanvas.style.width = `${safeSize}px`;
+            ownedCanvas.style.maxWidth = '100%';
+            ownedCanvas.style.height = 'auto';
+            ownedCanvas.style.borderRadius = '10px';
+            ownedCanvas.style.background = '#ffffff';
+
+            const ctx = ownedCanvas.getContext('2d');
+            if (ctx) {
+                ctx.fillStyle = '#ffffff';
+                ctx.fillRect(0, 0, ownedCanvas.width, ownedCanvas.height);
+                ctx.imageSmoothingEnabled = false;
+                ctx.drawImage(srcCanvas, quietZone, quietZone, safeSize, safeSize);
+            }
+            containerEl.appendChild(ownedCanvas);
+        } else {
+            const fallbackTable = offscreen.querySelector('table');
+            if (fallbackTable) {
+                fallbackTable.style.margin = '0 auto';
+                containerEl.appendChild(fallbackTable);
+            }
+        }
+    } finally {
+        offscreen.remove();
     }
 }
 
@@ -1022,14 +1077,7 @@ document.addEventListener('DOMContentLoaded', () => {
     initMobileCompanionBridge();
     initTrustTierCelebration();
 
-    // Thông báo do server gửi qua TempData (sau khi reload) cũng hiện dạng Toast
-    const statusBox = document.getElementById('systemStatusBox');
-    if (statusBox?.dataset.flash === '1') {
-        const code = parseInt((document.getElementById('statusCodeBadge')?.innerText || '').replace(/\D/g, ''), 10) || 200;
-        toast(code, document.getElementById('statusTitleText')?.innerText || '', document.getElementById('statusDetailText')?.innerText || '');
-    }
-
-    // Nút đóng thanh trạng thái
+    // Nút đóng thanh trạng thái (tránh phát lặp Toast khi TempData flash banner đã hiển thị trực tiếp)
     const btnCloseStatus = document.getElementById('btnHideStatusBox');
     if (btnCloseStatus) {
         btnCloseStatus.addEventListener('click', () => {
@@ -1064,6 +1112,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Khung Chat AI Gemini nổi góc phải
     const btnToggleChat = document.getElementById('btnToggleAIChat');
+    const btnMinimizeChat = document.getElementById('btnMinimizeAIChat');
     const btnCloseChat = document.getElementById('btnCloseAIChat');
     const chatPopup = document.getElementById('aiChatPopup');
     const chatForm = document.getElementById('aiChatWidgetForm');
@@ -1078,6 +1127,12 @@ document.addEventListener('DOMContentLoaded', () => {
     };
     if (btnToggleChat && chatPopup) {
         btnToggleChat.addEventListener('click', () => setChatOpen(chatPopup.classList.contains('d-none')));
+    }
+    if (btnMinimizeChat && chatPopup) {
+        btnMinimizeChat.addEventListener('click', () => {
+            setChatOpen(false);
+            btnToggleChat?.focus();
+        });
     }
     if (btnCloseChat && chatPopup) {
         btnCloseChat.addEventListener('click', () => {

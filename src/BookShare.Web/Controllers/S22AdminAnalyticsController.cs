@@ -10,13 +10,16 @@ namespace BookShare.Web.Controllers;
 public class S22AdminAnalyticsController : Controller
 {
     private readonly IS22AdminAnalyticsService _adminService;
+    private readonly ISystemIconService _iconService;
     private readonly BookShareDailyJobs _dailyJobs;
 
     public S22AdminAnalyticsController(
         IS22AdminAnalyticsService adminService,
+        ISystemIconService iconService,
         BookShareDailyJobs dailyJobs)
     {
         _adminService = adminService;
+        _iconService = iconService;
         _dailyJobs = dailyJobs;
     }
 
@@ -170,6 +173,81 @@ public class S22AdminAnalyticsController : Controller
         return Ok(new
         {
             title = "Cập nhật dữ liệu hệ thống thành công",
+            message
+        });
+    }
+
+    [HttpGet]
+    [Authorize(Roles = "Admin")]
+    public async Task<IActionResult> GetIconSettings()
+    {
+        var items = await _iconService.GetAllIconsAsync();
+        return Ok(new { items });
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    [Authorize(Roles = "Admin")]
+    [RequestSizeLimit(3 * 1024 * 1024)]
+    public async Task<IActionResult> UploadCustomIcon([FromForm] string iconKey, IFormFile file)
+    {
+        var adminUserId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
+        var (success, message, item) = await _iconService.UploadCustomIconAsync(adminUserId, iconKey, file);
+        if (!success)
+        {
+            return BadRequest(new { message });
+        }
+
+        return Ok(new
+        {
+            title = "Cập nhật biểu tượng tùy chỉnh thành công",
+            message,
+            item
+        });
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    [Authorize(Roles = "Admin")]
+    public async Task<IActionResult> ToggleIconMode([FromBody] ToggleIconModeDto request)
+    {
+        var adminUserId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
+        var (success, message, item) = await _iconService.ToggleIconModeAsync(
+            adminUserId,
+            request?.IconKey ?? string.Empty,
+            request?.UseCustomImage ?? false);
+
+        if (!success)
+        {
+            return BadRequest(new { message, item });
+        }
+
+        return Ok(new
+        {
+            title = "Đã chuyển đổi chế độ hiển thị biểu tượng",
+            message,
+            item
+        });
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    [Authorize(Roles = "Admin")]
+    public async Task<IActionResult> ResetIconToDefault([FromBody] ResetIconRequestDto request)
+    {
+        var adminUserId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
+        var (success, message) = await _iconService.ResetIconToDefaultAsync(
+            adminUserId,
+            request?.IconKey ?? string.Empty);
+
+        if (!success)
+        {
+            return BadRequest(new { message });
+        }
+
+        return Ok(new
+        {
+            title = "Khôi phục biểu tượng mặc định thành công",
             message
         });
     }

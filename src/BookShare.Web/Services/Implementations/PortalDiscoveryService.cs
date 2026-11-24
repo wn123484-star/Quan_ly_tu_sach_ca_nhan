@@ -78,7 +78,7 @@ public class PortalDiscoveryService : IPortalDiscoveryService
             Title = bc.Book.Title,
             Author = bc.Book.Author,
             ISBN = bc.Book.Isbn,
-            CategoryName = bc.Book.Category.Name,
+            CategoryName = bc.Book.Category?.Name ?? "Chưa phân loại",
             PageCount = bc.Book.PageCount,
             CoverImageUrl = bc.Book.CoverImageUrl,
             Barcode = bc.Barcode,
@@ -149,6 +149,11 @@ public class PortalDiscoveryService : IPortalDiscoveryService
             .Take(3)
             .AsNoTracking()
             .ToListAsync();
+
+        if (availableCopies.Count == 0)
+        {
+            return "🤖 Trợ lý AI BookShare:\nHiện kho sách cộng đồng đang ở trạng thái trống và sẵn sàng tiếp nhận đầu sách mới. Bạn có thể tự thêm sách vào Tủ sách cá nhân hoặc liên hệ Quản trị viên để khởi tạo kho sách cộng đồng!";
+        }
 
         var bookList = string.Join("\n", availableCopies.Select(c =>
             $"- \"{c.Book.Title}\" ({c.Book.Author}) • Mã vạch: {c.Barcode} [{(c.OwnerType == "System" ? "Kho thư viện" : "Thành viên chia sẻ")}]"));

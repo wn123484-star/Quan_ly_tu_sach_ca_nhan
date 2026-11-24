@@ -9,164 +9,22 @@ namespace BookShare.Web.Services.Implementations;
 
 public class S01AuthOtpService : IS01AuthOtpService
 {
-    private static int _sprint3SchemaEnsured;
     private readonly BookShareDbContext _db;
     private readonly IConfiguration _config;
+    private readonly IDatabaseBootstrapService _bootstrap;
     private readonly PasswordHasher<AspNetUser> _passwordHasher = new();
 
-    public S01AuthOtpService(BookShareDbContext db, IConfiguration config)
+    public S01AuthOtpService(
+        BookShareDbContext db,
+        IConfiguration config,
+        IDatabaseBootstrapService bootstrap)
     {
         _db = db;
         _config = config;
+        _bootstrap = bootstrap;
     }
 
-    private async Task EnsureCoreAdminBootstrapAsync()
-    {
-        if (Interlocked.CompareExchange(ref _sprint3SchemaEnsured, 1, 0) == 0)
-        {
-            const string ensureSprint3TablesSql = @"
-                IF OBJECT_ID(N'[dbo].[QrLoginSessions]', N'U') IS NOT NULL
-                   AND COL_LENGTH(N'[dbo].[QrLoginSessions]', N'TokenHash') IS NULL
-                BEGIN
-                    DROP TABLE [dbo].[QrLoginSessions];
-                END
-                IF OBJECT_ID(N'[dbo].[QrLoginSessions]', N'U') IS NULL
-                BEGIN
-                    CREATE TABLE [dbo].[QrLoginSessions] (
-                        [Id]              INT IDENTITY(1,1) NOT NULL,
-                        [TokenHash]       NVARCHAR(128)     NOT NULL,
-                        [FlowType]        NVARCHAR(30)      NOT NULL,
-                        [Status]          NVARCHAR(20)      NOT NULL CONSTRAINT [DF_QrLoginSessions_Status] DEFAULT (N'Pending'),
-                        [InitiatorUserId] NVARCHAR(450)     NULL,
-                        [ApprovedUserId]  NVARCHAR(450)     NULL,
-                        [DeviceInfo]      NVARCHAR(300)     NULL,
-                        [IpAddress]       NVARCHAR(64)      NULL,
-                        [CreatedAt]       DATETIME2(7)      NOT NULL CONSTRAINT [DF_QrLoginSessions_CreatedAt] DEFAULT (SYSUTCDATETIME()),
-                        [ExpiresAt]       DATETIME2(7)      NOT NULL,
-                        [ConsumedAt]      DATETIME2(7)      NULL,
-                        CONSTRAINT [PK_QrLoginSessions] PRIMARY KEY CLUSTERED ([Id] ASC),
-                        CONSTRAINT [FK_QrLoginSessions_InitiatorUser] FOREIGN KEY ([InitiatorUserId]) REFERENCES [dbo].[AspNetUsers] ([Id]) ON DELETE NO ACTION,
-                        CONSTRAINT [FK_QrLoginSessions_ApprovedUser] FOREIGN KEY ([ApprovedUserId]) REFERENCES [dbo].[AspNetUsers] ([Id]) ON DELETE NO ACTION
-                    );
-                    CREATE UNIQUE NONCLUSTERED INDEX [UX_QrLoginSessions_TokenHash] ON [dbo].[QrLoginSessions]([TokenHash] ASC);
-                END
-                IF OBJECT_ID(N'[dbo].[BookHandoverQrs]', N'U') IS NULL
-                BEGIN
-                    CREATE TABLE [dbo].[BookHandoverQrs] (
-                        [Id]               INT IDENTITY(1,1) NOT NULL,
-                        [LoanRequestId]    INT               NOT NULL,
-                        [LoanId]           INT               NULL,
-                        [HandoverType]     NVARCHAR(20)      NOT NULL,
-                        [TokenHash]        NVARCHAR(128)     NOT NULL,
-                        [ShortCodeHash]    NVARCHAR(128)     NOT NULL,
-                        [CreatedByUserId]  NVARCHAR(450)     NOT NULL,
-                        [ConsumedByUserId] NVARCHAR(450)     NULL,
-                        [Status]           NVARCHAR(20)      NOT NULL CONSTRAINT [DF_BookHandoverQrs_Status] DEFAULT (N'Pending'),
-                        [CreatedAt]        DATETIME2(7)      NOT NULL CONSTRAINT [DF_BookHandoverQrs_CreatedAt] DEFAULT (SYSUTCDATETIME()),
-                        [ExpiresAt]        DATETIME2(7)      NOT NULL,
-                        [ConsumedAt]       DATETIME2(7)      NULL,
-                        CONSTRAINT [PK_BookHandoverQrs] PRIMARY KEY CLUSTERED ([Id] ASC),
-                        CONSTRAINT [FK_BookHandoverQrs_LoanRequests] FOREIGN KEY ([LoanRequestId]) REFERENCES [dbo].[LoanRequests] ([Id]) ON DELETE CASCADE,
-                        CONSTRAINT [FK_BookHandoverQrs_Loans] FOREIGN KEY ([LoanId]) REFERENCES [dbo].[Loans] ([Id]) ON DELETE NO ACTION,
-                        CONSTRAINT [FK_BookHandoverQrs_CreatedByUser] FOREIGN KEY ([CreatedByUserId]) REFERENCES [dbo].[AspNetUsers] ([Id]) ON DELETE NO ACTION,
-                        CONSTRAINT [FK_BookHandoverQrs_ConsumedByUser] FOREIGN KEY ([ConsumedByUserId]) REFERENCES [dbo].[AspNetUsers] ([Id]) ON DELETE NO ACTION
-                    );
-                    CREATE UNIQUE NONCLUSTERED INDEX [UX_BookHandoverQrs_TokenHash] ON [dbo].[BookHandoverQrs]([TokenHash] ASC);
-                END
-                IF OBJECT_ID(N'[dbo].[RoleUpgradeRequests]', N'U') IS NULL
-                BEGIN
-                    CREATE TABLE [dbo].[RoleUpgradeRequests] (
-                        [Id]               INT IDENTITY(1,1) NOT NULL,
-                        [UserId]           NVARCHAR(450)     NOT NULL,
-                        [RequestedRole]    NVARCHAR(30)      NOT NULL CONSTRAINT [DF_RoleUpgradeRequests_Role] DEFAULT (N'Curator'),
-                        [OrganizationName] NVARCHAR(200)     NOT NULL,
-                        [Reason]           NVARCHAR(1000)    NOT NULL,
-                        [Status]           NVARCHAR(20)      NOT NULL CONSTRAINT [DF_RoleUpgradeRequests_Status] DEFAULT (N'Pending'),
-                        [ReviewedByUserId] NVARCHAR(450)     NULL,
-                        [ReviewNote]       NVARCHAR(500)     NULL,
-                        [CreatedAt]        DATETIME2(7)      NOT NULL CONSTRAINT [DF_RoleUpgradeRequests_CreatedAt] DEFAULT (SYSUTCDATETIME()),
-                        [ReviewedAt]       DATETIME2(7)      NULL,
-                        CONSTRAINT [PK_RoleUpgradeRequests] PRIMARY KEY CLUSTERED ([Id] ASC),
-                        CONSTRAINT [FK_RoleUpgradeRequests_User] FOREIGN KEY ([UserId]) REFERENCES [dbo].[AspNetUsers] ([Id]) ON DELETE CASCADE,
-                        CONSTRAINT [FK_RoleUpgradeRequests_Reviewer] FOREIGN KEY ([ReviewedByUserId]) REFERENCES [dbo].[AspNetUsers] ([Id]) ON DELETE NO ACTION
-                    );
-                END";
-            try
-            {
-                await _db.Database.ExecuteSqlRawAsync(ensureSprint3TablesSql);
-            }
-            catch
-            {
-                // Bỏ qua nếu schema đã đồng bộ từ SQL script chính
-            }
-        }
-        var roleDefs = new (string Id, string Name, string NormalizedName)[]
-        {
-            ("role-admin", "Admin", "ADMIN"),
-            ("role-librarian", "Librarian", "LIBRARIAN"),
-            ("role-curator", "Curator", "CURATOR"),
-            ("role-user", "User", "USER")
-        };
-
-        bool anyRoleAdded = false;
-        foreach (var (id, name, normalizedName) in roleDefs)
-        {
-            var exists = await _db.AspNetRoles.AnyAsync(r => r.Id == id || r.NormalizedName == normalizedName);
-            if (!exists)
-            {
-                _db.AspNetRoles.Add(new AspNetRole
-                {
-                    Id = id,
-                    Name = name,
-                    NormalizedName = normalizedName,
-                    ConcurrencyStamp = Guid.NewGuid().ToString("N")
-                });
-                anyRoleAdded = true;
-            }
-        }
-
-        if (anyRoleAdded)
-        {
-            await _db.SaveChangesAsync();
-        }
-
-        var adminExists = await _db.AspNetUsers.AnyAsync(u => u.Id == "u-admin-01");
-        if (!adminExists)
-        {
-            var adminUser = new AspNetUser
-            {
-                Id = "u-admin-01",
-                UserName = "admin@bookshare.vn",
-                NormalizedUserName = "ADMIN@BOOKSHARE.VN",
-                Email = "admin@bookshare.vn",
-                NormalizedEmail = "ADMIN@BOOKSHARE.VN",
-                EmailConfirmed = true,
-                SecurityStamp = Guid.NewGuid().ToString("N"),
-                ConcurrencyStamp = Guid.NewGuid().ToString("N"),
-                PhoneNumber = "0901000001",
-                PhoneNumberConfirmed = true,
-                TwoFactorEnabled = false,
-                LockoutEnabled = true,
-                AccessFailedCount = 0,
-                FullName = "Quản Trị Viên Hệ Thống",
-                Address = "Tòa nhà CMC, Duy Tân, Cầu Giấy, Hà Nội",
-                AvatarUrl = "/images/avatars/admin.png",
-                TrustScore = 150,
-                LendQuotaBonus = 5,
-                CreatedAt = DateTime.UtcNow
-            };
-            adminUser.PasswordHash = _passwordHasher.HashPassword(adminUser, "Admin@123");
-
-            var adminRole = await _db.AspNetRoles.FirstOrDefaultAsync(r => r.NormalizedName == "ADMIN");
-            if (adminRole != null)
-            {
-                adminUser.Roles.Add(adminRole);
-            }
-
-            _db.AspNetUsers.Add(adminUser);
-            await _db.SaveChangesAsync();
-        }
-    }
+    private Task EnsureCoreAdminBootstrapAsync() => _bootstrap.EnsureInitializedAsync();
 
     public async Task<S01AuthPageViewModel> GetAuthPageViewModelAsync(string? currentUserId, string? returnUrl = null)
     {
@@ -194,7 +52,7 @@ public class S01AuthOtpService : IS01AuthOtpService
                 vm.CurrentUserPhoneNumber = user.PhoneNumber ?? string.Empty;
                 vm.CurrentUserAddress = user.Address ?? string.Empty;
                 vm.CurrentUserAvatarUrl = string.IsNullOrWhiteSpace(user.AvatarUrl)
-                    ? "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=200"
+                    ? "/images/avatar-default.svg"
                     : user.AvatarUrl;
                 vm.CurrentUserRole = user.Roles.FirstOrDefault()?.Name ?? "User";
                 vm.CurrentTrustScore = user.TrustScore;

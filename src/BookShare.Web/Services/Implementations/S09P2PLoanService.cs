@@ -370,7 +370,7 @@ public class S09P2PLoanService : IS09P2PLoanService
                 ReportedByUserId = currentUserId,
                 ConditionGrade = loanReq.BookCopy.Condition,
                 Note = $"Biên bản giao nhận P2P tại {loanReq.PickupHub?.Name ?? "Trạm CLB"} cho bản sao [{loanReq.BookCopy.Barcode}].",
-                ImageUrl = loanReq.BookCopy.Book.CoverImageUrl ?? "https://images.unsplash.com/photo-1512820790803-83ca734da794?w=500",
+                ImageUrl = loanReq.BookCopy.Book.CoverImageUrl ?? "/images/book-placeholder.svg",
                 CreatedAt = now
             });
 
@@ -418,7 +418,7 @@ public class S09P2PLoanService : IS09P2PLoanService
                 ReportedByUserId = currentUserId,
                 ConditionGrade = loanReq.BookCopy.Condition,
                 Note = $"Hoàn trả sách P2P [{loanReq.BookCopy.Barcode}] nguyên vẹn tại Điểm hẹn CLB.",
-                ImageUrl = loanReq.BookCopy.Book.CoverImageUrl ?? "https://images.unsplash.com/photo-1512820790803-83ca734da794?w=500",
+                ImageUrl = loanReq.BookCopy.Book.CoverImageUrl ?? "/images/book-placeholder.svg",
                 CreatedAt = now
             });
 

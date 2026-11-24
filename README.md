@@ -1,7 +1,7 @@
 # BookShare Portal — Nền tảng Quản lý Tủ sách Cá nhân, Theo dõi Tiến độ Đọc & Chia sẻ Sách Giấy Cộng đồng (.NET 10 MVC)
 
 > **Học phần:** Phát triển Ứng dụng Web • Trường Đại học CMC  
-> **Nền tảng kỹ thuật:** ASP.NET Core 10 MVC (`.NET 10`) • Entity Framework Core 10 (`Database-First Scaffold`) • SQL Server (`27 bảng dbo`) • Cookie Authentication, 2-Way QR Login & Google OAuth 2.0 • Resend OTP & Email API • Google Gemini AI Copilot (Function Calling 2 tầng) • VNPay/MoMo Sandbox (`HMAC-SHA512`) • Hangfire Background Jobs • Android WebView Shell (`mobile/bookshare-android/`)  
+> **Nền tảng kỹ thuật:** ASP.NET Core 10 MVC (`.NET 10`) • Entity Framework Core 10 (`Database-First Scaffold`) • SQL Server (`28 bảng dbo`) • Cookie Authentication (`OnValidatePrincipal` tự dọn phiên mồ côi), 2-Way QR Login & Google OAuth 2.0 • Resend OTP & Email API • Google Gemini AI Copilot (Function Calling 2 tầng) • VNPay/MoMo Sandbox (`HMAC-SHA512`) • Hangfire Background Jobs • Admin System Icon Manager (`IMemoryCache`) • 100% Local Assets (0 CDN ngoài) • Android WebView Shell (`mobile/bookshare-android/`)  
 > **Nguyên tắc Nghiệp vụ Cốt lõi:** **100% Chia sẻ & Mượn trả Sách Giấy Học thuật & P2P 0đ — TUYỆT ĐỐI KHÔNG BÁN SÁCH** (Không có giá bán, không có nút mua hàng hay giỏ hàng thương mại).
 
 ---
@@ -9,13 +9,14 @@
 ## 1. Kiến trúc Tổng thể & Các Chuẩn Kỹ thuật Đã Khóa Cứng
 
 1. **Database-First Scaffold (.NET 10):**
-   - Cơ sở dữ liệu `BookShareDb` gồm **27 bảng `dbo`** (22 bảng nghiệp vụ cốt lõi + 3 bảng ASP.NET Core Identity + 3 bảng Sprint 3: `QrLoginSessions`, `BookHandoverQrs`, `RoleUpgradeRequests`) được định nghĩa tại [`database/01_BookShare_Schema.sql`](database/01_BookShare_Schema.sql) và dữ liệu mẫu chuẩn tại [`database/02_BookShare_SeedData.sql`](database/02_BookShare_SeedData.sql).
+   - Cơ sở dữ liệu `BookShareDb` gồm **28 bảng `dbo`** (22 bảng nghiệp vụ cốt lõi + 3 bảng ASP.NET Core Identity + 3 bảng Sprint 3 & 3.5: `QrLoginSessions`, `BookHandoverQrs`, `RoleUpgradeRequests`, `SystemIconSettings`) được định nghĩa tại [`database/01_BookShare_Schema.sql`](database/01_BookShare_Schema.sql) và dữ liệu mẫu chuẩn tại [`database/02_BookShare_SeedData.sql`](database/02_BookShare_SeedData.sql).
    - Thực thể và `BookShareDbContext` được sinh từ DB bằng `dotnet ef dbcontext scaffold --schema dbo` trong `src/BookShare.Web/Models/Entities/` và `src/BookShare.Web/Data/`.
+   - **`DatabaseBootstrapService` & Tự phục hồi trên CSDL trắng:** Ngay khi ứng dụng khởi động (hoặc sau khi Admin làm sạch/nạp lại CSDL), hệ thống tự đảm bảo các bảng mở rộng, 4 vai trò gốc, tài khoản Quản trị viên `admin@bookshare.vn` (`Admin@123`) và 18 cấu hình biểu tượng mặc định; đồng thời `OnValidatePrincipal` tự động vô hiệu hóa Cookie cũ nếu tài khoản đã bị xóa sau khi reset CSDL Docker.
 2. **Strict Service Layer Pattern:**
    - Mọi luồng xử lý đi qua `Controller -> IService -> Service -> BookShareDbContext`. Không Controller nào tham chiếu trực tiếp `BookShareDbContext`.
-3. **22 Phân hệ Độc lập + Bộ API Đồng hành Sprint 3 & Android App:**
+3. **22 Phân hệ Độc lập + Bộ API Đồng hành Sprint 3/3.5, Admin Icon Manager & Android App:**
    - Mỗi phân hệ (`S01` đến `S22`) sở hữu riêng view Razor (`Views/Modules/Sxx_*/Index.cshtml`), stylesheet CSS chuẩn biến `--portal-*`, và ES6 module JavaScript giao tiếp qua `apiFetch()` (`wwwroot/js/core-api.js`) tự động gắn CSRF Token và cập nhật `#systemStatusBox`.
-   - Hỗ trợ đầy đủ **Đăng nhập QR 2 chiều** (`/api/qr-login/*`), **QR Bàn giao & Hoàn trả Sách** (`/api/handover-qr/*`), **Đề nghị nâng quyền Chủ nhiệm CLB** (`S01 -> S22`), **Trợ lý AI Copilot 2 tầng** (Client Commands + Action Cards có xác nhận 1 chạm & kiểm soát RBAC), **Máy quét Camera/QR tự host** (`/lib/qr/`) và **Ứng dụng Android WebView Shell** (`mobile/bookshare-android/`).
+   - Hỗ trợ đầy đủ **Đăng nhập QR 2 chiều** (`/api/qr-login/*`), **QR Bàn giao & Hoàn trả Sách** (`/api/handover-qr/*`), **Đề nghị nâng quyền Chủ nhiệm CLB** (`S01 -> S22`), **Trợ lý AI Copilot 2 tầng** (Client Commands + Action Cards có xác nhận 1 chạm & kiểm soát RBAC), **Tab Admin Tùy Chỉnh Biểu Tượng Toàn Trang** có công tắc gạt 2 chiều từng icon tại `/S22AdminAnalytics`, **100% thư viện tự host nội bộ** (`wwwroot/vendor/*`, 0 CDN ngoài) và **Ứng dụng Android WebView Shell** (`mobile/bookshare-android/`).
 4. **Giao diện Mặc định Light Mode & Ngôn ngữ Chuyên nghiệp:**
    - Mặc định `data-bs-theme="light"` trong `_Layout.cshtml`, màn hình tải `.app-splash` nền sáng `#f8fafc`, PWA `manifest.json` (`#f8fafc`), Android App nền `#F8FAFC`, và `service-worker.js` (`bookshare-static-v2`) đồng bộ nền sáng (có nút chuyển Dark Mode thủ công hoặc qua AI Copilot).
    - Toàn bộ giao diện người dùng đã loại bỏ thuật ngữ kỹ thuật nội bộ, không có tài khoản mẫu hay nút điền nhanh trên trang Đăng nhập `/S01AuthOtpGoogle`, và mọi thẻ `<img>` đều có `alt` và `onerror`.
@@ -75,7 +76,7 @@ Hoặc chạy bằng Docker Compose (`SQL Server 2022 + db-init schema-only + Bo
 ```powershell
 docker compose up -d --build
 ```
-> **Lưu ý Docker Schema-Only & Nạp Dữ Liệu Mẫu 1 Chạm:** Mặc định `db-init` chỉ chạy `01_BookShare_Schema.sql` (giữ CSDL sạch khi chạy thực tế; `EnsureCoreAdminBootstrapAsync()` tự khởi tạo 4 vai trò và `admin@bookshare.vn`). Nếu muốn nạp bộ dữ liệu cộng đồng mẫu (35 đầu sách, 55 bản sao, 6 tài khoản), hãy đăng nhập `admin@bookshare.vn` -> vào **Quản trị Hệ thống** (`/S22AdminAnalytics`) -> bấm **"Nạp Dữ Liệu Mẫu Cộng Đồng (1 Chạm)"**.
+> **Lưu ý Docker Schema-Only & Nạp Dữ Liệu Mẫu 1 Chạm:** Mặc định `db-init` chỉ chạy `01_BookShare_Schema.sql` (28 bảng sạch khi chạy thực tế; `DatabaseBootstrapService` tự khởi tạo 4 vai trò, tài khoản `admin@bookshare.vn` mật khẩu `Admin@123` và 18 biểu tượng mặc định ngay khi khởi động). Nếu muốn nạp bộ dữ liệu cộng đồng mẫu (35 đầu sách, 55 bản sao, 6 tài khoản), hãy đăng nhập `admin@bookshare.vn` / `Admin@123` -> vào **Quản trị Hệ thống** (`/S22AdminAnalytics`) -> bấm **"Khôi Phục Bộ Dữ Liệu Cộng Đồng Chuẩn"**.
 
 ---
 
@@ -99,7 +100,7 @@ docker compose up -d --build
 Dự án đi kèm 2 kịch bản kiểm thử tự động chạy trực tiếp trên server Kestrel & LocalDB thật:
 
 ```powershell
-# 1. Bộ kiểm thử E2E 6 tầng toàn diện (310 assertions: L1-L5 + L6 Sprint 3: QR 2 chiều, QR Bàn giao, S19<->S17, Curator, Copilot, Mobile/CI)
+# 1. Bộ kiểm thử E2E 7 tầng toàn diện (346 assertions: L1-L5 + L6 Sprint 3 + L7 Sprint 3.5: 0 CDN, 0 Schema Drift, QR, Header, Admin Icon Manager, Blank DB & Stale Cookie)
 python scripts/qa_full_bot.py --autostart
 
 # 2. Bộ kiểm thử khói 3 lớp (Build, Docker mount & quét nhãn UI, 23 route 200 OK, RBAC 401/403)
@@ -147,6 +148,7 @@ Xem báo cáo kết quả kiểm thử chi tiết tại [`docs/QA_TEST_REPORT.md
 - [`docs/SECURITY_RBAC.md`](docs/SECURITY_RBAC.md) — Ma trận phân quyền RBAC 4 vai trò, khóa IDOR & kiểm soát OAuth/HMAC/OTP
 - [`docs/API_REFERENCE.md`](docs/API_REFERENCE.md) — Tài liệu đầy đủ các endpoint GET/POST của 23 Controller
 - [`docs/DEPLOYMENT_OAUTH_GUIDE.md`](docs/DEPLOYMENT_OAUTH_GUIDE.md) — Hướng dẫn triển khai LocalDB/Docker, Google OAuth 2.0 & build APK GitHub Actions
-- [`docs/QA_TEST_REPORT.md`](docs/QA_TEST_REPORT.md) — Báo cáo kết quả kiểm thử E2E 6 tầng (310/310 PASS) & lỗi đã khắc phục
+- [`docs/QA_TEST_REPORT.md`](docs/QA_TEST_REPORT.md) — Báo cáo kết quả kiểm thử E2E 7 tầng (346/346 PASS) & lỗi đã khắc phục
 - [`docs/UPGRADE_SPRINT3_PLAN.md`](docs/UPGRADE_SPRINT3_PLAN.md), [`docs/QR_AUTH_AND_HANDOVER_SPEC.md`](docs/QR_AUTH_AND_HANDOVER_SPEC.md), [`docs/AI_COPILOT_TOOLS_SPEC.md`](docs/AI_COPILOT_TOOLS_SPEC.md), [`docs/MOBILE_APP_ARCHITECTURE.md`](docs/MOBILE_APP_ARCHITECTURE.md) — Bộ đặc tả nâng cấp Sprint 3
+- [`docs/SPRINT35_POLISH_PLAN.md`](docs/SPRINT35_POLISH_PLAN.md), [`docs/ICON_CUSTOMIZATION_SPEC.md`](docs/ICON_CUSTOMIZATION_SPEC.md), [`docs/LOCAL_ASSETS_AUDIT.md`](docs/LOCAL_ASSETS_AUDIT.md) — Bộ đặc tả Sprint 3.5 (Local Assets, QR/Header/Blank DB & Admin Icon Manager)
 - [`docs/PROGRESS.md`](docs/PROGRESS.md) & [`TODO.md`](TODO.md) — Nhật ký hoàn thiện dự án theo từng pha

@@ -153,9 +153,9 @@
             <div class="s02-copy-card p-4" draggable="true" data-copy-id="@copy.BookCopyId" data-barcode="@copy.Barcode"
                  aria-roledescription="Thẻ sách kéo thả được">
                 <div class="d-flex gap-3">
-                    <img src="@(string.IsNullOrEmpty(copy.CoverImageUrl) ? "https://images.unsplash.com/photo-1544947950-fa07a98d237f?w=400" : copy.CoverImageUrl)"
+                    <img src="@(string.IsNullOrEmpty(copy.CoverImageUrl) ? "/images/book-placeholder.svg" : copy.CoverImageUrl)"
                          class="s02-cover-thumb shadow-sm" alt="@copy.Title"
-                         onerror="this.src='https://images.unsplash.com/photo-1544947950-fa07a98d237f?w=400'" />
+                         onerror="this.src='/images/book-placeholder.svg'" />
                     <div class="flex-grow-1">
                         <div class="d-flex justify-content-between align-items-center mb-1">
                             <span class="badge bg-secondary bg-opacity-10 text-secondary">@copy.CategoryName</span>

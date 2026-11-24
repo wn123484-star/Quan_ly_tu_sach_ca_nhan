@@ -205,7 +205,7 @@ public class S21LibrarianDeskService : IS21LibrarianDeskService
                     ReportedByUserId = librarianUserId,
                     ConditionGrade = string.IsNullOrWhiteSpace(request.ReturnCondition) ? "Good" : request.ReturnCondition,
                     Note = $"Quét mã vạch [{cleanBarcode}] thu hồi nhanh tại Quầy Thủ thư.",
-                    ImageUrl = "https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=600",
+                    ImageUrl = "/images/book-placeholder.svg",
                     CreatedAt = now
                 });
 
@@ -315,7 +315,7 @@ public class S21LibrarianDeskService : IS21LibrarianDeskService
                 ReportedByUserId = librarianUserId,
                 ConditionGrade = copy.Condition,
                 Note = $"Quét mã vạch [{cleanBarcode}] bàn giao sách tại Quầy Thủ thư.",
-                ImageUrl = "https://images.unsplash.com/photo-1532012197267-da84d127e765?w=600",
+                ImageUrl = "/images/book-placeholder.svg",
                 CreatedAt = now
             });
 

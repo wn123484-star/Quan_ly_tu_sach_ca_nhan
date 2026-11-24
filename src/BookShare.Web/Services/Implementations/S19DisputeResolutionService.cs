@@ -77,11 +77,11 @@ public class S19DisputeResolutionService : IS19DisputeResolutionService
                 .FirstOrDefault(c => c.ReportType == "Return");
 
             string defaultHandoverImg = handoverReport?.ImageUrl
-                ?? "https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=600";
+                ?? "/images/book-placeholder.svg";
 
             string defaultReturnImg = returnReport?.ImageUrl
                 ?? ExtractFirstEvidenceUrl(d.EvidenceUrlsJson)
-                ?? "https://images.unsplash.com/photo-1589829085413-56de8ae18c73?w=600";
+                ?? "/images/book-placeholder.svg";
 
             return new S19DisputeDetailDto
             {
@@ -156,7 +156,7 @@ public class S19DisputeResolutionService : IS19DisputeResolutionService
 
         var now = DateTime.UtcNow;
         string evidenceUrl = string.IsNullOrWhiteSpace(request.EvidenceImageUrl)
-            ? "https://images.unsplash.com/photo-1589829085413-56de8ae18c73?w=600"
+            ? "/images/book-placeholder.svg"
             : request.EvidenceImageUrl.Trim();
 
         var dispute = new Dispute

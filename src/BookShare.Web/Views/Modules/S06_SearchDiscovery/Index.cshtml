@@ -161,9 +161,9 @@ else
                         </div>
 
                         <div class="d-flex gap-3 my-3">
-                            <img src="@(string.IsNullOrEmpty(item.CoverImageUrl) ? "https://images.unsplash.com/photo-1544947950-fa07a98d237f?w=300" : item.CoverImageUrl)"
+                            <img src="@(string.IsNullOrEmpty(item.CoverImageUrl) ? "/images/book-placeholder.svg" : item.CoverImageUrl)"
                                  alt="Bìa sách @item.Title" class="s06-book-cover shadow-sm lazy-blur" loading="lazy" decoding="async" width="82" height="116"
-                                 onerror="this.src='https://images.unsplash.com/photo-1544947950-fa07a98d237f?w=300'" />
+                                 onerror="this.src='/images/book-placeholder.svg'" />
                             <div>
                                 <span class="badge bg-light text-secondary border mb-1">@item.CategoryName</span>
                                 <h6 class="fw-bold text-dark mb-1">@item.Title</h6>

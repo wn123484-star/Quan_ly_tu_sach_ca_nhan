@@ -156,7 +156,7 @@ function initAutocomplete(input) {
         } else {
             list.innerHTML = items.map((b, i) => `
                 <li id="s06Suggest-${i}" role="option" aria-selected="false" data-index="${i}">
-                    <img src="${escapeHtml(b.coverImageUrl || 'https://images.unsplash.com/photo-1544947950-fa07a98d237f?w=80')}" alt="" onerror="this.style.visibility='hidden'" />
+                    <img src="${escapeHtml(b.coverImageUrl || '/images/book-placeholder.svg')}" alt="Bìa sách ${escapeHtml(b.title || '')}" onerror="this.src='/images/book-placeholder.svg'" />
                     <div class="flex-grow-1 small">
                         <div class="fw-bold">${highlight(b.title, query)}</div>
                         <div class="text-muted">${highlight(b.author, query)} • ISBN ${escapeHtml(b.isbn)}</div>

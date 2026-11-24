@@ -85,9 +85,9 @@
                 <div class="row g-3 align-items-center">
                     <div class="col-lg-4">
                         <div class="d-flex gap-3 align-items-center">
-                            <img src="@(string.IsNullOrEmpty(item.CoverImageUrl) ? "https://images.unsplash.com/photo-1544947950-fa07a98d237f?w=200" : item.CoverImageUrl)"
+                            <img src="@(string.IsNullOrEmpty(item.CoverImageUrl) ? "/images/book-placeholder.svg" : item.CoverImageUrl)"
                                  class="s08-cover-thumb shadow-sm" alt="@item.BookTitle"
-                                 onerror="this.src='https://images.unsplash.com/photo-1544947950-fa07a98d237f?w=200'" />
+                                 onerror="this.src='/images/book-placeholder.svg'" />
                             <div>
                                 <div class="d-flex align-items-center gap-2 mb-1">
                                     <span class="badge bg-dark">Phiếu #@item.LoanRequestId</span>

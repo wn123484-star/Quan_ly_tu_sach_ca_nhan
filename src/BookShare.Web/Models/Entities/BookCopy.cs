@@ -27,10 +27,6 @@ public partial class BookCopy
 
     public DateTime CreatedAt { get; set; }
 
-    public decimal DailyRentalFee { get; set; }
-
-    public decimal DepositAmount { get; set; }
-
     public virtual Book Book { get; set; } = null!;
 
     public virtual Library? Library { get; set; }

@@ -45,9 +45,9 @@
                 {
                     <div class="s11-book-item p-3 rounded-4 d-flex justify-content-between align-items-center gap-3">
                         <div class="d-flex align-items-center gap-3">
-                            <img src="@(string.IsNullOrEmpty(book.CoverImageUrl) ? "https://images.unsplash.com/photo-1544947950-fa07a98d237f?w=160" : book.CoverImageUrl)"
+                            <img src="@(string.IsNullOrEmpty(book.CoverImageUrl) ? "/images/book-placeholder.svg" : book.CoverImageUrl)"
                                  class="s11-book-thumb shadow-sm" alt="@book.Title"
-                                 onerror="this.src='https://images.unsplash.com/photo-1544947950-fa07a98d237f?w=160'" />
+                                 onerror="this.src='/images/book-placeholder.svg'" />
                             <div>
                                 <h6 class="fw-bold text-dark mb-1">@book.Title</h6>
                                 <div class="small text-muted mb-1">@book.Author • ISBN: @book.ISBN</div>

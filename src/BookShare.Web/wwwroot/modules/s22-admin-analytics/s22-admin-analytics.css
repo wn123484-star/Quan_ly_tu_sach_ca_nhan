@@ -1,5 +1,5 @@
 /* =========================================================================
-   S22: ADMIN ANALYTICS, USER GOVERNANCE & HANGFIRE JOBS STYLES
+   S22: ADMIN ANALYTICS, USER GOVERNANCE & SYSTEM ICON MANAGER STYLES
    ========================================================================= */
 .s22-hero {
     background: linear-gradient(135deg, var(--portal-surface) 0%, var(--portal-surface-2) 100%);
@@ -14,4 +14,74 @@
     border-radius: 14px;
     min-width: 265px;
     box-shadow: 0 10px 24px rgba(6, 13, 31, 0.25);
+}
+
+.s22-main-tabs .nav-link {
+    border-radius: 999px;
+    font-weight: 700;
+    padding: 8px 18px;
+}
+
+.s22-icon-card {
+    background: var(--portal-surface);
+    border: 1px solid var(--portal-border);
+    border-radius: 16px;
+    transition: transform 0.16s ease, box-shadow 0.16s ease, border-color 0.16s ease;
+}
+
+.s22-icon-card:hover {
+    transform: translateY(-2px);
+    border-color: var(--portal-accent);
+    box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
+}
+
+.s22-icon-preview-box {
+    width: 56px;
+    height: 56px;
+    border-radius: 14px;
+    background: var(--portal-surface-2);
+    border: 1px solid var(--portal-border);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    overflow: hidden;
+}
+
+.s22-icon-preview-img {
+    width: 36px;
+    height: 36px;
+    object-fit: contain;
+}
+
+.s22-toggle-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 8px 12px;
+    border-radius: 12px;
+    background: var(--portal-surface-2);
+    border: 1px solid var(--portal-border);
+}
+
+.s22-toggle-row .form-switch {
+    margin: 0;
+    padding-left: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.s22-toggle-row .form-check-input {
+    margin-left: 0 !important;
+    width: 2.85rem;
+    height: 1.45rem;
+    cursor: pointer;
+}
+
+.s22-toggle-label {
+    font-size: 0.76rem;
+    font-weight: 700;
+    user-select: none;
 }

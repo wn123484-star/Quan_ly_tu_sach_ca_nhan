@@ -740,5 +740,24 @@ BEGIN
 END
 GO
 
+-- =========================================================================
+-- 28. SystemIconSettings (Tùy biến Biểu tượng Toàn trang - Sprint 3.5)
+-- =========================================================================
+IF OBJECT_ID(N'[dbo].[SystemIconSettings]', N'U') IS NULL
+BEGIN
+    CREATE TABLE [dbo].[SystemIconSettings] (
+        [IconKey]          NVARCHAR(64)  NOT NULL,
+        [DisplayName]      NVARCHAR(120) NOT NULL,
+        [CategoryGroup]    NVARCHAR(60)  NOT NULL,
+        [DefaultIconClass] NVARCHAR(100) NOT NULL,
+        [CustomImageUrl]   NVARCHAR(300) NULL,
+        [UseCustomImage]   BIT           NOT NULL CONSTRAINT [DF_SystemIconSettings_UseCustom] DEFAULT (0),
+        [UpdatedAt]        DATETIME2(7)  NOT NULL CONSTRAINT [DF_SystemIconSettings_UpdatedAt] DEFAULT (SYSUTCDATETIME()),
+        [UpdatedByUserId]  NVARCHAR(450) NULL,
+        CONSTRAINT [PK_SystemIconSettings] PRIMARY KEY CLUSTERED ([IconKey] ASC)
+    );
+END
+GO
+
 PRINT N'=== ĐÃ KHỞI TẠO THÀNH CÔNG SCHEMA CSDL BOOKSHAREDB (CHUẨN SCAFFOLD .NET 10) ===';
 GO

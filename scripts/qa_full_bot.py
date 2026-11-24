@@ -1640,6 +1640,257 @@ class QARunner:
         ok, fl = u1_verify.login("nguyenhung@cmc.edu.vn", "User@123")
         self.check("L5", "Post-reset User1 login works with User@123", ok, fl)
 
+    def run_layer7_sprint35(self, actors: dict[str, SessionClient]) -> None:
+        print("\n=== LAYER 7: Sprint 3.5 (Local Assets, QR, Header, Icon Manager, Blank DB & Stale Cookie) ===")
+        admin = actors["admin"]
+        u1 = actors["u1"]
+
+        # 7.1 Local vendor assets & 0 external CDN audit
+        required_local = [
+            WEB_DIR / "wwwroot" / "vendor" / "qr" / "qrcode.min.js",
+            WEB_DIR / "wwwroot" / "vendor" / "qr" / "html5-qrcode.min.js",
+            WEB_DIR / "wwwroot" / "vendor" / "confetti" / "confetti.browser.min.js",
+            WEB_DIR / "wwwroot" / "vendor" / "jspdf" / "jspdf.umd.min.js",
+            WEB_DIR / "wwwroot" / "vendor" / "html2canvas" / "html2canvas.min.js",
+            WEB_DIR / "wwwroot" / "images" / "book-placeholder.svg",
+            WEB_DIR / "wwwroot" / "images" / "avatar-default.svg",
+        ]
+        missing_local = [str(p.relative_to(ROOT_DIR)) for p in required_local if not p.exists() or p.stat().st_size == 0]
+        self.check("L7", "All 7 self-hosted vendor JS & SVG placeholder files exist", not missing_local, str(missing_local))
+
+        cdn_pattern = re.compile(
+            r"cdn\.jsdelivr\.net|cdnjs\.cloudflare\.com|unpkg\.com|api\.qrserver\.com|chart\.googleapis\.com|images\.unsplash\.com",
+            re.IGNORECASE,
+        )
+        legacy_pattern = re.compile(r"CLEAN STATE|02_BookShare_SeedData\.sql|book-tracker-ver07", re.IGNORECASE)
+        cdn_hits: list[str] = []
+        legacy_hits: list[str] = []
+        scan_roots = [
+            WEB_DIR / "Views",
+            WEB_DIR / "wwwroot" / "js",
+            WEB_DIR / "wwwroot" / "modules",
+            WEB_DIR / "wwwroot" / "css",
+        ]
+        for root in scan_roots:
+            for f in root.rglob("*"):
+                if f.suffix.lower() not in {".cshtml", ".js", ".css"}:
+                    continue
+                txt = f.read_text(encoding="utf-8", errors="ignore")
+                if cdn_pattern.search(txt):
+                    cdn_hits.append(str(f.relative_to(ROOT_DIR)))
+                if legacy_pattern.search(txt):
+                    legacy_hits.append(str(f.relative_to(ROOT_DIR)))
+        self.check("L7", "Zero external CDN / Unsplash fallback URLs in Views & wwwroot", not cdn_hits, str(cdn_hits))
+        self.check("L7", "Zero legacy CLEAN STATE / SeedData / ver07 strings in Views & wwwroot", not legacy_hits, str(legacy_hits))
+
+        # Verify zero schema drift between EF DbContext/Entities and database/01_BookShare_Schema.sql
+        ef_check_files = [
+            WEB_DIR / "Data" / "BookShareDbContext.cs",
+            WEB_DIR / "Models" / "Entities" / "BookCopy.cs",
+            WEB_DIR / "Models" / "Entities" / "Loan.cs",
+        ]
+        drift_pattern = re.compile(r"\b(DailyRentalFee|DepositAmount|DepositHeld|EscrowStatus|RentalFeeTotal)\b")
+        drift_hits = [
+            str(p.relative_to(ROOT_DIR))
+            for p in ef_check_files
+            if p.exists() and drift_pattern.search(p.read_text(encoding="utf-8", errors="ignore"))
+        ]
+        self.check("L7", "Zero legacy column drift between EF entities and 01_BookShare_Schema.sql", not drift_hits, str(drift_hits))
+
+        guest = SessionClient(self.base_url)
+        for asset_url in ["/vendor/qr/qrcode.min.js", "/vendor/qr/html5-qrcode.min.js", "/images/book-placeholder.svg", "/images/avatar-default.svg"]:
+            ac, _, _ = guest.get(asset_url)
+            self.check("L7", f"Local static asset {asset_url} returns 200", ac == 200, f"HTTP {ac}")
+
+        # 7.2 QR render stability & owned canvas check
+        core_js = (WEB_DIR / "wwwroot" / "js" / "core-api.js").read_text(encoding="utf-8", errors="ignore")
+        self.check(
+            "L7",
+            "core-api.js renders QR via local qrcode.min.js onto owned canvas & neutralizes img.onload",
+            "/vendor/qr/qrcode.min.js" in core_js
+            and "img.onload = null" in core_js
+            and "quietZone = 12" in core_js
+            and "ownedCanvas" in core_js,
+        )
+        guest.refresh_csrf("/S01AuthOtpGoogle")
+        qr_c, qr_resp, _ = guest.post_json("/api/qr-login/create", {})
+        qr_data = qr_resp.get("data", {}) if isinstance(qr_resp, dict) else {}
+        qr_sid = qr_data.get("sessionId")
+        qr_stat_c, qr_stat_raw, _ = guest.get(f"/api/qr-login/status/{qr_sid}", accept_json=True) if qr_sid else (0, "{}", {})
+        qr_stat = json.loads(qr_stat_raw).get("status", "") if qr_stat_c == 200 else ""
+        self.check(
+            "L7",
+            "QR login web session generates stable payload & Pending status (TTL >= 100s)",
+            qr_c == 200
+            and bool(qr_data.get("qrPayload"))
+            and int(qr_data.get("expiresInSeconds", 0)) >= 100
+            and qr_stat == "Pending",
+            f"HTTP {qr_c}, ttl={qr_data.get('expiresInSeconds')}, status={qr_stat}",
+        )
+
+        # 7.3 Header 1-row, Auth state clarity, Compact AI Chat & No fake green banner
+        gc_home, g_home_html, _ = guest.get("/")
+        self.check(
+            "L7",
+            "Guest Home hides idle status banner & hides Admin menu",
+            gc_home == 200 and 'class="status-banner status-200 hidden-banner"' in g_home_html and "Điều Hành" not in g_home_html,
+            f"HTTP {gc_home}",
+        )
+        gc_ai, g_ai_html, _ = guest.get("/S13GeminiAiAssistant")
+        self.check(
+            "L7",
+            "Floating AI widget auto-hides on full-page /S13GeminiAiAssistant",
+            gc_ai == 200 and 'id="aiFloatingWidget"' not in g_ai_html,
+            f"HTTP {gc_ai}",
+        )
+        u1_s01_c, u1_s01_html, _ = u1.get("/S01AuthOtpGoogle")
+        self.check(
+            "L7",
+            "Authenticated S01 hides Login/Register tabs and activates Profile tab",
+            u1_s01_c == 200
+            and 'id="tabProfile"' in u1_s01_html
+            and 'id="tabLogin"' not in u1_s01_html
+            and 'id="tabRegister"' not in u1_s01_html,
+            f"HTTP {u1_s01_c}",
+        )
+        adm_home_c, adm_home_html, _ = admin.get("/")
+        self.check(
+            "L7",
+            "Authenticated Admin Header renders compact Account Dropdown & Điều Hành",
+            adm_home_c == 200 and 'id="accountMenuToggle"' in adm_home_html and "Điều Hành" in adm_home_html,
+            f"HTTP {adm_home_c}",
+        )
+
+        # 7.4 Admin System Icon Manager E2E (RBAC, validation, upload, toggle 2-way, reset)
+        u1.refresh_csrf("/S02PersonalShelf")
+        u1_get_c, _, _ = u1.get("/S22AdminAnalytics/GetIconSettings", accept_json=True)
+        self.check("L7", "RBAC: User blocked 403 on GET GetIconSettings", u1_get_c == 403, f"HTTP {u1_get_c}")
+        u1_tog_c, _, _ = u1.post_json("/S22AdminAnalytics/ToggleIconMode", {"iconKey": "brand_logo", "useCustomImage": True})
+        self.check("L7", "RBAC: User blocked 403 on POST ToggleIconMode", u1_tog_c == 403, f"HTTP {u1_tog_c}")
+        u1_rst_c, _, _ = u1.post_json("/S22AdminAnalytics/ResetIconToDefault", {"iconKey": "ALL"})
+        self.check("L7", "RBAC: User blocked 403 on POST ResetIconToDefault", u1_rst_c == 403, f"HTTP {u1_rst_c}")
+
+        admin.refresh_csrf("/S22AdminAnalytics")
+        adm_get_c, adm_get_raw, _ = admin.get("/S22AdminAnalytics/GetIconSettings", accept_json=True)
+        icon_list = json.loads(adm_get_raw).get("items", []) if adm_get_c == 200 else []
+        self.check("L7", "Admin GET GetIconSettings returns all 18 system icons", adm_get_c == 200 and len(icon_list) == 18, f"HTTP {adm_get_c}, count={len(icon_list)}")
+
+        # Ensure clean baseline before toggle test
+        admin.post_json("/S22AdminAnalytics/ResetIconToDefault", {"iconKey": "brand_logo"})
+        tog_empty_c, _, _ = admin.post_json("/S22AdminAnalytics/ToggleIconMode", {"iconKey": "brand_logo", "useCustomImage": True})
+        self.check("L7", "ToggleIconMode right before upload rejected with 400", tog_empty_c == 400, f"HTTP {tog_empty_c}")
+
+        bad_exe_c, _, _ = admin.post_multipart(
+            "/S22AdminAnalytics/UploadCustomIcon",
+            {"iconKey": "brand_logo"},
+            ("file", "malware.exe", b"MZ\x90\x00fakeexe", "application/octet-stream"),
+        )
+        self.check("L7", "UploadCustomIcon blocks fake .exe with 400", bad_exe_c == 400, f"HTTP {bad_exe_c}")
+
+        bad_svg_c, _, _ = admin.post_multipart(
+            "/S22AdminAnalytics/UploadCustomIcon",
+            {"iconKey": "brand_logo"},
+            ("file", "xss.svg", b'<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script></svg>', "image/svg+xml"),
+        )
+        self.check("L7", "UploadCustomIcon blocks XSS <script> SVG with 400", bad_svg_c == 400, f"HTTP {bad_svg_c}")
+
+        # Minimal valid 1x1 PNG bytes
+        valid_png = bytes.fromhex(
+            "89504e470d0a1a0a0000000d49484452000000010000000108060000001f15c489"
+            "0000000a49444154789c63000100000500010d0a2db40000000049454e44ae426082"
+        )
+        up_c, up_data, _ = admin.post_multipart(
+            "/S22AdminAnalytics/UploadCustomIcon",
+            {"iconKey": "brand_logo"},
+            ("file", "custom-logo.png", valid_png, "image/png"),
+        )
+        custom_url = (up_data or {}).get("item", {}).get("customImageUrl", "") if isinstance(up_data, dict) else ""
+        self.check(
+            "L7",
+            "UploadCustomIcon accepts valid PNG & enables custom mode",
+            up_c == 200 and custom_url.startswith("/uploads/icons/brand_logo_"),
+            f"HTTP {up_c}, url={custom_url}",
+        )
+
+        _, home_custom_html, _ = guest.get("/")
+        self.check(
+            "L7",
+            "Home immediately renders uploaded custom brand_logo with alt & onerror",
+            bool(custom_url) and f'src="{custom_url}"' in home_custom_html and 'onerror="' in home_custom_html,
+            custom_url,
+        )
+
+        tog_left_c, _, _ = admin.post_json("/S22AdminAnalytics/ToggleIconMode", {"iconKey": "brand_logo", "useCustomImage": False})
+        _, home_left_html, _ = guest.get("/")
+        self.check(
+            "L7",
+            "ToggleIconMode Left (false) reverts Home brand_logo to default icon immediately",
+            tog_left_c == 200 and custom_url not in home_left_html and "bi-book-half" in home_left_html,
+            f"HTTP {tog_left_c}",
+        )
+
+        tog_right_c, _, _ = admin.post_json("/S22AdminAnalytics/ToggleIconMode", {"iconKey": "brand_logo", "useCustomImage": True})
+        _, home_right_html, _ = guest.get("/")
+        self.check(
+            "L7",
+            "ToggleIconMode Right (true) restores custom icon without re-upload",
+            tog_right_c == 200 and custom_url in home_right_html,
+            f"HTTP {tog_right_c}",
+        )
+
+        rst_all_c, _, _ = admin.post_json("/S22AdminAnalytics/ResetIconToDefault", {"iconKey": "ALL"})
+        _, home_reset_html, _ = guest.get("/")
+        self.check(
+            "L7",
+            "ResetIconToDefault ALL restores default icon cleanly",
+            rst_all_c == 200 and custom_url not in home_reset_html,
+            f"HTTP {rst_all_c}",
+        )
+
+        # 7.5 Blank DB (FactoryClean) + Stale Cookie Auto-Rejection + Admin@123 Login
+        fc_c, _, _ = admin.post_json("/S22AdminAnalytics/ManageSampleData", {"actionMode": "FactoryClean"})
+        self.check("L7", "Admin FactoryClean puts database into clean blank state", fc_c == 200, f"HTTP {fc_c}")
+
+        blank_guest = SessionClient(self.base_url)
+        blank_routes = ["/", "/S01AuthOtpGoogle", "/S02PersonalShelf", "/S06SearchDiscovery", "/S07LibraryCatalog", "/S22AdminAnalytics"]
+        blank_failures: list[str] = []
+        for route in blank_routes:
+            bc, bhtml, _ = blank_guest.get(route)
+            if bc != 200:
+                blank_failures.append(f"{route}=HTTP {bc}")
+            elif route == "/" and ("CLEAN STATE" in bhtml or "02_BookShare_SeedData" in bhtml):
+                blank_failures.append("/ leaked legacy string")
+        self.check("L7", "Blank DB: Guest visits 6 key routes with 0 HTTP 500 & 0 legacy text", not blank_failures, str(blank_failures))
+
+        b404_c, b404_html, _ = blank_guest.get("/S02Pers")
+        self.check(
+            "L7",
+            "Blank DB: /S02Pers returns friendly 404 suggesting /S02PersonalShelf without green 200 banner",
+            b404_c == 404 and "/S02PersonalShelf" in b404_html and 'class="status-banner status-200 hidden-banner"' in b404_html,
+            f"HTTP {b404_c}",
+        )
+
+        # u1's account was deleted by FactoryClean, yet u1 still holds its old AuthCookie!
+        stale_home_c, _, _ = u1.get("/")
+        stale_sess_c, stale_sess_raw, _ = u1.get("/api/mobile/session", accept_json=True)
+        stale_auth = json.loads(stale_sess_raw).get("authenticated", True) if stale_sess_c == 200 else True
+        self.check(
+            "L7",
+            "Blank DB: Stale cookie of deleted user auto-rejected (0 HTTP 500, authenticated=false)",
+            stale_home_c == 200 and stale_sess_c == 200 and stale_auth is False,
+            f"home={stale_home_c}, sess={stale_sess_c}, auth={stale_auth}",
+        )
+
+        fresh_admin = SessionClient(self.base_url)
+        adm_blank_ok, adm_blank_fl = fresh_admin.login("admin@bookshare.vn", "Admin@123")
+        adm_s22_blank_c, _, _ = fresh_admin.get("/S22AdminAnalytics")
+        self.check(
+            "L7",
+            "Blank DB: Fresh Admin login (admin@bookshare.vn / Admin@123) succeeds immediately",
+            adm_blank_ok and adm_s22_blank_c == 200,
+            f"login={adm_blank_ok} ({adm_blank_fl}), s22={adm_s22_blank_c}",
+        )
+
 
 def wait_for_server(base_url: str, timeout_s: float = 40.0) -> bool:
     deadline = time.time() + timeout_s
@@ -1717,6 +1968,7 @@ def main() -> int:
         actors = runner.run_layer3_auth_rbac_idor()
         runner.run_layer4_business_loops(actors)
         runner.run_layer6_sprint3(actors)
+        runner.run_layer7_sprint35(actors)
         runner.run_layer5_cleanup_and_integrity(actors["admin"])
 
         passed = sum(1 for r in runner.results if r.passed)

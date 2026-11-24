@@ -1,6 +1,8 @@
 @model BookShare.Web.Models.ViewModels.PortalHomeViewModel
+@inject BookShare.Web.Services.Interfaces.ISystemIconService IconService
 @{
     ViewData["Title"] = "Cổng Khám Phá & Mượn Sách Cộng Đồng";
+    var bookPlaceholderUrl = IconService.GetImageUrl("book_placeholder", "/images/book-placeholder.svg");
 }
 
 <!-- KHỐI BANNER PORTAL & CỤM DỊCH VỤ NHANH -->
@@ -129,16 +131,19 @@
             @if (Model.TotalBooksCount == 0)
             {
                 <span class="bs-badge bs-badge-info mb-2">
-                    <i class="bi bi-stars" aria-hidden="true"></i>CHẾ ĐỘ CƠ SỞ DỮ LIỆU TRẮNG (CLEAN STATE)
+                    <i class="bi bi-stars" aria-hidden="true"></i>KHO SÁCH CỘNG ĐỒNG ĐANG KHỞI TẠO
                 </span>
                 <h4>Kho sách hiện chưa có đầu sách hoặc bản sao vật lý nào</h4>
                 <p class="bs-muted">
-                    Hệ thống đang ở trạng thái CSDL Trắng (không có dữ liệu giả). Quản trị viên có thể nạp ngay bộ dữ liệu mẫu chuẩn từ tệp SQL <code>02_BookShare_SeedData.sql</code> trong Trung tâm Quản trị, hoặc bắt đầu nhập sách mới bằng mã ISBN.
+                    Hệ thống đã sẵn sàng đón nhận những cuốn sách đầu tiên. Thành viên có thể thêm sách vào tủ cá nhân bằng mã ISBN, hoặc Quản trị viên có thể khởi tạo bộ danh mục ban đầu tại Trung tâm Quản trị.
                 </p>
                 <div class="d-flex flex-wrap justify-content-center gap-2">
-                    <a asp-controller="S22AdminAnalytics" asp-action="Index" class="bs-btn bs-btn-primary">
-                        <i class="bi bi-database-fill-up" aria-hidden="true"></i>Tới Trung Tâm Quản Trị Nạp Dữ Liệu Mẫu SQL
-                    </a>
+                    @if (User.IsInRole("Admin"))
+                    {
+                        <a asp-controller="S22AdminAnalytics" asp-action="Index" class="bs-btn bs-btn-primary">
+                            <i class="bi bi-database-fill-up" aria-hidden="true"></i>Mở Trung Tâm Quản Trị Khởi Tạo Dữ Liệu
+                        </a>
+                    }
                     <a asp-controller="S05IsbnAutoCatalog" asp-action="Index" class="bs-btn bs-btn-outline">
                         <i class="bi bi-upc-scan" aria-hidden="true"></i>Quét Mã ISBN Thêm Sách Mới
                     </a>
@@ -172,9 +177,9 @@
                 <div class="col-md-6 col-lg-4 bs-book-col">
                     <div class="card book-card tilt-3d h-100 border shadow-sm overflow-hidden">
                         <div class="position-relative bs-book-cover-wrap">
-                            <img src="@(string.IsNullOrEmpty(b.CoverImageUrl) ? "https://images.unsplash.com/photo-1544947950-fa07a98d237f?w=400" : b.CoverImageUrl)"
+                            <img src="@(string.IsNullOrEmpty(b.CoverImageUrl) ? bookPlaceholderUrl : b.CoverImageUrl)"
                                  class="book-cover w-100 lazy-blur" alt="Bìa sách @b.Title" loading="lazy" decoding="async"
-                                 onerror="this.src='https://images.unsplash.com/photo-1544947950-fa07a98d237f?w=400'" />
+                                 onerror="this.onerror=null;this.src='@bookPlaceholderUrl'" />
                             <span class="position-absolute top-0 start-0 m-2 @(b.OwnerType == "System" ? "owner-badge-lib" : "owner-badge-p2p")">
                                 @(b.OwnerType == "System" ? "🏛️ Kho chung ĐH CMC" : "🤝 Tủ sách P2P")
                             </span>

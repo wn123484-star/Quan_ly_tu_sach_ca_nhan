@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 420" role="img" aria-label="Bìa sách mặc định BookShare">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#eff6ff"/>
+      <stop offset="100%" stop-color="#dbeafe"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#2563eb"/>
+      <stop offset="100%" stop-color="#1d4ed8"/>
+    </linearGradient>
+  </defs>
+  <rect width="320" height="420" rx="18" fill="url(#bg)"/>
+  <rect x="20" y="20" width="280" height="380" rx="12" fill="#ffffff" stroke="#cbd5e1" stroke-width="2"/>
+  <rect x="110" y="110" width="100" height="100" rx="22" fill="url(#accent)"/>
+  <path d="M132 138c0-4 3-7 7-7h18v58h-18c-4 0-7-3-7-7v-44zm56 0c0-4-3-7-7-7h-18v58h18c4 0 7-3 7-7v-44z" fill="#ffffff"/>
+  <rect x="157" y="131" width="6" height="58" fill="#93c5fd"/>
+  <rect x="76" y="244" width="168" height="14" rx="7" fill="#cbd5e1"/>
+  <rect x="104" y="270" width="112" height="10" rx="5" fill="#e2e8f0"/>
+  <text x="160" y="340" text-anchor="middle" fill="#1e3a8a" font-family="Segoe UI, Roboto, sans-serif" font-size="18" font-weight="700">BookShare</text>
+  <text x="160" y="362" text-anchor="middle" fill="#64748b" font-family="Segoe UI, Roboto, sans-serif" font-size="12">Chia sẻ sách giấy 0đ</text>
+</svg>

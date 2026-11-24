@@ -283,7 +283,7 @@ public class S20ExchangeHubClubService : IS20ExchangeHubClubService
                 ReportedByUserId = curatorUserId,
                 ConditionGrade = copy.Condition,
                 Note = $"Biên bản giao sách trung gian tại Trạm CLB cho bản sao [{copy.Barcode}].",
-                ImageUrl = copy.Book.CoverImageUrl ?? "https://images.unsplash.com/photo-1512820790803-83ca734da794?w=500",
+                ImageUrl = copy.Book.CoverImageUrl ?? "/images/book-placeholder.svg",
                 CreatedAt = now
             });
 
@@ -335,7 +335,7 @@ public class S20ExchangeHubClubService : IS20ExchangeHubClubService
             ReportedByUserId = curatorUserId,
             ConditionGrade = copy.Condition,
             Note = $"Biên bản thu hồi sách nguyên vẹn tại Trạm CLB cho bản sao [{copy.Barcode}].",
-            ImageUrl = copy.Book.CoverImageUrl ?? "https://images.unsplash.com/photo-1512820790803-83ca734da794?w=500",
+            ImageUrl = copy.Book.CoverImageUrl ?? "/images/book-placeholder.svg",
             CreatedAt = now
         });
 

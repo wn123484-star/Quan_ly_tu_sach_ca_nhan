@@ -21,12 +21,6 @@ public partial class Loan
 
     public string Status { get; set; } = null!;
 
-    public decimal RentalFeeTotal { get; set; }
-
-    public decimal DepositHeld { get; set; }
-
-    public string EscrowStatus { get; set; } = null!;
-
     public virtual ICollection<BookHandoverQr> BookHandoverQrs { get; set; } = new List<BookHandoverQr>();
 
     public virtual ICollection<ConditionReport> ConditionReports { get; set; } = new List<ConditionReport>();

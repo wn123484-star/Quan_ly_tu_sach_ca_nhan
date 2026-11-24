@@ -7,17 +7,17 @@
     <link rel="stylesheet" href="~/modules/s03-reading-tracker/s03-reading-tracker.css" asp-append-version="true" />
 }
 
-<!-- Payload JSON dùng cho Chart.js & nút Xuất sao lưu JSON kế thừa Ver07 -->
+<!-- Dữ liệu biểu đồ dùng cho Chart.js & nút Xuất sao lưu JSON -->
 <script id="s03ChartPayload" type="application/json">@Html.Raw(Model.ChartJsonPayload)</script>
 
-<!-- 1. BANNER & 4 HỘP THỐNG KÊ KẾ THỪA BOOK-TRACKER-VER07 -->
+<!-- 1. BANNER & 4 HỘP THỐNG KÊ TIẾN ĐỘ ĐỌC -->
 <section class="card border-0 shadow-sm rounded-4 p-4 mb-4 bg-white">
     <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
         <div>
             <span class="badge bg-primary mb-1">PHÂN TÍCH TIẾN ĐỘ ĐỌC &amp; MỤC TIÊU TRI THỨC</span>
             <h4 class="fw-bold mb-1">📈 Bảng Điều Khiển Tiến Độ Đọc Của @Model.UserFullName</h4>
             <p class="text-muted small mb-0">
-                Theo dõi số trang đang đọc (<code>CurrentPage / TotalPages</code>), tự động tính <code>%</code> hoàn thành, đặt mục tiêu đọc sách năm và vẽ biểu đồ thống kê trực quan.
+                Theo dõi số trang đang đọc trên tổng số trang, tự động tính phần trăm hoàn thành, đặt mục tiêu đọc sách năm và xem biểu đồ thống kê trực quan.
             </p>
         </div>
         <div class="d-flex gap-2">
@@ -78,7 +78,7 @@
     </div>
 </section>
 
-<!-- 2. KHỐI BIỂU ĐỒ TRÒN (VER07) + BIỂU ĐỒ CỘT % TIẾN ĐỘ + MỤC TIÊU NĂM -->
+<!-- 2. KHỐI BIỂU ĐỒ TRÒN + BIỂU ĐỒ CỘT % TIẾN ĐỘ + MỤC TIÊU NĂM -->
 <div class="row g-4 mb-4">
     <div class="col-lg-4">
         <div class="card border-0 shadow-sm rounded-4 h-100 bg-white">
@@ -152,9 +152,9 @@
             <div class="col-lg-6">
                 <div class="s03-progress-card">
                     <div class="d-flex gap-3">
-                        <img src="@(string.IsNullOrEmpty(item.CoverImageUrl) ? "https://images.unsplash.com/photo-1544947950-fa07a98d237f?w=400" : item.CoverImageUrl)"
+                        <img src="@(string.IsNullOrEmpty(item.CoverImageUrl) ? "/images/book-placeholder.svg" : item.CoverImageUrl)"
                              style="width:88px; height:130px; object-fit:cover;" class="rounded-3 shadow-sm flex-shrink-0" alt="@item.Title"
-                             onerror="this.src='https://images.unsplash.com/photo-1544947950-fa07a98d237f?w=400'" />
+                             onerror="this.src='/images/book-placeholder.svg'" />
                         <div class="flex-grow-1">
                             <div class="d-flex justify-content-between align-items-center mb-1">
                                 <span id="statusBadge-@item.Id" class="badge @(item.Status == "Completed" ? "bg-success" : item.Status == "Reading" ? "bg-warning text-dark" : "bg-secondary")">

@@ -303,7 +303,7 @@ public class S08LibraryLoanService : IS08LibraryLoanService
             ReportedByUserId = currentUserId,
             ConditionGrade = loanReq.BookCopy.Condition,
             Note = $"Biên bản bàn giao tại quầy Thư viện cho bản sao [{loanReq.BookCopy.Barcode}]. Sách nguyên vẹn.",
-            ImageUrl = loanReq.BookCopy.Book.CoverImageUrl ?? "https://images.unsplash.com/photo-1544947950-fa07a98d237f?w=500",
+            ImageUrl = loanReq.BookCopy.Book.CoverImageUrl ?? "/images/book-placeholder.svg",
             CreatedAt = now
         });
         await _db.SaveChangesAsync();
@@ -366,7 +366,7 @@ public class S08LibraryLoanService : IS08LibraryLoanService
             Note = isDamaged
                 ? $"Thu hồi tại quầy Thư viện: Phát hiện sách [{loanReq.BookCopy.Barcode}] bị hư hại."
                 : $"Thu hồi tại quầy Thư viện: Bản sao [{loanReq.BookCopy.Barcode}] trả về nguyên vẹn ({request.ReturnCondition}).",
-            ImageUrl = loanReq.BookCopy.Book.CoverImageUrl ?? "https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=500",
+            ImageUrl = loanReq.BookCopy.Book.CoverImageUrl ?? "/images/book-placeholder.svg",
             CreatedAt = now
         });
 

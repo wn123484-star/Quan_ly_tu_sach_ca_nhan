@@ -159,8 +159,8 @@ public class S10ConditionReportService : IS10ConditionReportService
         else
         {
             resolvedImageUrl = cleanGrade == "Damaged"
-                ? "https://images.unsplash.com/photo-1589829085413-56de8ae18c73?w=600"
-                : (loan.LoanRequest.BookCopy.Book.CoverImageUrl ?? "https://images.unsplash.com/photo-1544947950-fa07a98d237f?w=600");
+                ? "/images/book-placeholder.svg"
+                : (loan.LoanRequest.BookCopy.Book.CoverImageUrl ?? "/images/book-placeholder.svg");
         }
 
         var report = new ConditionReport

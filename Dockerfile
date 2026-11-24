@@ -20,8 +20,8 @@ RUN dotnet publish "BookShare.Web.csproj" -c Release -o /app/publish /p:UseAppHo
 FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS final
 WORKDIR /app
 
-# Tạo sẵn thư mục lưu ảnh biên bản tình trạng sách (Dịch vụ S10 ConditionReport)
-RUN mkdir -p /app/wwwroot/uploads/conditions
+# Tạo sẵn thư mục lưu ảnh biên bản tình trạng sách & ảnh biểu tượng tùy chỉnh của Admin
+RUN mkdir -p /app/wwwroot/uploads/conditions /app/wwwroot/uploads/icons
 
 # Sao chép bản dựng đã publish từ Stage 1
 COPY --from=build /app/publish .

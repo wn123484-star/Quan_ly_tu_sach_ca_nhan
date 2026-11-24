@@ -188,9 +188,9 @@
                         </td>
                         <td>
                             <div class="d-flex align-items-center gap-2">
-                                <img src="@(string.IsNullOrEmpty(copy.CoverImageUrl) ? "https://images.unsplash.com/photo-1544947950-fa07a98d237f?w=120" : copy.CoverImageUrl)"
+                                <img src="@(string.IsNullOrEmpty(copy.CoverImageUrl) ? "/images/book-placeholder.svg" : copy.CoverImageUrl)"
                                      class="s07-table-cover lazy-blur" alt="Bìa sách @copy.Title" loading="lazy" decoding="async"
-                                     onerror="this.src='https://images.unsplash.com/photo-1544947950-fa07a98d237f?w=120'" />
+                                     onerror="this.src='/images/book-placeholder.svg'" />
                                 <div>
                                     <div class="fw-bold text-dark">@copy.Title</div>
                                     <div class="small text-muted">@copy.Author • ISBN: @copy.ISBN</div>

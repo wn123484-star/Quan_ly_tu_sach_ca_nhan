@@ -1,11 +1,10 @@
 /**
- * MODULE S03: READING TRACKER - KẾ THỪA VER07 (s03-reading-tracker.js)
- * Đóng gói ES6 Module độc lập cho dịch vụ S03
+ * MODULE THEO DÕI TIẾN ĐỘ ĐỌC SÁCH (s03-reading-tracker.js)
  */
 import { apiFetch, showSystemStatus, confirmDialog } from '../../js/core-api.js';
 
 document.addEventListener('DOMContentLoaded', () => {
-    // 1. Vẽ Biểu đồ Doughnut (Kế thừa Ver07) & Biểu đồ Cột Thống kê Trang đọc
+    // 1. Vẽ Biểu đồ Doughnut & Biểu đồ Cột Thống kê Trang đọc
     const chartDataEl = document.getElementById('s03ChartPayload');
     let payload = null;
     let doughnutChart = null;
@@ -156,7 +155,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
-    // 4. Nút Xuất tệp sao lưu JSON (Kế thừa book-tracker-ver07)
+    // 4. Nút Xuất tệp sao lưu JSON tiến độ đọc sách
     document.querySelectorAll('.js-delete-progress-btn').forEach(btn => {
         btn.addEventListener('click', async () => {
             const progressId = parseInt(btn.getAttribute('data-progress-id') || '0', 10);

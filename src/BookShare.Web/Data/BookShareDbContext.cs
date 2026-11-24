@@ -68,6 +68,8 @@ public partial class BookShareDbContext : DbContext
 
     public virtual DbSet<ShelfItem> ShelfItems { get; set; }
 
+    public virtual DbSet<SystemIconSetting> SystemIconSettings { get; set; }
+
     public virtual DbSet<Transaction> Transactions { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -101,7 +103,7 @@ public partial class BookShareDbContext : DbContext
                 .HasDefaultValue("gemini-2.5-flash", "DF_AiChatSessions_Model");
             entity.Property(e => e.Title)
                 .HasMaxLength(200)
-                .HasDefaultValue("Tư vấn chọn sách & mượn trả", "DF_AiChatSessions_Title");
+                .HasDefaultValue("TÆ° váº¥n chá»n sÃ¡ch & mÆ°á»£n tráº£", "DF_AiChatSessions_Title");
             entity.Property(e => e.UpdatedAt).HasDefaultValueSql("(sysutcdatetime())", "DF_AiChatSessions_UpdatedAt");
 
             entity.HasOne(d => d.User).WithMany(p => p.AiChatSessions)
@@ -227,8 +229,6 @@ public partial class BookShareDbContext : DbContext
                 .HasMaxLength(20)
                 .HasDefaultValue("Good", "DF_BookCopies_Condition");
             entity.Property(e => e.CreatedAt).HasDefaultValueSql("(sysutcdatetime())", "DF_BookCopies_CreatedAt");
-            entity.Property(e => e.DailyRentalFee).HasColumnType("decimal(18, 2)");
-            entity.Property(e => e.DepositAmount).HasColumnType("decimal(18, 2)");
             entity.Property(e => e.IsLendable).HasDefaultValue(true, "DF_BookCopies_IsLendable");
             entity.Property(e => e.OwnerType).HasMaxLength(20);
             entity.Property(e => e.ShelfLocation).HasMaxLength(80);
@@ -384,12 +384,7 @@ public partial class BookShareDbContext : DbContext
 
             entity.HasIndex(e => e.LoanRequestId, "UQ_Loans_LoanRequestId").IsUnique();
 
-            entity.Property(e => e.DepositHeld).HasColumnType("decimal(18, 2)");
-            entity.Property(e => e.EscrowStatus)
-                .HasMaxLength(30)
-                .HasDefaultValue("None", "DF_Loans_EscrowStatus");
             entity.Property(e => e.FineAmount).HasColumnType("decimal(18, 2)");
-            entity.Property(e => e.RentalFeeTotal).HasColumnType("decimal(18, 2)");
             entity.Property(e => e.StartDate).HasDefaultValueSql("(sysutcdatetime())", "DF_Loans_StartDate");
             entity.Property(e => e.Status)
                 .HasMaxLength(20)
@@ -627,6 +622,19 @@ public partial class BookShareDbContext : DbContext
             entity.HasOne(d => d.Shelf).WithMany(p => p.ShelfItems)
                 .HasForeignKey(d => d.ShelfId)
                 .HasConstraintName("FK_ShelfItems_Shelves");
+        });
+
+        modelBuilder.Entity<SystemIconSetting>(entity =>
+        {
+            entity.HasKey(e => e.IconKey);
+
+            entity.Property(e => e.IconKey).HasMaxLength(64);
+            entity.Property(e => e.CategoryGroup).HasMaxLength(60);
+            entity.Property(e => e.CustomImageUrl).HasMaxLength(300);
+            entity.Property(e => e.DefaultIconClass).HasMaxLength(100);
+            entity.Property(e => e.DisplayName).HasMaxLength(120);
+            entity.Property(e => e.UpdatedAt).HasDefaultValueSql("(sysutcdatetime())", "DF_SystemIconSettings_UpdatedAt");
+            entity.Property(e => e.UpdatedByUserId).HasMaxLength(450);
         });
 
         modelBuilder.Entity<Transaction>(entity =>

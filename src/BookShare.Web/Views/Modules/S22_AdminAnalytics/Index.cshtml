@@ -1,6 +1,11 @@
 @model BookShare.Web.Models.ViewModels.S22AdminAnalyticsPageViewModel
+@inject BookShare.Web.Services.Interfaces.ISystemIconService IconService
 @{
     ViewData["Title"] = "Trung Tâm Điều Hành Quản Trị Hệ Thống, Phân Quyền & Giám Sát Tự Động";
+    var systemIcons = Model.CurrentUserRole == "Admin"
+        ? await IconService.GetAllIconsAsync()
+        : new List<BookShare.Web.Models.ViewModels.SystemIconItemDto>();
+    var iconCategories = systemIcons.Select(x => x.CategoryGroup).Distinct().ToList();
 }
 
 @section Styles {
@@ -41,6 +46,23 @@
         </div>
     </div>
 </section>
+
+<!-- THANH TAB CHUYỂN ĐỔI: TỔNG QUAN QUẢN TRỊ & TÙY CHỈNH BIỂU TƯỢNG -->
+<ul class="nav nav-pills s22-main-tabs gap-2 mb-4" id="s22MainTabs" role="tablist" data-report-ignore>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link active" id="btnTabS22Overview" data-bs-toggle="pill" data-bs-target="#tabS22Overview" type="button" role="tab">
+            <i class="bi bi-speedometer2 me-1"></i>Tổng Quan &amp; Quản Trị Hệ Thống
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="btnTabS22Icons" data-bs-toggle="pill" data-bs-target="#tabS22Icons" type="button" role="tab">
+            <i class="bi bi-palette2 me-1"></i>Tùy Chỉnh Biểu Tượng <span class="badge bg-info text-dark ms-1">@systemIcons.Count</span>
+        </button>
+    </li>
+</ul>
+
+<div class="tab-content" id="s22MainTabsContent">
+<div class="tab-pane fade show active" id="tabS22Overview" role="tabpanel">
 
 <!-- 4 THẺ KPI TOÀN HỆ THỐNG -->
 <div class="row g-3 mb-4" data-report-section>
@@ -299,6 +321,114 @@
             </div>
         </div>
     </div>
+</div>
+</div>
+
+<!-- TAB 2: QUẢN LÝ & TÙY CHỈNH BIỂU TƯỢNG TOÀN TRANG (CÔNG TẮC GẠT TỪNG ICON) -->
+<div class="tab-pane fade" id="tabS22Icons" role="tabpanel">
+    <div class="card border-0 shadow-sm rounded-4 bg-white p-4 mb-4">
+        <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-3">
+            <div>
+                <h5 class="fw-bold mb-1">
+                    <i class="bi bi-images text-primary me-2"></i>Quản Lý &amp; Tùy Chỉnh Biểu Tượng Toàn Cổng BookShare
+                </h5>
+                <p class="small text-muted mb-0">
+                    Tải ảnh biểu tượng riêng (PNG, JPG, WebP, SVG tối đa 2MB) cho từng vị trí trên giao diện. Gạt công tắc sang <strong>Trái</strong> để dùng biểu tượng mặc định, hoặc sang <strong>Phải</strong> để bật ngay ảnh tùy chỉnh trên toàn trang.
+                </p>
+            </div>
+            <div class="d-flex flex-wrap gap-2">
+                <button type="button" class="btn btn-outline-primary btn-sm fw-bold" onclick="window.location.reload()">
+                    <i class="bi bi-arrow-clockwise me-1"></i>Tải Lại Xem Thực Tế
+                </button>
+                <button type="button" id="btnResetAllIcons" class="btn btn-outline-danger btn-sm fw-bold">
+                    <i class="bi bi-arrow-counterclockwise me-1"></i>Khôi Phục Tất Cả Mặc Định
+                </button>
+            </div>
+        </div>
+
+        <div class="d-flex flex-wrap gap-2 mb-4">
+            <button type="button" class="btn btn-sm btn-primary rounded-pill fw-semibold js-icon-cat-filter" data-cat="ALL">
+                Tất cả (@systemIcons.Count)
+            </button>
+            @foreach (var cat in iconCategories)
+            {
+                var count = systemIcons.Count(x => x.CategoryGroup == cat);
+                <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill fw-semibold js-icon-cat-filter" data-cat="@cat">
+                    @cat (@count)
+                </button>
+            }
+        </div>
+
+        <div class="row g-3" id="s22IconGrid">
+            @foreach (var icon in systemIcons)
+            {
+                bool activeCustom = icon.UseCustomImage && !string.IsNullOrWhiteSpace(icon.CustomImageUrl);
+                <div class="col-md-6 col-xl-4 s22-icon-col" data-category="@icon.CategoryGroup">
+                    <div class="s22-icon-card p-3 h-100 d-flex flex-column justify-content-between gap-3"
+                         data-icon-key="@icon.IconKey"
+                         data-default-class="@icon.DefaultIconClass">
+                        <div class="d-flex align-items-start gap-3">
+                            <div class="s22-icon-preview-box js-icon-preview-stage">
+                                @if (activeCustom)
+                                {
+                                    <img src="@icon.CustomImageUrl" alt="@icon.DisplayName" class="s22-icon-preview-img"
+                                         onerror="this.style.display='none';if(this.nextElementSibling)this.nextElementSibling.classList.remove('d-none');" />
+                                    <i class="bi @icon.DefaultIconClass fs-3 text-primary d-none" aria-hidden="true"></i>
+                                }
+                                else
+                                {
+                                    <i class="bi @icon.DefaultIconClass fs-3 text-primary" aria-hidden="true"></i>
+                                }
+                            </div>
+                            <div class="flex-grow-1 min-w-0">
+                                <div class="d-flex justify-content-between align-items-start gap-2 mb-1">
+                                    <span class="badge bg-light text-dark border">@icon.CategoryGroup</span>
+                                    <span class="badge js-icon-mode-badge @(activeCustom ? "bg-success" : "bg-secondary")">
+                                        @(activeCustom ? "Ảnh tùy chỉnh" : "Mặc định")
+                                    </span>
+                                </div>
+                                <div class="fw-bold text-truncate" title="@icon.DisplayName">@icon.DisplayName</div>
+                                <small class="text-muted d-block js-icon-file-hint">
+                                    @(string.IsNullOrWhiteSpace(icon.CustomImageUrl) ? "Chưa có ảnh tùy chỉnh" : "Đã lưu ảnh tùy chỉnh trên máy chủ")
+                                </small>
+                            </div>
+                        </div>
+
+                        <div class="s22-toggle-row">
+                            <span class="s22-toggle-label text-secondary">Mặc định</span>
+                            <div class="form-check form-switch">
+                                <input class="form-check-input js-icon-toggle"
+                                       type="checkbox"
+                                       role="switch"
+                                       id="toggleIcon_@icon.IconKey"
+                                       data-icon-key="@icon.IconKey"
+                                       aria-label="Chuyển đổi chế độ hiển thị cho @icon.DisplayName"
+                                       checked="@activeCustom" />
+                            </div>
+                            <span class="s22-toggle-label text-primary">Ảnh tùy chỉnh</span>
+                        </div>
+
+                        <div class="d-flex gap-2">
+                            <input type="file"
+                                   class="d-none js-icon-file-input"
+                                   data-icon-key="@icon.IconKey"
+                                   accept=".png,.jpg,.jpeg,.webp,.svg" />
+                            <button type="button" class="btn btn-primary btn-sm fw-semibold flex-grow-1 js-icon-upload-btn" data-icon-key="@icon.IconKey">
+                                <i class="bi bi-cloud-arrow-up-fill me-1"></i>Tải Ảnh Lên
+                            </button>
+                            <button type="button" class="btn btn-outline-secondary btn-sm fw-semibold js-icon-reset-btn"
+                                    data-icon-key="@icon.IconKey"
+                                    data-icon-name="@icon.DisplayName"
+                                    title="Khôi phục về biểu tượng mặc định">
+                                <i class="bi bi-arrow-counterclockwise"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+</div>
 </div>
 
 @section Scripts {

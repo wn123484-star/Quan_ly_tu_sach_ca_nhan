@@ -5,6 +5,7 @@ using BookShare.Web.Data;
 using BookShare.Web.Services.Implementations;
 using BookShare.Web.Services.Interfaces;
 using Hangfire;
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.EntityFrameworkCore;
@@ -43,6 +44,29 @@ var authBuilder = builder.Services.AddAuthentication(options =>
     options.ExpireTimeSpan = TimeSpan.FromDays(7);
     options.Events = new CookieAuthenticationEvents
     {
+        OnValidatePrincipal = async context =>
+        {
+            var userId = context.Principal?.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (string.IsNullOrWhiteSpace(userId))
+            {
+                return;
+            }
+
+            try
+            {
+                var db = context.HttpContext.RequestServices.GetRequiredService<BookShareDbContext>();
+                bool exists = await db.AspNetUsers.AsNoTracking().AnyAsync(u => u.Id == userId);
+                if (!exists)
+                {
+                    context.RejectPrincipal();
+                    await context.HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+                }
+            }
+            catch
+            {
+                // Không làm gián đoạn luồng nếu CSDL đang khởi tạo lại
+            }
+        },
         OnRedirectToAccessDenied = async context =>
         {
             if (IsApiOrAjaxRequest(context.HttpContext))
@@ -105,8 +129,11 @@ builder.Services.AddAuthorization(options =>
     options.AddPolicy("RequireUser", policy => policy.RequireRole("User", "Curator", "Librarian", "Admin"));
 });
 
-// 5. Đăng ký HttpClient & Tầng Business Services (Controller không gọi thẳng DbContext)
+// 5. Đăng ký HttpClient, MemoryCache & Tầng Business Services (Controller không gọi thẳng DbContext)
 builder.Services.AddHttpClient();
+builder.Services.AddMemoryCache();
+builder.Services.AddScoped<IDatabaseBootstrapService, DatabaseBootstrapService>();
+builder.Services.AddScoped<ISystemIconService, SystemIconService>();
 // [BOT-GUARD] Đăng ký dịch vụ xác thực Google reCAPTCHA v3 (đọc ReCaptcha:SiteKey & SecretKey từ .env)
 builder.Services.AddScoped<IRecaptchaService, RecaptchaService>();
 builder.Services.AddScoped<IResendEmailService, ResendEmailService>();
@@ -158,6 +185,29 @@ builder.Services.Configure<ForwardedHeadersOptions>(options =>
 });
 
 var app = builder.Build();
+
+// Đồng bộ schema mở rộng, 4 vai trò gốc, tài khoản Quản trị viên (Admin@123) và 18 biểu tượng mặc định ngay khi khởi động
+using (var scope = app.Services.CreateScope())
+{
+    var bootstrap = scope.ServiceProvider.GetRequiredService<IDatabaseBootstrapService>();
+    var bootLogger = scope.ServiceProvider.GetRequiredService<ILoggerFactory>().CreateLogger("StartupBootstrap");
+    for (int attempt = 1; attempt <= 3; attempt++)
+    {
+        try
+        {
+            await bootstrap.EnsureInitializedAsync();
+            break;
+        }
+        catch (Exception ex)
+        {
+            bootLogger.LogWarning(ex, "Database bootstrap attempt {Attempt}/3 failed.", attempt);
+            if (attempt < 3)
+            {
+                await Task.Delay(1000);
+            }
+        }
+    }
+}
 
 app.UseForwardedHeaders();
 

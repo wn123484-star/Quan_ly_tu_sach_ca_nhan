@@ -38,9 +38,13 @@ services:
       - /bin/bash
       - -c
       - |
-        echo "=== [db-init] Khởi tạo CSDL sạch với Schema 27 bảng (01_BookShare_Schema.sql) ==="
-        /opt/mssql-tools/bin/sqlcmd -S sqlserver -U sa -P "$$SA_PASSWORD" -i /sql/01_BookShare_Schema.sql
-        echo "=== [db-init] Đã khởi tạo xong schema BookShareDb. Quản trị viên có thể nạp dữ liệu mẫu bằng 1 chạm tại trang Quản trị hệ thống ==="
+        echo "=== [db-init] Khởi tạo CSDL sạch với Schema 28 bảng (01_BookShare_Schema.sql) ==="
+        if [ -x /opt/mssql-tools18/bin/sqlcmd ]; then
+          /opt/mssql-tools18/bin/sqlcmd -S sqlserver -U sa -P "$$SA_PASSWORD" -C -i /sql/01_BookShare_Schema.sql
+        else
+          /opt/mssql-tools/bin/sqlcmd -S sqlserver -U sa -P "$$SA_PASSWORD" -i /sql/01_BookShare_Schema.sql
+        fi
+        echo "=== [db-init] Đã khởi tạo xong schema BookShareDb (28 bảng). Quản trị viên có thể đăng nhập ngay hoặc nạp dữ liệu mẫu bằng 1 chạm tại trang Quản trị hệ thống ==="
     restart: "no"
 
   # 3. ỨNG DỤNG WEB BOOKSHARE (.NET 10 MVC - Bind 127.0.0.1:5087 -> 5087)

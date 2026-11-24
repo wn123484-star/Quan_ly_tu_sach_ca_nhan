@@ -68,7 +68,7 @@ public class S05IsbnCatalogService : IS05IsbnCatalogService
             PublishedYear = 2022,
             PageCount = 285,
             CategoryId = 5,
-            CoverImageUrl = "https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=400",
+            CoverImageUrl = "/images/book-placeholder.svg",
             Summary = "Cuốn sách truyền cảm hứng tự học, đọc sách, đi trải nghiệm và phát triển bản thân cho sinh viên Việt Nam."
         },
         ["9781098156152"] = new IsbnLookupResultDto

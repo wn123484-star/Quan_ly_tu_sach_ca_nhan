@@ -238,7 +238,7 @@ public class BookHandoverQrService : IBookHandoverQrService
                 ReportedByUserId = currentUserId,
                 ConditionGrade = copy.Condition,
                 Note = $"Xác nhận nhận sách thực tế qua mã QR cho bản sao [{copy.Barcode}].",
-                ImageUrl = copy.Book.CoverImageUrl ?? "https://images.unsplash.com/photo-1532012197267-da84d127e765?w=600",
+                ImageUrl = copy.Book.CoverImageUrl ?? "/images/book-placeholder.svg",
                 CreatedAt = now
             });
 
@@ -308,7 +308,7 @@ public class BookHandoverQrService : IBookHandoverQrService
             ReportedByUserId = currentUserId,
             ConditionGrade = cond,
             Note = $"Xác nhận hoàn trả sách qua mã QR cho bản sao [{copy.Barcode}] (Tình trạng: {cond}).",
-            ImageUrl = copy.Book.CoverImageUrl ?? "https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=600",
+            ImageUrl = copy.Book.CoverImageUrl ?? "/images/book-placeholder.svg",
             CreatedAt = now
         });
 
