@@ -7,16 +7,20 @@ import { apiFetch, showHandoverQrModal, confirmDialog } from '../../js/core-api.
 document.addEventListener('DOMContentLoaded', () => {
     const escAttr = (s) => String(s ?? '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
-    // 0. Admin thành lập CLB / Điểm trạm mới và chỉ định Trưởng nhóm
-    document.getElementById('btnOpenCreateClubModal')?.addEventListener('click', async () => {
+    // 0. Thành lập CLB / Điểm trạm mới — Người lập mặc định giữ vai trò Trưởng nhóm (0 lộ danh sách email)
+    document.getElementById('btnOpenCreateClubModal')?.addEventListener('click', async (e) => {
         if (typeof window.Swal === 'undefined') return;
-        const leaderOptsHtml = document.getElementById('s20CandidateLeaderOptions')?.innerHTML || '';
+        const creatorName = e.currentTarget?.getAttribute('data-creator-name') || 'Bạn (Người sáng lập)';
 
         const { value: formValues } = await window.Swal.fire({
             title: 'Thành Lập Câu Lạc Bộ Sách Mới',
             width: 580,
             html: `
                 <div class="text-start small">
+                    <div class="p-2 rounded-3 border bg-body-tertiary mb-2">
+                        <div class="fw-bold text-primary"><i class="bi bi-award-fill text-warning me-1"></i>Trưởng nhóm mặc định: ${escAttr(creatorName)}</div>
+                        <div class="text-muted" style="font-size:0.78rem;">Người thành lập CLB mặc định làm Trưởng nhóm và có thể kết bạn để mời thêm thành viên hoặc chuyển giao quyền sau.</div>
+                    </div>
                     <label class="fw-bold mb-1">Tên Câu lạc bộ / Điểm trạm *</label>
                     <input id="swalNewClubName" class="form-control form-control-sm mb-2" placeholder="Nhập tên Câu lạc bộ hoặc Điểm trạm sách..." />
                     <label class="fw-bold mb-1">Địa chỉ sinh hoạt &amp; giao nhận *</label>
@@ -31,16 +35,6 @@ document.addEventListener('DOMContentLoaded', () => {
                             </select>
                         </div>
                         <div class="col-6">
-                            <label class="fw-bold mb-1">Chỉ định Trưởng nhóm *</label>
-                            <select id="swalNewClubLeader" class="form-select form-select-sm">${leaderOptsHtml}</select>
-                        </div>
-                    </div>
-                    <div class="row g-2 mb-2">
-                        <div class="col-6">
-                            <label class="fw-bold mb-1">Giờ hoạt động</label>
-                            <input id="swalNewClubHours" class="form-control form-control-sm" value="09:00 - 20:00 (Cả tuần)" />
-                        </div>
-                        <div class="col-6">
                             <label class="fw-bold mb-1">Chế độ gia nhập</label>
                             <select id="swalNewClubPublic" class="form-select form-select-sm">
                                 <option value="1" selected>Nhóm mở (Tham gia ngay)</option>
@@ -48,8 +42,12 @@ document.addEventListener('DOMContentLoaded', () => {
                             </select>
                         </div>
                     </div>
+                    <div class="mb-2">
+                        <label class="fw-bold mb-1">Giờ hoạt động</label>
+                        <input id="swalNewClubHours" class="form-control form-control-sm" value="09:00 - 20:00 (Cả tuần)" />
+                    </div>
                     <label class="fw-bold mb-1">Giới thiệu CLB</label>
-                    <textarea id="swalNewClubDesc" class="form-control form-control-sm mb-2" rows="2" placeholder="Sứ mệnh, chủ đề sách và lịch offline định kỳ..."></textarea>
+                    <textarea id="swalNewClubDesc" class="form-control form-control-sm mb-2" rows="2" placeholder="Sứ mệnh, chủ đề sách và lịch sinh hoạt định kỳ..."></textarea>
                     <label class="fw-bold mb-1">Điều lệ &amp; Nội quy</label>
                     <textarea id="swalNewClubRules" class="form-control form-control-sm" rows="2">1. Chia sẻ sách giấy 100% phi thương mại (0đ). 2. Giữ gìn sách sạch đẹp và trả đúng hẹn.</textarea>
                 </div>`,
@@ -68,7 +66,6 @@ document.addEventListener('DOMContentLoaded', () => {
                     name,
                     address,
                     hubType: document.getElementById('swalNewClubType')?.value || 'ClubStation',
-                    leaderUserId: document.getElementById('swalNewClubLeader')?.value || '',
                     openHours: document.getElementById('swalNewClubHours')?.value.trim() || '09:00 - 20:00',
                     isPublicClub: document.getElementById('swalNewClubPublic')?.value === '1',
                     description: document.getElementById('swalNewClubDesc')?.value.trim() || '',
@@ -82,6 +79,126 @@ document.addEventListener('DOMContentLoaded', () => {
         if (res.ok) {
             const newId = res.data?.hubId;
             window.location.href = newId ? `/S20ExchangeHubClub?hubId=${newId}` : '/S20ExchangeHubClub';
+        }
+    });
+
+    // 0a. Hệ thống Kết Bạn: Tìm kiếm thành viên (0 lộ Email), Gửi lời mời, Chấp nhận / Từ chối, Thu hồi / Hủy kết bạn, Thêm nhanh vào CLB
+    const searchResultsEl = document.getElementById('friendSearchResults');
+    document.getElementById('formSearchFriends')?.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const kw = document.getElementById('friendSearchKeyword')?.value.trim() || '';
+        if (kw.length < 2) return;
+        if (searchResultsEl) {
+            searchResultsEl.innerHTML = '<div class="small text-muted text-center py-3">Đang tìm kiếm thành viên...</div>';
+        }
+        const res = await apiFetch(`/S20ExchangeHubClub/SearchFriends?keyword=${encodeURIComponent(kw)}`, { method: 'GET' });
+        if (!searchResultsEl) return;
+        const items = Array.isArray(res.data?.items) ? res.data.items : [];
+        if (!res.ok || !items.length) {
+            searchResultsEl.innerHTML = '<div class="small text-muted text-center py-3 border rounded-3 bg-white">Không tìm thấy thành viên phù hợp. Hãy nhập tên hiển thị hoặc chính xác địa chỉ Email.</div>';
+            return;
+        }
+        searchResultsEl.innerHTML = items.map(u => {
+            const safeAvatar = escAttr(u.avatarUrl || '/images/avatar-default.svg');
+            const safeName = escAttr(u.fullName || 'Thành viên');
+            let actionHtml = '';
+            if (u.relationStatus === 'Accepted') {
+                actionHtml = '<span class="badge bg-success-subtle text-success border border-success-subtle">✓ Bạn bè</span>';
+            } else if (u.relationStatus === 'PendingSent') {
+                actionHtml = '<span class="badge bg-warning-subtle text-warning-emphasis border">Đã gửi lời mời</span>';
+            } else if (u.relationStatus === 'PendingReceived' && u.friendshipId) {
+                actionHtml = `
+                    <button type="button" class="btn btn-xs btn-success fw-bold js-friend-respond" data-friendship-id="${u.friendshipId}" data-accept="true">Chấp nhận</button>
+                    <button type="button" class="btn btn-xs btn-outline-danger js-friend-respond" data-friendship-id="${u.friendshipId}" data-accept="false">Từ chối</button>`;
+            } else {
+                actionHtml = `<button type="button" class="btn btn-xs btn-primary fw-bold js-friend-send" data-user-id="${escAttr(u.userId)}"><i class="bi bi-person-plus-fill me-1"></i>Kết bạn</button>`;
+            }
+            return `
+                <div class="p-2 rounded-3 border bg-white small d-flex align-items-center justify-content-between gap-2">
+                    <div class="d-flex align-items-center gap-2 min-w-0">
+                        <img src="${safeAvatar}" alt="Ảnh đại diện ${safeName}" onerror="this.onerror=null;this.src='/images/avatar-default.svg';"
+                             class="rounded-circle border flex-shrink-0" style="width:32px;height:32px;object-fit:cover;" />
+                        <div class="min-w-0">
+                            <div class="fw-bold text-truncate">${safeName}</div>
+                            <div class="text-muted" style="font-size:0.74rem;">${escAttr(u.systemRole || 'User')} • Uy tín ${Number(u.trustScore) || 0}</div>
+                        </div>
+                    </div>
+                    <div class="d-flex gap-1 flex-shrink-0">${actionHtml}</div>
+                </div>`;
+        }).join('');
+    });
+
+    document.addEventListener('click', async (e) => {
+        const sendBtn = e.target.closest('.js-friend-send');
+        if (sendBtn) {
+            const targetUserId = sendBtn.getAttribute('data-user-id') || '';
+            const message = document.getElementById('friendRequestNote')?.value.trim() || '';
+            if (!targetUserId) return;
+            const res = await apiFetch('/S20ExchangeHubClub/SendFriendRequest', {
+                method: 'POST',
+                body: { targetUserId, message },
+                button: sendBtn
+            });
+            if (res.ok) setTimeout(() => window.location.reload(), 600);
+            return;
+        }
+
+        const respBtn = e.target.closest('.js-friend-respond');
+        if (respBtn) {
+            const friendshipId = parseInt(respBtn.getAttribute('data-friendship-id') || '0', 10);
+            const accept = respBtn.getAttribute('data-accept') === 'true';
+            if (!friendshipId) return;
+            if (!accept) {
+                const ok = await confirmDialog({
+                    title: 'Từ chối lời mời kết bạn này?',
+                    text: 'Người gửi sẽ được thông báo lời mời không được chấp nhận.',
+                    confirmText: 'Từ chối lời mời',
+                    danger: true
+                });
+                if (!ok) return;
+            }
+            const res = await apiFetch('/S20ExchangeHubClub/RespondFriendRequest', {
+                method: 'POST',
+                body: { friendshipId, accept },
+                button: respBtn
+            });
+            if (res.ok) setTimeout(() => window.location.reload(), 550);
+            return;
+        }
+
+        const removeBtn = e.target.closest('.js-friend-remove');
+        if (removeBtn) {
+            const friendshipId = parseInt(removeBtn.getAttribute('data-friendship-id') || '0', 10);
+            const peerName = removeBtn.getAttribute('data-peer-name') || 'thành viên này';
+            const isPending = removeBtn.getAttribute('data-is-pending') === '1';
+            if (!friendshipId) return;
+            const ok = await confirmDialog({
+                title: isPending ? `Thu hồi lời mời gửi tới "${peerName}"?` : `Hủy kết bạn với "${peerName}"?`,
+                text: isPending ? 'Lời mời kết bạn sẽ bị hủy bỏ ngay lập tức.' : 'Hai bạn sẽ không còn trong danh sách bạn bè của nhau.',
+                confirmText: isPending ? 'Thu hồi' : 'Hủy kết bạn',
+                danger: true
+            });
+            if (!ok) return;
+            const res = await apiFetch('/S20ExchangeHubClub/RemoveFriendship', {
+                method: 'POST',
+                body: { friendshipId },
+                button: removeBtn
+            });
+            if (res.ok) setTimeout(() => window.location.reload(), 550);
+            return;
+        }
+
+        const quickAddBtn = e.target.closest('.js-friend-quick-add');
+        if (quickAddBtn) {
+            const hubId = parseInt(quickAddBtn.getAttribute('data-hub-id') || '0', 10);
+            const targetUserId = quickAddBtn.getAttribute('data-user-id') || '';
+            if (!hubId || !targetUserId) return;
+            const res = await apiFetch('/S20ExchangeHubClub/AddClubMember', {
+                method: 'POST',
+                body: { hubId, targetUserId, memberRole: 'Member' },
+                button: quickAddBtn
+            });
+            if (res.ok) setTimeout(() => window.location.reload(), 550);
         }
     });
 

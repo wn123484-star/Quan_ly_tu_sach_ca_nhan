@@ -373,6 +373,7 @@ public class S19AdminResolveDisputeDto
 public class S20ExchangeHubClubPageViewModel
 {
     public string CurrentUserId { get; set; } = string.Empty;
+    public string CurrentUserFullName { get; set; } = string.Empty;
     public string CurrentUserRole { get; set; } = "User";
     public int TotalHubsCount { get; set; }
     public int TotalClubsCount { get; set; }
@@ -404,10 +405,66 @@ public class S20ExchangeHubClubPageViewModel
 
     public List<S20HubStationDto> Hubs { get; set; } = new();
     public List<S20ClubMemberDto> SelectedClubMembers { get; set; } = new();
+    public List<S20ClubMemberOptionDto> EligibleLeaderMembers { get; set; } = new();
     public List<S20ClubPostDto> SelectedClubPosts { get; set; } = new();
     public List<S20UserOptionDto> CandidateUsers { get; set; } = new();
+    public List<S20FriendItemDto> Friends { get; set; } = new();
+    public List<S20FriendItemDto> IncomingFriendRequests { get; set; } = new();
+    public List<S20FriendItemDto> OutgoingFriendRequests { get; set; } = new();
     public List<S20HubBookCopyDto> HubCopies { get; set; } = new();
     public List<S20HubLoanOrderDto> HubP2POrders { get; set; } = new();
+}
+
+public class S20ClubMemberOptionDto
+{
+    public string UserId { get; set; } = string.Empty;
+    public string FullName { get; set; } = string.Empty;
+    public string MemberRole { get; set; } = "Member";
+    public int TrustScore { get; set; }
+}
+
+public class S20FriendItemDto
+{
+    public int FriendshipId { get; set; }
+    public string UserId { get; set; } = string.Empty;
+    public string FullName { get; set; } = string.Empty;
+    public string SystemRole { get; set; } = "User";
+    public int TrustScore { get; set; }
+    public string AvatarUrl { get; set; } = "/images/avatar-default.svg";
+    public string Status { get; set; } = "Pending"; // Pending / Accepted / Rejected
+    public string? Message { get; set; }
+    public DateTime CreatedAt { get; set; }
+    public DateTime? RespondedAt { get; set; }
+    public bool IsInSelectedClub { get; set; }
+}
+
+public class S20FriendCandidateDto
+{
+    public string UserId { get; set; } = string.Empty;
+    public string FullName { get; set; } = string.Empty;
+    public string SystemRole { get; set; } = "User";
+    public int TrustScore { get; set; }
+    public string AvatarUrl { get; set; } = "/images/avatar-default.svg";
+    public string RelationStatus { get; set; } = "None"; // None / PendingSent / PendingReceived / Accepted / Rejected
+    public int? FriendshipId { get; set; }
+}
+
+public class S20SendFriendRequestDto
+{
+    public string? TargetUserId { get; set; }
+    public string? TargetEmail { get; set; }
+    public string? Message { get; set; }
+}
+
+public class S20RespondFriendRequestDto
+{
+    public int FriendshipId { get; set; }
+    public bool Accept { get; set; } = true;
+}
+
+public class S20RemoveFriendshipDto
+{
+    public int FriendshipId { get; set; }
 }
 
 public class S20HubStationDto

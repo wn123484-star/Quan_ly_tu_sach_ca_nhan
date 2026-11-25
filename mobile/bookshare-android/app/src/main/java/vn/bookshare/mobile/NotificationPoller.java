@@ -88,6 +88,16 @@ public class NotificationPoller extends Worker {
         );
     }
 
+    public static void clearDeliveredState(@NonNull Context context) {
+        try {
+            NotificationManagerCompat.from(context).cancelAll();
+        } catch (Exception ignored) {
+            // Bỏ qua nếu hệ thống từ chối hủy thông báo
+        }
+        SharedPreferences prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
+        prefs.edit().clear().apply();
+    }
+
     public static void triggerNow(@NonNull Context context) {
         ensureChannel(context);
         Constraints constraints = new Constraints.Builder()
@@ -183,10 +193,10 @@ public class NotificationPoller extends Worker {
             conn.setReadTimeout(10000);
             conn.setRequestProperty("Cookie", cookies);
             conn.setRequestProperty("Accept", "application/json");
-            conn.setRequestProperty("User-Agent", "BookShareAndroidApp/1.0");
+            conn.setRequestProperty("User-Agent", "BookShareAndroidApp/" + BuildConfig.VERSION_NAME);
 
             int status = conn.getResponseCode();
-            if (status != HttpURLConnection.HTTP_OK) {
+            if (status == HttpURLConnection.HTTP_UNAUTHORIZED || status != HttpURLConnection.HTTP_OK) {
                 return Result.success();
             }
 

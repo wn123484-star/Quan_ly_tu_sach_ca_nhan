@@ -184,6 +184,10 @@ public class S18NotificationHubService : IS18NotificationHubService
         {
             return "/S22AdminAnalytics";
         }
+        if (combined.Contains("kết bạn") || combined.Contains("câu lạc bộ") || combined.Contains("clb"))
+        {
+            return "/S20ExchangeHubClub";
+        }
         return $"/S18NotificationHub?highlight={notifId}";
     }
 

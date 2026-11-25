@@ -54,8 +54,8 @@ public class S20ExchangeHubClubService : IS20ExchangeHubClubService
             Address = l.Address,
             ManagerUserId = l.ManagerUserId,
             ManagerName = l.ManagerUser?.FullName ?? "Ban Điều Hành",
-            ManagerEmail = l.ManagerUser?.Email ?? string.Empty,
-            Phone = l.Phone ?? "0901-000-003",
+            ManagerEmail = string.Empty,
+            Phone = l.Phone ?? "Liên hệ qua bảng tin CLB",
             HubType = l.HubType,
             OpenHours = l.OpenHours ?? "08:00 - 18:00",
             Description = l.Description,
@@ -136,10 +136,8 @@ public class S20ExchangeHubClubService : IS20ExchangeHubClubService
                 HubId = m.HubId,
                 UserId = m.UserId,
                 FullName = m.User.FullName,
-                // [ANTI-PII-LEAK] Chỉ Quản trị viên / Trưởng-Phó CLB hoặc chính chủ mới nhìn thấy Email thành viên
-                Email = (canManageSelected || string.Equals(m.UserId, currentUserId, StringComparison.OrdinalIgnoreCase))
-                    ? (m.User.Email ?? string.Empty)
-                    : string.Empty,
+                // [ANTI-PII-LEAK] Tuyệt đối không phơi bày địa chỉ Email cá nhân của thành viên CLB trên giao diện nhóm
+                Email = string.Empty,
                 SystemRole = m.User.Roles.FirstOrDefault()?.Name ?? "User",
                 TrustScore = m.User.TrustScore,
                 MemberRole = m.MemberRole,
@@ -148,6 +146,22 @@ public class S20ExchangeHubClubService : IS20ExchangeHubClubService
                 AddedByName = m.AddedByUser?.FullName,
                 JoinedAt = m.JoinedAt
             }).ToList();
+
+        // Thành viên chính thức của CLB đang chọn (dùng cho chức năng chuyển giao Trưởng nhóm — 0 lộ danh sách người lạ/email)
+        var eligibleLeaderMembers = rawMembers
+            .Where(m => m.Status == "Approved")
+            .Select(m => new S20ClubMemberOptionDto
+            {
+                UserId = m.UserId,
+                FullName = m.User.FullName,
+                MemberRole = m.MemberRole,
+                TrustScore = m.User.TrustScore
+            })
+            .ToList();
+
+        var approvedMemberUserIds = new HashSet<string>(
+            rawMembers.Where(m => m.Status == "Approved").Select(m => m.UserId),
+            StringComparer.OrdinalIgnoreCase);
 
         // Bảng tin CLB đang chọn
         var memberRoleByUser = rawMembers.ToDictionary(m => m.UserId, m => m.MemberRole, StringComparer.OrdinalIgnoreCase);
@@ -178,23 +192,60 @@ public class S20ExchangeHubClubService : IS20ExchangeHubClubService
             post.AuthorClubRole = memberRoleByUser.TryGetValue(post.AuthorUserId, out var r) ? r : "Admin";
         }
 
-        // Danh sách thành viên hệ thống để Admin/Trưởng nhóm chọn thêm vào CLB hoặc bổ nhiệm Trưởng nhóm
-        var candidateUsers = (isAdmin || canManageSelected)
-            ? await _db.AspNetUsers
+        // [ANTI-PII-LEAK] Không trả danh sách toàn bộ người dùng kèm Email ra DOM; thay bằng mạng lưới Bạn bè đã kết bạn
+        string currentUserFullName = string.Empty;
+        var friends = new List<S20FriendItemDto>();
+        var incomingFriendRequests = new List<S20FriendItemDto>();
+        var outgoingFriendRequests = new List<S20FriendItemDto>();
+
+        if (!string.IsNullOrWhiteSpace(currentUserId))
+        {
+            currentUserFullName = await _db.AspNetUsers
                 .AsNoTracking()
-                .Include(u => u.Roles)
-                .Where(u => !u.LockoutEnd.HasValue || u.LockoutEnd.Value <= DateTimeOffset.UtcNow)
-                .OrderBy(u => u.FullName)
-                .Select(u => new S20UserOptionDto
+                .Where(u => u.Id == currentUserId)
+                .Select(u => u.FullName)
+                .FirstOrDefaultAsync() ?? string.Empty;
+
+            var myFriendships = await _db.Friendships
+                .AsNoTracking()
+                .Include(f => f.Requester).ThenInclude(u => u.Roles)
+                .Include(f => f.Addressee).ThenInclude(u => u.Roles)
+                .Where(f => (f.RequesterId == currentUserId || f.AddresseeId == currentUserId) && f.Status != "Rejected")
+                .OrderByDescending(f => f.RespondedAt ?? f.CreatedAt)
+                .ToListAsync();
+
+            foreach (var f in myFriendships)
+            {
+                bool iAmRequester = string.Equals(f.RequesterId, currentUserId, StringComparison.OrdinalIgnoreCase);
+                var peer = iAmRequester ? f.Addressee : f.Requester;
+                var dto = new S20FriendItemDto
                 {
-                    UserId = u.Id,
-                    FullName = u.FullName,
-                    Email = u.Email ?? string.Empty,
-                    RoleName = u.Roles.Select(r => r.Name).FirstOrDefault() ?? "User",
-                    TrustScore = u.TrustScore
-                })
-                .ToListAsync()
-            : new List<S20UserOptionDto>();
+                    FriendshipId = f.Id,
+                    UserId = peer.Id,
+                    FullName = peer.FullName,
+                    SystemRole = peer.Roles.FirstOrDefault()?.Name ?? "User",
+                    TrustScore = peer.TrustScore,
+                    AvatarUrl = string.IsNullOrWhiteSpace(peer.AvatarUrl) ? "/images/avatar-default.svg" : peer.AvatarUrl,
+                    Status = f.Status,
+                    Message = f.Message,
+                    CreatedAt = f.CreatedAt,
+                    RespondedAt = f.RespondedAt,
+                    IsInSelectedClub = approvedMemberUserIds.Contains(peer.Id)
+                };
+
+                if (f.Status == "Accepted")
+                {
+                    friends.Add(dto);
+                }
+                else if (f.Status == "Pending")
+                {
+                    if (iAmRequester) outgoingFriendRequests.Add(dto);
+                    else incomingFriendRequests.Add(dto);
+                }
+            }
+        }
+
+        var candidateUsers = new List<S20UserOptionDto>();
 
         // Bản sao ký gửi tại các trạm / CLB (ưu tiên CLB đang chọn + toàn bộ P2P)
         var p2pCopies = await _db.BookCopies
@@ -264,6 +315,7 @@ public class S20ExchangeHubClubService : IS20ExchangeHubClubService
         return new S20ExchangeHubClubPageViewModel
         {
             CurrentUserId = currentUserId,
+            CurrentUserFullName = currentUserFullName,
             CurrentUserRole = currentUserRole,
             TotalHubsCount = allHubDtos.Count,
             TotalClubsCount = allHubDtos.Count(h => h.HubType is "ClubStation" or "DropoffHub"),
@@ -288,8 +340,12 @@ public class S20ExchangeHubClubService : IS20ExchangeHubClubService
             CurrentUserClubStatus = myMembership?.Status,
             Hubs = visibleHubs.Any() ? visibleHubs : allHubDtos,
             SelectedClubMembers = memberDtos,
+            EligibleLeaderMembers = eligibleLeaderMembers,
             SelectedClubPosts = clubPosts,
             CandidateUsers = candidateUsers,
+            Friends = friends,
+            IncomingFriendRequests = incomingFriendRequests,
+            OutgoingFriendRequests = outgoingFriendRequests,
             HubCopies = p2pCopies,
             HubP2POrders = pagedOrders
         };
@@ -312,7 +368,8 @@ public class S20ExchangeHubClubService : IS20ExchangeHubClubService
     }
 
     public async Task<(bool Success, string Message, int HubId)> CreateClubAsync(
-        string adminUserId,
+        string creatorUserId,
+        string creatorRole,
         S20CreateClubDto request)
     {
         if (string.IsNullOrWhiteSpace(request.Name) || string.IsNullOrWhiteSpace(request.Address))
@@ -320,7 +377,18 @@ public class S20ExchangeHubClubService : IS20ExchangeHubClubService
             return (false, "Tên Câu lạc bộ / Điểm trạm và Địa chỉ không được để trống.", 0);
         }
 
-        string leaderId = string.IsNullOrWhiteSpace(request.LeaderUserId) ? adminUserId : request.LeaderUserId.Trim();
+        string cleanName = request.Name.Trim();
+        string cleanAddress = request.Address.Trim();
+        if (cleanName.Length > 180 || cleanAddress.Length > 300)
+        {
+            return (false, "Tên Câu lạc bộ tối đa 180 ký tự và Địa chỉ tối đa 300 ký tự.", 0);
+        }
+
+        // Mặc định người thành lập CLB là Trưởng nhóm; chỉ Quản trị viên mới được chỉ định Trưởng nhóm khác qua API nếu truyền rõ
+        bool isAdmin = string.Equals(creatorRole, "Admin", StringComparison.OrdinalIgnoreCase);
+        string leaderId = (isAdmin && !string.IsNullOrWhiteSpace(request.LeaderUserId))
+            ? request.LeaderUserId.Trim()
+            : creatorUserId;
         var leaderUser = await _db.AspNetUsers.FirstOrDefaultAsync(u => u.Id == leaderId);
         if (leaderUser == null)
         {
@@ -332,10 +400,10 @@ public class S20ExchangeHubClubService : IS20ExchangeHubClubService
 
         var hub = new Library
         {
-            Name = request.Name.Trim(),
-            Address = request.Address.Trim(),
+            Name = cleanName,
+            Address = cleanAddress,
             ManagerUserId = leaderUser.Id,
-            Phone = string.IsNullOrWhiteSpace(request.Phone) ? (leaderUser.PhoneNumber ?? "0901-000-003") : request.Phone.Trim(),
+            Phone = string.IsNullOrWhiteSpace(request.Phone) ? "Liên hệ qua bảng tin CLB" : request.Phone.Trim(),
             HubType = hubType,
             OpenHours = string.IsNullOrWhiteSpace(request.OpenHours) ? "09:00 - 20:00 (Cả tuần)" : request.OpenHours.Trim(),
             Description = string.IsNullOrWhiteSpace(request.Description)
@@ -351,34 +419,35 @@ public class S20ExchangeHubClubService : IS20ExchangeHubClubService
         _db.Libraries.Add(hub);
         await _db.SaveChangesAsync();
 
+        bool isSelfFounded = string.Equals(leaderUser.Id, creatorUserId, StringComparison.OrdinalIgnoreCase);
         _db.ClubMembers.Add(new ClubMember
         {
             HubId = hub.Id,
             UserId = leaderUser.Id,
             MemberRole = "Leader",
             Status = "Approved",
-            JoinNote = "Trưởng nhóm sáng lập được Quản trị viên chỉ định",
-            AddedByUserId = adminUserId,
+            JoinNote = isSelfFounded ? "Trưởng nhóm sáng lập Câu lạc bộ" : "Trưởng nhóm sáng lập được Quản trị viên chỉ định",
+            AddedByUserId = creatorUserId,
             JoinedAt = DateTime.UtcNow
         });
 
         _db.ClubPosts.Add(new ClubPost
         {
             HubId = hub.Id,
-            AuthorUserId = adminUserId,
+            AuthorUserId = creatorUserId,
             Title = $"Chào mừng đến với {hub.Name}!",
-            Content = $"Câu lạc bộ chính thức đi vào hoạt động do Trưởng nhóm {leaderUser.FullName} điều hành. Mời các thành viên tham gia, chia sẻ tủ sách và giao lưu đọc sách mỗi tuần!",
+            Content = $"Câu lạc bộ chính thức đi vào hoạt động do Trưởng nhóm {leaderUser.FullName} điều hành. Mời các thành viên kết bạn, tham gia nhóm và chia sẻ tủ sách mỗi tuần!",
             IsPinned = true,
             CreatedAt = DateTime.UtcNow
         });
 
-        if (leaderUser.Id != adminUserId)
+        if (!isSelfFounded)
         {
             _db.Notifications.Add(new Notification
             {
                 UserId = leaderUser.Id,
                 Title = $"Bạn được bổ nhiệm làm Trưởng nhóm \"{hub.Name}\"",
-                Content = "Quản trị viên vừa thành lập CLB và bổ nhiệm bạn làm Trưởng nhóm điều hành. Bạn có thể thêm thành viên, duyệt đơn gia nhập và đăng thông báo tại Không gian CLB.",
+                Content = "Quản trị viên vừa thành lập CLB và bổ nhiệm bạn làm Trưởng nhóm điều hành. Bạn có thể kết bạn, thêm thành viên, duyệt đơn gia nhập và đăng thông báo tại Không gian CLB.",
                 Type = "System",
                 IsRead = false,
                 EmailSentViaResend = false,
@@ -387,7 +456,7 @@ public class S20ExchangeHubClubService : IS20ExchangeHubClubService
         }
 
         await _db.SaveChangesAsync();
-        return (true, $"Đã tạo thành công CLB \"{hub.Name}\" với Trưởng nhóm là {leaderUser.FullName}!", hub.Id);
+        return (true, $"Đã thành lập CLB \"{hub.Name}\" thành công! Trưởng nhóm mặc định: {leaderUser.FullName}.", hub.Id);
     }
 
     public async Task<(bool Success, string Message)> AssignClubLeaderAsync(
@@ -406,16 +475,22 @@ public class S20ExchangeHubClubService : IS20ExchangeHubClubService
         var newLeader = await _db.AspNetUsers.FirstOrDefaultAsync(u => u.Id == request.LeaderUserId);
         if (newLeader == null) return (false, "Không tìm thấy tài khoản thành viên được bổ nhiệm.");
 
+        var existingMembers = await _db.ClubMembers.Where(m => m.HubId == hub.Id).ToListAsync();
+        bool isAdmin = string.Equals(currentUserRole, "Admin", StringComparison.OrdinalIgnoreCase);
+        var targetRow = existingMembers.FirstOrDefault(m => m.UserId == newLeader.Id);
+        if (!isAdmin && (targetRow == null || targetRow.Status != "Approved"))
+        {
+            return (false, "Chỉ có thể chuyển giao quyền Trưởng nhóm cho thành viên chính thức hiện có trong CLB này.");
+        }
+
         string oldLeaderId = hub.ManagerUserId;
         hub.ManagerUserId = newLeader.Id;
 
-        var existingMembers = await _db.ClubMembers.Where(m => m.HubId == hub.Id).ToListAsync();
         foreach (var old in existingMembers.Where(m => m.MemberRole == "Leader" && m.UserId != newLeader.Id))
         {
             old.MemberRole = "ViceLeader";
         }
 
-        var targetRow = existingMembers.FirstOrDefault(m => m.UserId == newLeader.Id);
         if (targetRow == null)
         {
             _db.ClubMembers.Add(new ClubMember
@@ -479,12 +554,29 @@ public class S20ExchangeHubClubService : IS20ExchangeHubClubService
 
         if (targetUser == null)
         {
-            return (false, "Không tìm thấy thành viên khớp với tài khoản hoặc địa chỉ Email đã nhập.");
+            return (false, "Không tìm thấy thành viên phù hợp để thêm vào Câu lạc bộ.");
+        }
+
+        if (targetUser.LockoutEnd.HasValue && targetUser.LockoutEnd.Value > DateTimeOffset.UtcNow)
+        {
+            return (false, "Tài khoản này đang bị tạm khóa nên không thể thêm vào Câu lạc bộ.");
+        }
+
+        var existing = await _db.ClubMembers.FirstOrDefaultAsync(m => m.HubId == hub.Id && m.UserId == targetUser.Id);
+        bool isAdmin = string.Equals(currentUserRole, "Admin", StringComparison.OrdinalIgnoreCase);
+        bool hasPendingJoin = existing != null && existing.Status == "Pending";
+        bool isFriend = await _db.Friendships.AnyAsync(f =>
+            f.Status == "Accepted" &&
+            ((f.RequesterId == currentUserId && f.AddresseeId == targetUser.Id) ||
+             (f.RequesterId == targetUser.Id && f.AddresseeId == currentUserId)));
+
+        if (!isAdmin && !string.Equals(targetUser.Id, currentUserId, StringComparison.OrdinalIgnoreCase) && !isFriend && !hasPendingJoin)
+        {
+            return (false, $"Bạn cần gửi lời mời kết bạn và được {targetUser.FullName} chấp nhận trước khi thêm trực tiếp vào Câu lạc bộ!");
         }
 
         bool isLeaderOrAdmin = await IsHubLeaderOrAdminAsync(hub, currentUserId, currentUserRole);
         string assignedRole = (request.MemberRole == "ViceLeader" && isLeaderOrAdmin) ? "ViceLeader" : "Member";
-        var existing = await _db.ClubMembers.FirstOrDefaultAsync(m => m.HubId == hub.Id && m.UserId == targetUser.Id);
         if (existing != null)
         {
             if (existing.Status == "Approved")
@@ -504,7 +596,7 @@ public class S20ExchangeHubClubService : IS20ExchangeHubClubService
                 UserId = targetUser.Id,
                 MemberRole = assignedRole,
                 Status = "Approved",
-                JoinNote = "Được Ban điều hành thêm trực tiếp vào nhóm CLB",
+                JoinNote = isFriend ? "Được bạn bè trong Ban điều hành mời vào nhóm CLB" : "Được Ban điều hành thêm trực tiếp vào nhóm CLB",
                 AddedByUserId = currentUserId,
                 JoinedAt = DateTime.UtcNow
             });
@@ -523,6 +615,274 @@ public class S20ExchangeHubClubService : IS20ExchangeHubClubService
 
         await _db.SaveChangesAsync();
         return (true, $"Đã thêm {targetUser.FullName} vào nhóm CLB \"{hub.Name}\" thành công!");
+    }
+
+    public async Task<List<S20FriendCandidateDto>> SearchFriendCandidatesAsync(
+        string currentUserId,
+        string? keyword)
+    {
+        if (string.IsNullOrWhiteSpace(currentUserId) || string.IsNullOrWhiteSpace(keyword))
+        {
+            return new List<S20FriendCandidateDto>();
+        }
+
+        string kw = keyword.Trim();
+        if (kw.Length < 2 || kw.Length > 120)
+        {
+            return new List<S20FriendCandidateDto>();
+        }
+
+        string normExactEmail = kw.ToUpperInvariant();
+        bool looksLikeEmail = kw.Contains('@');
+        var now = DateTimeOffset.UtcNow;
+
+        var usersQuery = _db.AspNetUsers
+            .AsNoTracking()
+            .Include(u => u.Roles)
+            .Where(u => u.Id != currentUserId && (!u.LockoutEnd.HasValue || u.LockoutEnd.Value <= now));
+
+        // Bảo vệ PII: chỉ khớp Email chính xác 100% (không hỗ trợ tìm chuỗi con Email để tránh dò quét danh bạ)
+        usersQuery = looksLikeEmail
+            ? usersQuery.Where(u => u.NormalizedEmail == normExactEmail)
+            : usersQuery.Where(u => u.FullName.Contains(kw));
+
+        var matches = await usersQuery
+            .OrderByDescending(u => u.TrustScore)
+            .ThenBy(u => u.FullName)
+            .Take(12)
+            .ToListAsync();
+
+        if (!matches.Any())
+        {
+            return new List<S20FriendCandidateDto>();
+        }
+
+        var matchIds = matches.Select(u => u.Id).ToList();
+        var existingPairs = await _db.Friendships
+            .AsNoTracking()
+            .Where(f =>
+                (f.RequesterId == currentUserId && matchIds.Contains(f.AddresseeId)) ||
+                (f.AddresseeId == currentUserId && matchIds.Contains(f.RequesterId)))
+            .ToListAsync();
+
+        return matches.Select(u =>
+        {
+            var rel = existingPairs.FirstOrDefault(f =>
+                (f.RequesterId == currentUserId && f.AddresseeId == u.Id) ||
+                (f.RequesterId == u.Id && f.AddresseeId == currentUserId));
+
+            string relStatus = "None";
+            if (rel != null)
+            {
+                if (rel.Status == "Accepted") relStatus = "Accepted";
+                else if (rel.Status == "Rejected") relStatus = "Rejected";
+                else if (rel.Status == "Pending")
+                    relStatus = string.Equals(rel.RequesterId, currentUserId, StringComparison.OrdinalIgnoreCase)
+                        ? "PendingSent"
+                        : "PendingReceived";
+            }
+
+            return new S20FriendCandidateDto
+            {
+                UserId = u.Id,
+                FullName = u.FullName,
+                SystemRole = u.Roles.FirstOrDefault()?.Name ?? "User",
+                TrustScore = u.TrustScore,
+                AvatarUrl = string.IsNullOrWhiteSpace(u.AvatarUrl) ? "/images/avatar-default.svg" : u.AvatarUrl,
+                RelationStatus = relStatus,
+                FriendshipId = rel?.Id
+            };
+        }).ToList();
+    }
+
+    public async Task<(bool Success, string Message, int FriendshipId)> SendFriendRequestAsync(
+        string currentUserId,
+        S20SendFriendRequestDto request)
+    {
+        var (allowed, retrySec, rlMsg) = _rateLimiter.TryConsume(
+            "s20-friend-request",
+            currentUserId,
+            maxRequests: 15,
+            window: TimeSpan.FromMinutes(10),
+            customMessage: "Bạn đã gửi quá nhiều lời mời kết bạn trong 10 phút. Vui lòng đợi giây lát.");
+        if (!allowed)
+        {
+            throw new RateLimitExceededException(rlMsg, retrySec);
+        }
+
+        var requester = await _db.AspNetUsers.AsNoTracking().FirstOrDefaultAsync(u => u.Id == currentUserId);
+        if (requester == null)
+        {
+            return (false, "Không tìm thấy thông tin tài khoản hiện tại.", 0);
+        }
+
+        AspNetUser? target = null;
+        if (!string.IsNullOrWhiteSpace(request.TargetUserId))
+        {
+            target = await _db.AspNetUsers.FirstOrDefaultAsync(u => u.Id == request.TargetUserId.Trim());
+        }
+        else if (!string.IsNullOrWhiteSpace(request.TargetEmail))
+        {
+            string normEmail = request.TargetEmail.Trim().ToUpperInvariant();
+            target = await _db.AspNetUsers.FirstOrDefaultAsync(u => u.NormalizedEmail == normEmail || u.NormalizedUserName == normEmail);
+        }
+
+        if (target == null)
+        {
+            return (false, "Không tìm thấy thành viên bạn muốn gửi lời mời kết bạn.", 0);
+        }
+        if (string.Equals(target.Id, currentUserId, StringComparison.OrdinalIgnoreCase))
+        {
+            return (false, "Bạn không thể tự gửi lời mời kết bạn cho chính mình.", 0);
+        }
+        if (target.LockoutEnd.HasValue && target.LockoutEnd.Value > DateTimeOffset.UtcNow)
+        {
+            return (false, "Tài khoản này hiện đang bị tạm khóa nên không thể nhận lời mời kết bạn.", 0);
+        }
+
+        string? cleanMsg = string.IsNullOrWhiteSpace(request.Message) ? null : request.Message.Trim();
+        if (cleanMsg != null && cleanMsg.Length > 280)
+        {
+            return (false, "Lời nhắn kết bạn tối đa 280 ký tự.", 0);
+        }
+
+        var existing = await _db.Friendships.FirstOrDefaultAsync(f =>
+            (f.RequesterId == currentUserId && f.AddresseeId == target.Id) ||
+            (f.RequesterId == target.Id && f.AddresseeId == currentUserId));
+
+        Friendship friendship;
+        if (existing != null)
+        {
+            if (existing.Status == "Accepted")
+            {
+                return (false, $"Bạn và {target.FullName} đã là bạn bè trên BookShare.", existing.Id);
+            }
+            if (existing.Status == "Pending")
+            {
+                if (string.Equals(existing.RequesterId, currentUserId, StringComparison.OrdinalIgnoreCase))
+                {
+                    return (false, $"Bạn đã gửi lời mời kết bạn cho {target.FullName} và đang chờ phản hồi.", existing.Id);
+                }
+                return (false, $"{target.FullName} đã gửi lời mời kết bạn cho bạn. Hãy chọn Chấp nhận ở mục Lời mời kết bạn đến!", existing.Id);
+            }
+
+            // Nếu lời mời trước đây đã bị từ chối -> cho phép gửi lại lời mời mới
+            existing.RequesterId = currentUserId;
+            existing.AddresseeId = target.Id;
+            existing.Status = "Pending";
+            existing.Message = cleanMsg ?? "Kết bạn để giao lưu đọc sách và tham gia Câu lạc bộ cùng nhau!";
+            existing.CreatedAt = DateTime.UtcNow;
+            existing.RespondedAt = null;
+            friendship = existing;
+        }
+        else
+        {
+            friendship = new Friendship
+            {
+                RequesterId = currentUserId,
+                AddresseeId = target.Id,
+                Status = "Pending",
+                Message = cleanMsg ?? "Kết bạn để giao lưu đọc sách và tham gia Câu lạc bộ cùng nhau!",
+                CreatedAt = DateTime.UtcNow
+            };
+            _db.Friendships.Add(friendship);
+        }
+
+        _db.Notifications.Add(new Notification
+        {
+            UserId = target.Id,
+            Title = $"Lời mời kết bạn mới từ {requester.FullName}",
+            Content = $"{requester.FullName} đã gửi lời mời kết bạn với bạn trên BookShare. Bạn có thể Chấp nhận hoặc Từ chối tại mục Kết bạn trong Không gian Câu lạc bộ.",
+            Type = "System",
+            IsRead = false,
+            EmailSentViaResend = false,
+            CreatedAt = DateTime.UtcNow
+        });
+
+        await _db.SaveChangesAsync();
+        return (true, $"Đã gửi lời mời kết bạn tới {target.FullName}! Chờ phản hồi chấp nhận từ thành viên này.", friendship.Id);
+    }
+
+    public async Task<(bool Success, string Message)> RespondFriendRequestAsync(
+        string currentUserId,
+        S20RespondFriendRequestDto request)
+    {
+        var friendship = await _db.Friendships
+            .Include(f => f.Requester)
+            .Include(f => f.Addressee)
+            .FirstOrDefaultAsync(f => f.Id == request.FriendshipId);
+
+        if (friendship == null)
+        {
+            return (false, "Không tìm thấy lời mời kết bạn cần phản hồi.");
+        }
+
+        if (!string.Equals(friendship.AddresseeId, currentUserId, StringComparison.OrdinalIgnoreCase))
+        {
+            throw new UnauthorizedAccessException("Chỉ người nhận lời mời kết bạn mới có quyền chấp nhận hoặc từ chối.");
+        }
+
+        if (friendship.Status != "Pending")
+        {
+            return (false, "Lời mời kết bạn này đã được xử lý trước đó.");
+        }
+
+        friendship.Status = request.Accept ? "Accepted" : "Rejected";
+        friendship.RespondedAt = DateTime.UtcNow;
+
+        _db.Notifications.Add(new Notification
+        {
+            UserId = friendship.RequesterId,
+            Title = request.Accept
+                ? $"{friendship.Addressee.FullName} đã chấp nhận lời mời kết bạn"
+                : $"Lời mời kết bạn tới {friendship.Addressee.FullName} đã bị từ chối",
+            Content = request.Accept
+                ? $"Bạn và {friendship.Addressee.FullName} đã trở thành bạn bè! Giờ bạn có thể thêm họ vào nhóm Câu lạc bộ đọc sách."
+                : $"{friendship.Addressee.FullName} đã từ chối lời mời kết bạn của bạn.",
+            Type = "System",
+            IsRead = false,
+            EmailSentViaResend = false,
+            CreatedAt = DateTime.UtcNow
+        });
+
+        await _db.SaveChangesAsync();
+        return request.Accept
+            ? (true, $"Đã chấp nhận lời mời kết bạn của {friendship.Requester.FullName}!")
+            : (true, $"Đã từ chối lời mời kết bạn của {friendship.Requester.FullName}.");
+    }
+
+    public async Task<(bool Success, string Message)> RemoveFriendshipAsync(
+        string currentUserId,
+        int friendshipId)
+    {
+        var friendship = await _db.Friendships
+            .Include(f => f.Requester)
+            .Include(f => f.Addressee)
+            .FirstOrDefaultAsync(f => f.Id == friendshipId);
+
+        if (friendship == null)
+        {
+            return (false, "Không tìm thấy kết nối bạn bè hoặc lời mời cần hủy.");
+        }
+
+        bool isParticipant = string.Equals(friendship.RequesterId, currentUserId, StringComparison.OrdinalIgnoreCase)
+            || string.Equals(friendship.AddresseeId, currentUserId, StringComparison.OrdinalIgnoreCase);
+        if (!isParticipant)
+        {
+            throw new UnauthorizedAccessException("Bạn không có quyền hủy mối quan hệ kết bạn của thành viên khác.");
+        }
+
+        bool wasPending = friendship.Status == "Pending";
+        string peerName = string.Equals(friendship.RequesterId, currentUserId, StringComparison.OrdinalIgnoreCase)
+            ? friendship.Addressee.FullName
+            : friendship.Requester.FullName;
+
+        _db.Friendships.Remove(friendship);
+        await _db.SaveChangesAsync();
+
+        return (true, wasPending
+            ? $"Đã thu hồi lời mời kết bạn gửi tới {peerName}."
+            : $"Đã hủy kết bạn với {peerName}.");
     }
 
     public async Task<(bool Success, string Message)> JoinClubAsync(

@@ -3,6 +3,10 @@
     ViewData["Title"] = "Không Gian Câu Lạc Bộ Sách Dạng Group, Trưởng Nhóm & Trạm Giao Nhận";
     var isAuthenticated = User.Identity?.IsAuthenticated == true;
     var isAdmin = Model.CurrentUserRole == "Admin";
+    var canCreateClub = isAdmin || User.IsInRole("Curator");
+    var creatorDisplayName = !string.IsNullOrWhiteSpace(Model.CurrentUserFullName)
+        ? Model.CurrentUserFullName
+        : (User.Identity?.Name ?? "Người thành lập");
     var sel = Model.SelectedHub;
 }
 
@@ -23,9 +27,11 @@
             <div class="small">Vai trò hệ thống: <strong>@Model.CurrentUserRole</strong></div>
             <div class="fs-5 fw-bold">@Model.TotalHubsCount Trạm/CLB • @Model.TotalCopiesAtHubs Bản Sao</div>
             <small>Đơn P2P hẹn tại Hub: @Model.PendingP2PHubOrdersCount đơn</small>
-            @if (isAdmin)
+            @if (canCreateClub)
             {
-                <button type="button" id="btnOpenCreateClubModal" class="btn btn-warning btn-sm text-dark fw-bold w-100 mt-2">
+                <button type="button" id="btnOpenCreateClubModal"
+                        data-creator-name="@creatorDisplayName"
+                        class="btn btn-warning btn-sm text-dark fw-bold w-100 mt-2">
                     <i class="bi bi-plus-circle-fill me-1"></i>Thành Lập CLB / Trạm Mới
                 </button>
             }
@@ -194,28 +200,36 @@
 
                 @if (Model.CanManageSelectedClub)
                 {
-                    <!-- FORM ADD THÀNH VIÊN NHƯ GROUP (TRƯỞNG NHÓM / PHÓ NHÓM / ADMIN) -->
+                    <!-- FORM ADD THÀNH VIÊN NHƯ GROUP (CHỈ CHỌN TỪ DANH SÁCH BẠN BÈ ĐÃ KẾT BẠN - 0 LỘ EMAIL NGƯỜI LẠ) -->
                     <div class="p-3 rounded-4 border bg-body-tertiary mb-3">
-                        <div class="small fw-bold text-primary mb-2">
-                            <i class="bi bi-person-fill-add me-1"></i>Thêm Thành Viên Vào Nhóm CLB (Như Group)
+                        <div class="d-flex flex-wrap justify-content-between align-items-center gap-1 mb-2">
+                            <div class="small fw-bold text-primary">
+                                <i class="bi bi-person-fill-add me-1"></i>Thêm Bạn Bè Vào Nhóm CLB
+                            </div>
+                            <a href="#friendNetworkSection" class="small text-decoration-none fw-semibold">
+                                <i class="bi bi-people me-1"></i>Kết bạn mới &darr;
+                            </a>
                         </div>
                         <form id="formAddClubMember" class="row g-2 align-items-end">
                             <input type="hidden" id="addMemberHubId" value="@sel.HubId" />
-                            <div class="col-md-5">
-                                <label class="form-label small text-muted mb-1" for="addMemberUserId">Chọn tài khoản thành viên</label>
+                            <div class="@(isAdmin ? "col-md-5" : "col-md-8")">
+                                <label class="form-label small text-muted mb-1" for="addMemberUserId">Chọn từ Bạn bè đã kết bạn (@Model.Friends.Count)</label>
                                 <select id="addMemberUserId" class="form-select form-select-sm">
-                                    <option value="">-- Hoặc nhập Email ở ô bên cạnh --</option>
-                                    @foreach (var u in Model.CandidateUsers)
+                                    <option value="">@(Model.Friends.Any() ? "-- Chọn bạn bè muốn mời vào CLB --" : "-- Bạn chưa có bạn bè nào, hãy kết bạn ở mục bên dưới --")</option>
+                                    @foreach (var f in Model.Friends)
                                     {
-                                        <option value="@u.UserId">@u.FullName (@u.Email)</option>
+                                        <option value="@f.UserId">@f.FullName (Uy tín: @f.TrustScore@(f.IsInSelectedClub ? " • Đã ở CLB" : ""))</option>
                                     }
                                 </select>
                             </div>
-                            <div class="col-md-4">
-                                <label class="form-label small text-muted mb-1" for="addMemberEmail">Hoặc nhập Email thành viên</label>
-                                <input type="email" id="addMemberEmail" class="form-control form-control-sm" placeholder="Nhập địa chỉ email thành viên cần thêm..." />
-                            </div>
-                            <div class="col-md-3">
+                            @if (isAdmin)
+                            {
+                                <div class="col-md-4">
+                                    <label class="form-label small text-muted mb-1" for="addMemberEmail">Hoặc nhập chính xác Email</label>
+                                    <input type="email" id="addMemberEmail" class="form-control form-control-sm" autocomplete="off" placeholder="Nhập chính xác địa chỉ email..." />
+                                </div>
+                            }
+                            <div class="@(isAdmin ? "col-md-3" : "col-md-4")">
                                 <label class="form-label small text-muted mb-1" for="addMemberRole">Vai trò nhóm</label>
                                 <select id="addMemberRole" class="form-select form-select-sm">
                                     <option value="Member" selected>Thành viên</option>
@@ -226,17 +240,17 @@
                                 </select>
                             </div>
                             <div class="col-12 d-flex flex-wrap justify-content-between align-items-center gap-2 mt-2">
-                                @if (Model.IsSelectedClubLeader)
+                                @if (Model.IsSelectedClubLeader && Model.EligibleLeaderMembers.Any())
                                 {
                                     <div class="d-flex align-items-center gap-1 flex-wrap">
-                                        <select id="assignLeaderUserId" class="form-select form-select-sm w-auto" aria-label="Chọn Trưởng nhóm mới">
-                                            @foreach (var u in Model.CandidateUsers)
+                                        <select id="assignLeaderUserId" class="form-select form-select-sm w-auto" aria-label="Chuyển giao Trưởng nhóm cho thành viên CLB">
+                                            @foreach (var mem in Model.EligibleLeaderMembers)
                                             {
-                                                <option value="@u.UserId" selected="@(u.UserId == sel.ManagerUserId)">Trưởng nhóm: @u.FullName</option>
+                                                <option value="@mem.UserId" selected="@(mem.UserId == sel.ManagerUserId)">Trưởng nhóm: @mem.FullName</option>
                                             }
                                         </select>
                                         <button type="button" id="btnAssignClubLeader" data-hub-id="@sel.HubId" class="btn btn-outline-warning text-dark btn-xs fw-bold">
-                                            <i class="bi bi-award-fill me-1"></i>Chỉ Định Trưởng Nhóm
+                                            <i class="bi bi-award-fill me-1"></i>Chuyển Giao Trưởng Nhóm
                                         </button>
                                     </div>
                                 }
@@ -267,7 +281,7 @@
                                 <tr>
                                     <td data-label="Thành viên">
                                         <div class="fw-bold">@m.FullName</div>
-                                        <small class="text-muted">@(!string.IsNullOrWhiteSpace(m.Email) ? $"{m.Email} • " : "")Uy tín @m.TrustScore</small>
+                                        <small class="text-muted">Điểm uy tín: @m.TrustScore</small>
                                     </td>
                                     <td data-label="Vai trò CLB">
                                         <span class="badge @(m.MemberRole == "Leader" ? "bg-warning text-dark" : m.MemberRole == "ViceLeader" ? "bg-info text-dark" : "bg-light text-dark border")">
@@ -391,6 +405,194 @@
         </div>
     </section>
 }
+
+<!-- MẠNG LƯỚI BẠN BÈ & LỜI MỜI KẾT BẠN (CHẤP NHẬN / TỪ CHỐI / MỜI VÀO CLB) -->
+<section class="card border-0 shadow-sm rounded-4 bg-white p-4 mb-4" id="friendNetworkSection">
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 pb-3 mb-3 border-bottom">
+        <div>
+            <span class="badge bg-success mb-1 px-3 py-1 rounded-pill">KẾT NỐI BẠN ĐỌC &amp; QUYỀN RIÊNG TƯ</span>
+            <h4 class="fw-bold mb-1"><i class="bi bi-people-fill text-success me-2"></i>Mạng Lưới Bạn Bè &amp; Lời Mời Kết Bạn</h4>
+            <p class="small text-muted mb-0">
+                Kết bạn trước khi mời thành viên vào Câu lạc bộ. Mọi thành viên đều có toàn quyền <strong>Chấp nhận</strong> hoặc <strong>Từ chối</strong> lời mời kết bạn, tuyệt đối không công khai Email cá nhân.
+            </p>
+        </div>
+        @if (isAuthenticated)
+        {
+            <div class="d-flex flex-wrap gap-2">
+                <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-3 py-2">
+                    <i class="bi bi-person-check-fill me-1"></i>Bạn bè: @Model.Friends.Count
+                </span>
+                <span class="badge @(Model.IncomingFriendRequests.Any() ? "bg-danger" : "bg-secondary-subtle text-secondary border") px-3 py-2">
+                    <i class="bi bi-person-plus-fill me-1"></i>Lời mời đến: @Model.IncomingFriendRequests.Count
+                </span>
+                <span class="badge bg-info-subtle text-info-emphasis border border-info-subtle px-3 py-2">
+                    <i class="bi bi-send-fill me-1"></i>Đã gửi: @Model.OutgoingFriendRequests.Count
+                </span>
+            </div>
+        }
+    </div>
+
+    @if (!isAuthenticated)
+    {
+        <div class="p-4 rounded-4 border bg-body-tertiary text-center">
+            <i class="bi bi-shield-lock-fill text-primary fs-2 d-block mb-2"></i>
+            <h6 class="fw-bold mb-1">Đăng nhập để tìm kiếm và kết bạn cùng cộng đồng đọc sách</h6>
+            <p class="small text-muted mb-3">Tài khoản đăng nhập có thể gửi lời mời kết bạn, chấp nhận hoặc từ chối lời mời và mời bạn bè vào nhóm Câu lạc bộ.</p>
+            <a asp-controller="S01AuthOtpGoogle" asp-action="Index" class="btn btn-primary btn-sm fw-bold">
+                <i class="bi bi-box-arrow-in-right me-1"></i>Đăng nhập ngay
+            </a>
+        </div>
+    }
+    else
+    {
+        <div class="row g-4">
+            <!-- CỘT 1: TÌM KIẾM & GỬI LỜI MỜI KẾT BẠN (KHÔNG LỘ DANH BẠ EMAIL) -->
+            <div class="col-lg-4">
+                <div class="p-3 rounded-4 border bg-body-tertiary h-100 d-flex flex-column">
+                    <h6 class="fw-bold mb-2"><i class="bi bi-search text-primary me-1"></i>Tìm &amp; Gửi Lời Mời Kết Bạn</h6>
+                    <form id="formSearchFriends" class="d-flex flex-column gap-2 mb-3">
+                        <div class="input-group input-group-sm">
+                            <input type="text" id="friendSearchKeyword" class="form-control" autocomplete="off"
+                                   placeholder="Nhập tên hiển thị hoặc chính xác Email..." minlength="2" required />
+                            <button type="submit" class="btn btn-primary fw-bold">
+                                <i class="bi bi-search me-1"></i>Tìm
+                            </button>
+                        </div>
+                        <input type="text" id="friendRequestNote" class="form-control form-control-sm" maxlength="250"
+                               placeholder="Lời nhắn kết bạn (không bắt buộc)..." />
+                    </form>
+                    <div id="friendSearchResults" class="d-flex flex-column gap-2 flex-grow-1" style="max-height: 290px; overflow-y: auto;">
+                        <div class="small text-muted text-center py-3 border rounded-3 bg-white">
+                            Nhập tên thành viên (tối thiểu 2 ký tự) hoặc chính xác Email để tìm và gửi lời mời kết bạn.
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- CỘT 2: LỜI MỜI KẾT BẠN ĐẾN (CHẤP NHẬN / TỪ CHỐI) -->
+            <div class="col-lg-4">
+                <div class="p-3 rounded-4 border bg-body-tertiary h-100 d-flex flex-column">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <h6 class="fw-bold mb-0"><i class="bi bi-inbox-fill text-warning me-1"></i>Lời Mời Kết Bạn Đến</h6>
+                        <span class="badge @(Model.IncomingFriendRequests.Any() ? "bg-danger" : "bg-secondary")">@Model.IncomingFriendRequests.Count</span>
+                    </div>
+                    <div class="d-flex flex-column gap-2 flex-grow-1" style="max-height: 350px; overflow-y: auto;">
+                        @if (!Model.IncomingFriendRequests.Any())
+                        {
+                            <div class="small text-muted text-center py-4 border rounded-3 bg-white">
+                                Hiện không có lời mời kết bạn nào đang chờ bạn phản hồi.
+                            </div>
+                        }
+                        else
+                        {
+                            @foreach (var req in Model.IncomingFriendRequests)
+                            {
+                                <div class="p-2 rounded-3 border bg-white small">
+                                    <div class="d-flex align-items-center gap-2 mb-1">
+                                        <img src="@req.AvatarUrl" alt="Ảnh đại diện @req.FullName"
+                                             onerror="this.onerror=null;this.src='/images/avatar-default.svg';"
+                                             class="rounded-circle border" style="width:36px;height:36px;object-fit:cover;" />
+                                        <div class="flex-grow-1 min-w-0">
+                                            <div class="fw-bold text-truncate">@req.FullName</div>
+                                            <div class="text-muted" style="font-size:0.75rem;">Uy tín @req.TrustScore • @req.CreatedAt.ToString("dd/MM HH:mm")</div>
+                                        </div>
+                                    </div>
+                                    @if (!string.IsNullOrWhiteSpace(req.Message))
+                                    {
+                                        <div class="text-muted fst-italic mb-2" style="font-size:0.78rem;">“@req.Message”</div>
+                                    }
+                                    <div class="d-flex gap-1">
+                                        <button type="button" class="btn btn-xs btn-success fw-bold flex-fill js-friend-respond"
+                                                data-friendship-id="@req.FriendshipId" data-accept="true">
+                                            <i class="bi bi-check-lg me-1"></i>Chấp nhận
+                                        </button>
+                                        <button type="button" class="btn btn-xs btn-outline-danger fw-semibold flex-fill js-friend-respond"
+                                                data-friendship-id="@req.FriendshipId" data-accept="false">
+                                            <i class="bi bi-x-lg me-1"></i>Từ chối
+                                        </button>
+                                    </div>
+                                </div>
+                            }
+                        }
+                    </div>
+                </div>
+            </div>
+
+            <!-- CỘT 3: DANH SÁCH BẠN BÈ & LỜI MỜI ĐÃ GỬI -->
+            <div class="col-lg-4">
+                <div class="p-3 rounded-4 border bg-body-tertiary h-100 d-flex flex-column">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <h6 class="fw-bold mb-0"><i class="bi bi-person-hearts text-success me-1"></i>Bạn Bè Của Tôi (@Model.Friends.Count)</h6>
+                    </div>
+                    <div class="d-flex flex-column gap-2 mb-3" style="max-height: 220px; overflow-y: auto;">
+                        @if (!Model.Friends.Any())
+                        {
+                            <div class="small text-muted text-center py-3 border rounded-3 bg-white">
+                                Chưa có bạn bè nào. Hãy tìm kiếm và kết bạn để mời nhau vào nhóm CLB!
+                            </div>
+                        }
+                        else
+                        {
+                            @foreach (var f in Model.Friends)
+                            {
+                                <div class="p-2 rounded-3 border bg-white small d-flex align-items-center justify-content-between gap-2">
+                                    <div class="d-flex align-items-center gap-2 min-w-0">
+                                        <img src="@f.AvatarUrl" alt="Ảnh đại diện @f.FullName"
+                                             onerror="this.onerror=null;this.src='/images/avatar-default.svg';"
+                                             class="rounded-circle border flex-shrink-0" style="width:32px;height:32px;object-fit:cover;" />
+                                        <div class="min-w-0">
+                                            <div class="fw-bold text-truncate">@f.FullName</div>
+                                            <div class="text-muted" style="font-size:0.74rem;">Uy tín @f.TrustScore</div>
+                                        </div>
+                                    </div>
+                                    <div class="d-flex align-items-center gap-1 flex-shrink-0">
+                                        @if (Model.CanManageSelectedClub && sel != null)
+                                        {
+                                            if (f.IsInSelectedClub)
+                                            {
+                                                <span class="badge bg-success-subtle text-success border border-success-subtle">Trong CLB</span>
+                                            }
+                                            else
+                                            {
+                                                <button type="button" class="btn btn-xs btn-primary fw-bold js-friend-quick-add"
+                                                        data-hub-id="@sel.HubId" data-user-id="@f.UserId" data-user-name="@f.FullName"
+                                                        title="Thêm trực tiếp vào CLB đang xem">
+                                                    <i class="bi bi-plus-circle me-1"></i>Vào CLB
+                                                </button>
+                                            }
+                                        }
+                                        <button type="button" class="btn btn-xs btn-outline-secondary js-friend-remove"
+                                                data-friendship-id="@f.FriendshipId" data-peer-name="@f.FullName" data-is-pending="0"
+                                                title="Hủy kết bạn">
+                                            <i class="bi bi-person-dash"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                            }
+                        }
+                    </div>
+
+                    @if (Model.OutgoingFriendRequests.Any())
+                    {
+                        <div class="small fw-bold text-muted mb-1"><i class="bi bi-hourglass-split me-1"></i>Lời mời bạn đã gửi (@Model.OutgoingFriendRequests.Count)</div>
+                        <div class="d-flex flex-column gap-1" style="max-height: 120px; overflow-y: auto;">
+                            @foreach (var outReq in Model.OutgoingFriendRequests)
+                            {
+                                <div class="px-2 py-1 rounded-3 border bg-white small d-flex justify-content-between align-items-center gap-2">
+                                    <span class="text-truncate"><strong>@outReq.FullName</strong> <span class="text-muted">(Chờ phản hồi)</span></span>
+                                    <button type="button" class="btn btn-xs btn-outline-danger js-friend-remove"
+                                            data-friendship-id="@outReq.FriendshipId" data-peer-name="@outReq.FullName" data-is-pending="1">
+                                        Thu hồi
+                                    </button>
+                                </div>
+                            }
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    }
+</section>
 
 <!-- KÝ GỬI SÁCH, KIỂM ĐỊNH SÁCH THẬT & ĐIỀU PHỐI GIAO NHẬN TẠI TRẠM CLB -->
 <div class="row g-4">
@@ -580,17 +782,6 @@
         </div>
     </div>
 </div>
-
-@if (isAdmin)
-{
-    <!-- Dữ liệu lựa chọn Trưởng nhóm cho hộp thoại Tạo CLB mới -->
-    <template id="s20CandidateLeaderOptions">
-        @foreach (var u in Model.CandidateUsers)
-        {
-            <option value="@u.UserId">@u.FullName (@u.Email • @u.RoleName)</option>
-        }
-    </template>
-}
 
 @section Scripts {
     <script type="module" src="~/modules/s20-exchange-hub-club/s20-exchange-hub-club.js" asp-append-version="true"></script>

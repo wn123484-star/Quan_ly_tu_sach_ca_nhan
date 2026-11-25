@@ -2,7 +2,7 @@
 <resources>
     <string name="app_name">BookShare</string>
     <string name="notif_channel_name">Thông báo BookShare</string>
-    <string name="notif_channel_desc">Nhắc hạn trả sách, phê duyệt mượn trả và cảnh báo tài khoản</string>
+    <string name="notif_channel_desc">Lời mời kết bạn, Câu lạc bộ đọc sách, nhắc hạn trả sách và phê duyệt mượn trả</string>
     <string name="loading_connecting">Đang kết nối BookShare…</string>
     <string name="loading_slow_hint">Kết nối mạng đang chậm. Bạn có thể đợi thêm hoặc bấm thử tải lại.</string>
     <string name="btn_retry_load">Thử tải lại</string>

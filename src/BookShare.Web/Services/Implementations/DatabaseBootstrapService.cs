@@ -258,6 +258,27 @@ public class DatabaseBootstrapService : IDatabaseBootstrapService
                     CONSTRAINT [FK_ClubPosts_AuthorUser] FOREIGN KEY ([AuthorUserId]) REFERENCES [dbo].[AspNetUsers] ([Id]) ON DELETE NO ACTION
                 );
                 CREATE NONCLUSTERED INDEX [IX_ClubPosts_Hub_CreatedAt] ON [dbo].[ClubPosts]([HubId] ASC, [CreatedAt] DESC);
+            END
+
+            IF OBJECT_ID(N'[dbo].[Friendships]', N'U') IS NULL
+               AND OBJECT_ID(N'[dbo].[AspNetUsers]', N'U') IS NOT NULL
+            BEGIN
+                CREATE TABLE [dbo].[Friendships] (
+                    [Id]          INT IDENTITY(1,1) NOT NULL,
+                    [RequesterId] NVARCHAR(450)     NOT NULL,
+                    [AddresseeId] NVARCHAR(450)     NOT NULL,
+                    [Status]      NVARCHAR(20)      NOT NULL CONSTRAINT [DF_Friendships_Status] DEFAULT (N'Pending'),
+                    [Message]     NVARCHAR(300)     NULL,
+                    [CreatedAt]   DATETIME2(7)      NOT NULL CONSTRAINT [DF_Friendships_CreatedAt] DEFAULT (SYSUTCDATETIME()),
+                    [RespondedAt] DATETIME2(7)      NULL,
+                    CONSTRAINT [PK_Friendships] PRIMARY KEY CLUSTERED ([Id] ASC),
+                    CONSTRAINT [FK_Friendships_Requester] FOREIGN KEY ([RequesterId]) REFERENCES [dbo].[AspNetUsers] ([Id]) ON DELETE NO ACTION,
+                    CONSTRAINT [FK_Friendships_Addressee] FOREIGN KEY ([AddresseeId]) REFERENCES [dbo].[AspNetUsers] ([Id]) ON DELETE NO ACTION,
+                    CONSTRAINT [CK_Friendships_Status] CHECK ([Status] IN (N'Pending', N'Accepted', N'Rejected')),
+                    CONSTRAINT [CK_Friendships_NotSelf] CHECK ([RequesterId] <> [AddresseeId])
+                );
+                CREATE UNIQUE NONCLUSTERED INDEX [UX_Friendships_Pair] ON [dbo].[Friendships]([RequesterId] ASC, [AddresseeId] ASC);
+                CREATE NONCLUSTERED INDEX [IX_Friendships_Addressee_Status] ON [dbo].[Friendships]([AddresseeId] ASC, [Status] ASC);
             END";
 
         try

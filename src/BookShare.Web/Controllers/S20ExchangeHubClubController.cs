@@ -47,18 +47,79 @@ public class S20ExchangeHubClubController : Controller
     }
 
     [HttpPost]
-    [Authorize(Roles = "Admin")]
+    [Authorize(Roles = "Curator,Admin")]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> CreateClub([FromBody] S20CreateClubDto request)
     {
-        var adminUserId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
-        var (success, message, hubId) = await _hubService.CreateClubAsync(adminUserId, request);
+        var creatorUserId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
+        var creatorRole = User.FindFirstValue(ClaimTypes.Role) ?? "Curator";
+        var (success, message, hubId) = await _hubService.CreateClubAsync(creatorUserId, creatorRole, request);
         if (!success) return BadRequest(new { message });
 
         TempData["StatusCode"] = 200;
         TempData["StatusTitle"] = "Đã thành lập Câu lạc bộ mới";
         TempData["StatusDetail"] = message;
         return Ok(new { title = "Thành lập CLB thành công", message, hubId });
+    }
+
+    [HttpGet]
+    [Authorize]
+    public async Task<IActionResult> SearchFriends([FromQuery] string? keyword)
+    {
+        var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
+        var items = await _hubService.SearchFriendCandidatesAsync(currentUserId, keyword);
+        return Ok(new { items });
+    }
+
+    [HttpPost]
+    [Authorize]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> SendFriendRequest([FromBody] S20SendFriendRequestDto request)
+    {
+        var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
+        var (success, message, friendshipId) = await _hubService.SendFriendRequestAsync(currentUserId, request);
+        if (!success) return BadRequest(new { message });
+        return Ok(new { title = "Đã gửi lời mời kết bạn", message, friendshipId });
+    }
+
+    [HttpPost]
+    [Authorize]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> RespondFriendRequest([FromBody] S20RespondFriendRequestDto request)
+    {
+        var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
+        try
+        {
+            var (success, message) = await _hubService.RespondFriendRequestAsync(currentUserId, request);
+            if (!success) return BadRequest(new { message });
+            return Ok(new
+            {
+                title = request.Accept ? "Đã chấp nhận kết bạn" : "Đã từ chối lời mời kết bạn",
+                message
+            });
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return StatusCode(403, new { message = ex.Message });
+        }
+    }
+
+    [HttpPost]
+    [Authorize]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> RemoveFriendship([FromBody] S20RemoveFriendshipDto request)
+    {
+        var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
+        try
+        {
+            var (success, message) = await _hubService.RemoveFriendshipAsync(currentUserId, request.FriendshipId);
+            if (!success) return BadRequest(new { message });
+            return Ok(new { title = "Đã cập nhật danh sách bạn bè", message });
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return StatusCode(403, new { message = ex.Message });
+        }
     }
 
     [HttpPost]

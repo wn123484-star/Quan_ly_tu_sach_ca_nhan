@@ -6,6 +6,7 @@ import android.content.ActivityNotFoundException;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
+import android.graphics.Color;
 import android.net.Uri;
 import android.net.http.SslError;
 import android.os.Build;
@@ -17,6 +18,7 @@ import android.os.Vibrator;
 import android.provider.Settings;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.Window;
 import android.webkit.CookieManager;
 import android.webkit.JavascriptInterface;
 import android.webkit.PermissionRequest;
@@ -27,6 +29,7 @@ import android.webkit.WebChromeClient;
 import android.webkit.WebResourceError;
 import android.webkit.WebResourceRequest;
 import android.webkit.WebSettings;
+import android.webkit.WebStorage;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import android.widget.Button;
@@ -42,6 +45,8 @@ import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.browser.customtabs.CustomTabsIntent;
 import androidx.core.content.ContextCompat;
+import androidx.core.view.WindowCompat;
+import androidx.core.view.WindowInsetsControllerCompat;
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
 
 import org.json.JSONObject;
@@ -260,7 +265,7 @@ public class MainActivity extends AppCompatActivity {
         settings.setAllowContentAccess(true);
         settings.setMediaPlaybackRequiresUserGesture(false);
         settings.setMixedContentMode(WebSettings.MIXED_CONTENT_COMPATIBILITY_MODE);
-        settings.setUserAgentString(settings.getUserAgentString() + " BookShareAndroidApp/1.0");
+        settings.setUserAgentString(settings.getUserAgentString() + " BookShareAndroidApp/" + BuildConfig.VERSION_NAME);
 
         CookieManager cookieManager = CookieManager.getInstance();
         cookieManager.setAcceptCookie(true);
@@ -601,21 +606,68 @@ public class MainActivity extends AppCompatActivity {
         mainHandler.removeCallbacks(progressBarCleanupRunnable);
     }
 
+    private void applyNativeSystemBarTheme(boolean isDark, String surfaceHex) {
+        int bgColor;
+        try {
+            bgColor = (surfaceHex != null && surfaceHex.startsWith("#"))
+                    ? Color.parseColor(surfaceHex)
+                    : Color.parseColor(isDark ? "#0F172A" : "#F8FAFC");
+        } catch (IllegalArgumentException ignored) {
+            bgColor = Color.parseColor(isDark ? "#0F172A" : "#F8FAFC");
+        }
+
+        Window window = getWindow();
+        if (window != null) {
+            window.setStatusBarColor(bgColor);
+            window.setNavigationBarColor(isDark ? Color.parseColor("#0F172A") : Color.WHITE);
+            WindowInsetsControllerCompat controller = WindowCompat.getInsetsController(window, window.getDecorView());
+            if (controller != null) {
+                controller.setAppearanceLightStatusBars(!isDark);
+                controller.setAppearanceLightNavigationBars(!isDark);
+            }
+        }
+        if (webView != null) {
+            webView.setBackgroundColor(bgColor);
+        }
+        if (loadingOverlay != null) {
+            loadingOverlay.setBackgroundColor(bgColor);
+        }
+    }
+
+    private void performNativeBackStep(OnBackPressedCallback callback) {
+        if (webView != null && webView.canGoBack()) {
+            String current = webView.getUrl();
+            if (current != null && current.startsWith(OFFLINE_ASSET_PREFIX)) {
+                loadTargetUrl(BuildConfig.BASE_URL, true);
+                return;
+            }
+            webView.goBack();
+        } else {
+            callback.setEnabled(false);
+            getOnBackPressedDispatcher().onBackPressed();
+        }
+    }
+
     private void setupBackNavigation() {
         getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) {
             @Override
             public void handleOnBackPressed() {
-                if (webView != null && webView.canGoBack()) {
+                final OnBackPressedCallback self = this;
+                if (webView != null) {
                     String current = webView.getUrl();
-                    if (current != null && current.startsWith(OFFLINE_ASSET_PREFIX)) {
-                        loadTargetUrl(BuildConfig.BASE_URL, true);
+                    if (current != null && !current.startsWith(OFFLINE_ASSET_PREFIX)) {
+                        webView.evaluateJavascript(
+                                "(function(){try{return !!(window.BookShareUI&&window.BookShareUI.handleAndroidBack&&window.BookShareUI.handleAndroidBack());}catch(e){return false;}})()",
+                                value -> {
+                                    if (!"true".equals(value)) {
+                                        performNativeBackStep(self);
+                                    }
+                                }
+                        );
                         return;
                     }
-                    webView.goBack();
-                } else {
-                    setEnabled(false);
-                    getOnBackPressedDispatcher().onBackPressed();
                 }
+                performNativeBackStep(self);
             }
         });
     }
@@ -736,11 +788,41 @@ public class MainActivity extends AppCompatActivity {
                 JSONObject info = new JSONObject();
                 info.put("platform", "android");
                 info.put("version", BuildConfig.VERSION_NAME);
+                info.put("versionCode", BuildConfig.VERSION_CODE);
                 info.put("baseUrl", BuildConfig.BASE_URL);
+                info.put("sync", "v5.6");
                 return info.toString();
             } catch (Exception e) {
-                return "{\"platform\":\"android\",\"version\":\"4.0.0\"}";
+                return "{\"platform\":\"android\",\"version\":\"5.6.0\"}";
             }
+        }
+
+        @JavascriptInterface
+        public void syncThemeMode(boolean isDark, String surfaceHex) {
+            runOnUiThread(() -> applyNativeSystemBarTheme(isDark, surfaceHex));
+        }
+
+        @JavascriptInterface
+        public void onUserLoggedOut() {
+            runOnUiThread(() -> {
+                NotificationPoller.clearDeliveredState(MainActivity.this);
+                try {
+                    WebStorage.getInstance().deleteAllData();
+                } catch (Exception ignored) {
+                    // Bỏ qua nếu WebStorage chưa khởi tạo
+                }
+                if (webView != null) {
+                    webView.clearCache(true);
+                    webView.clearHistory();
+                    webView.clearFormData();
+                }
+                CookieManager.getInstance().flush();
+            });
+        }
+
+        @JavascriptInterface
+        public void openFriendsAndClubs() {
+            runOnUiThread(() -> loadTargetUrl(BuildConfig.BASE_URL + "/S20ExchangeHubClub", false));
         }
 
         @JavascriptInterface

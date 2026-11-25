@@ -77,6 +77,10 @@ public partial class AspNetUser
 
     public virtual ICollection<Dispute> DisputeResolvedByAdmins { get; set; } = new List<Dispute>();
 
+    public virtual ICollection<Friendship> FriendshipRequesters { get; set; } = new List<Friendship>();
+
+    public virtual ICollection<Friendship> FriendshipAddressees { get; set; } = new List<Friendship>();
+
     public virtual ICollection<Library> Libraries { get; set; } = new List<Library>();
 
     public virtual ICollection<LoanRequest> LoanRequestApprovers { get; set; } = new List<LoanRequest>();

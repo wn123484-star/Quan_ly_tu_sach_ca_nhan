@@ -189,8 +189,25 @@ public interface IS20ExchangeHubClubService
         S20UpdateHubStationDto request);
 
     Task<(bool Success, string Message, int HubId)> CreateClubAsync(
-        string adminUserId,
+        string creatorUserId,
+        string creatorRole,
         S20CreateClubDto request);
+
+    Task<List<S20FriendCandidateDto>> SearchFriendCandidatesAsync(
+        string currentUserId,
+        string? keyword);
+
+    Task<(bool Success, string Message, int FriendshipId)> SendFriendRequestAsync(
+        string currentUserId,
+        S20SendFriendRequestDto request);
+
+    Task<(bool Success, string Message)> RespondFriendRequestAsync(
+        string currentUserId,
+        S20RespondFriendRequestDto request);
+
+    Task<(bool Success, string Message)> RemoveFriendshipAsync(
+        string currentUserId,
+        int friendshipId);
 
     Task<(bool Success, string Message)> AssignClubLeaderAsync(
         string currentUserId,

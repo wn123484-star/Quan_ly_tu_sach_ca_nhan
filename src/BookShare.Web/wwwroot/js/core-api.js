@@ -1121,7 +1121,11 @@ export function applyUiPrefs(partial = {}, { persistRemote = false, silent = tru
 
     const btn = document.getElementById('btnThemeToggle');
     const metaTheme = document.querySelector('meta[name="theme-color"]');
-    if (metaTheme) metaTheme.setAttribute('content', effectiveTheme === 'dark' ? '#0f172a' : '#f8fafc');
+    const surfaceHex = effectiveTheme === 'dark' ? '#0f172a' : '#f8fafc';
+    if (metaTheme) metaTheme.setAttribute('content', surfaceHex);
+    try {
+        window.BookShareAndroidBridge?.syncThemeMode?.(effectiveTheme === 'dark', surfaceHex);
+    } catch { /* bỏ qua khi chạy trình duyệt web thường */ }
     if (btn) {
         btn.setAttribute('aria-pressed', String(effectiveTheme === 'dark'));
         btn.setAttribute('aria-label', effectiveTheme === 'dark' ? 'Tắt chế độ tối' : 'Bật chế độ tối');
@@ -1713,9 +1717,24 @@ document.addEventListener('DOMContentLoaded', () => {
     if (window.__bookshareCoreReady) return;
     window.__bookshareCoreReady = true;
 
+    const handleAndroidBack = () => {
+        try {
+            if (typeof window.Swal !== 'undefined' && window.Swal.isVisible()) {
+                window.Swal.close();
+                return true;
+            }
+            const popupEl = document.getElementById('aiChatPopup');
+            if (popupEl && !popupEl.classList.contains('d-none')) {
+                popupEl.classList.add('d-none');
+                return true;
+            }
+        } catch { /* bỏ qua */ }
+        return false;
+    };
+
     window.showSystemStatus = showSystemStatus;
     window.apiFetch = apiFetch;
-    window.BookShareUI = { toast, confirmDialog, celebrate, loadScript, renderMarkdown, renderSkeleton, renderQrCode, showHandoverQrModal, confirmHandoverQrModal, openBarcodeScanner, openUniversalScanner, openQrPaymentScanner, openQrInvoiceConfirmDialog, showQrPaymentInvoiceModal, applyClientCommands, renderCopilotExtras, setPortalThemeMode, getUiPrefs, applyUiPrefs, PALETTE_LABELS, trustTier, getRecaptchaToken, CDN };
+    window.BookShareUI = { toast, confirmDialog, celebrate, loadScript, renderMarkdown, renderSkeleton, renderQrCode, showHandoverQrModal, confirmHandoverQrModal, openBarcodeScanner, openUniversalScanner, openQrPaymentScanner, openQrInvoiceConfirmDialog, showQrPaymentInvoiceModal, applyClientCommands, renderCopilotExtras, setPortalThemeMode, getUiPrefs, applyUiPrefs, PALETTE_LABELS, trustTier, getRecaptchaToken, handleAndroidBack, CDN };
 
     document.addEventListener('click', (e) => {
         const qrPayBtn = e.target.closest('.js-open-qr-pay-scanner');
@@ -1791,6 +1810,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (msgBox) msgBox.innerHTML = '';
         const popup = document.getElementById('aiChatPopup');
         if (popup) popup.classList.add('d-none');
+        try { window.BookShareAndroidBridge?.onUserLoggedOut?.(); } catch { /* bỏ qua trên web thường */ }
     };
 
     const currentBodyAuth = document.body?.getAttribute('data-authenticated') === '1';

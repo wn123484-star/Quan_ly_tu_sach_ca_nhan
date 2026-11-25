@@ -72,7 +72,7 @@ public class MobileCompanionService : IMobileCompanionService
             {
                 Authenticated = false,
                 UnreadCount = 0,
-                ServerVersion = "BookShare-Sprint3"
+                ServerVersion = "BookShare-v5.6"
             };
         }
 
@@ -87,7 +87,7 @@ public class MobileCompanionService : IMobileCompanionService
             FullName = fullName,
             Role = string.IsNullOrWhiteSpace(currentUserRole) ? "User" : currentUserRole,
             UnreadCount = unreadCount,
-            ServerVersion = "BookShare-Sprint3"
+            ServerVersion = "BookShare-v5.6"
         };
     }
 
@@ -101,6 +101,13 @@ public class MobileCompanionService : IMobileCompanionService
             n.Content.Contains("tranh chấp", StringComparison.OrdinalIgnoreCase))
         {
             return $"/S19DisputeResolution?notifId={n.Id}";
+        }
+        if (n.Title.Contains("kết bạn", StringComparison.OrdinalIgnoreCase) ||
+            n.Content.Contains("kết bạn", StringComparison.OrdinalIgnoreCase) ||
+            n.Title.Contains("CLB", StringComparison.OrdinalIgnoreCase) ||
+            n.Content.Contains("Câu lạc bộ", StringComparison.OrdinalIgnoreCase))
+        {
+            return $"/S20ExchangeHubClub?notifId={n.Id}";
         }
         if (n.Type.Contains("Loan", StringComparison.OrdinalIgnoreCase) ||
             n.Content.Contains("mượn sách", StringComparison.OrdinalIgnoreCase))

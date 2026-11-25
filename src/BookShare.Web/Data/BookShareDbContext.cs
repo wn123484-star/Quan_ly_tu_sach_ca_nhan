@@ -50,6 +50,8 @@ public partial class BookShareDbContext : DbContext
 
     public virtual DbSet<Dispute> Disputes { get; set; }
 
+    public virtual DbSet<Friendship> Friendships { get; set; }
+
     public virtual DbSet<Library> Libraries { get; set; }
 
     public virtual DbSet<Loan> Loans { get; set; }
@@ -367,6 +369,30 @@ public partial class BookShareDbContext : DbContext
             entity.HasOne(d => d.ResolvedByAdmin).WithMany(p => p.DisputeResolvedByAdmins)
                 .HasForeignKey(d => d.ResolvedByAdminId)
                 .HasConstraintName("FK_Disputes_AspNetUsers_ResolvedBy");
+        });
+
+        modelBuilder.Entity<Friendship>(entity =>
+        {
+            entity.HasIndex(e => new { e.RequesterId, e.AddresseeId }, "UX_Friendships_Pair").IsUnique();
+            entity.HasIndex(e => new { e.AddresseeId, e.Status }, "IX_Friendships_Addressee_Status");
+
+            entity.Property(e => e.RequesterId).HasMaxLength(450);
+            entity.Property(e => e.AddresseeId).HasMaxLength(450);
+            entity.Property(e => e.Status)
+                .HasMaxLength(20)
+                .HasDefaultValue("Pending", "DF_Friendships_Status");
+            entity.Property(e => e.Message).HasMaxLength(300);
+            entity.Property(e => e.CreatedAt).HasDefaultValueSql("(sysutcdatetime())", "DF_Friendships_CreatedAt");
+
+            entity.HasOne(d => d.Requester).WithMany(p => p.FriendshipRequesters)
+                .HasForeignKey(d => d.RequesterId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_Friendships_Requester");
+
+            entity.HasOne(d => d.Addressee).WithMany(p => p.FriendshipAddressees)
+                .HasForeignKey(d => d.AddresseeId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_Friendships_Addressee");
         });
 
         modelBuilder.Entity<Library>(entity =>

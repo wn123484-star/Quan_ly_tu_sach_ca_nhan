@@ -1535,7 +1535,7 @@ class QARunner:
             "Android MainActivity enforces BuildConfig.BASE_URL, BookShareAndroidApp UA, Custom Tabs & NO URL dialog",
             bool(main_act_txt)
             and "BuildConfig.BASE_URL" in main_act_txt
-            and "BookShareAndroidApp/1.0" in main_act_txt
+            and "BookShareAndroidApp/" in main_act_txt
             and "CustomTabsIntent" in main_act_txt
             and "AlertDialog" not in main_act_txt
             and "EditText" not in main_act_txt,
@@ -2727,9 +2727,17 @@ class QARunner:
         cur_idor_add_c, _, _ = cur.post_json("/S20ExchangeHubClub/AddClubMember", {"hubId": new_hub_id, "targetUserId": "u-user-03", "memberRole": "Member"}) if new_hub_id else (0, {}, "")
         cur_idor_post_c, _, _ = cur.post_json("/S20ExchangeHubClub/CreateClubPost", {"hubId": new_hub_id, "title": "Hack", "content": "Unauthorized"}) if new_hub_id else (0, {}, "")
 
-        # Dedicated Club Leader (u2, even if regular User role) adds u3 like a Group, edits own club & publishes pinned post
+        # Dedicated Club Leader (u2, even if regular User role) MUST be friends with u3 before adding directly; then adds u3, edits own club & publishes pinned post
+        u3 = actors["u3"]
         u2.refresh_csrf("/S20ExchangeHubClub")
+        u2_nonfriend_c, _, _ = u2.post_json("/S20ExchangeHubClub/AddClubMember", {"hubId": new_hub_id, "targetUserId": "u-user-03", "memberRole": "ViceLeader"}) if new_hub_id else (0, {}, "")
+        u2_fr_c, u2_fr_j, _ = u2.post_json("/S20ExchangeHubClub/SendFriendRequest", {"targetUserId": "u-user-03", "message": "Kết bạn để tham gia CLB QA"}) if new_hub_id else (0, {}, "")
+        fr_23_id = int((u2_fr_j or {}).get("friendshipId") or 0)
+        u3.refresh_csrf("/S20ExchangeHubClub")
+        u3_acc_c, _, _ = u3.post_json("/S20ExchangeHubClub/RespondFriendRequest", {"friendshipId": fr_23_id, "accept": True}) if fr_23_id else (0, {}, "")
         u2_add_c, _, u2_add_raw = u2.post_json("/S20ExchangeHubClub/AddClubMember", {"hubId": new_hub_id, "targetUserId": "u-user-03", "memberRole": "ViceLeader"}) if new_hub_id else (0, {}, "")
+        if fr_23_id:
+            u2.post_json("/S20ExchangeHubClub/RemoveFriendship", {"friendshipId": fr_23_id})
         u2_upd_c, _, u2_upd_raw = u2.post_json("/S20ExchangeHubClub/UpdateHubStation", {"hubId": new_hub_id, "name": club_name, "address": "Phòng 305 Nhà A (Updated)", "openHours": "08:00 - 20:00", "phone": "0901234567"}) if new_hub_id else (0, {}, "")
         u2_post_c, _, u2_post_raw = u2.post_json("/S20ExchangeHubClub/CreateClubPost", {"hubId": new_hub_id, "title": "Lịch offline tuần này", "content": "Hẹn gặp tại thư viện lúc 15h", "isPinned": True}) if new_hub_id else (0, {}, "")
         adm_post_c, _, _ = admin.post_json("/S20ExchangeHubClub/CreateClubPost", {"hubId": new_hub_id, "title": "Thông báo từ Admin", "content": "Chúc mừng CLB khai trương", "isPinned": False}) if new_hub_id else (0, {}, "")
@@ -2742,13 +2750,16 @@ class QARunner:
 
         self.check(
             "L9",
-            "S20 Per-Club Governance: Admin creates club, Leader edits/adds/posts, unrelated Curator blocked (403 Anti-IDOR) & Admin root protected",
+            "S20 Per-Club Governance: Admin creates club, Friend-gated add (400->friend->200), Leader edits/posts, unrelated Curator blocked (403 Anti-IDOR) & Admin root protected",
             u1_cc_c == 403
             and adm_cc_c == 200
             and new_hub_id > 0
             and u1_join_c == 200
             and cur_idor_add_c == 403
             and cur_idor_post_c == 403
+            and u2_nonfriend_c == 400
+            and u2_fr_c == 200
+            and u3_acc_c == 200
             and u2_add_c == 200
             and u2_upd_c == 200
             and u2_post_c == 200
@@ -3540,6 +3551,113 @@ class QARunner:
             and sv_qtz_c == 200 and ((sv_qtz_j or {}).get("preferences") or {}).get("style") == "quartz"
             and ai_qtz_c == 200 and has_qtz_cmd,
             f"vap={sv_vap_c}, qtz={sv_qtz_c}, ai_qtz={ai_qtz_c}:{ai_qtz_cmds}",
+        )
+
+        # ------------------------------------------------------------------
+        # 10.6 Sprint 5.6: Zero S20 Email Leaks, Creator=Default Leader, Complete Friend System (Accept/Reject/Anti-IDOR) & Mobile Sync
+        # ------------------------------------------------------------------
+        u3 = actors["u3"]
+        # Consume any prior TempData flash banner before inspecting clean S20 DOM
+        admin.get("/")
+        cur.get("/")
+        u1.get("/")
+        s20_adm_c, s20_adm_html, _ = admin.get("/S20ExchangeHubClub")
+        s20_cur_c, s20_cur_html, _ = cur.get("/S20ExchangeHubClub")
+        s20_u1_c, s20_u1_html, _ = u1.get("/S20ExchangeHubClub")
+        leaked_hits = []
+        for tag_lbl, h in (("adm", s20_adm_html), ("cur", s20_cur_html), ("u1", s20_u1_html)):
+            for pat in ("s20CandidateLeaderOptions", "@cmc.edu.vn", "@bookshare.vn", "@gmail.com"):
+                if pat in h:
+                    idx = h.find(pat)
+                    leaked_hits.append(f"{tag_lbl}:{pat}@{h[max(0,idx-40):idx+50]}")
+        no_email_dump = len(leaked_hits) == 0
+        self.check(
+            "L10",
+            "S20 Zero Email Leaks: Admin/Curator/User pages have no s20CandidateLeaderOptions & zero personal emails dumped in DOM",
+            s20_adm_c == 200 and s20_cur_c == 200 and s20_u1_c == 200 and no_email_dump,
+            f"adm={s20_adm_c}, cur={s20_cur_c}, u1={s20_u1_c}, hits={leaked_hits[:3]}",
+        )
+
+        # Creator defaults to Club Leader (Curator creates club without leaderUserId -> Curator becomes Leader!)
+        cur.refresh_csrf("/S20ExchangeHubClub")
+        cur_club_name = f"CLB Sáng Lập Mặc Định {int(time.time())}"
+        cur_cc_c, cur_cc_j, cur_cc_raw = cur.post_json(
+            "/S20ExchangeHubClub/CreateClub",
+            {"name": cur_club_name, "address": "Không gian đọc sách chung", "hubType": "ClubStation", "isPublicClub": True},
+        )
+        cur_hub_id = int((cur_cc_j or {}).get("hubId") or 0)
+        cur_post_c, _, _ = cur.post_json(
+            "/S20ExchangeHubClub/CreateClubPost",
+            {"hubId": cur_hub_id, "title": "Chào mừng thành viên", "content": "Người lập là Trưởng nhóm mặc định", "isPinned": True},
+        ) if cur_hub_id else (0, {}, "")
+        cur_hub_c, cur_hub_html, _ = cur.get(f"/S20ExchangeHubClub?hubId={cur_hub_id}") if cur_hub_id else (0, "", {})
+        self.check(
+            "L10",
+            "S20 Creator Default Leader: Curator creates club without leaderUserId -> automatically becomes Leader & manages club",
+            cur_cc_c == 200
+            and cur_hub_id > 0
+            and cur_post_c == 200
+            and cur_hub_c == 200
+            and "Đỗ Quang Minh" in html_lib.unescape(cur_hub_html),
+            f"cc={cur_cc_c}, hub={cur_hub_id}, post={cur_post_c}, raw={cur_cc_raw[:120]}",
+        )
+
+        # Complete Friend System: Zero-email search, Send, Anti-IDOR 403, Reject, Re-send, Accept & Remove
+        u1.refresh_csrf("/S20ExchangeHubClub")
+        u2.refresh_csrf("/S20ExchangeHubClub")
+        u3.refresh_csrf("/S20ExchangeHubClub")
+        sf_c, sf_raw, _ = u1.get("/S20ExchangeHubClub/SearchFriends?keyword=Ho%C3%A0ng", accept_json=True)
+        sf_j = json.loads(sf_raw) if sf_c == 200 and sf_raw.strip().startswith("{") else {}
+        sf_items = sf_j.get("items") or []
+        sf_has_u3 = any(it.get("userId") == "u-user-03" for it in sf_items)
+        sf_no_email = ("@cmc.edu.vn" not in sf_raw) and ("email" not in sf_raw.lower())
+
+        fr1_c, fr1_j, fr1_raw = u1.post_json("/S20ExchangeHubClub/SendFriendRequest", {"targetUserId": "u-user-03", "message": "Kết bạn đọc sách"})
+        fid_13 = int((fr1_j or {}).get("friendshipId") or 0)
+        # Anti-IDOR: u2 cannot respond to u1->u3 friend request -> MUST be 403!
+        idor_resp_c, _, _ = u2.post_json("/S20ExchangeHubClub/RespondFriendRequest", {"friendshipId": fid_13, "accept": True}) if fid_13 else (0, {}, "")
+        # Reject right: u3 rejects u1's friend request -> 200
+        rej_c, _, _ = u3.post_json("/S20ExchangeHubClub/RespondFriendRequest", {"friendshipId": fid_13, "accept": False}) if fid_13 else (0, {}, "")
+        # Re-send after reject -> u3 accepts -> u1 unfriends cleanly
+        fr2_c, fr2_j, _ = u1.post_json("/S20ExchangeHubClub/SendFriendRequest", {"targetUserId": "u-user-03", "message": "Gửi lại lời mời kết bạn"})
+        fid_13_b = int((fr2_j or {}).get("friendshipId") or fid_13)
+        acc_c, _, _ = u3.post_json("/S20ExchangeHubClub/RespondFriendRequest", {"friendshipId": fid_13_b, "accept": True}) if fid_13_b else (0, {}, "")
+        idor_rem_c, _, _ = u2.post_json("/S20ExchangeHubClub/RemoveFriendship", {"friendshipId": fid_13_b}) if fid_13_b else (0, {}, "")
+        rem_c, _, _ = u1.post_json("/S20ExchangeHubClub/RemoveFriendship", {"friendshipId": fid_13_b}) if fid_13_b else (0, {}, "")
+        self.check(
+            "L10",
+            "Friend System E2E: Zero-email search, Send, Anti-IDOR 403, Reject right, Re-send, Accept & Unfriend",
+            sf_c == 200 and sf_has_u3 and sf_no_email
+            and fr1_c == 200 and fid_13 > 0
+            and idor_resp_c == 403
+            and rej_c == 200
+            and fr2_c == 200
+            and acc_c == 200
+            and idor_rem_c == 403
+            and rem_c == 200,
+            f"sf={sf_c}/{sf_has_u3}/{sf_no_email}, fr1={fr1_c}({fr1_raw[:60]}), idor={idor_resp_c}/{idor_rem_c}, rej={rej_c}, fr2={fr2_c}, acc={acc_c}, rem={rem_c}",
+        )
+
+        # Android Mobile Web App v5.6 Sync Check
+        mob_root = ROOT_DIR / "mobile" / "bookshare-android" / "app"
+        mob_gradle = (mob_root / "build.gradle").read_text(encoding="utf-8", errors="ignore")
+        mob_main = (mob_root / "src" / "main" / "java" / "vn" / "bookshare" / "mobile" / "MainActivity.java").read_text(encoding="utf-8", errors="ignore")
+        mob_poller = (mob_root / "src" / "main" / "java" / "vn" / "bookshare" / "mobile" / "NotificationPoller.java").read_text(encoding="utf-8", errors="ignore")
+        mob_offline = (mob_root / "src" / "main" / "assets" / "offline.html").read_text(encoding="utf-8", errors="ignore")
+        ms_c, ms_raw, _ = u1.get("/api/mobile/session", accept_json=True)
+        ms_j = json.loads(ms_raw) if ms_c == 200 and ms_raw.strip().startswith("{") else {}
+        self.check(
+            "L10",
+            "Mobile Web App v5.6 Sync: Gradle 5.6.0, production URL, privacy logout/theme/back bridges & /api/mobile/session v5.6",
+            'versionName "5.6.0"' in mob_gradle
+            and "https://bookshare.castle-tech.cloud" in mob_gradle
+            and "onUserLoggedOut" in mob_main
+            and "syncThemeMode" in mob_main
+            and "handleAndroidBack" in mob_main
+            and "clearDeliveredState" in mob_poller
+            and "prefers-color-scheme: dark" in mob_offline
+            and ms_c == 200 and ms_j.get("serverVersion") == "BookShare-v5.6",
+            f"ms={ms_c}:{ms_j}",
         )
 
 
