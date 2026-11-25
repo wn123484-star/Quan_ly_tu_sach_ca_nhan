@@ -77,9 +77,16 @@ public class HomeController : Controller
     }
 
     [HttpGet]
-    public async Task<IActionResult> Index(string? keyword = null, string source = "all", string? category = null)
+    public async Task<IActionResult> Index(
+        string? keyword = null,
+        string source = "all",
+        string? category = null,
+        string availability = "all",
+        string condition = "all",
+        string sort = "available",
+        int page = 1)
     {
-        var vm = await _portalService.GetPortalHomeAsync(keyword, source, category);
+        var vm = await _portalService.GetPortalHomeAsync(keyword, source, category, availability, condition, sort, page, 12);
         return View(vm);
     }
 
@@ -176,7 +183,7 @@ public class HomeController : Controller
         if (guestCommands.Count > 0)
         {
             var labels = string.Join(", ", guestCommands.Select(c => $"**{c.Label}**"));
-            guestReply = $"🤖 Mình đã áp dụng ngay tùy chỉnh giao diện cho bạn: {labels}. Bạn cũng có thể đổi tiếp phông chữ, cỡ chữ hoặc 9 phong cách khác ngay tại đây!";
+            guestReply = $"🤖 Mình đã áp dụng ngay tùy chỉnh giao diện cho bạn: {labels}. Bạn cũng có thể chọn thêm trong 12 loại nền trang, 7 cỡ chữ, 5 phông chữ hoặc 9 phong cách khác ngay tại đây!";
         }
         else
         {

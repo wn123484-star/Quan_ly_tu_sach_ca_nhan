@@ -1024,10 +1024,27 @@ export const PALETTE_LABELS = {
     obsidian: 'Đen Kim Tước'
 };
 
+export const BG_LABELS = {
+    solid: 'Nền Trơn Tiêu Chuẩn',
+    'paper-grain': 'Giấy Sách Ấm Áp',
+    'dot-grid': 'Lưới Chấm Sổ Tay',
+    'graph-grid': 'Kẻ Ô Kỹ Thuật',
+    'notebook-lines': 'Trang Vở Kẻ Ngang',
+    'soft-aurora': 'Cực Quang Dịu Nhẹ',
+    'sunset-glow': 'Ánh Hoàng Hôn Ấm',
+    botanical: 'Vườn Sách Xanh Mát',
+    'starry-night': 'Bầu Trời Sao Nhẹ',
+    'warm-linen': 'Vải Bố Cổ Điển',
+    'pastel-clouds': 'Mây Pastel Mộng Mơ',
+    'geometric-prism': 'Hoa Văn Hình Học Nhẹ'
+};
+
+const ALLOWED_FONT_SIZES = ['xs', 'sm', 'md', 'lg', 'xl', '2xl', '3xl'];
+
 const DARK_LOCKED_STYLES = new Set(['cyborg', 'terminal']);
 
 export function getUiPrefs() {
-    const def = { theme: 'light', style: 'standard', palette: 'blue', font: 'roboto', fontSize: 'md' };
+    const def = { theme: 'light', style: 'standard', palette: 'blue', background: 'solid', font: 'roboto', fontSize: 'md' };
     try {
         const raw = localStorage.getItem('bookshare_ui_prefs');
         if (raw) {
@@ -1036,8 +1053,9 @@ export function getUiPrefs() {
                 theme: p.theme === 'dark' ? 'dark' : 'light',
                 style: STYLE_CSS_MAP[p.style] ? p.style : 'standard',
                 palette: PALETTE_LABELS[p.palette] ? p.palette : 'blue',
+                background: BG_LABELS[p.background] ? p.background : 'solid',
                 font: ['roboto', 'bevietnam', 'lora', 'patrick', 'jetbrains'].includes(p.font) ? p.font : 'roboto',
-                fontSize: ['sm', 'md', 'lg', 'xl'].includes(p.fontSize) ? p.fontSize : 'md'
+                fontSize: ALLOWED_FONT_SIZES.includes(p.fontSize) ? p.fontSize : 'md'
             };
         }
         const legacyTheme = localStorage.getItem('bookshare_theme');
@@ -1054,14 +1072,16 @@ export function applyUiPrefs(partial = {}, { persistRemote = false, silent = tru
         theme: partial.theme !== undefined ? (partial.theme === 'dark' ? 'dark' : 'light') : current.theme,
         style: partial.style !== undefined && STYLE_CSS_MAP[partial.style] ? partial.style : current.style,
         palette: partial.palette !== undefined && PALETTE_LABELS[partial.palette] ? partial.palette : current.palette,
+        background: partial.background !== undefined && BG_LABELS[partial.background] ? partial.background : current.background,
         font: partial.font !== undefined && ['roboto', 'bevietnam', 'lora', 'patrick', 'jetbrains'].includes(partial.font) ? partial.font : current.font,
-        fontSize: partial.fontSize !== undefined && ['sm', 'md', 'lg', 'xl'].includes(partial.fontSize) ? partial.fontSize : current.fontSize
+        fontSize: partial.fontSize !== undefined && ALLOWED_FONT_SIZES.includes(partial.fontSize) ? partial.fontSize : current.fontSize
     };
 
     const effectiveTheme = DARK_LOCKED_STYLES.has(next.style) ? 'dark' : next.theme;
     const html = document.documentElement;
     html.setAttribute('data-bs-theme', effectiveTheme);
     html.setAttribute('data-ui-style', next.style);
+    html.setAttribute('data-bg-pattern', next.background);
     html.setAttribute('data-font-family', next.font);
     html.setAttribute('data-font-size', next.fontSize);
     document.body?.setAttribute('data-portal-palette', next.palette);
@@ -1102,15 +1122,18 @@ export function applyUiPrefs(partial = {}, { persistRemote = false, silent = tru
     const syncSel = (id, val) => { const s = document.getElementById(id); if (s && s.value !== val) s.value = val; };
     syncSel('aiStyleSelect', next.style);
     syncSel('aiPaletteSelect', next.palette);
+    syncSel('aiBgSelect', next.background);
     syncSel('aiFontSelect', next.font);
     syncSel('aiFontSizeSelect', next.fontSize);
     syncSel('s13StyleSelect', next.style);
     syncSel('s13PaletteSelect', next.palette);
+    syncSel('s13BgSelect', next.background);
     syncSel('s13FontSelect', next.font);
     syncSel('s13FontSizeSelect', next.fontSize);
     syncSel('prefThemeMode', effectiveTheme);
     syncSel('prefUiStyle', next.style);
     syncSel('prefPalette', next.palette);
+    syncSel('prefBgPattern', next.background);
     syncSel('prefFontFamily', next.font);
     syncSel('prefFontSize', next.fontSize);
 
@@ -1125,7 +1148,7 @@ export function applyUiPrefs(partial = {}, { persistRemote = false, silent = tru
     }
 
     if (!silent) {
-        showSystemStatus(200, 'Đã cập nhật giao diện', `Màu: ${PALETTE_LABELS[next.palette] || next.palette} • Phong cách: ${STYLE_LABELS[next.style] || next.style}`);
+        showSystemStatus(200, 'Đã cập nhật giao diện', `Màu: ${PALETTE_LABELS[next.palette] || next.palette} • Nền: ${BG_LABELS[next.background] || next.background} • Style: ${STYLE_LABELS[next.style] || next.style}`);
     }
     return next;
 }
@@ -1857,6 +1880,9 @@ document.addEventListener('DOMContentLoaded', () => {
     });
     document.getElementById('aiPaletteSelect')?.addEventListener('change', (e) => {
         applyUiPrefs({ palette: e.target.value }, { persistRemote: true, silent: true });
+    });
+    document.getElementById('aiBgSelect')?.addEventListener('change', (e) => {
+        applyUiPrefs({ background: e.target.value }, { persistRemote: true, silent: true });
     });
     document.getElementById('aiFontSelect')?.addEventListener('change', (e) => {
         applyUiPrefs({ font: e.target.value }, { persistRemote: true, silent: true });

@@ -368,16 +368,44 @@ public class S19AdminResolveDisputeDto
 }
 
 // =========================================================================
-// S20: EXCHANGE HUB & BOOK CLUB (CURATOR P2P VERIFICATION & DROP-OFF HUB)
+// S20: EXCHANGE HUB & BOOK CLUB (PER-CLUB GROUP GOVERNANCE, LEADER & DROP-OFF)
 // =========================================================================
 public class S20ExchangeHubClubPageViewModel
 {
     public string CurrentUserId { get; set; } = string.Empty;
     public string CurrentUserRole { get; set; } = "User";
     public int TotalHubsCount { get; set; }
+    public int TotalClubsCount { get; set; }
     public int TotalCopiesAtHubs { get; set; }
     public int PendingP2PHubOrdersCount { get; set; }
+
+    // Club Filter & Selection
+    public int SelectedHubId { get; set; }
+    public string? ClubKeyword { get; set; }
+    public string HubTypeFilter { get; set; } = "all"; // all / ClubStation / DropoffHub / Library
+    public string OrderStatusFilter { get; set; } = "all";
+    public string MemberStatusFilter { get; set; } = "all"; // all / Approved / Pending
+    public int MemberPage { get; set; } = 1;
+    public int MemberPageSize { get; set; } = 10;
+    public int TotalFilteredMembers { get; set; }
+    public int MemberTotalPages => MemberPageSize > 0 ? Math.Max(1, (int)Math.Ceiling(TotalFilteredMembers / (double)MemberPageSize)) : 1;
+    public int OrderPage { get; set; } = 1;
+    public int OrderPageSize { get; set; } = 10;
+    public int TotalFilteredOrders { get; set; }
+    public int OrderTotalPages => OrderPageSize > 0 ? Math.Max(1, (int)Math.Ceiling(TotalFilteredOrders / (double)OrderPageSize)) : 1;
+
+    // Selected Club Permission Context
+    public S20HubStationDto? SelectedHub { get; set; }
+    public bool CanManageSelectedClub { get; set; }
+    public bool IsSelectedClubLeader { get; set; }
+    public bool IsCurrentUserClubMember { get; set; }
+    public string? CurrentUserClubRole { get; set; }
+    public string? CurrentUserClubStatus { get; set; }
+
     public List<S20HubStationDto> Hubs { get; set; } = new();
+    public List<S20ClubMemberDto> SelectedClubMembers { get; set; } = new();
+    public List<S20ClubPostDto> SelectedClubPosts { get; set; } = new();
+    public List<S20UserOptionDto> CandidateUsers { get; set; } = new();
     public List<S20HubBookCopyDto> HubCopies { get; set; } = new();
     public List<S20HubLoanOrderDto> HubP2POrders { get; set; } = new();
 }
@@ -387,13 +415,58 @@ public class S20HubStationDto
     public int HubId { get; set; }
     public string Name { get; set; } = string.Empty;
     public string Address { get; set; } = string.Empty;
+    public string ManagerUserId { get; set; } = string.Empty;
     public string ManagerName { get; set; } = string.Empty;
+    public string ManagerEmail { get; set; } = string.Empty;
     public string Phone { get; set; } = string.Empty;
     public string HubType { get; set; } = "ClubStation"; // Library / DropoffHub / ClubStation
     public string OpenHours { get; set; } = string.Empty;
+    public string? Description { get; set; }
+    public string? ClubRules { get; set; }
+    public bool IsPublicClub { get; set; } = true;
     public bool IsActive { get; set; }
     public int CopiesStoredCount { get; set; }
     public int ActiveLoanRequestsCount { get; set; }
+    public int ApprovedMembersCount { get; set; }
+    public int PendingMembersCount { get; set; }
+}
+
+public class S20ClubMemberDto
+{
+    public int MemberId { get; set; }
+    public int HubId { get; set; }
+    public string UserId { get; set; } = string.Empty;
+    public string FullName { get; set; } = string.Empty;
+    public string Email { get; set; } = string.Empty;
+    public string SystemRole { get; set; } = "User";
+    public int TrustScore { get; set; }
+    public string MemberRole { get; set; } = "Member"; // Leader / ViceLeader / Member
+    public string Status { get; set; } = "Approved";   // Approved / Pending / Rejected
+    public string? JoinNote { get; set; }
+    public string? AddedByName { get; set; }
+    public DateTime JoinedAt { get; set; }
+}
+
+public class S20ClubPostDto
+{
+    public int PostId { get; set; }
+    public int HubId { get; set; }
+    public string AuthorUserId { get; set; } = string.Empty;
+    public string AuthorName { get; set; } = string.Empty;
+    public string AuthorClubRole { get; set; } = "Leader";
+    public string Title { get; set; } = string.Empty;
+    public string Content { get; set; } = string.Empty;
+    public bool IsPinned { get; set; }
+    public DateTime CreatedAt { get; set; }
+}
+
+public class S20UserOptionDto
+{
+    public string UserId { get; set; } = string.Empty;
+    public string FullName { get; set; } = string.Empty;
+    public string Email { get; set; } = string.Empty;
+    public string RoleName { get; set; } = "User";
+    public int TrustScore { get; set; }
 }
 
 public class S20HubBookCopyDto
@@ -415,6 +488,7 @@ public class S20HubLoanOrderDto
 {
     public int LoanRequestId { get; set; }
     public int? LoanId { get; set; }
+    public int? PickupHubId { get; set; }
     public string Barcode { get; set; } = string.Empty;
     public string BookTitle { get; set; } = string.Empty;
     public string OwnerName { get; set; } = string.Empty;
@@ -440,6 +514,76 @@ public class S20UpdateHubStationDto
     public string Address { get; set; } = string.Empty;
     public string OpenHours { get; set; } = "08:00 - 18:00";
     public string Phone { get; set; } = string.Empty;
+    public string? Description { get; set; }
+    public string? ClubRules { get; set; }
+    public bool? IsPublicClub { get; set; }
+}
+
+public class S20CreateClubDto
+{
+    public string Name { get; set; } = string.Empty;
+    public string Address { get; set; } = string.Empty;
+    public string HubType { get; set; } = "ClubStation"; // ClubStation / DropoffHub / Library
+    public string? LeaderUserId { get; set; }
+    public string OpenHours { get; set; } = "09:00 - 20:00 (Cả tuần)";
+    public string Phone { get; set; } = string.Empty;
+    public string? Description { get; set; }
+    public string? ClubRules { get; set; }
+    public bool IsPublicClub { get; set; } = true;
+}
+
+public class S20AssignClubLeaderDto
+{
+    public int HubId { get; set; }
+    public string LeaderUserId { get; set; } = string.Empty;
+}
+
+public class S20AddClubMemberDto
+{
+    public int HubId { get; set; }
+    public string? TargetUserId { get; set; }
+    public string? TargetEmail { get; set; }
+    public string MemberRole { get; set; } = "Member"; // Member / ViceLeader
+}
+
+public class S20JoinClubDto
+{
+    public int HubId { get; set; }
+    public string? JoinNote { get; set; }
+}
+
+public class S20ReviewClubMemberDto
+{
+    public int HubId { get; set; }
+    public int MemberId { get; set; }
+    public bool Approve { get; set; } = true;
+}
+
+public class S20UpdateClubMemberRoleDto
+{
+    public int HubId { get; set; }
+    public int MemberId { get; set; }
+    public string NewRole { get; set; } = "Member"; // ViceLeader / Member
+}
+
+public class S20RemoveClubMemberDto
+{
+    public int HubId { get; set; }
+    public int MemberId { get; set; }
+}
+
+public class S20CreateClubPostDto
+{
+    public int HubId { get; set; }
+    public string Title { get; set; } = string.Empty;
+    public string Content { get; set; } = string.Empty;
+    public bool IsPinned { get; set; }
+}
+
+public class S20DeleteClubPostDto
+{
+    public int HubId { get; set; }
+    public int PostId { get; set; }
 }
 
 public class S20CuratorVerifyCopyDto
@@ -457,7 +601,7 @@ public class S20CuratorHandoverActionDto
 }
 
 // =========================================================================
-// S21: LIBRARIAN DESK (BARCODE QUICK SCAN, BATCH IMPORT, DAMAGED/LOST & OVERDUE)
+// S21: LIBRARIAN DESK (UNIFIED LENDING HUB, BARCODE SCAN, BATCH IMPORT & OVERDUE)
 // =========================================================================
 public class S21LibrarianDeskPageViewModel
 {
@@ -468,11 +612,85 @@ public class S21LibrarianDeskPageViewModel
     public int BorrowedSystemCopies { get; set; }
     public int DamagedOrLostCopies { get; set; }
     public int OverdueLoansCount { get; set; }
+    public int PendingLoansCount { get; set; }
+    public int ActiveLoansCount { get; set; }
+
+    // Unified Loan Queue Filters & Pagination
+    public string? LoanKeyword { get; set; }
+    public string LoanChannelFilter { get; set; } = "all"; // all / Library / P2P
+    public string LoanStatusFilter { get; set; } = "all";  // all / Pending / Approved / Active / Overdue / Returned / Rejected
+    public int LoanPage { get; set; } = 1;
+    public int LoanPageSize { get; set; } = 10;
+    public int TotalFilteredLoans { get; set; }
+    public int LoanTotalPages => LoanPageSize > 0 ? Math.Max(1, (int)Math.Ceiling(TotalFilteredLoans / (double)LoanPageSize)) : 1;
+
+    // System Copies Filters & Pagination
+    public string? CopyKeyword { get; set; }
+    public string CopyStatusFilter { get; set; } = "all"; // all / Available / Borrowed / Reserved / Damaged / Lost
+    public int? CopyLibraryFilter { get; set; }
+    public int CopyPage { get; set; } = 1;
+    public int CopyPageSize { get; set; } = 20;
+    public int TotalFilteredCopies { get; set; }
+    public int CopyTotalPages => CopyPageSize > 0 ? Math.Max(1, (int)Math.Ceiling(TotalFilteredCopies / (double)CopyPageSize)) : 1;
+
     public List<S21BookOptionDto> Books { get; set; } = new();
     public List<S21LibraryOptionDto> Libraries { get; set; } = new();
     public List<S21BorrowerOptionDto> Borrowers { get; set; } = new();
+    public List<S21AvailableCopyOptionDto> AvailableLendableCopies { get; set; } = new();
+    public List<S21UnifiedLoanItemDto> UnifiedLoans { get; set; } = new();
     public List<S21SystemCopyDeskItemDto> SystemCopies { get; set; } = new();
+    public List<S21SystemCopyDeskItemDto> SampleQuickBarcodes { get; set; } = new();
     public List<S21OverdueReaderDto> OverdueLoans { get; set; } = new();
+}
+
+public class S21AvailableCopyOptionDto
+{
+    public int BookCopyId { get; set; }
+    public string Barcode { get; set; } = string.Empty;
+    public string BookTitle { get; set; } = string.Empty;
+    public string OwnerType { get; set; } = "System";
+    public string LocationOrOwner { get; set; } = string.Empty;
+}
+
+public class S21UnifiedLoanItemDto
+{
+    public int LoanRequestId { get; set; }
+    public int? LoanId { get; set; }
+    public int BookCopyId { get; set; }
+    public string Barcode { get; set; } = string.Empty;
+    public string BookTitle { get; set; } = string.Empty;
+    public string LoanType { get; set; } = "Library"; // Library / P2P
+    public string SourceDisplay { get; set; } = string.Empty;
+    public string BorrowerId { get; set; } = string.Empty;
+    public string BorrowerName { get; set; } = string.Empty;
+    public string BorrowerEmail { get; set; } = string.Empty;
+    public int BorrowerTrustScore { get; set; }
+    public string RequestStatus { get; set; } = "Pending";
+    public string CopyStatus { get; set; } = "Available";
+    public string? LoanStatus { get; set; }
+    public int DesiredDays { get; set; } = 14;
+    public DateTime RequestedAt { get; set; }
+    public DateTime? DueDate { get; set; }
+    public DateTime? ReturnDate { get; set; }
+    public decimal FineAmount { get; set; }
+    public string? RequestNote { get; set; }
+}
+
+public class S21ProcessLoanActionDto
+{
+    public int LoanRequestId { get; set; }
+    public string Action { get; set; } = "Approve"; // Approve / Reject / Handover / Return
+    public string ReturnCondition { get; set; } = "Good"; // Good / Fair / Damaged
+    public string? Note { get; set; }
+}
+
+public class S21DirectLendBookDto
+{
+    public int BookCopyId { get; set; }
+    public string BorrowerUserId { get; set; } = string.Empty;
+    public int DesiredDays { get; set; } = 14;
+    public bool ImmediateHandover { get; set; } = true;
+    public string? Note { get; set; }
 }
 
 public class S21BorrowerOptionDto
@@ -528,6 +746,7 @@ public class S21QuickScanBarcodeDto
     public string Barcode { get; set; } = string.Empty;
     public string DeskAction { get; set; } = "AutoDetect"; // AutoDetect / Checkout / Checkin
     public string? BorrowerUserId { get; set; }
+    public int DesiredDays { get; set; } = 14;
     public string ReturnCondition { get; set; } = "Good";
 }
 
@@ -554,14 +773,50 @@ public class S21UpdateCopyStateDto
 }
 
 // =========================================================================
-// S22: ADMIN ANALYTICS, USER/ROLE GOVERNANCE & HANGFIRE DAILY JOBS
+// S22: ADMIN ANALYTICS, USER/ROLE GOVERNANCE, FILTERS & HANGFIRE DAILY JOBS
 // =========================================================================
+public class S22AdminAnalyticsFilterDto
+{
+    public string TimeRange { get; set; } = "all";       // all / 7d / 30d / 90d / 365d
+    public string ChannelFilter { get; set; } = "all";   // all / Library / P2P
+    public int CategoryId { get; set; } = 0;             // 0 = all
+    public string? UserKeyword { get; set; }
+    public string UserRoleFilter { get; set; } = "all";  // all / User / Curator / Librarian / Admin
+    public string UserLockFilter { get; set; } = "all";  // all / Active / Locked
+    public string UserTierFilter { get; set; } = "all";  // all / Free / Standard / Premium / Scholar
+    public int UserPage { get; set; } = 1;
+    public int UserPageSize { get; set; } = 20;
+    public string AuditCategoryFilter { get; set; } = "all"; // all / TRANSACTION / TRANH CHẤP / EMAIL / THÔNG BÁO
+    public string UpgradeStatusFilter { get; set; } = "Pending"; // Pending / Approved / Rejected / all
+}
+
+public class S22CategoryOptionDto
+{
+    public int Id { get; set; }
+    public string Name { get; set; } = string.Empty;
+}
+
 public class S22AdminAnalyticsPageViewModel
 {
     public string CurrentUserId { get; set; } = string.Empty;
     public string CurrentUserRole { get; set; } = "User";
 
-    // KPI Cards
+    // Active Filter State
+    public string TimeRange { get; set; } = "all";
+    public string ChannelFilter { get; set; } = "all";
+    public int CategoryId { get; set; } = 0;
+    public string? UserKeyword { get; set; }
+    public string UserRoleFilter { get; set; } = "all";
+    public string UserLockFilter { get; set; } = "all";
+    public string UserTierFilter { get; set; } = "all";
+    public int UserPage { get; set; } = 1;
+    public int UserPageSize { get; set; } = 20;
+    public int TotalFilteredUsers { get; set; }
+    public int UserTotalPages => UserPageSize > 0 ? Math.Max(1, (int)Math.Ceiling(TotalFilteredUsers / (double)UserPageSize)) : 1;
+    public string AuditCategoryFilter { get; set; } = "all";
+    public string UpgradeStatusFilter { get; set; } = "Pending";
+
+    // Baseline KPI Cards (always reflect full system totals for overview)
     public int TotalUsers { get; set; }
     public int TotalBooks { get; set; }
     public int TotalCopies { get; set; }
@@ -574,13 +829,14 @@ public class S22AdminAnalyticsPageViewModel
     public int TotalOpenDisputes { get; set; }
     public int TotalAiMessages { get; set; }
 
-    // Charts Data
+    // Charts Data (filtered according to TimeRange / ChannelFilter / CategoryId)
     public int AvailableCopiesCount { get; set; }
     public int BorrowedCopiesCount { get; set; }
     public int ReservedCopiesCount { get; set; }
     public int DamagedOrLostCopiesCount { get; set; }
 
     // Governance & Logs
+    public List<S22CategoryOptionDto> Categories { get; set; } = new();
     public List<S22AdminUserItemDto> Users { get; set; } = new();
     public List<CuratorUpgradeRequestItemDto> PendingRoleUpgrades { get; set; } = new();
     public List<S22SystemAuditLogDto> AuditLogs { get; set; } = new();
@@ -592,6 +848,7 @@ public class S22AdminUserItemDto
     public string UserId { get; set; } = string.Empty;
     public string FullName { get; set; } = string.Empty;
     public string Email { get; set; } = string.Empty;
+    public bool EmailConfirmed { get; set; }
     public string RoleName { get; set; } = "User";
     public int TrustScore { get; set; }
     public int LendQuotaBonus { get; set; }

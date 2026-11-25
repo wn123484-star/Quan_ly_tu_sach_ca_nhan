@@ -1,6 +1,7 @@
 @model BookShare.Web.Models.ViewModels.S08LibraryLoanPageViewModel
 @{
     ViewData["Title"] = "Điều Phối Mượn – Trả Sách Kho Chung Thư Viện";
+    int.TryParse(Context.Request.Query["copyId"], out var preselectedCopyId);
 }
 
 @section Styles {
@@ -40,7 +41,7 @@
                         <select id="s08BookCopyId" class="form-select form-select-sm" required>
                             @foreach (var copy in Model.AvailableLibraryCopies)
                             {
-                                <option value="@copy.BookCopyId">[@copy.Barcode] @copy.Title — @copy.LibraryName (@copy.ShelfLocation)</option>
+                                <option value="@copy.BookCopyId" selected="@(preselectedCopyId == copy.BookCopyId)">[@copy.Barcode] @copy.Title — @copy.LibraryName (@copy.ShelfLocation)</option>
                             }
                         </select>
                     </div>

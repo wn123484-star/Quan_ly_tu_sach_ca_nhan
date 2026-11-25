@@ -210,7 +210,23 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             });
 
-            // 6. Thanh chọn nhanh Style / Màu / Font / Cỡ chữ ngay trên S13
+            // 5b. Gửi các loại báo cáo Email mở rộng của AI (tiến độ đọc, gợi ý sách, ví/hội viên, CLB, báo cáo Admin)
+            document.querySelectorAll('.js-s13-ai-email').forEach(btn => {
+                btn.addEventListener('click', async () => {
+                    const actionKey = btn.getAttribute('data-action') || '';
+                    if (!actionKey) return;
+                    const res = await apiFetch('/S13GeminiAiAssistant/ExecuteCopilotAction', {
+                        method: 'POST',
+                        body: { actionKey, parameters: {} },
+                        button: btn
+                    });
+                    if (res.ok) {
+                        appendMessageBubble('Trợ lý AI BookShare', `✅ ${res.data?.message || 'Đã gửi Email thành công!'}`, true, 'Email AI');
+                    }
+                });
+            });
+
+            // 6. Thanh chọn nhanh Style / Màu / Nền / Font / Cỡ chữ ngay trên S13
             const curPrefs = getUiPrefs();
             const bindSel = (id, key) => {
                 const el = document.getElementById(id);
@@ -230,6 +246,7 @@ document.addEventListener('DOMContentLoaded', () => {
             };
             bindSel('s13StyleSelect', 'style');
             bindSel('s13PaletteSelect', 'palette');
+            bindSel('s13BgSelect', 'background');
             bindSel('s13FontSelect', 'font');
             bindSel('s13FontSizeSelect', 'fontSize');
         });

@@ -21,7 +21,17 @@ public partial class Library
 
     public bool IsActive { get; set; }
 
+    public string? Description { get; set; }
+
+    public string? ClubRules { get; set; }
+
+    public bool IsPublicClub { get; set; } = true;
+
     public virtual ICollection<BookCopy> BookCopies { get; set; } = new List<BookCopy>();
+
+    public virtual ICollection<ClubMember> ClubMembers { get; set; } = new List<ClubMember>();
+
+    public virtual ICollection<ClubPost> ClubPosts { get; set; } = new List<ClubPost>();
 
     public virtual ICollection<LoanRequest> LoanRequests { get; set; } = new List<LoanRequest>();
 

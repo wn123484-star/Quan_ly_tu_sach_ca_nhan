@@ -1,6 +1,9 @@
 @model BookShare.Web.Models.ViewModels.S20ExchangeHubClubPageViewModel
 @{
-    ViewData["Title"] = "Câu Lạc Bộ Đọc Sách & Điểm Trạm Giao Nhận P2P Trung Gian";
+    ViewData["Title"] = "Không Gian Câu Lạc Bộ Sách Dạng Group, Trưởng Nhóm & Trạm Giao Nhận";
+    var isAuthenticated = User.Identity?.IsAuthenticated == true;
+    var isAdmin = Model.CurrentUserRole == "Admin";
+    var sel = Model.SelectedHub;
 }
 
 @section Styles {
@@ -10,74 +13,387 @@
 <section class="s20-hero card border-0 shadow-sm rounded-4 p-4 mb-4">
     <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
         <div>
-            <span class="badge bg-primary mb-2 px-3 py-1 rounded-pill">CÂU LẠC BỘ SÁCH HỌC THUẬT &amp; ĐIỂM TRẠM GIAO NHẬN</span>
-            <h2 class="fw-bold mb-1">📍 Điểm Trạm Giao Nhận Sách An Toàn &amp; CLB Sách ĐH CMC</h2>
+            <span class="badge bg-primary mb-2 px-3 py-1 rounded-pill">CÂU LẠC BỘ SÁCH HỌC THUẬT &amp; MÔ HÌNH NHÓM CỘNG ĐỒNG</span>
+            <h2 class="fw-bold mb-1">🏕️ Không Gian Từng Câu Lạc Bộ, Trưởng Nhóm &amp; Điểm Trạm Giao Nhận</h2>
             <p class="text-muted small mb-0">
-                Thành viên đăng ký ký gửi sách cá nhân tại Điểm hẹn CLB. Chủ nhiệm CLB và Quản trị viên xác nhận kiểm định sách thật và hỗ trợ bàn giao, thu hồi sách trung gian minh bạch.
+                Mỗi Câu lạc bộ vận hành độc lập như một Nhóm (Group) có <strong>Trưởng nhóm</strong>, <strong>Phó nhóm</strong>, danh sách thành viên, bảng tin nội bộ, điều lệ và trạm kiểm định – giao nhận sách riêng biệt. Quản trị viên có toàn quyền khởi tạo &amp; điều phối mọi CLB.
             </p>
         </div>
         <div class="s20-hub-badge">
-            <div class="small">Vai trò hiện tại: <strong>@Model.CurrentUserRole</strong></div>
-            <div class="fs-5 fw-bold">@Model.TotalHubsCount Điểm Trạm • @Model.TotalCopiesAtHubs Bản Sao P2P</div>
+            <div class="small">Vai trò hệ thống: <strong>@Model.CurrentUserRole</strong></div>
+            <div class="fs-5 fw-bold">@Model.TotalHubsCount Trạm/CLB • @Model.TotalCopiesAtHubs Bản Sao</div>
             <small>Đơn P2P hẹn tại Hub: @Model.PendingP2PHubOrdersCount đơn</small>
+            @if (isAdmin)
+            {
+                <button type="button" id="btnOpenCreateClubModal" class="btn btn-warning btn-sm text-dark fw-bold w-100 mt-2">
+                    <i class="bi bi-plus-circle-fill me-1"></i>Thành Lập CLB / Trạm Mới
+                </button>
+            }
         </div>
     </div>
 </section>
 
-<!-- DANH SÁCH 3 ĐIỂM TRẠM GIAO NHẬN / THƯ VIỆN ĐỐI TÁC -->
-<div class="row g-3 mb-4">
-    @foreach (var h in Model.Hubs)
-    {
+<!-- BỘ LỌC & DANH SÁCH TỪNG CÂU LẠC BỘ / ĐIỂM TRẠM RIÊNG BIỆT -->
+<section class="card border-0 shadow-sm rounded-4 p-3 mb-4 bg-white">
+    <form method="get" asp-controller="S20ExchangeHubClub" asp-action="Index" class="row g-2 align-items-center mb-3">
+        <div class="col-md-5">
+            <input type="text" name="clubKeyword" value="@Model.ClubKeyword" class="form-control form-control-sm" placeholder="Tìm Câu lạc bộ / Điểm trạm theo tên, địa chỉ, Trưởng nhóm..." />
+        </div>
         <div class="col-md-4">
-            <div class="card border-0 shadow-sm rounded-4 h-100 bg-white p-3">
-                <div class="d-flex justify-content-between align-items-center mb-2">
-                    <span class="badge @(h.HubType == "ClubStation" ? "bg-warning text-dark" : "bg-primary")">
-                        @(h.HubType == "ClubStation" ? "⛺ Trạm CLB Sách (Drop-off Hub)" : "🏛️ Thư viện Đối tác")
-                    </span>
-                    <span class="badge bg-success">Đang mở cửa</span>
+            <select name="hubType" class="form-select form-select-sm" aria-label="Lọc loại hình điểm trạm">
+                <option value="all" selected="@(Model.HubTypeFilter == "all")">🌐 Tất cả Câu lạc bộ &amp; Thư viện</option>
+                <option value="ClubStation" selected="@(Model.HubTypeFilter == "ClubStation")">⛺ Câu lạc bộ Sách (ClubStation)</option>
+                <option value="DropoffHub" selected="@(Model.HubTypeFilter == "DropoffHub")">📍 Điểm ký gửi cộng đồng (DropoffHub)</option>
+                <option value="Library" selected="@(Model.HubTypeFilter == "Library")">🏛️ Thư viện Đối tác</option>
+            </select>
+        </div>
+        <div class="col-md-3 d-flex gap-1">
+            <button type="submit" class="btn btn-primary btn-sm fw-bold flex-grow-1"><i class="bi bi-funnel-fill me-1"></i>Lọc CLB</button>
+            <a asp-controller="S20ExchangeHubClub" asp-action="Index" class="btn btn-outline-secondary btn-sm" title="Xem tất cả"><i class="bi bi-arrow-counterclockwise"></i></a>
+        </div>
+    </form>
+
+    <div class="row g-3">
+        @foreach (var h in Model.Hubs)
+        {
+            bool isSelected = sel != null && sel.HubId == h.HubId;
+            <div class="col-md-4">
+                <div class="card shadow-sm rounded-4 h-100 bg-white p-3 @(isSelected ? "border border-2 border-primary" : "border")">
+                    <div class="d-flex justify-content-between align-items-center mb-2 gap-1 flex-wrap">
+                        <span class="badge @(h.HubType == "ClubStation" ? "bg-warning text-dark" : h.HubType == "DropoffHub" ? "bg-info text-dark" : "bg-primary")">
+                            @(h.HubType == "ClubStation" ? "⛺ Câu Lạc Bộ Sách" : h.HubType == "DropoffHub" ? "📍 Trạm Ký Gửi" : "🏛️ Thư viện Đối tác")
+                        </span>
+                        <span class="badge @(h.IsPublicClub ? "bg-success-subtle text-success border border-success-subtle" : "bg-secondary-subtle text-secondary border")">
+                            @(h.IsPublicClub ? "Nhóm mở" : "Cần duyệt")
+                        </span>
+                    </div>
+                    <h6 class="fw-bold mb-1">@h.Name</h6>
+                    <p class="small text-muted mb-2"><i class="bi bi-geo-alt-fill text-danger me-1"></i>@h.Address</p>
+                    <div class="p-2 rounded-3 bg-light small mt-auto border">
+                        <div class="d-flex justify-content-between">
+                            <span>Trưởng nhóm:</span>
+                            <strong class="text-truncate ms-2">@h.ManagerName</strong>
+                        </div>
+                        <div class="d-flex justify-content-between">
+                            <span>Thành viên nhóm:</span>
+                            <span><strong class="text-primary">@h.ApprovedMembersCount</strong> thành viên @(h.PendingMembersCount > 0 ? $"({h.PendingMembersCount} chờ duyệt)" : "")</span>
+                        </div>
+                        <div class="d-flex justify-content-between">
+                            <span>Sách đang lưu trạm:</span>
+                            <strong>@h.CopiesStoredCount bản sao</strong>
+                        </div>
+                        <div class="d-flex gap-1 mt-2">
+                            <a asp-controller="S20ExchangeHubClub" asp-action="Index" asp-route-hubId="@h.HubId"
+                               class="btn btn-xs @(isSelected ? "btn-primary" : "btn-outline-primary") fw-bold flex-grow-1">
+                                <i class="bi bi-door-open-fill me-1"></i>@(isSelected ? "Đang xem CLB này" : "Mở Không Gian CLB")
+                            </a>
+                            @if (isAdmin || (isAuthenticated && h.ManagerUserId == Model.CurrentUserId))
+                            {
+                                <button type="button" class="btn btn-xs btn-outline-secondary js-s20-edit-hub"
+                                        data-hub-id="@h.HubId"
+                                        data-hub-name="@h.Name"
+                                        data-hub-address="@h.Address"
+                                        data-hub-hours="@h.OpenHours"
+                                        data-hub-phone="@h.Phone"
+                                        data-hub-desc="@(h.Description ?? "")"
+                                        data-hub-rules="@(h.ClubRules ?? "")"
+                                        data-hub-public="@(h.IsPublicClub ? "1" : "0")"
+                                        title="Cập nhật thông tin &amp; điều lệ CLB">
+                                    <i class="bi bi-pencil-square"></i>
+                                </button>
+                            }
+                        </div>
+                    </div>
                 </div>
-                <h6 class="fw-bold mb-1">@h.Name</h6>
-                <p class="small text-muted mb-2"><i class="bi bi-geo-alt-fill text-danger me-1"></i>@h.Address</p>
-                <div class="p-2 rounded-3 bg-light small mt-auto border">
-                    <div class="d-flex justify-content-between">
-                        <span>Quản lý trạm:</span>
-                        <strong>@h.ManagerName</strong>
+            </div>
+        }
+    </div>
+</section>
+
+<!-- KHÔNG GIAN NHÓM CỦA CÂU LẠC BỘ ĐANG CHỌN -->
+@if (sel != null)
+{
+    <section class="card border-0 shadow-sm rounded-4 bg-white p-4 mb-4 border-start border-4 border-primary" id="selectedClubWorkspace" data-hub-id="@sel.HubId">
+        <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 pb-3 mb-3 border-bottom">
+            <div>
+                <div class="d-flex flex-wrap align-items-center gap-2 mb-1">
+                    <span class="badge bg-primary">KHÔNG GIAN NHÓM CLB #@sel.HubId</span>
+                    <span class="badge bg-warning text-dark"><i class="bi bi-crown-fill me-1"></i>Trưởng nhóm: @sel.ManagerName</span>
+                    <span class="badge bg-info text-dark">@sel.ApprovedMembersCount thành viên</span>
+                    <span class="badge bg-light text-dark border">@sel.OpenHours • @sel.Phone</span>
+                </div>
+                <h4 class="fw-bold mb-1">@sel.Name</h4>
+                @if (!string.IsNullOrWhiteSpace(sel.Description))
+                {
+                    <p class="small text-muted mb-1">@sel.Description</p>
+                }
+                @if (!string.IsNullOrWhiteSpace(sel.ClubRules))
+                {
+                    <div class="small bg-body-tertiary border rounded-3 px-3 py-2 mt-2">
+                        <strong class="text-primary"><i class="bi bi-journal-check me-1"></i>Điều lệ &amp; Nội quy CLB:</strong>
+                        <span>@sel.ClubRules</span>
                     </div>
-                    <div class="d-flex justify-content-between">
-                        <span>Giờ hoạt động:</span>
-                        <span>@h.OpenHours</span>
-                    </div>
-                                <div class="d-flex justify-content-between align-items-center">
-                                    <span>Sách đang lưu trạm: <strong class="text-primary">@h.CopiesStoredCount bản sao</strong></span>
-                                    @if (User.IsInRole("Curator") || User.IsInRole("Admin"))
+                }
+            </div>
+
+            <div class="d-flex flex-wrap gap-2">
+                @if (isAuthenticated)
+                {
+                    @if (Model.IsCurrentUserClubMember)
+                    {
+                        <span class="badge bg-success py-2 px-3 align-self-center">
+                            <i class="bi bi-check-circle-fill me-1"></i>Đã là @(Model.CurrentUserClubRole == "Leader" ? "Trưởng nhóm" : Model.CurrentUserClubRole == "ViceLeader" ? "Phó nhóm" : "Thành viên")
+                        </span>
+                        @if (Model.CurrentUserClubRole != "Leader" && sel.ManagerUserId != Model.CurrentUserId)
+                        {
+                            <button type="button" class="btn btn-outline-danger btn-sm fw-semibold" id="btnLeaveSelectedClub" data-hub-id="@sel.HubId">
+                                <i class="bi bi-box-arrow-left me-1"></i>Rời CLB
+                            </button>
+                        }
+                    }
+                    else if (Model.CurrentUserClubStatus == "Pending")
+                    {
+                        <span class="badge bg-warning text-dark py-2 px-3 align-self-center">
+                            <i class="bi bi-hourglass-split me-1"></i>Đang chờ Trưởng nhóm duyệt
+                        </span>
+                    }
+                    else
+                    {
+                        <button type="button" class="btn btn-primary btn-sm fw-bold" id="btnJoinSelectedClub" data-hub-id="@sel.HubId">
+                            <i class="bi bi-person-plus-fill me-1"></i>@(sel.IsPublicClub ? "Tham Gia CLB Ngay" : "Gửi Đơn Gia Nhập CLB")
+                        </button>
+                    }
+                }
+                else
+                {
+                    <a asp-controller="S01AuthOtpGoogle" asp-action="Index" class="btn btn-outline-primary btn-sm fw-bold">
+                        Đăng nhập để tham gia CLB
+                    </a>
+                }
+            </div>
+        </div>
+
+        <div class="row g-4">
+            <!-- CỘT TRÁI: THÀNH VIÊN GROUP CLB (THÊM THÀNH VIÊN NHƯ GROUP, DUYỆT ĐƠN, BỔ NHIỆM TRƯỞNG/PHÓ NHÓM) -->
+            <div class="col-lg-7">
+                <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+                    <h5 class="fw-bold mb-0"><i class="bi bi-people-fill text-primary me-2"></i>Thành Viên Nhóm CLB (@Model.TotalFilteredMembers)</h5>
+                    <form method="get" asp-controller="S20ExchangeHubClub" asp-action="Index" class="d-flex gap-1 align-items-center">
+                        <input type="hidden" name="hubId" value="@sel.HubId" />
+                        <select name="memberStatus" class="form-select form-select-sm" onchange="this.form.submit()" aria-label="Lọc trạng thái thành viên CLB">
+                            <option value="all" selected="@(Model.MemberStatusFilter == "all")">Tất cả thành viên</option>
+                            <option value="Approved" selected="@(Model.MemberStatusFilter == "Approved")">Đã duyệt</option>
+                            <option value="Pending" selected="@(Model.MemberStatusFilter == "Pending")">Đang chờ duyệt (@sel.PendingMembersCount)</option>
+                        </select>
+                    </form>
+                </div>
+
+                @if (Model.CanManageSelectedClub)
+                {
+                    <!-- FORM ADD THÀNH VIÊN NHƯ GROUP (TRƯỞNG NHÓM / PHÓ NHÓM / ADMIN) -->
+                    <div class="p-3 rounded-4 border bg-body-tertiary mb-3">
+                        <div class="small fw-bold text-primary mb-2">
+                            <i class="bi bi-person-fill-add me-1"></i>Thêm Thành Viên Vào Nhóm CLB (Như Group)
+                        </div>
+                        <form id="formAddClubMember" class="row g-2 align-items-end">
+                            <input type="hidden" id="addMemberHubId" value="@sel.HubId" />
+                            <div class="col-md-5">
+                                <label class="form-label small text-muted mb-1" for="addMemberUserId">Chọn tài khoản thành viên</label>
+                                <select id="addMemberUserId" class="form-select form-select-sm">
+                                    <option value="">-- Hoặc nhập Email ở ô bên cạnh --</option>
+                                    @foreach (var u in Model.CandidateUsers)
                                     {
-                                        <button type="button" class="btn btn-xs btn-outline-primary py-0 px-2 js-s20-edit-hub"
-                                                data-hub-id="@h.HubId"
-                                                data-hub-name="@h.Name"
-                                                data-hub-address="@h.Address"
-                                                data-hub-hours="@h.OpenHours"
-                                                data-hub-phone="@h.Phone"
-                                                title="Cập nhật thông tin Điểm trạm">
-                                            <i class="bi bi-pencil-square"></i> Sửa trạm
+                                        <option value="@u.UserId">@u.FullName (@u.Email)</option>
+                                    }
+                                </select>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label small text-muted mb-1" for="addMemberEmail">Hoặc nhập Email thành viên</label>
+                                <input type="email" id="addMemberEmail" class="form-control form-control-sm" placeholder="thanhvien@cmc.edu.vn" />
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label small text-muted mb-1" for="addMemberRole">Vai trò nhóm</label>
+                                <select id="addMemberRole" class="form-select form-select-sm">
+                                    <option value="Member" selected>Thành viên</option>
+                                    <option value="ViceLeader">Phó nhóm</option>
+                                </select>
+                            </div>
+                            <div class="col-12 d-flex flex-wrap justify-content-between align-items-center gap-2 mt-2">
+                                @if (Model.IsSelectedClubLeader)
+                                {
+                                    <div class="d-flex align-items-center gap-1 flex-wrap">
+                                        <select id="assignLeaderUserId" class="form-select form-select-sm w-auto" aria-label="Chọn Trưởng nhóm mới">
+                                            @foreach (var u in Model.CandidateUsers)
+                                            {
+                                                <option value="@u.UserId" selected="@(u.UserId == sel.ManagerUserId)">Trưởng nhóm: @u.FullName</option>
+                                            }
+                                        </select>
+                                        <button type="button" id="btnAssignClubLeader" data-hub-id="@sel.HubId" class="btn btn-outline-warning text-dark btn-xs fw-bold">
+                                            <i class="bi bi-award-fill me-1"></i>Chỉ Định Trưởng Nhóm
+                                        </button>
+                                    </div>
+                                }
+                                <button type="submit" class="btn btn-primary btn-sm fw-bold ms-auto">
+                                    <i class="bi bi-person-plus-fill me-1"></i>Thêm Vào Nhóm
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                }
+
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle small mb-0 table-mobile-cards">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Thành viên</th>
+                                <th>Vai trò CLB</th>
+                                <th>Trạng thái</th>
+                                @if (Model.CanManageSelectedClub)
+                                {
+                                    <th class="text-end">Điều phối nhóm</th>
+                                }
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var m in Model.SelectedClubMembers)
+                            {
+                                <tr>
+                                    <td>
+                                        <div class="fw-bold">@m.FullName</div>
+                                        <small class="text-muted">@m.Email • Uy tín @m.TrustScore</small>
+                                    </td>
+                                    <td>
+                                        <span class="badge @(m.MemberRole == "Leader" ? "bg-warning text-dark" : m.MemberRole == "ViceLeader" ? "bg-info text-dark" : "bg-light text-dark border")">
+                                            @(m.MemberRole == "Leader" ? "👑 Trưởng nhóm" : m.MemberRole == "ViceLeader" ? "⭐ Phó nhóm" : "Thành viên")
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <span class="badge @(m.Status == "Approved" ? "bg-success" : "bg-warning text-dark")">
+                                            @(m.Status == "Approved" ? "Chính thức" : "Chờ duyệt")
+                                        </span>
+                                    </td>
+                                    @if (Model.CanManageSelectedClub)
+                                    {
+                                        <td class="text-end">
+                                            <div class="d-flex justify-content-end gap-1 flex-wrap">
+                                                @if (m.Status == "Pending")
+                                                {
+                                                    <button type="button" class="btn btn-xs btn-success fw-bold js-club-review-member"
+                                                            data-hub-id="@sel.HubId" data-member-id="@m.MemberId" data-approve="true">
+                                                        Duyệt vào
+                                                    </button>
+                                                    <button type="button" class="btn btn-xs btn-outline-danger js-club-review-member"
+                                                            data-hub-id="@sel.HubId" data-member-id="@m.MemberId" data-approve="false">
+                                                        Từ chối
+                                                    </button>
+                                                }
+                                                else if (Model.IsSelectedClubLeader && m.MemberRole != "Leader")
+                                                {
+                                                    <button type="button" class="btn btn-xs btn-outline-primary js-club-role-member"
+                                                            data-hub-id="@sel.HubId" data-member-id="@m.MemberId"
+                                                            data-new-role="@(m.MemberRole == "ViceLeader" ? "Member" : "ViceLeader")">
+                                                        @(m.MemberRole == "ViceLeader" ? "Hạ thành viên" : "Lên Phó nhóm")
+                                                    </button>
+                                                    <button type="button" class="btn btn-xs btn-outline-danger js-club-remove-member"
+                                                            data-hub-id="@sel.HubId" data-member-id="@m.MemberId" data-member-name="@m.FullName">
+                                                        Mời rời
+                                                    </button>
+                                                }
+                                            </div>
+                                        </td>
+                                    }
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+
+                @if (Model.MemberTotalPages > 1)
+                {
+                    <nav class="mt-2 d-flex justify-content-end" aria-label="Phân trang thành viên CLB">
+                        <ul class="pagination pagination-sm mb-0">
+                            @for (int p = 1; p <= Model.MemberTotalPages; p++)
+                            {
+                                <li class="page-item @(p == Model.MemberPage ? "active" : "")">
+                                    <a class="page-link" asp-controller="S20ExchangeHubClub" asp-action="Index"
+                                       asp-route-hubId="@sel.HubId" asp-route-memberStatus="@Model.MemberStatusFilter"
+                                       asp-route-memberPage="@p" asp-route-orderStatus="@Model.OrderStatusFilter" asp-route-orderPage="@Model.OrderPage">@p</a>
+                                </li>
+                            }
+                        </ul>
+                    </nav>
+                }
+            </div>
+
+            <!-- CỘT PHẢI: BẢNG TIN & THÔNG BÁO NỘI BỘ CỦA RIÊNG CLB -->
+            <div class="col-lg-5">
+                <h5 class="fw-bold mb-3"><i class="bi bi-megaphone-fill text-warning me-2"></i>Bảng Tin Nội Bộ CLB</h5>
+                @if (Model.CanManageSelectedClub)
+                {
+                    <form id="formCreateClubPost" class="p-3 rounded-4 border bg-body-tertiary mb-3 d-flex flex-column gap-2">
+                        <input type="hidden" id="clubPostHubId" value="@sel.HubId" />
+                        <input type="text" id="clubPostTitle" class="form-control form-control-sm fw-semibold" placeholder="Tiêu đề thông báo / Lịch sinh hoạt CLB..." required />
+                        <textarea id="clubPostContent" class="form-control form-control-sm" rows="2" placeholder="Nội dung sinh hoạt, lịch đổi sách, thông báo tới thành viên..." required></textarea>
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div class="form-check small mb-0">
+                                <input class="form-check-input" type="checkbox" id="clubPostPinned" />
+                                <label class="form-check-label" for="clubPostPinned">Ghim đầu bảng tin</label>
+                            </div>
+                            <button type="submit" class="btn btn-warning text-dark btn-xs fw-bold">
+                                <i class="bi bi-send-fill me-1"></i>Đăng Bảng Tin
+                            </button>
+                        </div>
+                    </form>
+                }
+
+                <div class="d-flex flex-column gap-2" style="max-height: 360px; overflow-y: auto;">
+                    @if (!Model.SelectedClubPosts.Any())
+                    {
+                        <div class="p-3 rounded-3 border bg-light small text-muted text-center">
+                            Chưa có thông báo nội bộ nào trong CLB này.
+                        </div>
+                    }
+                    else
+                    {
+                        @foreach (var post in Model.SelectedClubPosts)
+                        {
+                            <div class="p-3 rounded-3 border @(post.IsPinned ? "border-warning bg-warning bg-opacity-10" : "bg-light") small">
+                                <div class="d-flex justify-content-between align-items-start gap-2">
+                                    <div class="fw-bold">
+                                        @if (post.IsPinned)
+                                        {
+                                            <span class="badge bg-warning text-dark me-1">📌 Ghim</span>
+                                        }
+                                        @post.Title
+                                    </div>
+                                    @if (Model.CanManageSelectedClub)
+                                    {
+                                        <button type="button" class="btn btn-link text-danger p-0 small js-club-delete-post"
+                                                data-hub-id="@sel.HubId" data-post-id="@post.PostId" title="Xóa bài đăng">
+                                            <i class="bi bi-trash3"></i>
                                         </button>
                                     }
                                 </div>
+                                <p class="mb-1 mt-1" style="white-space:pre-line;">@post.Content</p>
+                                <small class="text-muted">@post.AuthorName • @post.CreatedAt.ToString("dd/MM/yyyy HH:mm")</small>
                             </div>
-                        </div>
-                    </div>
-    }
-</div>
+                        }
+                    }
+                </div>
+            </div>
+        </div>
+    </section>
+}
 
+<!-- KÝ GỬI SÁCH, KIỂM ĐỊNH SÁCH THẬT & ĐIỀU PHỐI GIAO NHẬN TẠI TRẠM CLB -->
 <div class="row g-4">
-    <!-- CỘT TRÁI: USER ĐĂNG KÝ KÝ GỬI & CURATOR KIỂM ĐỊNH SÁCH THẬT -->
     <div class="col-lg-5 d-flex flex-column gap-4">
-        <!-- FORM 1: USER ĐĂNG KÝ KÝ GỬI SÁCH P2P -->
         <div class="card border-0 shadow-sm rounded-4 bg-white">
             <div class="card-body p-4">
-                <h5 class="fw-bold mb-3"><i class="bi bi-box-seam-fill text-primary me-2"></i>1. Đăng Ký Gửi Sách P2P Tại Trạm Hub (<code>User</code>)</h5>
+                <h5 class="fw-bold mb-3"><i class="bi bi-box-seam-fill text-primary me-2"></i>1. Đăng Ký Ký Gửi Sách P2P Tại Trạm CLB</h5>
                 <form id="formRegisterDropoff" class="d-flex flex-column gap-3">
                     <div>
-                        <label class="form-label small fw-bold">Chọn Bản sao sách P2P cần gửi trạm</label>
+                        <label class="form-label small fw-bold" for="dropoffCopyId">Chọn Bản sao sách P2P cần gửi trạm</label>
                         <select id="dropoffCopyId" class="form-select">
                             @foreach (var c in Model.HubCopies)
                             {
@@ -86,11 +402,11 @@
                         </select>
                     </div>
                     <div>
-                        <label class="form-label small fw-bold">Chọn Điểm trạm nhận ký gửi</label>
+                        <label class="form-label small fw-bold" for="dropoffHubId">Chọn Điểm trạm / CLB nhận ký gửi</label>
                         <select id="dropoffHubId" class="form-select">
                             @foreach (var h in Model.Hubs)
                             {
-                                <option value="@h.HubId" selected="@(h.HubId == 3)">@h.Name</option>
+                                <option value="@h.HubId" selected="@(sel != null && h.HubId == sel.HubId)">@h.Name</option>
                             }
                         </select>
                     </div>
@@ -103,63 +419,71 @@
 
         @if (User.IsInRole("Curator") || User.IsInRole("Admin"))
         {
-        <!-- FORM 2: KIỂM ĐỊNH SÁCH THẬT TẠI TRẠM -->
-        <div class="card border-0 shadow-sm rounded-4 bg-white border-start border-4 border-warning">
-            <div class="card-body p-4">
-                <div class="d-flex justify-content-between align-items-center mb-2">
-                    <h5 class="fw-bold mb-0"><i class="bi bi-patch-check-fill text-warning me-2"></i>2. Kiểm Định Sách Thật Tại Điểm Trạm</h5>
-                    <span class="badge bg-dark">Chủ nhiệm CLB / Quản trị</span>
-                </div>
-                <p class="small text-muted mb-3">Cộng <strong>+2 Điểm Uy tín</strong> cho chủ sách sau khi hoàn tất xác minh sách thật lần đầu.</p>
-
-                <form id="formCuratorVerify" class="d-flex flex-column gap-3">
-                    <div>
-                        <label class="form-label small fw-bold">Bản sao sách kiểm định tại Trạm CLB</label>
-                        <select id="verifyCopyId" class="form-select">
-                            @foreach (var c in Model.HubCopies)
-                            {
-                                <option value="@c.BookCopyId">[@c.Barcode] @c.BookTitle (@c.Condition • @c.ShelfLocation)</option>
-                            }
-                        </select>
+            <div class="card border-0 shadow-sm rounded-4 bg-white border-start border-4 border-warning">
+                <div class="card-body p-4">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <h5 class="fw-bold mb-0"><i class="bi bi-patch-check-fill text-warning me-2"></i>2. Kiểm Định Sách Thật Tại Điểm Trạm</h5>
+                        <span class="badge bg-dark">Trưởng nhóm CLB / Quản trị</span>
                     </div>
-                    <div class="row g-2">
-                        <div class="col-6">
-                            <label class="form-label small fw-bold">Cấp độ vật lý thực tế</label>
-                            <select id="verifyCondition" class="form-select">
-                                <option value="New">New (Mới 99%)</option>
-                                <option value="Good" selected>Good (Tốt, đủ trang)</option>
-                                <option value="Fair">Fair (Khá)</option>
-                                <option value="Worn">Worn (Sờn gáy)</option>
+                    <p class="small text-muted mb-3">Cộng <strong>+2 Điểm Uy tín</strong> cho chủ sách sau khi hoàn tất xác minh sách thật lần đầu.</p>
+
+                    <form id="formCuratorVerify" class="d-flex flex-column gap-3">
+                        <input type="hidden" id="verifyHubId" value="@(sel?.HubId ?? 3)" />
+                        <div>
+                            <label class="form-label small fw-bold" for="verifyCopyId">Bản sao sách kiểm định tại Trạm CLB</label>
+                            <select id="verifyCopyId" class="form-select">
+                                @foreach (var c in Model.HubCopies)
+                                {
+                                    <option value="@c.BookCopyId">[@c.Barcode] @c.BookTitle (@c.Condition • @c.ShelfLocation)</option>
+                                }
                             </select>
                         </div>
-                        <div class="col-6">
-                            <label class="form-label small fw-bold">Ngăn kệ tại Trạm CLB</label>
-                            <input type="text" id="verifyShelfLocation" class="form-control" value="Trạm CLB-K1 (Đã kiểm định)" required />
+                        <div class="row g-2">
+                            <div class="col-6">
+                                <label class="form-label small fw-bold" for="verifyCondition">Cấp độ vật lý thực tế</label>
+                                <select id="verifyCondition" class="form-select">
+                                    <option value="New">New (Mới 99%)</option>
+                                    <option value="Good" selected>Good (Tốt, đủ trang)</option>
+                                    <option value="Fair">Fair (Khá)</option>
+                                    <option value="Worn">Worn (Sờn gáy)</option>
+                                </select>
+                            </div>
+                            <div class="col-6">
+                                <label class="form-label small fw-bold" for="verifyShelfLocation">Ngăn kệ tại Trạm CLB</label>
+                                <input type="text" id="verifyShelfLocation" class="form-control" value="Trạm CLB-K1 (Đã kiểm định)" required />
+                            </div>
                         </div>
-                    </div>
-                    <button type="submit" class="btn btn-warning fw-bold text-dark">
-                        <i class="bi bi-shield-fill-check me-1"></i>Xác Nhận Kiểm Định Sách Thật (+2 Uy Tín)
-                    </button>
-                </form>
+                        <button type="submit" class="btn btn-warning fw-bold text-dark">
+                            <i class="bi bi-shield-fill-check me-1"></i>Xác Nhận Kiểm Định Sách Thật (+2 Uy Tín)
+                        </button>
+                    </form>
+                </div>
             </div>
-        </div>
         }
     </div>
 
-    <!-- CỘT PHẢI: BẢNG ĐIỀU PHỐI GIAO NHẬN TRUNG GIAN TẠI ĐIỂM TRẠM -->
     <div class="col-lg-7">
         <div class="card border-0 shadow-sm rounded-4 bg-white h-100">
             <div class="card-body p-4">
                 <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
                     <div>
                         <h5 class="fw-bold mb-0"><i class="bi bi-arrow-left-right text-primary me-2"></i>Điều Phối Ký Gửi &amp; Giao Nhận Sách Trung Gian</h5>
-                        <small class="text-muted">Chủ nhiệm CLB xác nhận Chủ sách gửi sách &rarr; Người mượn nhận sách &rarr; Hoàn trả tại Trạm</small>
+                        <small class="text-muted">Trưởng nhóm CLB xác nhận Chủ sách gửi sách &rarr; Người mượn nhận sách &rarr; Hoàn trả tại Trạm</small>
                     </div>
-                    <span class="badge bg-primary">@Model.HubP2POrders.Count đơn</span>
+                    <form method="get" asp-controller="S20ExchangeHubClub" asp-action="Index" class="d-flex gap-1 align-items-center">
+                        <input type="hidden" name="hubId" value="@(sel?.HubId)" />
+                        <select name="orderStatus" class="form-select form-select-sm" onchange="this.form.submit()" aria-label="Lọc trạng thái đơn giao nhận">
+                            <option value="all" selected="@(Model.OrderStatusFilter == "all")">Tất cả (@Model.TotalFilteredOrders đơn)</option>
+                            <option value="Pending" selected="@(Model.OrderStatusFilter == "Pending")">Chờ duyệt</option>
+                            <option value="Approved" selected="@(Model.OrderStatusFilter == "Approved")">Đã duyệt</option>
+                            <option value="InTransit" selected="@(Model.OrderStatusFilter == "InTransit")">Đã ký gửi tại Trạm</option>
+                            <option value="Borrowed" selected="@(Model.OrderStatusFilter == "Borrowed")">Đang mượn</option>
+                        </select>
+                    </form>
                 </div>
 
                 <div class="table-responsive">
-                    <table class="table table-hover align-middle small mb-0">
+                    <table class="table table-hover align-middle small mb-0 table-mobile-cards">
                         <thead class="table-light">
                             <tr>
                                 <th>Đơn / Bản sao</th>
@@ -218,10 +542,37 @@
                         </tbody>
                     </table>
                 </div>
+
+                @if (Model.OrderTotalPages > 1)
+                {
+                    <nav class="mt-3 d-flex justify-content-end" aria-label="Phân trang đơn giao nhận CLB">
+                        <ul class="pagination pagination-sm mb-0">
+                            @for (int p = 1; p <= Model.OrderTotalPages; p++)
+                            {
+                                <li class="page-item @(p == Model.OrderPage ? "active" : "")">
+                                    <a class="page-link" asp-controller="S20ExchangeHubClub" asp-action="Index"
+                                       asp-route-hubId="@(sel?.HubId)" asp-route-orderStatus="@Model.OrderStatusFilter"
+                                       asp-route-orderPage="@p" asp-route-memberStatus="@Model.MemberStatusFilter" asp-route-memberPage="@Model.MemberPage">@p</a>
+                                </li>
+                            }
+                        </ul>
+                    </nav>
+                }
             </div>
         </div>
     </div>
 </div>
+
+@if (isAdmin)
+{
+    <!-- Dữ liệu lựa chọn Trưởng nhóm cho hộp thoại Tạo CLB mới -->
+    <template id="s20CandidateLeaderOptions">
+        @foreach (var u in Model.CandidateUsers)
+        {
+            <option value="@u.UserId">@u.FullName (@u.Email • @u.RoleName)</option>
+        }
+    </template>
+}
 
 @section Scripts {
     <script type="module" src="~/modules/s20-exchange-hub-club/s20-exchange-hub-club.js" asp-append-version="true"></script>

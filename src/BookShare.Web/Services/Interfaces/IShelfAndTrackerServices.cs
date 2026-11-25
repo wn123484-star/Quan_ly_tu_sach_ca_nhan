@@ -58,7 +58,12 @@ public interface IPortalDiscoveryService
     Task<PortalHomeViewModel> GetPortalHomeAsync(
         string? keyword = null,
         string sourceFilter = "all",
-        string? categorySlug = null);
+        string? categorySlug = null,
+        string availabilityFilter = "all",
+        string conditionFilter = "all",
+        string sortBy = "available",
+        int page = 1,
+        int pageSize = 12);
 
     Task<string> GetQuickAiReplyAsync(string? userId, string userMessage);
 }

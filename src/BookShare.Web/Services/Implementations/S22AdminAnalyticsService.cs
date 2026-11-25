@@ -22,7 +22,8 @@ public class S22AdminAnalyticsService : IS22AdminAnalyticsService
 
     public async Task<S22AdminAnalyticsPageViewModel> GetAdminAnalyticsPageAsync(
         string currentUserId,
-        string currentUserRole)
+        string currentUserRole,
+        S22AdminAnalyticsFilterDto? filter = null)
     {
         if (!string.Equals(currentUserRole, "Admin", StringComparison.OrdinalIgnoreCase))
         {
@@ -33,19 +34,61 @@ public class S22AdminAnalyticsService : IS22AdminAnalyticsService
             };
         }
 
+        filter ??= new S22AdminAnalyticsFilterDto();
+        var nowUtc = DateTime.UtcNow;
         var nowOffset = DateTimeOffset.UtcNow;
+
+        DateTime? cutoffDate = filter.TimeRange switch
+        {
+            "7d" => nowUtc.AddDays(-7),
+            "30d" => nowUtc.AddDays(-30),
+            "90d" => nowUtc.AddDays(-90),
+            "365d" => nowUtc.AddDays(-365),
+            _ => null
+        };
 
         var totalUsers = await _db.AspNetUsers.CountAsync();
         var totalBooks = await _db.Books.CountAsync();
         var totalCopies = await _db.BookCopies.CountAsync();
-        var totalLoans = await _db.Loans.CountAsync();
 
-        var libraryLoansCount = await _db.LoanRequests.CountAsync(lr => lr.LoanType == "Library");
-        var p2pLoansCount = await _db.LoanRequests.CountAsync(lr => lr.LoanType == "P2P");
+        var categories = await _db.Categories
+            .AsNoTracking()
+            .OrderBy(c => c.Name)
+            .Select(c => new S22CategoryOptionDto { Id = c.Id, Name = c.Name })
+            .ToListAsync();
 
-        var txs = await _db.Transactions.AsNoTracking().ToListAsync();
+        var loanReqsQuery = _db.LoanRequests
+            .AsNoTracking()
+            .Include(lr => lr.BookCopy).ThenInclude(bc => bc.Book)
+            .Include(lr => lr.Loan)
+            .AsQueryable();
+
+        if (cutoffDate.HasValue)
+        {
+            loanReqsQuery = loanReqsQuery.Where(lr => lr.RequestedAt >= cutoffDate.Value);
+        }
+        if (filter.ChannelFilter is "Library" or "P2P")
+        {
+            loanReqsQuery = loanReqsQuery.Where(lr => lr.LoanType == filter.ChannelFilter);
+        }
+        if (filter.CategoryId > 0)
+        {
+            loanReqsQuery = loanReqsQuery.Where(lr => lr.BookCopy.Book.CategoryId == filter.CategoryId);
+        }
+
+        var filteredReqs = await loanReqsQuery.ToListAsync();
+        var totalLoans = filteredReqs.Count(lr => lr.Loan != null);
+        var libraryLoansCount = filteredReqs.Count(lr => lr.LoanType == "Library");
+        var p2pLoansCount = filteredReqs.Count(lr => lr.LoanType == "P2P");
+
+        var txsQuery = _db.Transactions.AsNoTracking().AsQueryable();
+        if (cutoffDate.HasValue)
+        {
+            txsQuery = txsQuery.Where(t => t.CreatedAt >= cutoffDate.Value);
+        }
+        var txs = await txsQuery.ToListAsync();
         var membershipRev = txs
-            .Where(t => t.TransactionType == "Membership" && t.PaymentStatus == "Completed")
+            .Where(t => (t.TransactionType == "Membership" || t.TransactionType == "MembershipSwitch") && t.PaymentStatus == "Completed")
             .Sum(t => t.Amount);
         var fineRev = txs
             .Where(t => t.TransactionType == "Fine" && t.PaymentStatus == "Completed")
@@ -54,10 +97,23 @@ public class S22AdminAnalyticsService : IS22AdminAnalyticsService
             .Where(t => t.TransactionType == "SimulatedDeposit")
             .Sum(t => t.Amount);
 
-        var openDisputes = await _db.Disputes.CountAsync(d => d.Status == "Open" || d.Status == "UnderReview");
-        var totalAiMsgs = await _db.AiChatMessages.CountAsync();
+        var openDisputesQuery = _db.Disputes.AsNoTracking().Where(d => d.Status == "Open" || d.Status == "UnderReview");
+        if (cutoffDate.HasValue) openDisputesQuery = openDisputesQuery.Where(d => d.CreatedAt >= cutoffDate.Value);
+        var openDisputes = await openDisputesQuery.CountAsync();
 
-        var copies = await _db.BookCopies.AsNoTracking().ToListAsync();
+        var aiMsgsQuery = _db.AiChatMessages.AsNoTracking().AsQueryable();
+        if (cutoffDate.HasValue) aiMsgsQuery = aiMsgsQuery.Where(m => m.CreatedAt >= cutoffDate.Value);
+        var totalAiMsgs = await aiMsgsQuery.CountAsync();
+
+        var copiesQuery = _db.BookCopies
+            .AsNoTracking()
+            .Include(bc => bc.Book)
+            .AsQueryable();
+        if (filter.ChannelFilter == "Library") copiesQuery = copiesQuery.Where(bc => bc.OwnerType == "System");
+        else if (filter.ChannelFilter == "P2P") copiesQuery = copiesQuery.Where(bc => bc.OwnerType == "User");
+        if (filter.CategoryId > 0) copiesQuery = copiesQuery.Where(bc => bc.Book.CategoryId == filter.CategoryId);
+
+        var copies = await copiesQuery.ToListAsync();
         int availCopies = copies.Count(c => c.Status == "Available");
         int borrowedCopies = copies.Count(c => c.Status == "Borrowed" || c.Status == "InTransit");
         int reservedCopies = copies.Count(c => c.Status == "Reserved");
@@ -70,7 +126,7 @@ public class S22AdminAnalyticsService : IS22AdminAnalyticsService
             .OrderByDescending(u => u.TrustScore)
             .ToListAsync();
 
-        var userItems = usersRaw.Select(u =>
+        var allUserItems = usersRaw.Select(u =>
         {
             var roleName = u.Roles.FirstOrDefault()?.Name ?? "User";
             var activeMem = u.Memberships
@@ -83,6 +139,7 @@ public class S22AdminAnalyticsService : IS22AdminAnalyticsService
                 UserId = u.Id,
                 FullName = u.FullName,
                 Email = u.Email ?? string.Empty,
+                EmailConfirmed = u.EmailConfirmed,
                 RoleName = roleName,
                 TrustScore = u.TrustScore,
                 LendQuotaBonus = u.LendQuotaBonus,
@@ -92,14 +149,48 @@ public class S22AdminAnalyticsService : IS22AdminAnalyticsService
             };
         }).ToList();
 
-        // Tổng hợp Nhật ký thao tác hệ thống (System Audit Logs)
+        IEnumerable<S22AdminUserItemDto> filteredUsers = allUserItems;
+        if (!string.IsNullOrWhiteSpace(filter.UserKeyword))
+        {
+            var ukw = filter.UserKeyword.Trim();
+            filteredUsers = filteredUsers.Where(u =>
+                u.FullName.Contains(ukw, StringComparison.OrdinalIgnoreCase) ||
+                u.Email.Contains(ukw, StringComparison.OrdinalIgnoreCase));
+        }
+        if (filter.UserRoleFilter is "Admin" or "Librarian" or "Curator" or "User")
+        {
+            filteredUsers = filteredUsers.Where(u => u.RoleName == filter.UserRoleFilter);
+        }
+        if (filter.UserLockFilter == "Locked")
+        {
+            filteredUsers = filteredUsers.Where(u => u.IsLockedOut);
+        }
+        else if (filter.UserLockFilter == "Active")
+        {
+            filteredUsers = filteredUsers.Where(u => !u.IsLockedOut);
+        }
+        if (filter.UserTierFilter is "Free" or "Standard" or "Premium" or "Scholar")
+        {
+            filteredUsers = filteredUsers.Where(u => u.MembershipTier == filter.UserTierFilter);
+        }
+
+        var filteredUserList = filteredUsers.ToList();
+        int safeUserPageSize = Math.Clamp(filter.UserPageSize <= 0 ? 20 : filter.UserPageSize, 5, 50);
+        int userTotalPages = Math.Max(1, (int)Math.Ceiling(filteredUserList.Count / (double)safeUserPageSize));
+        int safeUserPage = Math.Clamp(filter.UserPage, 1, userTotalPages);
+        var pagedUsers = filteredUserList
+            .Skip((safeUserPage - 1) * safeUserPageSize)
+            .Take(safeUserPageSize)
+            .ToList();
+
+        // Tổng hợp Nhật ký thao tác hệ thống (có lọc theo danh mục)
         var auditLogs = new List<S22SystemAuditLogDto>();
 
         var recentTxs = await _db.Transactions
             .AsNoTracking()
             .Include(t => t.User)
             .OrderByDescending(t => t.CreatedAt)
-            .Take(5)
+            .Take(8)
             .ToListAsync();
         foreach (var t in recentTxs)
         {
@@ -117,7 +208,7 @@ public class S22AdminAnalyticsService : IS22AdminAnalyticsService
             .AsNoTracking()
             .Include(d => d.RaisedByUser)
             .OrderByDescending(d => d.CreatedAt)
-            .Take(4)
+            .Take(6)
             .ToListAsync();
         foreach (var d in recentDisputes)
         {
@@ -135,7 +226,7 @@ public class S22AdminAnalyticsService : IS22AdminAnalyticsService
             .AsNoTracking()
             .Include(n => n.User)
             .OrderByDescending(n => n.CreatedAt)
-            .Take(5)
+            .Take(8)
             .ToListAsync();
         foreach (var n in recentNotifs)
         {
@@ -149,10 +240,44 @@ public class S22AdminAnalyticsService : IS22AdminAnalyticsService
             });
         }
 
+        if (!string.IsNullOrWhiteSpace(filter.AuditCategoryFilter) && filter.AuditCategoryFilter != "all")
+        {
+            auditLogs = auditLogs
+                .Where(a => string.Equals(a.Category, filter.AuditCategoryFilter, StringComparison.OrdinalIgnoreCase))
+                .ToList();
+        }
+
         auditLogs = auditLogs
             .OrderByDescending(a => a.Timestamp)
-            .Take(12)
+            .Take(15)
             .ToList();
+
+        var upgradeQuery = _db.RoleUpgradeRequests
+            .AsNoTracking()
+            .Include(r => r.User)
+            .AsQueryable();
+        if (!string.IsNullOrWhiteSpace(filter.UpgradeStatusFilter) && filter.UpgradeStatusFilter != "all")
+        {
+            upgradeQuery = upgradeQuery.Where(r => r.Status == filter.UpgradeStatusFilter);
+        }
+
+        var upgradeItems = await upgradeQuery
+            .OrderByDescending(r => r.CreatedAt)
+            .Take(20)
+            .Select(r => new CuratorUpgradeRequestItemDto
+            {
+                Id = r.Id,
+                UserId = r.UserId,
+                UserFullName = r.User.FullName,
+                UserEmail = r.User.Email ?? string.Empty,
+                RequestedRole = r.RequestedRole,
+                OrganizationName = r.OrganizationName,
+                Reason = r.Reason,
+                Status = r.Status,
+                ReviewNote = r.ReviewNote,
+                CreatedAt = r.CreatedAt
+            })
+            .ToListAsync();
 
         var jobs = new List<S22BackgroundJobInfoDto>
         {
@@ -186,6 +311,18 @@ public class S22AdminAnalyticsService : IS22AdminAnalyticsService
         {
             CurrentUserId = currentUserId,
             CurrentUserRole = currentUserRole,
+            TimeRange = filter.TimeRange,
+            ChannelFilter = filter.ChannelFilter,
+            CategoryId = filter.CategoryId,
+            UserKeyword = filter.UserKeyword,
+            UserRoleFilter = filter.UserRoleFilter,
+            UserLockFilter = filter.UserLockFilter,
+            UserTierFilter = filter.UserTierFilter,
+            UserPage = safeUserPage,
+            UserPageSize = safeUserPageSize,
+            TotalFilteredUsers = filteredUserList.Count,
+            AuditCategoryFilter = filter.AuditCategoryFilter,
+            UpgradeStatusFilter = filter.UpgradeStatusFilter,
             TotalUsers = totalUsers,
             TotalBooks = totalBooks,
             TotalCopies = totalCopies,
@@ -201,26 +338,9 @@ public class S22AdminAnalyticsService : IS22AdminAnalyticsService
             BorrowedCopiesCount = borrowedCopies,
             ReservedCopiesCount = reservedCopies,
             DamagedOrLostCopiesCount = damagedLostCopies,
-            Users = userItems,
-            PendingRoleUpgrades = await _db.RoleUpgradeRequests
-                .AsNoTracking()
-                .Include(r => r.User)
-                .Where(r => r.Status == "Pending")
-                .OrderByDescending(r => r.CreatedAt)
-                .Select(r => new CuratorUpgradeRequestItemDto
-                {
-                    Id = r.Id,
-                    UserId = r.UserId,
-                    UserFullName = r.User.FullName,
-                    UserEmail = r.User.Email ?? string.Empty,
-                    RequestedRole = r.RequestedRole,
-                    OrganizationName = r.OrganizationName,
-                    Reason = r.Reason,
-                    Status = r.Status,
-                    ReviewNote = r.ReviewNote,
-                    CreatedAt = r.CreatedAt
-                })
-                .ToListAsync(),
+            Categories = categories,
+            Users = pagedUsers,
+            PendingRoleUpgrades = upgradeItems,
             AuditLogs = auditLogs,
             BackgroundJobs = jobs
         };
@@ -486,6 +606,13 @@ public class S22AdminAnalyticsService : IS22AdminAnalyticsService
                 DELETE FROM [dbo].[Notifications] WHERE [UserId] = {cleanTargetId};
                 DELETE FROM [dbo].[RoleUpgradeRequests] WHERE [UserId] = {cleanTargetId};
                 DELETE FROM [dbo].[Memberships] WHERE [UserId] = {cleanTargetId};
+                IF OBJECT_ID(N'[dbo].[ClubPosts]', N'U') IS NOT NULL
+                    DELETE FROM [dbo].[ClubPosts] WHERE [AuthorUserId] = {cleanTargetId};
+                IF OBJECT_ID(N'[dbo].[ClubMembers]', N'U') IS NOT NULL
+                BEGIN
+                    UPDATE [dbo].[ClubMembers] SET [AddedByUserId] = NULL WHERE [AddedByUserId] = {cleanTargetId};
+                    DELETE FROM [dbo].[ClubMembers] WHERE [UserId] = {cleanTargetId};
+                END
                 IF OBJECT_ID(N'[dbo].[UserWallets]', N'U') IS NOT NULL
                     DELETE FROM [dbo].[UserWallets] WHERE [UserId] = {cleanTargetId};
                 DELETE FROM [dbo].[OtpVerifications] WHERE [UserId] = {cleanTargetId};
@@ -546,6 +673,8 @@ public class S22AdminAnalyticsService : IS22AdminAnalyticsService
             await ExecuteRawBatchAsync(clearTransactionsSql);
 
             const string clearCatalogSql = @"
+                IF OBJECT_ID('dbo.ClubPosts', 'U') IS NOT NULL DELETE FROM [dbo].[ClubPosts];
+                IF OBJECT_ID('dbo.ClubMembers', 'U') IS NOT NULL DELETE FROM [dbo].[ClubMembers];
                 DELETE FROM [dbo].[ShelfItems];
                 DELETE FROM [dbo].[Shelves];
                 DELETE FROM [dbo].[BookCopies];
@@ -586,6 +715,8 @@ public class S22AdminAnalyticsService : IS22AdminAnalyticsService
 
         await ExecuteRawBatchAsync(clearTransactionsSql);
         const string prepareForReseedSql = @"
+            IF OBJECT_ID('dbo.ClubPosts', 'U') IS NOT NULL DELETE FROM [dbo].[ClubPosts];
+            IF OBJECT_ID('dbo.ClubMembers', 'U') IS NOT NULL DELETE FROM [dbo].[ClubMembers];
             DELETE FROM [dbo].[ShelfItems];
             DELETE FROM [dbo].[Shelves];
             DELETE FROM [dbo].[BookCopies];

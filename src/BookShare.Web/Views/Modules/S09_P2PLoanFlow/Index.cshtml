@@ -1,6 +1,7 @@
 @model BookShare.Web.Models.ViewModels.S09P2PLoanPageViewModel
 @{
     ViewData["Title"] = "Giao Dịch Mượn – Trả Sách Cộng Đồng P2P & Thưởng Hạn Mức";
+    int.TryParse(Context.Request.Query["copyId"], out var preselectedCopyId);
 }
 
 @section Styles {
@@ -39,7 +40,7 @@
                         <select id="s09BookCopyId" class="form-select form-select-sm" required>
                             @foreach (var c in Model.AvailableP2PCopies)
                             {
-                                <option value="@c.BookCopyId">[@c.Barcode] @c.Title — Chủ sách: @c.OwnerName (Trust: @c.OwnerTrustScore)</option>
+                                <option value="@c.BookCopyId" selected="@(preselectedCopyId == c.BookCopyId)">[@c.Barcode] @c.Title — Chủ sách: @c.OwnerName (Trust: @c.OwnerTrustScore)</option>
                             }
                         </select>
                     </div>

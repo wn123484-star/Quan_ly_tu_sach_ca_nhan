@@ -86,11 +86,14 @@ html[data-font-family="lora"] { --bs-font-sans-serif: 'Lora', Georgia, 'Times Ne
 html[data-font-family="patrick"] { --bs-font-sans-serif: 'Patrick Hand', 'Be Vietnam Pro', cursive, sans-serif; }
 html[data-font-family="jetbrains"] { --bs-font-sans-serif: 'JetBrains Mono', Consolas, monospace; }
 
-/* Tùy chỉnh Cỡ chữ toàn trang mượt mà theo rem */
+/* Tùy chỉnh 7 mức Cỡ chữ toàn trang mượt mà theo rem */
+html[data-font-size="xs"] { font-size: 13px; }
 html[data-font-size="sm"] { font-size: 14px; }
 html[data-font-size="md"] { font-size: 16px; }
 html[data-font-size="lg"] { font-size: 17.5px; }
 html[data-font-size="xl"] { font-size: 19px; }
+html[data-font-size="2xl"] { font-size: 20.5px; }
+html[data-font-size="3xl"] { font-size: 22px; }
 
 /* Dark Mode: Bootstrap 5.3 tự đổi màu component qua data-bs-theme, phần dưới phủ các màu tự định nghĩa */
 [data-bs-theme="dark"] {
@@ -2236,4 +2239,111 @@ html[data-ui-style="terminal"] .bg-white,
 html[data-ui-style="terminal"] .bg-light {
     background-color: #0c1926 !important;
     color: #d1fae5 !important;
+}
+
+/* =========================================================================
+   12 LOẠI NỀN TRANG NỘI BỘ (100% CSS PURE — KHÔNG CDN, HỖ TRỢ SÁNG & TỐI)
+   ========================================================================= */
+html[data-bg-pattern="paper-grain"] body {
+    background-color: #fbf7ef;
+    background-image:
+        radial-gradient(rgba(180, 145, 92, 0.14) 1px, transparent 0),
+        radial-gradient(rgba(161, 98, 7, 0.08) 1px, transparent 0);
+    background-size: 24px 24px;
+    background-position: 0 0, 12px 12px;
+}
+
+html[data-bg-pattern="dot-grid"] body {
+    background-image: radial-gradient(rgba(37, 99, 235, 0.2) 1.25px, transparent 1.25px);
+    background-size: 20px 20px;
+}
+
+html[data-bg-pattern="graph-grid"] body {
+    background-image:
+        linear-gradient(to right, rgba(37, 99, 235, 0.09) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(37, 99, 235, 0.09) 1px, transparent 1px);
+    background-size: 24px 24px;
+}
+
+html[data-bg-pattern="notebook-lines"] body {
+    background-image:
+        linear-gradient(90deg, transparent 48px, rgba(239, 68, 68, 0.16) 48px, rgba(239, 68, 68, 0.16) 50px, transparent 50px),
+        repeating-linear-gradient(to bottom, transparent, transparent 27px, rgba(59, 130, 246, 0.13) 28px);
+    background-attachment: local;
+}
+
+html[data-bg-pattern="soft-aurora"] body {
+    background-image:
+        radial-gradient(circle at 12% 18%, rgba(56, 189, 248, 0.22), transparent 42%),
+        radial-gradient(circle at 86% 12%, rgba(168, 85, 247, 0.18), transparent 40%),
+        radial-gradient(circle at 52% 92%, rgba(52, 211, 153, 0.16), transparent 45%);
+    background-attachment: fixed;
+}
+
+html[data-bg-pattern="sunset-glow"] body {
+    background-color: #fff7ed;
+    background-image:
+        radial-gradient(circle at 10% 10%, rgba(251, 146, 60, 0.26), transparent 45%),
+        radial-gradient(circle at 90% 25%, rgba(244, 114, 182, 0.22), transparent 48%),
+        radial-gradient(circle at 50% 95%, rgba(250, 204, 21, 0.22), transparent 48%);
+    background-attachment: fixed;
+}
+
+html[data-bg-pattern="botanical"] body {
+    background-color: #f0fdf4;
+    background-image:
+        radial-gradient(circle at 15% 20%, rgba(16, 185, 129, 0.18), transparent 42%),
+        radial-gradient(circle at 85% 75%, rgba(20, 184, 166, 0.18), transparent 44%),
+        repeating-linear-gradient(135deg, rgba(16, 185, 129, 0.04) 0 12px, transparent 12px 24px);
+    background-attachment: fixed;
+}
+
+html[data-bg-pattern="starry-night"] body {
+    background-image:
+        radial-gradient(rgba(99, 102, 241, 0.35) 1.5px, transparent 1.5px),
+        radial-gradient(rgba(56, 189, 248, 0.28) 1px, transparent 1px),
+        linear-gradient(180deg, rgba(30, 41, 59, 0.06), rgba(99, 102, 241, 0.08));
+    background-size: 46px 46px, 28px 28px, 100% 100%;
+    background-position: 0 0, 14px 18px, 0 0;
+}
+
+html[data-bg-pattern="warm-linen"] body {
+    background-color: #faf8f5;
+    background-image:
+        repeating-linear-gradient(45deg, rgba(148, 163, 184, 0.08) 0 2px, transparent 2px 10px),
+        repeating-linear-gradient(-45deg, rgba(180, 145, 92, 0.06) 0 2px, transparent 2px 10px);
+}
+
+html[data-bg-pattern="pastel-clouds"] body {
+    background-color: #fdf4ff;
+    background-image:
+        radial-gradient(circle at 20% 25%, rgba(244, 114, 182, 0.18), transparent 42%),
+        radial-gradient(circle at 80% 20%, rgba(125, 211, 252, 0.22), transparent 42%),
+        radial-gradient(circle at 50% 85%, rgba(196, 181, 253, 0.22), transparent 46%);
+    background-attachment: fixed;
+}
+
+html[data-bg-pattern="geometric-prism"] body {
+    background-image:
+        linear-gradient(30deg, rgba(37, 99, 235, 0.05) 12%, transparent 12.5%, transparent 87%, rgba(37, 99, 235, 0.05) 87.5%, rgba(37, 99, 235, 0.05)),
+        linear-gradient(150deg, rgba(37, 99, 235, 0.05) 12%, transparent 12.5%, transparent 87%, rgba(37, 99, 235, 0.05) 87.5%, rgba(37, 99, 235, 0.05)),
+        linear-gradient(60deg, rgba(124, 58, 237, 0.04) 25%, transparent 25.5%, transparent 75%, rgba(124, 58, 237, 0.04) 75%, rgba(124, 58, 237, 0.04));
+    background-size: 40px 70px;
+}
+
+/* Đảm bảo tất cả 12 nền đều tối dịu & rõ chữ khi bật Dark Mode */
+html[data-bs-theme="dark"][data-bg-pattern="paper-grain"] body,
+html[data-bs-theme="dark"][data-bg-pattern="sunset-glow"] body,
+html[data-bs-theme="dark"][data-bg-pattern="botanical"] body,
+html[data-bs-theme="dark"][data-bg-pattern="warm-linen"] body,
+html[data-bs-theme="dark"][data-bg-pattern="pastel-clouds"] body {
+    background-color: #0f172a;
+}
+html[data-bs-theme="dark"][data-bg-pattern="starry-night"] body {
+    background-color: #090f20;
+    background-image:
+        radial-gradient(rgba(226, 232, 240, 0.55) 1.3px, transparent 1.3px),
+        radial-gradient(rgba(56, 189, 248, 0.45) 1px, transparent 1px),
+        radial-gradient(circle at 25% 20%, rgba(79, 70, 229, 0.25), transparent 55%);
+    background-size: 52px 52px, 30px 30px, 100% 100%;
 }

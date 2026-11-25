@@ -16,7 +16,15 @@ public class S21LibrarianDeskController : Controller
     }
 
     [HttpGet]
-    public async Task<IActionResult> Index()
+    public async Task<IActionResult> Index(
+        string? loanKeyword = null,
+        string loanChannel = "all",
+        string loanStatus = "all",
+        int loanPage = 1,
+        string? copyKeyword = null,
+        string copyStatus = "all",
+        int? copyLibraryId = null,
+        int copyPage = 1)
     {
         var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? string.Empty;
         var currentUserRole = User.Identity?.IsAuthenticated == true
@@ -30,8 +38,70 @@ public class S21LibrarianDeskController : Controller
             TempData["StatusDetail"] = "Tài khoản hiện tại không có quyền thao tác tại Quầy nghiệp vụ Thủ thư. Vui lòng đăng nhập bằng tài khoản Thủ thư hoặc Quản trị viên.";
         }
 
-        var vm = await _deskService.GetLibrarianDeskPageAsync(currentUserId, currentUserRole);
+        var vm = await _deskService.GetLibrarianDeskPageAsync(
+            currentUserId,
+            currentUserRole,
+            loanKeyword,
+            loanChannel,
+            loanStatus,
+            loanPage,
+            copyKeyword,
+            copyStatus,
+            copyLibraryId,
+            copyPage);
         return View("~/Views/Modules/S21_LibrarianDesk/Index.cshtml", vm);
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    [Authorize(Roles = "Librarian,Admin")]
+    public async Task<IActionResult> ProcessLoanAction([FromBody] S21ProcessLoanActionDto request)
+    {
+        var staffUserId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
+        var staffUserRole = User.FindFirstValue(ClaimTypes.Role) ?? "Librarian";
+        try
+        {
+            var (success, message) = await _deskService.ProcessUnifiedLoanActionAsync(staffUserId, staffUserRole, request);
+            if (!success)
+            {
+                return BadRequest(new { message });
+            }
+
+            TempData["StatusCode"] = 200;
+            TempData["StatusTitle"] = "Đã điều phối phiếu mượn tại Quầy Thủ thư";
+            TempData["StatusDetail"] = message;
+            return Ok(new { title = "Xử lý phiếu mượn thành công", message });
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return StatusCode(403, new { message = ex.Message });
+        }
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    [Authorize(Roles = "Librarian,Admin")]
+    public async Task<IActionResult> DirectLendBook([FromBody] S21DirectLendBookDto request)
+    {
+        var staffUserId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
+        var staffUserRole = User.FindFirstValue(ClaimTypes.Role) ?? "Librarian";
+        try
+        {
+            var (success, message) = await _deskService.DirectLendBookAtDeskAsync(staffUserId, staffUserRole, request);
+            if (!success)
+            {
+                return BadRequest(new { message });
+            }
+
+            TempData["StatusCode"] = 200;
+            TempData["StatusTitle"] = "Đã cho mượn sách trực tiếp tại Quầy Thủ thư";
+            TempData["StatusDetail"] = message;
+            return Ok(new { title = "Cho mượn sách thành công", message });
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return StatusCode(403, new { message = ex.Message });
+        }
     }
 
     [HttpPost]

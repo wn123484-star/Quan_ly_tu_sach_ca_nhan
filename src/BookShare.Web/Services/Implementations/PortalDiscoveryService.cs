@@ -17,7 +17,12 @@ public class PortalDiscoveryService : IPortalDiscoveryService
     public async Task<PortalHomeViewModel> GetPortalHomeAsync(
         string? keyword = null,
         string sourceFilter = "all",
-        string? categorySlug = null)
+        string? categorySlug = null,
+        string availabilityFilter = "all",
+        string conditionFilter = "all",
+        string sortBy = "available",
+        int page = 1,
+        int pageSize = 12)
     {
         var categories = await _db.Categories
             .Select(c => new CategoryPortalDto
@@ -33,6 +38,7 @@ public class PortalDiscoveryService : IPortalDiscoveryService
 
         var totalBooksCount = await _db.Books.CountAsync();
         var totalCopiesCount = await _db.BookCopies.CountAsync();
+        var availableCopiesCount = await _db.BookCopies.CountAsync(bc => bc.IsLendable && bc.Status == "Available");
 
         var query = _db.BookCopies
             .Include(bc => bc.Book)
@@ -65,10 +71,36 @@ public class PortalDiscoveryService : IPortalDiscoveryService
             query = query.Where(bc => bc.Book.Category.Slug == categorySlug);
         }
 
-        var copies = await query
-            .OrderBy(bc => bc.Status == "Available" ? 0 : 1)
-            .ThenBy(bc => bc.Id)
-            .Take(12)
+        if (availabilityFilter == "Available")
+        {
+            query = query.Where(bc => bc.Status == "Available");
+        }
+        else if (availabilityFilter == "Borrowed")
+        {
+            query = query.Where(bc => bc.Status != "Available");
+        }
+
+        if (conditionFilter is "New" or "Good" or "Fair" or "Worn")
+        {
+            query = query.Where(bc => bc.Condition == conditionFilter);
+        }
+
+        int totalFiltered = await query.CountAsync();
+        int safePageSize = Math.Clamp(pageSize, 6, 36);
+        int totalPages = Math.Max(1, (int)Math.Ceiling(totalFiltered / (double)safePageSize));
+        int safePage = Math.Clamp(page, 1, totalPages);
+
+        var orderedQuery = sortBy switch
+        {
+            "newest" => query.OrderByDescending(bc => bc.Id),
+            "title" => query.OrderBy(bc => bc.Book.Title).ThenBy(bc => bc.Id),
+            "pages" => query.OrderByDescending(bc => bc.Book.PageCount).ThenBy(bc => bc.Id),
+            _ => query.OrderBy(bc => bc.Status == "Available" ? 0 : 1).ThenBy(bc => bc.Id)
+        };
+
+        var copies = await orderedQuery
+            .Skip((safePage - 1) * safePageSize)
+            .Take(safePageSize)
             .ToListAsync();
 
         var cards = copies.Select(bc => new PortalBookCardDto
@@ -98,8 +130,15 @@ public class PortalDiscoveryService : IPortalDiscoveryService
             Keyword = keyword,
             SourceFilter = sourceFilter,
             CategorySlug = categorySlug,
+            AvailabilityFilter = availabilityFilter,
+            ConditionFilter = conditionFilter,
+            SortBy = sortBy,
+            Page = safePage,
+            PageSize = safePageSize,
+            TotalFilteredCopies = totalFiltered,
             TotalBooksCount = totalBooksCount,
             TotalCopiesCount = totalCopiesCount,
+            AvailableCopiesCount = availableCopiesCount,
             Categories = categories,
             BookCards = cards
         };

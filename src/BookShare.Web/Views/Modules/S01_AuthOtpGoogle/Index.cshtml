@@ -511,6 +511,23 @@
                                     </select>
                                 </div>
                                 <div class="col-md-6">
+                                    <label class="form-label small fw-bold" for="prefBgPattern">Họa tiết &amp; loại nền trang (12 lựa chọn)</label>
+                                    <select id="prefBgPattern" class="form-select">
+                                        <option value="solid">⬜ Nền Trơn Tiêu Chuẩn (Sạch gọn)</option>
+                                        <option value="paper-grain">📄 Giấy Sách Ấm Áp (Đọc lâu không mỏi mắt)</option>
+                                        <option value="dot-grid">⚪ Lưới Chấm Sổ Tay (Bullet Journal)</option>
+                                        <option value="graph-grid">📐 Kẻ Ô Kỹ Thuật (Blueprint Grid)</option>
+                                        <option value="notebook-lines">📓 Trang Vở Kẻ Ngang Học Tập</option>
+                                        <option value="soft-aurora">🌌 Cực Quang Dịu Nhẹ (Soft Aurora)</option>
+                                        <option value="sunset-glow">🌅 Ánh Hoàng Hôn Ấm Áp</option>
+                                        <option value="botanical">🌿 Vườn Sách Xanh Mát (Botanical)</option>
+                                        <option value="starry-night">✨ Bầu Trời Sao Nhẹ (Starry Night)</option>
+                                        <option value="warm-linen">🧵 Vải Bố Cổ Điển (Warm Linen)</option>
+                                        <option value="pastel-clouds">☁️ Mây Pastel Mộng Mơ</option>
+                                        <option value="geometric-prism">🔷 Hoa Văn Hình Học Nhẹ</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-6">
                                     <label class="form-label small fw-bold" for="prefFontFamily">Phông chữ tiếng Việt (Tải sẵn cục bộ)</label>
                                     <select id="prefFontFamily" class="form-select">
                                         <option value="roboto">Roboto — Chuẩn cân đối</option>
@@ -521,15 +538,18 @@
                                     </select>
                                 </div>
                                 <div class="col-md-6">
-                                    <label class="form-label small fw-bold" for="prefFontSize">Cỡ chữ hiển thị</label>
+                                    <label class="form-label small fw-bold" for="prefFontSize">Cỡ chữ hiển thị (7 mức)</label>
                                     <select id="prefFontSize" class="form-select">
+                                        <option value="xs">Siêu nhỏ gọn (13px)</option>
                                         <option value="sm">Nhỏ gọn (14px)</option>
                                         <option value="md">Tiêu chuẩn (16px)</option>
-                                        <option value="lg">Lớn dễ đọc (17.5px)</option>
-                                        <option value="xl">Rất lớn trợ thị (19px)</option>
+                                        <option value="lg">Vừa lớn dễ đọc (17.5px)</option>
+                                        <option value="xl">Lớn rõ nét (19px)</option>
+                                        <option value="2xl">Rất lớn trợ thị (20.5px)</option>
+                                        <option value="3xl">Siêu lớn tối đa (22px)</option>
                                     </select>
                                 </div>
-                                <div class="col-md-6 d-flex align-items-end gap-2">
+                                <div class="col-12 d-flex align-items-end gap-2">
                                     <button type="button" id="btnSaveUiPrefs" class="btn btn-primary fw-bold flex-grow-1">
                                         <i class="bi bi-save2-fill me-1"></i>Lưu Cài Đặt Giao Diện
                                     </button>

@@ -27,7 +27,7 @@ public class S09P2PLoanService : IS09P2PLoanService
             : null;
 
         bool isStaff = currentUser != null &&
-                       currentUser.Roles.Any(r => r.Name == "Curator" || r.Name == "Admin");
+                       currentUser.Roles.Any(r => r.Name == "Curator" || r.Name == "Librarian" || r.Name == "Admin");
 
         var hubs = await _db.Libraries
             .AsNoTracking()
@@ -209,9 +209,9 @@ public class S09P2PLoanService : IS09P2PLoanService
             return (false, "Không tìm thấy yêu cầu mượn P2P.");
         }
 
-        if (loanReq.BookCopy.OwnerUserId != currentUserId && currentUserRole != "Admin")
+        if (loanReq.BookCopy.OwnerUserId != currentUserId && currentUserRole != "Admin" && currentUserRole != "Librarian")
         {
-            throw new UnauthorizedAccessException("Chỉ chủ sở hữu sách hoặc Quản trị viên mới được duyệt hoặc từ chối yêu cầu mượn này.");
+            throw new UnauthorizedAccessException("Chỉ chủ sở hữu sách, Thủ thư hoặc Quản trị viên mới được duyệt hoặc từ chối yêu cầu mượn này.");
         }
 
         if (loanReq.Status != "Pending")
@@ -300,7 +300,7 @@ public class S09P2PLoanService : IS09P2PLoanService
 
         bool isOwner = loanReq.BookCopy.OwnerUserId == currentUserId;
         bool isBorrower = loanReq.BorrowerId == currentUserId;
-        bool isStaff = currentUserRole is "Curator" or "Admin";
+        bool isStaff = currentUserRole is "Curator" or "Librarian" or "Admin";
         var now = DateTime.UtcNow;
 
         if (request.Stage == "InTransit")

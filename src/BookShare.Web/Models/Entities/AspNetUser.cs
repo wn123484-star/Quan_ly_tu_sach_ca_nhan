@@ -65,6 +65,12 @@ public partial class AspNetUser
 
     public virtual ICollection<BookHandoverQr> BookHandoverQrCreatedByUsers { get; set; } = new List<BookHandoverQr>();
 
+    public virtual ICollection<ClubMember> ClubMembers { get; set; } = new List<ClubMember>();
+
+    public virtual ICollection<ClubMember> ClubMemberAddedByUsers { get; set; } = new List<ClubMember>();
+
+    public virtual ICollection<ClubPost> ClubPosts { get; set; } = new List<ClubPost>();
+
     public virtual ICollection<ConditionReport> ConditionReports { get; set; } = new List<ConditionReport>();
 
     public virtual ICollection<Dispute> DisputeRaisedByUsers { get; set; } = new List<Dispute>();

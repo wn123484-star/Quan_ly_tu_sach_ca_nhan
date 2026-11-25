@@ -238,12 +238,19 @@ public class S01AuthOtpService : IS01AuthOtpService
         {
             "blue", "ocean", "emerald", "gold", "rose", "lavender", "sepia", "coral", "royal", "midnight", "mint", "sakura", "obsidian"
         };
+        var allowedBackgrounds = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            "solid", "paper-grain", "dot-grid", "graph-grid", "notebook-lines",
+            "soft-aurora", "sunset-glow", "botanical", "starry-night",
+            "warm-linen", "pastel-clouds", "geometric-prism"
+        };
         var allowedFonts = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "roboto", "bevietnam", "lora", "patrick", "jetbrains" };
-        var allowedSizes = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "sm", "md", "lg", "xl" };
+        var allowedSizes = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "xs", "sm", "md", "lg", "xl", "2xl", "3xl" };
 
         var t = raw?.Theme?.Trim().ToLowerInvariant() == "dark" ? "dark" : "light";
         var st = raw?.Style?.Trim().ToLowerInvariant() ?? "standard";
         var pl = raw?.Palette?.Trim().ToLowerInvariant() ?? "blue";
+        var bg = raw?.Background?.Trim().ToLowerInvariant() ?? "solid";
         var fn = raw?.Font?.Trim().ToLowerInvariant() ?? "roboto";
         var sz = raw?.FontSize?.Trim().ToLowerInvariant() ?? "md";
 
@@ -252,6 +259,7 @@ public class S01AuthOtpService : IS01AuthOtpService
             Theme = t,
             Style = allowedStyles.Contains(st) ? st : "standard",
             Palette = allowedPalettes.Contains(pl) ? pl : "blue",
+            Background = allowedBackgrounds.Contains(bg) ? bg : "solid",
             Font = allowedFonts.Contains(fn) ? fn : "roboto",
             FontSize = allowedSizes.Contains(sz) ? sz : "md"
         };

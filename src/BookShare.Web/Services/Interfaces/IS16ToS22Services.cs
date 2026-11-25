@@ -139,7 +139,14 @@ public interface IS20ExchangeHubClubService
 {
     Task<S20ExchangeHubClubPageViewModel> GetExchangeHubPageAsync(
         string currentUserId,
-        string currentUserRole);
+        string currentUserRole,
+        int? selectedHubId = null,
+        string? clubKeyword = null,
+        string hubTypeFilter = "all",
+        string memberStatusFilter = "all",
+        string orderStatusFilter = "all",
+        int memberPage = 1,
+        int orderPage = 1);
 
     Task<(bool Success, string Message)> RegisterCopyDropoffAtHubAsync(
         string currentUserId,
@@ -148,45 +155,114 @@ public interface IS20ExchangeHubClubService
 
     Task<(bool Success, string Message)> CuratorVerifyPhysicalCopyAsync(
         string curatorUserId,
+        string curatorUserRole,
         S20CuratorVerifyCopyDto request);
 
-        Task<(bool Success, string Message)> CuratorProcessHubHandoverAsync(
-            string curatorUserId,
-            S20CuratorHandoverActionDto request);
+    Task<(bool Success, string Message)> CuratorProcessHubHandoverAsync(
+        string curatorUserId,
+        string curatorUserRole,
+        S20CuratorHandoverActionDto request);
 
-        Task<(bool Success, string Message)> UpdateHubStationInfoAsync(
-            string curatorUserId,
-            S20UpdateHubStationDto request);
-    }
+    Task<(bool Success, string Message)> UpdateHubStationInfoAsync(
+        string curatorUserId,
+        string curatorUserRole,
+        S20UpdateHubStationDto request);
+
+    Task<(bool Success, string Message, int HubId)> CreateClubAsync(
+        string adminUserId,
+        S20CreateClubDto request);
+
+    Task<(bool Success, string Message)> AssignClubLeaderAsync(
+        string currentUserId,
+        string currentUserRole,
+        S20AssignClubLeaderDto request);
+
+    Task<(bool Success, string Message)> AddClubMemberAsync(
+        string currentUserId,
+        string currentUserRole,
+        S20AddClubMemberDto request);
+
+    Task<(bool Success, string Message)> JoinClubAsync(
+        string currentUserId,
+        S20JoinClubDto request);
+
+    Task<(bool Success, string Message)> LeaveClubAsync(
+        string currentUserId,
+        int hubId);
+
+    Task<(bool Success, string Message)> ReviewClubMemberAsync(
+        string currentUserId,
+        string currentUserRole,
+        S20ReviewClubMemberDto request);
+
+    Task<(bool Success, string Message)> UpdateClubMemberRoleAsync(
+        string currentUserId,
+        string currentUserRole,
+        S20UpdateClubMemberRoleDto request);
+
+    Task<(bool Success, string Message)> RemoveClubMemberAsync(
+        string currentUserId,
+        string currentUserRole,
+        S20RemoveClubMemberDto request);
+
+    Task<(bool Success, string Message)> CreateClubPostAsync(
+        string currentUserId,
+        string currentUserRole,
+        S20CreateClubPostDto request);
+
+    Task<(bool Success, string Message)> DeleteClubPostAsync(
+        string currentUserId,
+        string currentUserRole,
+        S20DeleteClubPostDto request);
+}
 
 public interface IS21LibrarianDeskService
 {
     Task<S21LibrarianDeskPageViewModel> GetLibrarianDeskPageAsync(
         string currentUserId,
-        string currentUserRole);
+        string currentUserRole,
+        string? loanKeyword = null,
+        string loanChannel = "all",
+        string loanStatus = "all",
+        int loanPage = 1,
+        string? copyKeyword = null,
+        string copyStatus = "all",
+        int? copyLibraryId = null,
+        int copyPage = 1);
 
     Task<(bool Success, string Message, string ActionPerformed)> ProcessQuickBarcodeScanAsync(
         string librarianUserId,
         S21QuickScanBarcodeDto request);
 
+    Task<(bool Success, string Message)> ProcessUnifiedLoanActionAsync(
+        string staffUserId,
+        string staffUserRole,
+        S21ProcessLoanActionDto request);
+
+    Task<(bool Success, string Message)> DirectLendBookAtDeskAsync(
+        string staffUserId,
+        string staffUserRole,
+        S21DirectLendBookDto request);
+
     Task<(bool Success, string Message, List<string> GeneratedBarcodes)> BatchImportSystemCopiesAsync(
         string librarianUserId,
         S21BatchImportCopiesDto request);
 
-        Task<(bool Success, string Message)> UpdateCopyDamageOrLostAsync(
-            string librarianUserId,
-            S21UpdateCopyStateDto request);
+    Task<(bool Success, string Message)> UpdateCopyDamageOrLostAsync(
+        string librarianUserId,
+        S21UpdateCopyStateDto request);
 
-        Task<(bool Success, string Message)> DeleteSystemCopyAsync(
-            string librarianUserId,
-            int bookCopyId);
-    }
+    Task<(bool Success, string Message)> DeleteSystemCopyAsync(
+        string librarianUserId,
+        int bookCopyId);
+}
 
 public interface IS22AdminAnalyticsService
 {
     Task<S22AdminAnalyticsPageViewModel> GetAdminAnalyticsPageAsync(
         string currentUserId,
-        string currentUserRole);
+        string currentUserRole,
+        S22AdminAnalyticsFilterDto? filter = null);
 
     Task<(bool Success, string Message)> ChangeUserRoleAsync(
         string adminUserId,
@@ -196,15 +272,15 @@ public interface IS22AdminAnalyticsService
         string adminUserId,
         ReviewRoleUpgradeRequestDto request);
 
-        Task<(bool Success, string Message)> ToggleUserLockoutAsync(
-            string adminUserId,
-            S22ToggleUserLockDto request);
+    Task<(bool Success, string Message)> ToggleUserLockoutAsync(
+        string adminUserId,
+        S22ToggleUserLockDto request);
 
-        Task<(bool Success, string Message)> ManageSampleDataAsync(
-            string adminUserId,
-            string actionMode);
+    Task<(bool Success, string Message)> ManageSampleDataAsync(
+        string adminUserId,
+        string actionMode);
 
-        Task<(bool Success, string Message)> DeleteUserAsync(
-            string adminUserId,
-            string targetUserId);
-    }
+    Task<(bool Success, string Message)> DeleteUserAsync(
+        string adminUserId,
+        string targetUserId);
+}

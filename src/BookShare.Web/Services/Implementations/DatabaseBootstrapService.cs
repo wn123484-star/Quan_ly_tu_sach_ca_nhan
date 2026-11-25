@@ -33,6 +33,7 @@ public class DatabaseBootstrapService : IDatabaseBootstrapService
             await EnsureExtensionTablesAsync(ct);
             await EnsureCoreRolesAndAdminAsync(ct);
             await EnsureDefaultIconsAsync(ct);
+            await EnsureClubGovernanceAsync(ct);
         }
         finally
         {
@@ -202,6 +203,57 @@ public class DatabaseBootstrapService : IDatabaseBootstrapService
                     ALTER TABLE [dbo].[Memberships] DROP CONSTRAINT [CK_Memberships_Tier];
                 ALTER TABLE [dbo].[Memberships] ADD CONSTRAINT [CK_Memberships_Tier]
                     CHECK ([Tier] IN (N'Free', N'Standard', N'Premium', N'Scholar'));
+            END
+
+            IF OBJECT_ID(N'[dbo].[Libraries]', N'U') IS NOT NULL
+            BEGIN
+                IF COL_LENGTH(N'[dbo].[Libraries]', N'Description') IS NULL
+                    ALTER TABLE [dbo].[Libraries] ADD [Description] NVARCHAR(600) NULL;
+                IF COL_LENGTH(N'[dbo].[Libraries]', N'ClubRules') IS NULL
+                    ALTER TABLE [dbo].[Libraries] ADD [ClubRules] NVARCHAR(1000) NULL;
+                IF COL_LENGTH(N'[dbo].[Libraries]', N'IsPublicClub') IS NULL
+                    ALTER TABLE [dbo].[Libraries] ADD [IsPublicClub] BIT NOT NULL CONSTRAINT [DF_Libraries_IsPublicClub] DEFAULT (1);
+            END
+
+            IF OBJECT_ID(N'[dbo].[ClubMembers]', N'U') IS NULL
+               AND OBJECT_ID(N'[dbo].[Libraries]', N'U') IS NOT NULL
+               AND OBJECT_ID(N'[dbo].[AspNetUsers]', N'U') IS NOT NULL
+            BEGIN
+                CREATE TABLE [dbo].[ClubMembers] (
+                    [Id]            INT IDENTITY(1,1) NOT NULL,
+                    [HubId]         INT               NOT NULL,
+                    [UserId]        NVARCHAR(450)     NOT NULL,
+                    [MemberRole]    NVARCHAR(20)      NOT NULL CONSTRAINT [DF_ClubMembers_MemberRole] DEFAULT (N'Member'),
+                    [Status]        NVARCHAR(20)      NOT NULL CONSTRAINT [DF_ClubMembers_Status] DEFAULT (N'Approved'),
+                    [JoinNote]      NVARCHAR(300)     NULL,
+                    [AddedByUserId] NVARCHAR(450)     NULL,
+                    [JoinedAt]      DATETIME2(7)      NOT NULL CONSTRAINT [DF_ClubMembers_JoinedAt] DEFAULT (SYSUTCDATETIME()),
+                    CONSTRAINT [PK_ClubMembers] PRIMARY KEY CLUSTERED ([Id] ASC),
+                    CONSTRAINT [FK_ClubMembers_Libraries] FOREIGN KEY ([HubId]) REFERENCES [dbo].[Libraries] ([Id]) ON DELETE CASCADE,
+                    CONSTRAINT [FK_ClubMembers_AspNetUsers] FOREIGN KEY ([UserId]) REFERENCES [dbo].[AspNetUsers] ([Id]) ON DELETE CASCADE,
+                    CONSTRAINT [FK_ClubMembers_AddedByUser] FOREIGN KEY ([AddedByUserId]) REFERENCES [dbo].[AspNetUsers] ([Id]) ON DELETE NO ACTION
+                );
+                CREATE UNIQUE NONCLUSTERED INDEX [UX_ClubMembers_Hub_User] ON [dbo].[ClubMembers]([HubId] ASC, [UserId] ASC);
+                CREATE NONCLUSTERED INDEX [IX_ClubMembers_Hub_Status] ON [dbo].[ClubMembers]([HubId] ASC, [Status] ASC);
+            END
+
+            IF OBJECT_ID(N'[dbo].[ClubPosts]', N'U') IS NULL
+               AND OBJECT_ID(N'[dbo].[Libraries]', N'U') IS NOT NULL
+               AND OBJECT_ID(N'[dbo].[AspNetUsers]', N'U') IS NOT NULL
+            BEGIN
+                CREATE TABLE [dbo].[ClubPosts] (
+                    [Id]           INT IDENTITY(1,1) NOT NULL,
+                    [HubId]        INT               NOT NULL,
+                    [AuthorUserId] NVARCHAR(450)     NOT NULL,
+                    [Title]        NVARCHAR(200)     NOT NULL,
+                    [Content]      NVARCHAR(1500)    NOT NULL,
+                    [IsPinned]     BIT               NOT NULL CONSTRAINT [DF_ClubPosts_IsPinned] DEFAULT (0),
+                    [CreatedAt]    DATETIME2(7)      NOT NULL CONSTRAINT [DF_ClubPosts_CreatedAt] DEFAULT (SYSUTCDATETIME()),
+                    CONSTRAINT [PK_ClubPosts] PRIMARY KEY CLUSTERED ([Id] ASC),
+                    CONSTRAINT [FK_ClubPosts_Libraries] FOREIGN KEY ([HubId]) REFERENCES [dbo].[Libraries] ([Id]) ON DELETE CASCADE,
+                    CONSTRAINT [FK_ClubPosts_AuthorUser] FOREIGN KEY ([AuthorUserId]) REFERENCES [dbo].[AspNetUsers] ([Id]) ON DELETE NO ACTION
+                );
+                CREATE NONCLUSTERED INDEX [IX_ClubPosts_Hub_CreatedAt] ON [dbo].[ClubPosts]([HubId] ASC, [CreatedAt] DESC);
             END";
 
         try
@@ -398,6 +450,71 @@ public class DatabaseBootstrapService : IDatabaseBootstrapService
         {
             await _db.SaveChangesAsync(ct);
             _cache.Remove(SystemIconService.CacheKey);
+        }
+    }
+
+    private async Task EnsureClubGovernanceAsync(CancellationToken ct)
+    {
+        try
+        {
+            var hubs = await _db.Libraries.ToListAsync(ct);
+            if (!hubs.Any()) return;
+
+            var existingMembers = await _db.ClubMembers.ToListAsync(ct);
+            bool changed = false;
+            var now = DateTime.UtcNow;
+
+            foreach (var hub in hubs)
+            {
+                if (string.IsNullOrWhiteSpace(hub.Description))
+                {
+                    hub.Description = hub.HubType == "Library"
+                        ? "Kho sách học thuật chuẩn do Thủ thư điều phối mượn trả miễn phí."
+                        : "Không gian Câu lạc bộ đọc sách cộng đồng, ký gửi sách P2P và giao lưu tri thức.";
+                    changed = true;
+                }
+                if (string.IsNullOrWhiteSpace(hub.ClubRules))
+                {
+                    hub.ClubRules = "1. Chia sẻ & mượn trả sách giấy 100% phi thương mại (0đ). 2. Giữ gìn sách sạch đẹp, trả đúng hẹn. 3. Tôn trọng điều phối của Trưởng nhóm CLB.";
+                    changed = true;
+                }
+
+                if (!string.IsNullOrWhiteSpace(hub.ManagerUserId))
+                {
+                    var leaderRow = existingMembers.FirstOrDefault(m => m.HubId == hub.Id && m.UserId == hub.ManagerUserId);
+                    if (leaderRow == null)
+                    {
+                        var newLeader = new ClubMember
+                        {
+                            HubId = hub.Id,
+                            UserId = hub.ManagerUserId,
+                            MemberRole = "Leader",
+                            Status = "Approved",
+                            JoinNote = "Trưởng nhóm / Chủ nhiệm sáng lập trạm CLB",
+                            AddedByUserId = hub.ManagerUserId,
+                            JoinedAt = now
+                        };
+                        _db.ClubMembers.Add(newLeader);
+                        existingMembers.Add(newLeader);
+                        changed = true;
+                    }
+                    else if (leaderRow.MemberRole != "Leader" || leaderRow.Status != "Approved")
+                    {
+                        leaderRow.MemberRole = "Leader";
+                        leaderRow.Status = "Approved";
+                        changed = true;
+                    }
+                }
+            }
+
+            if (changed)
+            {
+                await _db.SaveChangesAsync(ct);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Club governance bootstrap skipped or deferred.");
         }
     }
 }

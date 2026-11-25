@@ -526,6 +526,275 @@ public class S13GeminiAiService : IS13GeminiAiService
                 return (ok, msg);
             }
 
+            case "send_reading_progress_email":
+            {
+                var user = await _db.AspNetUsers.AsNoTracking().FirstOrDefaultAsync(u => u.Id == currentUserId);
+                if (user == null || !AuthConfigHelper.IsValidEmailFormat(user.Email))
+                {
+                    return (false, "Bạn chưa có địa chỉ Email hợp lệ. Vui lòng vào Cài Đặt Tài Khoản (/S01AuthOtpGoogle) để điền Email trước khi gửi thư!");
+                }
+
+                var progresses = await _db.ReadingProgresses
+                    .AsNoTracking()
+                    .Include(rp => rp.Book)
+                    .Include(rp => rp.BookNotes)
+                    .Where(rp => rp.UserId == currentUserId)
+                    .OrderByDescending(rp => rp.UpdatedAt)
+                    .Take(10)
+                    .ToListAsync();
+
+                var html = new StringBuilder();
+                html.Append("<div style='font-family:Roboto,Arial,sans-serif;padding:20px;border:1px solid #cbd5e1;border-radius:14px;max-width:680px;'>");
+                html.Append("<h3 style='color:#059669;margin-top:0;'>📖 Báo Cáo Tiến Độ Đọc Sách &amp; Trích Dẫn — BookShare</h3>");
+                html.Append($"<p>Xin chào <strong>{System.Net.WebUtility.HtmlEncode(user.FullName)}</strong>,</p>");
+                if (progresses.Any())
+                {
+                    int totalPagesRead = progresses.Sum(p => p.CurrentPage);
+                    int finishedCount = progresses.Count(p => p.Status == "Completed");
+                    html.Append($"<p>Tổng quan: <strong>{progresses.Count} cuốn sách</strong> đang theo dõi • <strong>{finishedCount} cuốn đã hoàn thành</strong> • <strong>{totalPagesRead:N0} trang</strong> đã đọc.</p><ul>");
+                    foreach (var rp in progresses)
+                    {
+                        int pct = rp.TotalPages > 0 ? (int)Math.Round(rp.CurrentPage * 100.0 / rp.TotalPages) : 0;
+                        html.Append($"<li><strong>{System.Net.WebUtility.HtmlEncode(rp.Book.Title)}</strong> — Trang {rp.CurrentPage}/{rp.TotalPages} ({pct}% • {rp.Status})");
+                        var firstQuote = rp.BookNotes.FirstOrDefault(n => !string.IsNullOrWhiteSpace(n.QuoteText));
+                        if (firstQuote != null)
+                        {
+                            html.Append($"<br/><em style='color:#475569;'>“{System.Net.WebUtility.HtmlEncode(firstQuote.QuoteText)}”</em>");
+                        }
+                        html.Append("</li>");
+                    }
+                    html.Append("</ul>");
+                }
+                else
+                {
+                    html.Append("<p>Bạn chưa thêm cuốn sách nào vào Không gian theo dõi đọc sách. Hãy bắt đầu tại mục Tiến Độ Đọc Sách trên BookShare!</p>");
+                }
+                html.Append("</div>");
+
+                var (sentViaApi, _, statusNote) = await _resendEmailService.SendNotificationEmailAsync(
+                    user.Email!,
+                    "[BookShare AI] Báo cáo tiến độ đọc sách & trích dẫn cá nhân",
+                    html.ToString());
+
+                _db.Notifications.Add(new Notification
+                {
+                    UserId = user.Id,
+                    Title = "Đã gửi báo cáo tiến độ đọc sách qua Email",
+                    Content = statusNote,
+                    Type = "System",
+                    IsRead = false,
+                    EmailSentViaResend = sentViaApi,
+                    CreatedAt = DateTime.UtcNow
+                });
+                await _db.SaveChangesAsync();
+                return (true, $"Đã gửi báo cáo tiến độ đọc sách & trích dẫn tới {user.Email}: {statusNote}");
+            }
+
+            case "send_book_recommendations_email":
+            {
+                var user = await _db.AspNetUsers.AsNoTracking().FirstOrDefaultAsync(u => u.Id == currentUserId);
+                if (user == null || !AuthConfigHelper.IsValidEmailFormat(user.Email))
+                {
+                    return (false, "Bạn chưa có địa chỉ Email hợp lệ. Vui lòng vào Cài Đặt Tài Khoản (/S01AuthOtpGoogle) để điền Email trước khi gửi thư!");
+                }
+
+                string topic = ExtractStringArg(parameters, "topic");
+                var copyQuery = _db.BookCopies
+                    .AsNoTracking()
+                    .Include(bc => bc.Book).ThenInclude(b => b.Category)
+                    .Include(bc => bc.Library)
+                    .Where(bc => bc.Status == "Available" && bc.IsLendable);
+
+                var allAvail = await copyQuery.OrderBy(bc => bc.Id).Take(60).ToListAsync();
+                var picks = string.IsNullOrWhiteSpace(topic)
+                    ? allAvail.Take(6).ToList()
+                    : allAvail.Where(bc =>
+                        bc.Book.Title.Contains(topic, StringComparison.OrdinalIgnoreCase) ||
+                        bc.Book.Author.Contains(topic, StringComparison.OrdinalIgnoreCase) ||
+                        bc.Book.Category.Name.Contains(topic, StringComparison.OrdinalIgnoreCase)).Take(6).ToList();
+                if (!picks.Any()) picks = allAvail.Take(5).ToList();
+
+                var html = new StringBuilder();
+                html.Append("<div style='font-family:Roboto,Arial,sans-serif;padding:20px;border:1px solid #cbd5e1;border-radius:14px;max-width:680px;'>");
+                html.Append("<h3 style='color:#2563eb;margin-top:0;'>✨ Danh Sách Gợi Ý Sách Mượn Miễn Phí (0đ) — BookShare</h3>");
+                html.Append($"<p>Xin chào <strong>{System.Net.WebUtility.HtmlEncode(user.FullName)}</strong>,</p>");
+                if (!string.IsNullOrWhiteSpace(topic))
+                {
+                    html.Append($"<p>Dựa trên chủ đề bạn quan tâm (<strong>{System.Net.WebUtility.HtmlEncode(topic)}</strong>), Trợ lý AI đề xuất các bản sao sẵn sàng cho mượn ngay:</p>");
+                }
+                else
+                {
+                    html.Append("<p>Dưới đây là những đầu sách chất lượng đang sẵn sàng cho mượn miễn phí 0đ tại BookShare:</p>");
+                }
+                html.Append("<ul>");
+                foreach (var c in picks)
+                {
+                    string src = c.OwnerType == "System" ? (c.Library?.Name ?? "Kho Thư viện") : "Tủ sách Cộng đồng P2P";
+                    html.Append($"<li><strong>{System.Net.WebUtility.HtmlEncode(c.Book.Title)}</strong> — {System.Net.WebUtility.HtmlEncode(c.Book.Author)} ({System.Net.WebUtility.HtmlEncode(c.Book.Category.Name)}) • Mã <code>{c.Barcode}</code> [{System.Net.WebUtility.HtmlEncode(src)}]</li>");
+                }
+                html.Append("</ul></div>");
+
+                var (sentViaApi, _, statusNote) = await _resendEmailService.SendNotificationEmailAsync(
+                    user.Email!,
+                    "[BookShare AI] Gợi ý đầu sách hay sẵn sàng mượn 0đ dành riêng cho bạn",
+                    html.ToString());
+
+                _db.Notifications.Add(new Notification
+                {
+                    UserId = user.Id,
+                    Title = "Đã gửi thư gợi ý sách AI qua Email",
+                    Content = statusNote,
+                    Type = "System",
+                    IsRead = false,
+                    EmailSentViaResend = sentViaApi,
+                    CreatedAt = DateTime.UtcNow
+                });
+                await _db.SaveChangesAsync();
+                return (true, $"Đã gửi danh sách gợi ý {picks.Count} đầu sách sẵn sàng mượn tới {user.Email}: {statusNote}");
+            }
+
+            case "send_wallet_membership_email":
+            {
+                var user = await _db.AspNetUsers
+                    .AsNoTracking()
+                    .Include(u => u.Memberships)
+                    .Include(u => u.UserWallet)
+                    .FirstOrDefaultAsync(u => u.Id == currentUserId);
+                if (user == null || !AuthConfigHelper.IsValidEmailFormat(user.Email))
+                {
+                    return (false, "Bạn chưa có địa chỉ Email hợp lệ. Vui lòng vào Cài Đặt Tài Khoản (/S01AuthOtpGoogle) để điền Email trước khi gửi thư!");
+                }
+
+                var policy = MembershipTierCatalog.GetEffectivePolicy(user.Memberships, DateTime.UtcNow);
+                var activeMem = user.Memberships.Where(m => m.IsActive).OrderByDescending(m => m.StartDate).FirstOrDefault();
+                var recentTxs = await _db.Transactions
+                    .AsNoTracking()
+                    .Where(t => t.UserId == currentUserId)
+                    .OrderByDescending(t => t.CreatedAt)
+                    .Take(5)
+                    .ToListAsync();
+
+                var html = new StringBuilder();
+                html.Append("<div style='font-family:Roboto,Arial,sans-serif;padding:20px;border:1px solid #cbd5e1;border-radius:14px;max-width:680px;'>");
+                html.Append("<h3 style='color:#0d9488;margin-top:0;'>💎 Sao Kê Ví Tiền Ảo &amp; Gói Hội Viên — BookShare</h3>");
+                html.Append($"<p>Xin chào <strong>{System.Net.WebUtility.HtmlEncode(user.FullName)}</strong>,</p>");
+                html.Append($"<p>• Hạng Hội viên hiện tại: <strong>{System.Net.WebUtility.HtmlEncode(policy.DisplayName)} ({policy.Tier})</strong> — Tối đa {policy.MaxConcurrentLoans + user.LendQuotaBonus} cuốn (Gốc {policy.MaxConcurrentLoans} + Thưởng P2P {user.LendQuotaBonus}), tối đa {policy.MaxBorrowDays} ngày/lượt.<br/>");
+                html.Append($"• Số dư Ví tiền ảo miễn phí: <strong>{(user.UserWallet?.Balance ?? 0m):N0}đ ảo</strong> • Điểm Uy tín TrustScore: <strong>{user.TrustScore} điểm</strong>.<br/>");
+                html.Append($"• Hiệu lực gói: {(activeMem?.ExpiryDate.HasValue == true ? activeMem.ExpiryDate.Value.ToString("dd/MM/yyyy") : "Không giới hạn")}</p>");
+                if (recentTxs.Any())
+                {
+                    html.Append("<p><strong>5 giao dịch gần nhất:</strong></p><ul>");
+                    foreach (var tx in recentTxs)
+                    {
+                        html.Append($"<li>#TX-{tx.Id} • {tx.TransactionType} • <strong>{tx.Amount:N0}đ ảo</strong> [{tx.PaymentStatus}] — {tx.CreatedAt:dd/MM/yyyy HH:mm}</li>");
+                    }
+                    html.Append("</ul>");
+                }
+                html.Append("</div>");
+
+                var (sentViaApi, _, statusNote) = await _resendEmailService.SendNotificationEmailAsync(
+                    user.Email!,
+                    $"[BookShare AI] Sao kê Ví tiền ảo & Hạng hội viên {policy.DisplayName}",
+                    html.ToString());
+
+                _db.Notifications.Add(new Notification
+                {
+                    UserId = user.Id,
+                    Title = "Đã gửi sao kê Ví & Hội viên qua Email",
+                    Content = statusNote,
+                    Type = "System",
+                    IsRead = false,
+                    EmailSentViaResend = sentViaApi,
+                    CreatedAt = DateTime.UtcNow
+                });
+                await _db.SaveChangesAsync();
+                return (true, $"Đã gửi sao kê Ví tiền ảo & Hạng hội viên tới {user.Email}: {statusNote}");
+            }
+
+            case "send_club_announcement_email":
+            {
+                bool isAdmin = string.Equals(currentUserRole, "Admin", StringComparison.OrdinalIgnoreCase);
+                bool isCurator = string.Equals(currentUserRole, "Curator", StringComparison.OrdinalIgnoreCase);
+                int requestedHubId = ExtractIntArg(parameters, "hubId");
+
+                var managedClubIds = await _db.ClubMembers
+                    .AsNoTracking()
+                    .Where(m => m.UserId == currentUserId && m.Status == "Approved" && (m.MemberRole == "Leader" || m.MemberRole == "ViceLeader"))
+                    .Select(m => m.HubId)
+                    .ToListAsync();
+
+                if (!isAdmin && !isCurator && !managedClubIds.Any())
+                {
+                    throw new UnauthorizedAccessException("Chỉ Quản trị viên, Chủ nhiệm CLB hoặc Trưởng/Phó nhóm CLB mới được gửi thư mời / thông báo sinh hoạt tới thành viên CLB.");
+                }
+
+                Library? targetClub = null;
+                if (requestedHubId > 0)
+                {
+                    targetClub = await _db.Libraries.AsNoTracking().FirstOrDefaultAsync(l => l.Id == requestedHubId);
+                    if (targetClub != null && !isAdmin && targetClub.ManagerUserId != currentUserId && !managedClubIds.Contains(targetClub.Id))
+                    {
+                        throw new UnauthorizedAccessException("Bạn không phải Trưởng/Phó nhóm của Câu lạc bộ này.");
+                    }
+                }
+                targetClub ??= await _db.Libraries.AsNoTracking()
+                    .Where(l => isAdmin || l.ManagerUserId == currentUserId || managedClubIds.Contains(l.Id))
+                    .OrderByDescending(l => l.HubType == "ClubStation")
+                    .FirstOrDefaultAsync();
+
+                if (targetClub == null)
+                {
+                    return (false, "Bạn chưa phụ trách Câu lạc bộ / Điểm trạm nào để gửi thông báo.");
+                }
+
+                var sender = await _db.AspNetUsers.AsNoTracking().FirstOrDefaultAsync(u => u.Id == currentUserId);
+                string customTitle = ExtractStringArg(parameters, "title");
+                string customContent = ExtractStringArg(parameters, "content");
+                string mailTitle = string.IsNullOrWhiteSpace(customTitle)
+                    ? $"[BookShare CLB] Thông báo sinh hoạt định kỳ — {targetClub.Name}"
+                    : $"[BookShare CLB] {customTitle}";
+                string mailContent = string.IsNullOrWhiteSpace(customContent)
+                    ? $"Thân mời các thành viên tham gia buổi sinh hoạt đọc sách và giao lưu trao đổi sách giấy 0đ tại {targetClub.Name} ({targetClub.Address} • {targetClub.OpenHours})."
+                    : customContent;
+
+                var recipients = await _db.ClubMembers
+                    .AsNoTracking()
+                    .Include(m => m.User)
+                    .Where(m => m.HubId == targetClub.Id && m.Status == "Approved")
+                    .Select(m => m.User)
+                    .ToListAsync();
+
+                if (!recipients.Any() && sender != null)
+                {
+                    recipients.Add(sender);
+                }
+
+                int sentCount = 0;
+                foreach (var r in recipients.Where(u => AuthConfigHelper.IsValidEmailFormat(u.Email)).Take(25))
+                {
+                    var body = $"<div style='font-family:Roboto,Arial,sans-serif;padding:20px;border:1px solid #cbd5e1;border-radius:14px;'>" +
+                               $"<h3 style='color:#d97706;margin-top:0;'>⛺ {System.Net.WebUtility.HtmlEncode(targetClub.Name)}</h3>" +
+                               $"<p>Xin chào <strong>{System.Net.WebUtility.HtmlEncode(r.FullName)}</strong>,</p>" +
+                               $"<p>{System.Net.WebUtility.HtmlEncode(mailContent)}</p>" +
+                               $"<p style='font-size:12px;color:#64748b;'>Người gửi: {System.Net.WebUtility.HtmlEncode(sender?.FullName ?? "Trưởng nhóm CLB")}</p></div>";
+                    var (apiSent, _, _) = await _resendEmailService.SendNotificationEmailAsync(r.Email!, mailTitle, body);
+                    _db.Notifications.Add(new Notification
+                    {
+                        UserId = r.Id,
+                        Title = mailTitle,
+                        Content = mailContent,
+                        Type = "System",
+                        IsRead = false,
+                        EmailSentViaResend = apiSent,
+                        CreatedAt = DateTime.UtcNow
+                    });
+                    sentCount++;
+                }
+
+                await _db.SaveChangesAsync();
+                return (true, $"Đã phát thư thông báo sinh hoạt CLB \"{targetClub.Name}\" tới {sentCount} thành viên có Email hợp lệ!");
+            }
+
             case "send_due_reminders_batch":
             {
                 if (currentUserRole is not ("Librarian" or "Admin"))
@@ -536,6 +805,62 @@ public class S13GeminiAiService : IS13GeminiAiService
                     currentUserId,
                     new S18TriggerResendCampaignDto { CampaignType = "DueReminder" });
                 return (ok, msg);
+            }
+
+            case "send_admin_analytics_report_email":
+            {
+                if (!string.Equals(currentUserRole, "Admin", StringComparison.OrdinalIgnoreCase))
+                {
+                    throw new UnauthorizedAccessException("Chỉ Quản trị viên hệ thống mới được phép gửi báo cáo thống kê vận hành toàn hệ thống qua Email.");
+                }
+
+                var adminUser = await _db.AspNetUsers.AsNoTracking().FirstOrDefaultAsync(u => u.Id == currentUserId);
+                if (adminUser == null || !AuthConfigHelper.IsValidEmailFormat(adminUser.Email))
+                {
+                    return (false, "Tài khoản Quản trị viên chưa có địa chỉ Email hợp lệ. Vui lòng cập nhật tại Cài Đặt Tài Khoản.");
+                }
+
+                int totalUsers = await _db.AspNetUsers.CountAsync();
+                int totalBooks = await _db.Books.CountAsync();
+                int totalCopies = await _db.BookCopies.CountAsync();
+                int activeLoansCount = await _db.Loans.CountAsync(l => l.Status == "Active" || l.Status == "Overdue");
+                int overdueCount = await _db.Loans.CountAsync(l => l.Status == "Overdue" || (l.Status == "Active" && l.DueDate < DateTime.UtcNow));
+                int openDisputes = await _db.Disputes.CountAsync(d => d.Status == "Open" || d.Status == "UnderReview");
+                int clubsCount = await _db.Libraries.CountAsync(l => l.HubType == "ClubStation" || l.HubType == "DropoffHub");
+                decimal membershipRev = await _db.Transactions
+                    .Where(t => (t.TransactionType == "Membership" || t.TransactionType == "MembershipSwitch") && t.PaymentStatus == "Completed")
+                    .SumAsync(t => (decimal?)t.Amount) ?? 0m;
+
+                var html = $@"<div style='font-family:Roboto,Arial,sans-serif;padding:20px;border:1px solid #cbd5e1;border-radius:14px;max-width:680px;'>
+                    <h3 style='color:#dc2626;margin-top:0;'>📊 Báo Cáo Tổng Quan Vận Hành Hệ Thống BookShare</h3>
+                    <p>Kính gửi Quản trị viên <strong>{System.Net.WebUtility.HtmlEncode(adminUser.FullName)}</strong> ({DateTime.Now:dd/MM/yyyy HH:mm}),</p>
+                    <ul>
+                        <li>Tổng thành viên hệ thống: <strong>{totalUsers}</strong></li>
+                        <li>Kho tri thức: <strong>{totalBooks} đầu sách</strong> / <strong>{totalCopies} bản sao vật lý</strong></li>
+                        <li>Số Câu lạc bộ &amp; Điểm trạm cộng đồng: <strong>{clubsCount}</strong></li>
+                        <li>Hợp đồng đang mượn: <strong>{activeLoansCount}</strong> (trong đó quá hạn: <strong style='color:#dc2626;'>{overdueCount}</strong>)</li>
+                        <li>Hồ sơ tranh chấp đang mở: <strong>{openDisputes}</strong></li>
+                        <li>Tổng giá trị đăng ký gói Hội viên tiền ảo: <strong>{membershipRev:N0}đ ảo</strong></li>
+                    </ul>
+                </div>";
+
+                var (sentViaApi, _, statusNote) = await _resendEmailService.SendNotificationEmailAsync(
+                    adminUser.Email!,
+                    $"[BookShare Admin] Báo cáo thống kê vận hành hệ thống ({DateTime.Now:dd/MM/yyyy})",
+                    html);
+
+                _db.Notifications.Add(new Notification
+                {
+                    UserId = adminUser.Id,
+                    Title = "Đã gửi báo cáo thống kê vận hành Admin qua Email",
+                    Content = statusNote,
+                    Type = "System",
+                    IsRead = false,
+                    EmailSentViaResend = sentViaApi,
+                    CreatedAt = DateTime.UtcNow
+                });
+                await _db.SaveChangesAsync();
+                return (true, $"Đã gửi báo cáo thống kê vận hành hệ thống tới Quản trị viên ({adminUser.Email}): {statusNote}");
             }
 
             default:
@@ -847,11 +1172,13 @@ public class S13GeminiAiService : IS13GeminiAiService
         }
         ragBuilder.AppendLine("Bạn có thể tùy biến toàn diện giao diện BookShare bằng tool `set_ui_prefs`:");
         ragBuilder.AppendLine("- theme: light (sáng) | dark (tối)");
-        ragBuilder.AppendLine("- style (9 phong cách): standard (Chuẩn Hiện Đại), sketchy (Nét vẽ nghệch ngoặc), morph (Kính mờ mềm mại), flatly (Phẳng sắc nét), paper (Trang sách cổ điển), neobrutal (Truyện tranh Pop), pastel (Kẹo ngọt dịu mắt), cyborg (Đêm công nghệ), terminal (Lập trình viên)");
-        ragBuilder.AppendLine("- palette (12 bảng màu): blue (Sapphire), ocean (Đại dương), emerald (Lục bảo), mint (Bạc hà), gold (Vàng mộng mơ), rose (Hồng ấm áp), sakura (Hoa anh đào), lavender (Tím oải hương), sepia (Giấy cổ), coral (Cam hoàng hôn), royal (Tím hoàng gia), midnight (Đêm ngân hà)");
-        ragBuilder.AppendLine("- font (5 phông tiếng Việt): roboto, bevietnam, lora (có chân sách giấy), patrick (viết tay), jetbrains (đơn cách lập trình)");
-        ragBuilder.AppendLine("- fontSize (4 cỡ chữ): sm (nhỏ 14px), md (chuẩn 16px), lg (lớn 17.5px), xl (rất lớn 19px)");
-        ragBuilder.AppendLine("Khi người dùng yêu cầu đổi phong cách, bảng màu, phông chữ, cỡ chữ hoặc sáng/tối, PHẢI gọi tool `set_ui_prefs` (hoặc `set_theme`) tương ứng và trả lời tiếng Việt ngắn gọn, thân thiện.");
+        ragBuilder.AppendLine("- style (9 phong cách): standard, sketchy (Nét vẽ nghệch ngoặc), morph (Kính mờ), flatly (Phẳng), paper (Trang sách), neobrutal (Truyện tranh), pastel (Kẹo ngọt), cyborg (Đêm công nghệ), terminal (Lập trình viên)");
+        ragBuilder.AppendLine("- palette (12 bảng màu): blue, ocean, emerald, mint, gold (Vàng mộng mơ), rose (Hồng ấm áp), sakura, lavender, sepia, coral, royal, midnight");
+        ragBuilder.AppendLine("- background (12 loại nền trang): solid, paper-grain (giấy sách), dot-grid (lưới chấm sổ tay), graph-grid (kẻ ô kỹ thuật), notebook-lines (vở kẻ ngang), soft-aurora (cực quang), sunset-glow (hoàng hôn), botanical (vườn xanh), starry-night (trời sao), warm-linen (vải bố), pastel-clouds (mây pastel), geometric-prism (hình học)");
+        ragBuilder.AppendLine("- font (5 phông tiếng Việt): roboto, bevietnam, lora, patrick, jetbrains");
+        ragBuilder.AppendLine("- fontSize (7 cỡ chữ): xs (13px), sm (14px), md (16px), lg (17.5px), xl (19px), 2xl (20.5px), 3xl (22px)");
+        ragBuilder.AppendLine("Bạn cũng hỗ trợ đề xuất gửi 8 loại Email: nhắc hạn cá nhân, tóm tắt hội thoại AI, báo cáo tiến độ đọc & trích dẫn, gợi ý sách sẵn có, sao kê Ví & Gói hội viên, thư mời sinh hoạt CLB (Curator/Admin), nhắc hạn hàng loạt (Librarian/Admin), và báo cáo thống kê Admin (Admin).");
+        ragBuilder.AppendLine("Khi người dùng yêu cầu đổi giao diện, loại nền, phông chữ, cỡ chữ hoặc gửi Email, PHẢI gọi tool tương ứng và trả lời tiếng Việt ngắn gọn, thân thiện.");
         return ragBuilder;
     }
 
@@ -862,7 +1189,7 @@ public class S13GeminiAiService : IS13GeminiAiService
             new
             {
                 name = "set_ui_prefs",
-                description = "Đổi toàn diện giao diện người dùng BookShare: chế độ sáng/tối (theme), 9 phong cách thiết kế (style), 12 bảng màu (palette), 5 phông chữ tiếng Việt (font), và 4 cỡ chữ (fontSize). Luôn gọi tool này khi người dùng muốn đổi kiểu giao diện, màu sắc, font chữ hoặc cỡ chữ.",
+                description = "Đổi toàn diện giao diện người dùng BookShare: chế độ sáng/tối (theme), 9 phong cách (style), 12 bảng màu (palette), 12 loại nền trang (background), 5 phông chữ (font), và 7 cỡ chữ (fontSize).",
                 parameters = new
                 {
                     type = "OBJECT",
@@ -871,8 +1198,9 @@ public class S13GeminiAiService : IS13GeminiAiService
                         theme = new { type = "STRING", description = "light hoặc dark" },
                         style = new { type = "STRING", description = "standard | sketchy | morph | flatly | paper | neobrutal | pastel | cyborg | terminal" },
                         palette = new { type = "STRING", description = "blue | ocean | emerald | mint | gold | rose | sakura | lavender | sepia | coral | royal | midnight" },
+                        background = new { type = "STRING", description = "solid | paper-grain | dot-grid | graph-grid | notebook-lines | soft-aurora | sunset-glow | botanical | starry-night | warm-linen | pastel-clouds | geometric-prism" },
                         font = new { type = "STRING", description = "roboto | bevietnam | lora | patrick | jetbrains" },
-                        fontSize = new { type = "STRING", description = "sm | md | lg | xl" }
+                        fontSize = new { type = "STRING", description = "xs | sm | md | lg | xl | 2xl | 3xl" }
                     }
                 }
             },
@@ -909,9 +1237,40 @@ public class S13GeminiAiService : IS13GeminiAiService
             new
             {
                 name = "propose_send_my_reminder_email",
-                description = "Đề xuất thẻ xác nhận gửi email tóm tắt hạn trả tới chính người dùng đang hỏi."
+                description = "Đề xuất thẻ xác nhận gửi email tóm tắt lịch mượn & hạn trả cá nhân."
+            },
+            new
+            {
+                name = "propose_send_reading_progress_email",
+                description = "Đề xuất thẻ xác nhận gửi email báo cáo tiến độ đọc sách & trích dẫn cá nhân."
+            },
+            new
+            {
+                name = "propose_send_book_recommendations_email",
+                description = "Đề xuất thẻ xác nhận gửi email danh sách gợi ý sách sẵn sàng cho mượn theo chủ đề.",
+                parameters = new { type = "OBJECT", properties = new { topic = new { type = "STRING", description = "Chủ đề hoặc thể loại sách (tùy chọn)" } } }
+            },
+            new
+            {
+                name = "propose_send_wallet_membership_email",
+                description = "Đề xuất thẻ xác nhận gửi email sao kê Ví tiền ảo, Hạng hội viên 4 cấp & giao dịch gần nhất."
+            },
+            new
+            {
+                name = "propose_send_chat_summary_email",
+                description = "Đề xuất thẻ xác nhận gửi bản lưu hội thoại AI hiện tại qua Email."
             }
         };
+
+        if (currentUserRole is "Curator" or "Admin")
+        {
+            declarations.Add(new
+            {
+                name = "propose_send_club_announcement_email",
+                description = "Chỉ dành cho Trưởng nhóm CLB/Curator/Admin: đề xuất gửi thư mời / thông báo sinh hoạt CLB tới thành viên CLB.",
+                parameters = new { type = "OBJECT", properties = new { title = new { type = "STRING" }, content = new { type = "STRING" } } }
+            });
+        }
 
         if (currentUserRole is "Librarian" or "Admin")
         {
@@ -919,6 +1278,15 @@ public class S13GeminiAiService : IS13GeminiAiService
             {
                 name = "propose_send_due_reminders_batch",
                 description = "Chỉ dành cho Thủ thư/Quản trị viên: đề xuất gửi email nhắc hạn trả hàng loạt."
+            });
+        }
+
+        if (currentUserRole == "Admin")
+        {
+            declarations.Add(new
+            {
+                name = "propose_send_admin_analytics_report_email",
+                description = "Chỉ dành cho Quản trị viên: đề xuất gửi email báo cáo thống kê vận hành toàn hệ thống."
             });
         }
 
@@ -989,8 +1357,14 @@ public class S13GeminiAiService : IS13GeminiAiService
                     {
                         "blue", "ocean", "emerald", "mint", "gold", "rose", "sakura", "lavender", "sepia", "coral", "royal", "midnight"
                     };
+                    var allowedBackgrounds = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+                    {
+                        "solid", "paper-grain", "dot-grid", "graph-grid", "notebook-lines",
+                        "soft-aurora", "sunset-glow", "botanical", "starry-night",
+                        "warm-linen", "pastel-clouds", "geometric-prism"
+                    };
                     var allowedFonts = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "roboto", "bevietnam", "lora", "patrick", "jetbrains" };
-                    var allowedSizes = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "sm", "md", "lg", "xl" };
+                    var allowedSizes = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "xs", "sm", "md", "lg", "xl", "2xl", "3xl" };
 
                     var prefs = new Dictionary<string, string>();
                     var labelParts = new List<string>();
@@ -1020,6 +1394,15 @@ public class S13GeminiAiService : IS13GeminiAiService
                         {
                             prefs["palette"] = pl;
                             labelParts.Add($"Màu {pl}");
+                        }
+                    }
+                    if (argsEl.TryGetProperty("background", out var bgEl) && bgEl.ValueKind == JsonValueKind.String)
+                    {
+                        var bg = bgEl.GetString()?.Trim().ToLowerInvariant() ?? string.Empty;
+                        if (allowedBackgrounds.Contains(bg))
+                        {
+                            prefs["background"] = bg;
+                            labelParts.Add($"Nền {bg}");
                         }
                     }
                     if (argsEl.TryGetProperty("font", out var fnEl) && fnEl.ValueKind == JsonValueKind.String)
@@ -1116,10 +1499,41 @@ public class S13GeminiAiService : IS13GeminiAiService
             case "propose_send_my_reminder_email":
                 AddPersonalReminderCard(actionCards, user?.Email ?? string.Empty);
                 break;
+            case "propose_send_reading_progress_email":
+                AddReadingProgressEmailCard(actionCards, user?.Email ?? string.Empty);
+                break;
+            case "propose_send_book_recommendations_email":
+            {
+                string topic = argsEl.ValueKind == JsonValueKind.Object && argsEl.TryGetProperty("topic", out var tp)
+                    ? (tp.GetString() ?? string.Empty).Trim()
+                    : string.Empty;
+                AddBookRecommendationEmailCard(actionCards, user?.Email ?? string.Empty, topic);
+                break;
+            }
+            case "propose_send_wallet_membership_email":
+                AddWalletMembershipEmailCard(actionCards, user?.Email ?? string.Empty);
+                break;
+            case "propose_send_chat_summary_email":
+                AddChatSummaryEmailCard(actionCards, user?.Email ?? string.Empty);
+                break;
+            case "propose_send_club_announcement_email":
+                if (currentUserRole is "Curator" or "Admin")
+                {
+                    string title = argsEl.ValueKind == JsonValueKind.Object && argsEl.TryGetProperty("title", out var tEl) ? (tEl.GetString() ?? string.Empty) : string.Empty;
+                    string content = argsEl.ValueKind == JsonValueKind.Object && argsEl.TryGetProperty("content", out var cEl) ? (cEl.GetString() ?? string.Empty) : string.Empty;
+                    AddClubAnnouncementEmailCard(actionCards, title, content);
+                }
+                break;
             case "propose_send_due_reminders_batch":
                 if (currentUserRole is "Librarian" or "Admin")
                 {
                     AddBatchReminderCard(actionCards);
+                }
+                break;
+            case "propose_send_admin_analytics_report_email":
+                if (currentUserRole == "Admin")
+                {
+                    AddAdminAnalyticsEmailCard(actionCards, user?.Email ?? string.Empty);
                 }
                 break;
         }
@@ -1250,13 +1664,76 @@ public class S13GeminiAiService : IS13GeminiAiService
             AddUniqueCommand(cmds, "set_ui_prefs", "Đổi font Roboto chuẩn", new() { ["font"] = "roboto" });
         }
 
-        if (q.Contains("chữ rất lớn") || q.Contains("cỡ chữ lớn nhất") || q.Contains("cỡ xl") || q.Contains("siêu to"))
+        // Lệnh đổi Loại Nền Trang (12 nền nội bộ)
+        if (q.Contains("lưới chấm") || q.Contains("dot grid") || q.Contains("sổ tay"))
         {
-            AddUniqueCommand(cmds, "set_ui_prefs", "Đặt cỡ chữ Rất lớn (19px)", new() { ["fontSize"] = "xl" });
+            AddUniqueCommand(cmds, "set_ui_prefs", "Đổi nền Lưới Chấm Sổ Tay", new() { ["background"] = "dot-grid" });
+        }
+        else if (q.Contains("kẻ ô") || q.Contains("ô vuông") || q.Contains("graph grid"))
+        {
+            AddUniqueCommand(cmds, "set_ui_prefs", "Đổi nền Kẻ Ô Kỹ Thuật", new() { ["background"] = "graph-grid" });
+        }
+        else if (q.Contains("kẻ ngang") || q.Contains("trang vở") || q.Contains("notebook"))
+        {
+            AddUniqueCommand(cmds, "set_ui_prefs", "Đổi nền Trang Vở Kẻ Ngang", new() { ["background"] = "notebook-lines" });
+        }
+        else if (q.Contains("giấy sách") || q.Contains("paper grain"))
+        {
+            AddUniqueCommand(cmds, "set_ui_prefs", "Đổi nền Giấy Sách Ấm Áp", new() { ["background"] = "paper-grain" });
+        }
+        else if (q.Contains("cực quang") || q.Contains("aurora"))
+        {
+            AddUniqueCommand(cmds, "set_ui_prefs", "Đổi nền Cực Quang Dịu Nhẹ", new() { ["background"] = "soft-aurora" });
+        }
+        else if (q.Contains("nền hoàng hôn") || q.Contains("sunset"))
+        {
+            AddUniqueCommand(cmds, "set_ui_prefs", "Đổi nền Ánh Hoàng Hôn Ấm", new() { ["background"] = "sunset-glow" });
+        }
+        else if (q.Contains("vườn sách") || q.Contains("botanical") || q.Contains("nền xanh mát"))
+        {
+            AddUniqueCommand(cmds, "set_ui_prefs", "Đổi nền Vườn Sách Xanh Mát", new() { ["background"] = "botanical" });
+        }
+        else if (q.Contains("trời sao") || q.Contains("starry"))
+        {
+            AddUniqueCommand(cmds, "set_ui_prefs", "Đổi nền Bầu Trời Sao Nhẹ", new() { ["background"] = "starry-night" });
+        }
+        else if (q.Contains("vải bố") || q.Contains("linen"))
+        {
+            AddUniqueCommand(cmds, "set_ui_prefs", "Đổi nền Vải Bố Cổ Điển", new() { ["background"] = "warm-linen" });
+        }
+        else if (q.Contains("mây pastel") || q.Contains("pastel cloud"))
+        {
+            AddUniqueCommand(cmds, "set_ui_prefs", "Đổi nền Mây Pastel Mộng Mơ", new() { ["background"] = "pastel-clouds" });
+        }
+        else if (q.Contains("hình học") || q.Contains("prism"))
+        {
+            AddUniqueCommand(cmds, "set_ui_prefs", "Đổi nền Hoa Văn Hình Học", new() { ["background"] = "geometric-prism" });
+        }
+        else if (q.Contains("nền trơn"))
+        {
+            AddUniqueCommand(cmds, "set_ui_prefs", "Đổi nền Trơn Tiêu Chuẩn", new() { ["background"] = "solid" });
+        }
+
+        // Lệnh đổi 7 mức Cỡ chữ
+        if (q.Contains("3xl") || q.Contains("siêu lớn") || q.Contains("cỡ chữ tối đa") || q.Contains("cỡ chữ lớn nhất"))
+        {
+            AddUniqueCommand(cmds, "set_ui_prefs", "Đặt cỡ chữ Siêu lớn (22px)", new() { ["fontSize"] = "3xl" });
+        }
+        else if (q.Contains("2xl") || q.Contains("chữ rất lớn") || q.Contains("siêu to"))
+        {
+            AddUniqueCommand(cmds, "set_ui_prefs", "Đặt cỡ chữ Rất lớn (20.5px)", new() { ["fontSize"] = "2xl" });
+        }
+        else if (q.Contains("cỡ xl") || q.Contains("chữ rõ nét"))
+        {
+            AddUniqueCommand(cmds, "set_ui_prefs", "Đặt cỡ chữ Lớn rõ nét (19px)", new() { ["fontSize"] = "xl" });
         }
         else if (q.Contains("chữ lớn") || q.Contains("to chữ") || q.Contains("chữ to") || q.Contains("tăng cỡ chữ") || q.Contains("phóng to chữ"))
         {
-            AddUniqueCommand(cmds, "set_ui_prefs", "Đặt cỡ chữ Lớn (17.5px)", new() { ["fontSize"] = "lg" });
+            AddUniqueCommand(cmds, "set_ui_prefs", "Đặt cỡ chữ Vừa lớn (17.5px)", new() { ["fontSize"] = "lg" });
+        }
+        else if (q.Contains("siêu nhỏ") || q.Contains("cỡ xs"))
+        {
+            AddUniqueCommand(cmds, "set_ui_prefs", "Đặt cỡ chữ Siêu nhỏ (13px)", new() { ["fontSize"] = "xs" });
         }
         else if (q.Contains("chữ nhỏ") || q.Contains("giảm cỡ chữ") || q.Contains("thu nhỏ chữ"))
         {
@@ -1334,34 +1811,44 @@ public class S13GeminiAiService : IS13GeminiAiService
         }
 
         if ((q.Contains("hàng loạt") || q.Contains("tất cả độc giả") || q.Contains("toàn bộ độc giả"))
-            && (q.Contains("email") || q.Contains("nhắc hạn")))
+            && (q.Contains("email") || q.Contains("mail") || q.Contains("nhắc hạn")))
         {
             if (currentUserRole is "Librarian" or "Admin")
             {
                 AddBatchReminderCard(actionCards);
             }
         }
-        else if ((q.Contains("gửi mail") || q.Contains("gửi email") || q.Contains("email") || q.Contains("nhắc hạn cho tôi") || q.Contains("gửi nhắc")) && user != null)
+        else if ((q.Contains("gửi mail") || q.Contains("gửi email") || q.Contains("email") || q.Contains("gửi thư") || q.Contains("nhắc hạn cho tôi") || q.Contains("gửi nhắc")) && user != null)
         {
-            if (q.Contains("tóm tắt") || q.Contains("hội thoại") || q.Contains("chat"))
+            if (q.Contains("thống kê") || q.Contains("vận hành") || q.Contains("báo cáo hệ thống") || q.Contains("báo cáo admin"))
             {
-                if (!actionCards.Any(c => c.ActionKey == "send_chat_summary_email"))
+                if (currentUserRole == "Admin")
                 {
-                    bool hasMail = AuthConfigHelper.IsValidEmailFormat(user.Email);
-                    actionCards.Add(new AiActionCardDto
-                    {
-                        ActionKey = "send_chat_summary_email",
-                        Title = hasMail ? "Gửi Bản Lưu Hội Thoại AI Qua Email" : "Cần Bổ Sung Email Trước Khi Gửi Thư",
-                        Description = hasMail
-                            ? $"Gửi nội dung hội thoại hiện tại tới địa chỉ {user.Email}."
-                            : "Tài khoản chưa có Email nhận thư hợp lệ. Vui lòng cập nhật Email tại Cài Đặt Tài Khoản.",
-                        ConfirmLabel = hasMail ? "Xác nhận gửi Email ngay" : "Kiểm tra & gửi Email",
-                        Parameters = new Dictionary<string, JsonElement>
-                        {
-                            ["email"] = JsonSerializer.SerializeToElement(user.Email ?? string.Empty)
-                        }
-                    });
+                    AddAdminAnalyticsEmailCard(actionCards, user.Email ?? string.Empty);
                 }
+            }
+            else if (q.Contains("clb") || q.Contains("câu lạc bộ") || q.Contains("thư mời") || q.Contains("sinh hoạt"))
+            {
+                if (currentUserRole is "Curator" or "Admin")
+                {
+                    AddClubAnnouncementEmailCard(actionCards, string.Empty, string.Empty);
+                }
+            }
+            else if (q.Contains("tiến độ") || q.Contains("trích dẫn") || q.Contains("ghi chú") || q.Contains("đã đọc"))
+            {
+                AddReadingProgressEmailCard(actionCards, user.Email ?? string.Empty);
+            }
+            else if (q.Contains("gợi ý sách") || q.Contains("đề xuất sách") || q.Contains("danh sách sách"))
+            {
+                AddBookRecommendationEmailCard(actionCards, user.Email ?? string.Empty, string.Empty);
+            }
+            else if (q.Contains("ví") || q.Contains("sao kê") || q.Contains("hội viên") || q.Contains("gói"))
+            {
+                AddWalletMembershipEmailCard(actionCards, user.Email ?? string.Empty);
+            }
+            else if (q.Contains("tóm tắt") || q.Contains("hội thoại") || q.Contains("chat"))
+            {
+                AddChatSummaryEmailCard(actionCards, user.Email ?? string.Empty);
             }
             else
             {
@@ -1501,6 +1988,97 @@ public class S13GeminiAiService : IS13GeminiAiService
         });
     }
 
+    private static void AddChatSummaryEmailCard(List<AiActionCardDto> cards, string email)
+    {
+        if (cards.Any(c => c.ActionKey == "send_chat_summary_email")) return;
+        bool hasMail = AuthConfigHelper.IsValidEmailFormat(email);
+        cards.Add(new AiActionCardDto
+        {
+            ActionKey = "send_chat_summary_email",
+            Title = hasMail ? "Gửi Bản Lưu Hội Thoại AI Qua Email" : "Cần Bổ Sung Email Trước Khi Gửi Thư",
+            Description = hasMail ? $"Gửi nội dung hội thoại hiện tại tới địa chỉ {email}." : "Tài khoản chưa có Email nhận thư hợp lệ.",
+            ConfirmLabel = "Xác nhận gửi bản lưu Chat",
+            Parameters = new Dictionary<string, JsonElement> { ["email"] = JsonSerializer.SerializeToElement(email) }
+        });
+    }
+
+    private static void AddReadingProgressEmailCard(List<AiActionCardDto> cards, string email)
+    {
+        if (cards.Any(c => c.ActionKey == "send_reading_progress_email")) return;
+        cards.Add(new AiActionCardDto
+        {
+            ActionKey = "send_reading_progress_email",
+            Title = "Gửi Báo Cáo Tiến Độ Đọc & Trích Dẫn Qua Email",
+            Description = $"Tổng hợp số trang đã đọc, tỷ lệ hoàn thành & trích dẫn nổi bật gửi tới {email}.",
+            ConfirmLabel = "Gửi báo cáo tiến độ đọc",
+            Parameters = new Dictionary<string, JsonElement> { ["email"] = JsonSerializer.SerializeToElement(email) }
+        });
+    }
+
+    private static void AddBookRecommendationEmailCard(List<AiActionCardDto> cards, string email, string topic)
+    {
+        if (cards.Any(c => c.ActionKey == "send_book_recommendations_email")) return;
+        cards.Add(new AiActionCardDto
+        {
+            ActionKey = "send_book_recommendations_email",
+            Title = "Gửi Danh Sách Gợi Ý Sách Sẵn Có Qua Email",
+            Description = string.IsNullOrWhiteSpace(topic)
+                ? $"Gửi tuyển chọn các đầu sách sẵn sàng mượn 0đ về hộp thư {email}."
+                : $"Gửi danh sách sách sẵn sàng mượn về chủ đề \"{topic}\" tới {email}.",
+            ConfirmLabel = "Gửi thư gợi ý sách",
+            Parameters = new Dictionary<string, JsonElement>
+            {
+                ["email"] = JsonSerializer.SerializeToElement(email),
+                ["topic"] = JsonSerializer.SerializeToElement(topic ?? string.Empty)
+            }
+        });
+    }
+
+    private static void AddWalletMembershipEmailCard(List<AiActionCardDto> cards, string email)
+    {
+        if (cards.Any(c => c.ActionKey == "send_wallet_membership_email")) return;
+        cards.Add(new AiActionCardDto
+        {
+            ActionKey = "send_wallet_membership_email",
+            Title = "Gửi Sao Kê Ví Tiền Ảo & Gói Hội Viên Qua Email",
+            Description = $"Gửi thông tin số dư ví tiền ảo, hạng hội viên 4 cấp và 5 giao dịch gần nhất tới {email}.",
+            ConfirmLabel = "Gửi sao kê Ví & Hội viên",
+            Parameters = new Dictionary<string, JsonElement> { ["email"] = JsonSerializer.SerializeToElement(email) }
+        });
+    }
+
+    private static void AddClubAnnouncementEmailCard(List<AiActionCardDto> cards, string title, string content)
+    {
+        if (cards.Any(c => c.ActionKey == "send_club_announcement_email")) return;
+        cards.Add(new AiActionCardDto
+        {
+            ActionKey = "send_club_announcement_email",
+            Title = "Gửi Thư Mời / Thông Báo Sinh Hoạt CLB",
+            Description = "Phát email thông báo lịch sinh hoạt & giao lưu sách tới toàn bộ thành viên chính thức trong CLB bạn điều hành.",
+            ConfirmLabel = "Phát thư thông báo CLB",
+            RequiresRole = "Curator,Admin",
+            Parameters = new Dictionary<string, JsonElement>
+            {
+                ["title"] = JsonSerializer.SerializeToElement(title ?? string.Empty),
+                ["content"] = JsonSerializer.SerializeToElement(content ?? string.Empty)
+            }
+        });
+    }
+
+    private static void AddAdminAnalyticsEmailCard(List<AiActionCardDto> cards, string email)
+    {
+        if (cards.Any(c => c.ActionKey == "send_admin_analytics_report_email")) return;
+        cards.Add(new AiActionCardDto
+        {
+            ActionKey = "send_admin_analytics_report_email",
+            Title = "Gửi Báo Cáo Thống Kê Vận Hành Hệ Thống (Admin)",
+            Description = $"Tổng hợp số liệu thành viên, kho sách, lượt mượn, quá hạn & tranh chấp gửi tới {email}.",
+            ConfirmLabel = "Gửi báo cáo thống kê Admin",
+            RequiresRole = "Admin",
+            Parameters = new Dictionary<string, JsonElement> { ["email"] = JsonSerializer.SerializeToElement(email) }
+        });
+    }
+
     private static void AddBatchReminderCard(List<AiActionCardDto> cards)
     {
         if (cards.Any(c => c.ActionKey == "send_due_reminders_batch")) return;
@@ -1524,5 +2102,11 @@ public class S13GeminiAiService : IS13GeminiAiService
         if (el.ValueKind == JsonValueKind.Number && el.TryGetInt32(out int num)) return num;
         if (el.ValueKind == JsonValueKind.String && int.TryParse(el.GetString(), out int parsed)) return parsed;
         return 0;
+    }
+
+    private static string ExtractStringArg(Dictionary<string, JsonElement> parameters, string key)
+    {
+        if (!parameters.TryGetValue(key, out var el)) return string.Empty;
+        return el.ValueKind == JsonValueKind.String ? (el.GetString() ?? string.Empty).Trim() : string.Empty;
     }
 }

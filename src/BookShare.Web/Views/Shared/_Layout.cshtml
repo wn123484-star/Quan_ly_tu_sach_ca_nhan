@@ -47,7 +47,7 @@
                 cyborg: '/vendor/bootswatch/cyborg.min.css',
                 terminal: '/vendor/bootswatch/cyborg.min.css'
             };
-            var prefs = { theme: 'light', style: 'standard', palette: 'blue', font: 'roboto', fontSize: 'md' };
+            var prefs = { theme: 'light', style: 'standard', palette: 'blue', background: 'solid', font: 'roboto', fontSize: 'md' };
             try {
                 var raw = localStorage.getItem('bookshare_ui_prefs');
                 if (raw) {
@@ -56,6 +56,7 @@
                         if (parsed.theme === 'dark') prefs.theme = 'dark';
                         if (parsed.style) prefs.style = parsed.style;
                         if (parsed.palette) prefs.palette = parsed.palette;
+                        if (parsed.background) prefs.background = parsed.background;
                         if (parsed.font) prefs.font = parsed.font;
                         if (parsed.fontSize) prefs.fontSize = parsed.fontSize;
                     }
@@ -68,6 +69,7 @@
             var html = document.documentElement;
             html.setAttribute('data-bs-theme', (prefs.style === 'cyborg' || prefs.style === 'terminal') ? 'dark' : prefs.theme);
             html.setAttribute('data-ui-style', prefs.style);
+            html.setAttribute('data-bg-pattern', prefs.background);
             html.setAttribute('data-font-family', prefs.font);
             html.setAttribute('data-font-size', prefs.fontSize);
             window.__bsInitialUiPrefs = prefs;
@@ -531,6 +533,20 @@
                         <option value="royal">Màu: Tím Hoàng Gia</option>
                         <option value="midnight">Màu: Đêm Ngân Hà</option>
                     </select>
+                    <select id="aiBgSelect" class="form-select form-select-sm" aria-label="Chọn loại nền trang">
+                        <option value="solid">Nền: Trơn chuẩn</option>
+                        <option value="paper-grain">Nền: Giấy sách ấm</option>
+                        <option value="dot-grid">Nền: Lưới chấm sổ tay</option>
+                        <option value="graph-grid">Nền: Kẻ ô kỹ thuật</option>
+                        <option value="notebook-lines">Nền: Trang vở kẻ ngang</option>
+                        <option value="soft-aurora">Nền: Cực quang dịu nhẹ</option>
+                        <option value="sunset-glow">Nền: Hoàng hôn ấm áp</option>
+                        <option value="botanical">Nền: Vườn sách xanh mát</option>
+                        <option value="starry-night">Nền: Bầu trời sao nhẹ</option>
+                        <option value="warm-linen">Nền: Vải bố cổ điển</option>
+                        <option value="pastel-clouds">Nền: Mây Pastel mộng mơ</option>
+                        <option value="geometric-prism">Nền: Hoa văn hình học</option>
+                    </select>
                     <select id="aiFontSelect" class="form-select form-select-sm" aria-label="Chọn phông chữ">
                         <option value="roboto">Font: Roboto</option>
                         <option value="bevietnam">Font: Be Vietnam Pro</option>
@@ -539,10 +555,13 @@
                         <option value="jetbrains">Font: JetBrains Mono</option>
                     </select>
                     <select id="aiFontSizeSelect" class="form-select form-select-sm" aria-label="Chọn cỡ chữ">
+                        <option value="xs">Cỡ chữ: Siêu nhỏ (13px)</option>
                         <option value="sm">Cỡ chữ: Nhỏ (14px)</option>
                         <option value="md">Cỡ chữ: Chuẩn (16px)</option>
-                        <option value="lg">Cỡ chữ: Lớn (17.5px)</option>
-                        <option value="xl">Cỡ chữ: Rất lớn (19px)</option>
+                        <option value="lg">Cỡ chữ: Vừa lớn (17.5px)</option>
+                        <option value="xl">Cỡ chữ: Lớn (19px)</option>
+                        <option value="2xl">Cỡ chữ: Rất lớn (20.5px)</option>
+                        <option value="3xl">Cỡ chữ: Siêu lớn (22px)</option>
                     </select>
                 </div>
 

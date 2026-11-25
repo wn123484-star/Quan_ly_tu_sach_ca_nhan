@@ -101,9 +101,31 @@
                 <span class="bs-muted" style="font-size:0.82rem;">Người dùng: <strong>@Model.CurrentUserName</strong> • Lịch sử lưu bền vững theo tài khoản</span>
             </div>
             <div class="d-flex flex-wrap gap-2">
-                <button type="button" id="btnS13EmailChat" class="btn btn-outline-primary btn-sm fw-bold">
-                    <i class="bi bi-envelope-arrow-up me-1"></i>Gửi qua Email
-                </button>
+                <div class="dropdown">
+                    <button type="button" class="btn btn-outline-primary btn-sm fw-bold dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
+                        <i class="bi bi-envelope-arrow-up me-1"></i>AI Gửi Email
+                    </button>
+                    <ul class="dropdown-menu dropdown-menu-end small">
+                        <li><button type="button" id="btnS13EmailChat" class="dropdown-item"><i class="bi bi-chat-square-text text-primary me-2"></i>Gửi bản lưu hội thoại AI</button></li>
+                        <li><button type="button" class="dropdown-item js-s13-ai-email" data-action="send_my_reminder_email"><i class="bi bi-clock-history text-warning me-2"></i>Báo cáo lịch mượn &amp; hạn trả</button></li>
+                        <li><button type="button" class="dropdown-item js-s13-ai-email" data-action="send_reading_progress_email"><i class="bi bi-book-half text-success me-2"></i>Báo cáo tiến độ đọc &amp; trích dẫn</button></li>
+                        <li><button type="button" class="dropdown-item js-s13-ai-email" data-action="send_book_recommendations_email"><i class="bi bi-stars text-info me-2"></i>Gợi ý sách sẵn sàng cho mượn</button></li>
+                        <li><button type="button" class="dropdown-item js-s13-ai-email" data-action="send_wallet_membership_email"><i class="bi bi-wallet2 text-primary me-2"></i>Sao kê Ví tiền ảo &amp; Gói hội viên</button></li>
+                        @if (User.IsInRole("Curator") || User.IsInRole("Admin"))
+                        {
+                            <li><hr class="dropdown-divider" /></li>
+                            <li><button type="button" class="dropdown-item js-s13-ai-email" data-action="send_club_announcement_email"><i class="bi bi-megaphone text-warning me-2"></i>Gửi thư mời sinh hoạt CLB</button></li>
+                        }
+                        @if (User.IsInRole("Librarian") || User.IsInRole("Admin"))
+                        {
+                            <li><button type="button" class="dropdown-item js-s13-ai-email" data-action="send_due_reminders_batch"><i class="bi bi-send-exclamation text-danger me-2"></i>Chiến dịch nhắc hạn hàng loạt</button></li>
+                        }
+                        @if (User.IsInRole("Admin"))
+                        {
+                            <li><button type="button" class="dropdown-item js-s13-ai-email" data-action="send_admin_analytics_report_email"><i class="bi bi-speedometer2 text-danger me-2"></i>Báo cáo thống kê vận hành Admin</button></li>
+                        }
+                    </ul>
+                </div>
                 <button type="button" id="btnS13ResetChat" class="btn btn-outline-danger btn-sm fw-bold">
                     <i class="bi bi-arrow-counterclockwise me-1"></i>Reset Chat
                 </button>
@@ -111,7 +133,7 @@
             </div>
         </div>
 
-        <!-- THANH CHỌN NHANH PHONG CÁCH / MÀU / FONT / CỠ CHỮ NGAY TRONG CHAT AI -->
+        <!-- THANH CHỌN NHANH PHONG CÁCH / MÀU / NỀN / FONT / CỠ CHỮ NGAY TRONG CHAT AI -->
         <div class="px-3 py-2 border-bottom bg-body-tertiary d-flex flex-wrap gap-2 align-items-center small">
             <span class="fw-bold text-primary"><i class="bi bi-palette2 me-1"></i>Tùy chỉnh nhanh:</span>
             <select id="s13StyleSelect" class="form-select form-select-sm w-auto" aria-label="Phong cách giao diện">
@@ -139,6 +161,20 @@
                 <option value="royal">Màu: Tím Hoàng Gia</option>
                 <option value="midnight">Màu: Đêm Ngân Hà</option>
             </select>
+            <select id="s13BgSelect" class="form-select form-select-sm w-auto" aria-label="Loại nền trang">
+                <option value="solid">Nền: Trơn chuẩn</option>
+                <option value="paper-grain">Nền: Giấy sách ấm</option>
+                <option value="dot-grid">Nền: Lưới chấm sổ tay</option>
+                <option value="graph-grid">Nền: Kẻ ô kỹ thuật</option>
+                <option value="notebook-lines">Nền: Trang vở kẻ ngang</option>
+                <option value="soft-aurora">Nền: Cực quang dịu nhẹ</option>
+                <option value="sunset-glow">Nền: Hoàng hôn ấm áp</option>
+                <option value="botanical">Nền: Vườn sách xanh</option>
+                <option value="starry-night">Nền: Bầu trời sao nhẹ</option>
+                <option value="warm-linen">Nền: Vải bố cổ điển</option>
+                <option value="pastel-clouds">Nền: Mây Pastel</option>
+                <option value="geometric-prism">Nền: Hoa văn hình học</option>
+            </select>
             <select id="s13FontSelect" class="form-select form-select-sm w-auto" aria-label="Phông chữ">
                 <option value="roboto">Font: Roboto</option>
                 <option value="bevietnam">Font: Be Vietnam Pro</option>
@@ -147,10 +183,13 @@
                 <option value="jetbrains">Font: JetBrains Mono</option>
             </select>
             <select id="s13FontSizeSelect" class="form-select form-select-sm w-auto" aria-label="Cỡ chữ">
-                <option value="sm">Chữ nhỏ</option>
-                <option value="md">Chữ chuẩn</option>
-                <option value="lg">Chữ lớn</option>
-                <option value="xl">Rất lớn</option>
+                <option value="xs">Siêu nhỏ (13px)</option>
+                <option value="sm">Nhỏ (14px)</option>
+                <option value="md">Chuẩn (16px)</option>
+                <option value="lg">Vừa lớn (17.5px)</option>
+                <option value="xl">Lớn (19px)</option>
+                <option value="2xl">Rất lớn (20.5px)</option>
+                <option value="3xl">Siêu lớn (22px)</option>
             </select>
         </div>
 

@@ -2640,6 +2640,198 @@ class QARunner:
             f"ag={ag_c}, cmds={ag_cmds}, sp={sp_c}:{sp_saved}, raw={ag_raw[:120]}",
         )
 
+        # 9.9 Unified Librarian Desk, Per-Club Governance & Anti-IDOR, Home/S22 Filters & Pagination, 12 Backgrounds + 7 Font Sizes & 8 AI Email Scenarios
+        lib = actors["librarian"]
+        cur = actors["curator"]
+        u3 = actors["u3"]
+
+        # 9.9.1 S21 Unified Librarian Desk & Admin Full Lending Permissions
+        adm_s21_c, adm_s21_html, _ = admin.get("/S21LibrarianDesk?loanChannel=Library&loanStatus=all&copyStatus=Available")
+        lib_s21_c, lib_s21_html, _ = lib.get("/S21LibrarianDesk?loanChannel=P2P&loanStatus=all")
+        self.check(
+            "L9",
+            "Admin & Librarian access Unified S21 Desk with filters, pagination & Direct Lending form",
+            adm_s21_c == 200
+            and lib_s21_c == 200
+            and 'id="formDirectLend"' in adm_s21_html
+            and 'id="s21UnifiedLoanSection"' in adm_s21_html
+            and 'id="s21UnifiedLoanSection"' in lib_s21_html,
+            f"adm={adm_s21_c}, lib={lib_s21_c}",
+        )
+
+        dl_select_m = re.search(r'id="directLendCopyId"[^>]*>.*?<option\s+value="(\d+)">\[([^\]]+)\]', adm_s21_html, re.S)
+        dl_copy_id = int(dl_select_m.group(1)) if dl_select_m else 0
+        dl_barcode = dl_select_m.group(2) if dl_select_m else ""
+
+        u1.refresh_csrf("/S01AuthOtpGoogle")
+        u1_dl_c, _, _ = u1.post_json("/S21LibrarianDesk/DirectLendBook", {"bookCopyId": max(dl_copy_id, 1), "borrowerUserId": "u-user-03", "desiredDays": 7, "immediateHandover": True})
+        u1_act_c, _, _ = u1.post_json("/S21LibrarianDesk/ProcessLoanAction", {"loanRequestId": 1, "action": "Approve"})
+
+        admin.refresh_csrf("/S21LibrarianDesk")
+        adm_dl_overdue_c, _, _ = admin.post_json(
+            "/S21LibrarianDesk/DirectLendBook",
+            {"bookCopyId": dl_copy_id, "borrowerUserId": "u-user-03", "desiredDays": 7, "immediateHandover": True, "note": "Overdue borrower guard"},
+        ) if dl_copy_id > 0 else (0, {}, "no available copy")
+        adm_dl_c, _, adm_dl_raw = admin.post_json(
+            "/S21LibrarianDesk/DirectLendBook",
+            {"bookCopyId": dl_copy_id, "borrowerUserId": "u-user-02", "desiredDays": 7, "immediateHandover": True, "note": "QA L9.9 walk-in"},
+        ) if dl_copy_id > 0 else (0, {}, "no available copy")
+
+        adm_ret_c = 0
+        adm_ret_raw = ""
+        if adm_dl_c == 200 and dl_barcode:
+            _, s21_act_html, _ = admin.get(f"/S21LibrarianDesk?loanStatus=Active&loanKeyword={urllib.parse.quote(dl_barcode)}")
+            req_m = re.search(r'data-req-id="(\d+)"[^>]*data-action="Return"', s21_act_html)
+            if not req_m:
+                req_m = re.search(r'data-action="Return"[^>]*data-req-id="(\d+)"', s21_act_html)
+            if req_m:
+                adm_ret_c, _, adm_ret_raw = admin.post_json(
+                    "/S21LibrarianDesk/ProcessLoanAction",
+                    {"loanRequestId": int(req_m.group(1)), "action": "Return", "returnCondition": "Good", "note": "QA L9.9 clean return"},
+                )
+        self.check(
+            "L9",
+            "Admin DirectLendBook (guards overdue u3=400, lends clean u2=200) + Unified ProcessLoanAction Return work end-to-end; User gets 403",
+            u1_dl_c == 403 and u1_act_c == 403 and adm_dl_overdue_c == 400 and adm_dl_c == 200 and adm_ret_c == 200,
+            f"u1=({u1_dl_c},{u1_act_c}), copy={dl_copy_id}, overdue={adm_dl_overdue_c}, dl={adm_dl_c}({adm_dl_raw[:80]}), ret={adm_ret_c}({adm_ret_raw[:80]})",
+        )
+
+        # 9.9.2 S20 Per-Club Group Governance, Dedicated Leader & Strict Per-Club Anti-IDOR
+        u1.refresh_csrf("/S20ExchangeHubClub")
+        u1_cc_c, _, _ = u1.post_json("/S20ExchangeHubClub/CreateClub", {"name": "Unauthorized Club", "address": "Ha Noi"})
+
+        admin.refresh_csrf("/S20ExchangeHubClub")
+        club_name = f"CLB Đọc Sách QA {int(time.time())}"
+        adm_cc_c, adm_cc_j, adm_cc_raw = admin.post_json(
+            "/S20ExchangeHubClub/CreateClub",
+            {
+                "name": club_name,
+                "address": "Phòng 305 Nhà A",
+                "hubType": "ClubStation",
+                "leaderUserId": "u-user-02",
+                "openHours": "08:30 - 19:30",
+                "phone": "0901234567",
+                "description": "CLB kiểm thử thể chế nhóm riêng",
+                "clubRules": "Giữ gìn sách sạch đẹp",
+                "isPublicClub": False,
+            },
+        )
+        new_hub_id = int((adm_cc_j or {}).get("hubId") or 0)
+
+        u1_join_c, _, _ = u1.post_json("/S20ExchangeHubClub/JoinClub", {"hubId": new_hub_id, "joinNote": "Xin gia nhập CLB QA"}) if new_hub_id else (0, {}, "")
+
+        # Strict Anti-IDOR: u-curator-01 leads Hub #3, NOT new_hub_id -> MUST receive 403!
+        cur.refresh_csrf("/S20ExchangeHubClub")
+        cur_idor_add_c, _, _ = cur.post_json("/S20ExchangeHubClub/AddClubMember", {"hubId": new_hub_id, "targetUserId": "u-user-03", "memberRole": "Member"}) if new_hub_id else (0, {}, "")
+        cur_idor_post_c, _, _ = cur.post_json("/S20ExchangeHubClub/CreateClubPost", {"hubId": new_hub_id, "title": "Hack", "content": "Unauthorized"}) if new_hub_id else (0, {}, "")
+
+        # Dedicated Club Leader (u2) adds u3 like a Group & publishes pinned club post
+        u2.refresh_csrf("/S20ExchangeHubClub")
+        u2_add_c, _, u2_add_raw = u2.post_json("/S20ExchangeHubClub/AddClubMember", {"hubId": new_hub_id, "targetUserId": "u-user-03", "memberRole": "ViceLeader"}) if new_hub_id else (0, {}, "")
+        u2_post_c, _, u2_post_raw = u2.post_json("/S20ExchangeHubClub/CreateClubPost", {"hubId": new_hub_id, "title": "Lịch offline tuần này", "content": "Hẹn gặp tại thư viện lúc 15h", "isPinned": True}) if new_hub_id else (0, {}, "")
+        adm_post_c, _, _ = admin.post_json("/S20ExchangeHubClub/CreateClubPost", {"hubId": new_hub_id, "title": "Thông báo từ Admin", "content": "Chúc mừng CLB khai trương", "isPinned": False}) if new_hub_id else (0, {}, "")
+        hub_view_c, hub_view_html, _ = u2.get(f"/S20ExchangeHubClub?hubId={new_hub_id}") if new_hub_id else (0, "", {})
+
+        self.check(
+            "L9",
+            "S20 Per-Club Governance: Admin creates club, Leader adds members & posts, unrelated Curator blocked (403 Anti-IDOR)",
+            u1_cc_c == 403
+            and adm_cc_c == 200
+            and new_hub_id > 0
+            and u1_join_c == 200
+            and cur_idor_add_c == 403
+            and cur_idor_post_c == 403
+            and u2_add_c == 200
+            and u2_post_c == 200
+            and adm_post_c == 200
+            and hub_view_c == 200
+            and club_name in html_lib.unescape(hub_view_html)
+            and "Lịch offline tuần này" in html_lib.unescape(hub_view_html),
+            f"u1_cc={u1_cc_c}, adm_cc={adm_cc_c}(id={new_hub_id},{adm_cc_raw[:60]}), join={u1_join_c}, idor=({cur_idor_add_c},{cur_idor_post_c}), u2=({u2_add_c},{u2_post_c}), adm_p={adm_post_c}",
+        )
+
+        # 9.9.3 Home & S22 Admin Analytics Filters & Pagination
+        hf_c, hf_html, _ = u1.get("/?source=System&availability=Available&condition=New&sort=title&page=1")
+        s22_f_c, s22_f_html, _ = admin.get("/S22AdminAnalytics?range=30d&channel=Library&userRole=User&auditCategory=EMAIL")
+        cd_c, cd_raw, _ = admin.get("/S22AdminAnalytics/ChartData?range=30d&channel=Library&categoryId=1", accept_json=True)
+        cd_j = json.loads(cd_raw) if cd_c == 200 else {}
+        self.check(
+            "L9",
+            "Home & S22 Admin Analytics support multi-criteria filters, pagination & dynamic ChartData API",
+            hf_c == 200
+            and 'name="availability"' in hf_html
+            and 'name="sort"' in hf_html
+            and s22_f_c == 200
+            and 'name="range"' in s22_f_html
+            and 'name="userRole"' in s22_f_html
+            and cd_c == 200
+            and cd_j.get("range") == "30d"
+            and cd_j.get("channel") == "Library"
+            and cd_j.get("categoryId") == 1,
+            f"home={hf_c}, s22={s22_f_c}, cd={cd_c}:{cd_j}",
+        )
+
+        # 9.9.4 12 Local Page Backgrounds & 7 Font Sizes (Settings + AI Chat)
+        ai_guest.refresh_csrf("/")
+        bg_c, bg_j, bg_raw = ai_guest.post_json(
+            "/api/ai-chat/quick-ask",
+            {"message": "Đổi nền lưới chấm sổ tay và cỡ chữ siêu lớn 3xl giúp mình"},
+        )
+        bg_cmds = (bg_j or {}).get("clientCommands") or []
+        has_dot_grid = any((c.get("args") or {}).get("background") == "dot-grid" for c in bg_cmds)
+        has_3xl = any((c.get("args") or {}).get("fontSize") == "3xl" for c in bg_cmds)
+
+        u1.refresh_csrf("/S01AuthOtpGoogle")
+        bg_sp_c, bg_sp_j, _ = u1.post_json(
+            "/S01AuthOtpGoogle/SaveUiPreferences",
+            {"theme": "light", "style": "standard", "palette": "blue", "font": "roboto", "fontSize": "2xl", "background": "soft-aurora"},
+        )
+        bg_saved = (bg_sp_j or {}).get("preferences") or {}
+        u1.post_json(
+            "/S01AuthOtpGoogle/SaveUiPreferences",
+            {"theme": "light", "style": "standard", "palette": "blue", "font": "roboto", "fontSize": "md", "background": "solid"},
+        )
+        self.check(
+            "L9",
+            "12 Local Page Backgrounds & 7 Font Sizes sync via Settings API & AI Chat commands",
+            bg_c == 200
+            and has_dot_grid
+            and has_3xl
+            and bg_sp_c == 200
+            and bg_saved.get("background") == "soft-aurora"
+            and bg_saved.get("fontSize") == "2xl"
+            and 'data-bg-pattern="starry-night"' in theme_css
+            and 'data-font-size="3xl"' in theme_css,
+            f"bg_ai={bg_c}:{bg_cmds}, sp={bg_sp_c}:{bg_saved}, raw={bg_raw[:100]}",
+        )
+
+        # 9.9.5 AI Chat Expanded Multi-Scenario Email Sending (8 types + RBAC)
+        u1.refresh_csrf("/S13GeminiAiAssistant")
+        em_prog_c, _, em_prog_r = u1.post_json("/S13GeminiAiAssistant/ExecuteCopilotAction", {"actionKey": "send_reading_progress_email", "parameters": {}})
+        em_rec_c, _, em_rec_r = u1.post_json("/S13GeminiAiAssistant/ExecuteCopilotAction", {"actionKey": "send_book_recommendations_email", "parameters": {"topic": "Lập trình"}})
+        em_wal_c, _, em_wal_r = u1.post_json("/S13GeminiAiAssistant/ExecuteCopilotAction", {"actionKey": "send_wallet_membership_email", "parameters": {}})
+        em_u1_club_c, _, _ = u1.post_json("/S13GeminiAiAssistant/ExecuteCopilotAction", {"actionKey": "send_club_announcement_email", "parameters": {"hubId": 3, "title": "Spam", "content": "Blocked"}})
+        em_u1_adm_c, _, _ = u1.post_json("/S13GeminiAiAssistant/ExecuteCopilotAction", {"actionKey": "send_admin_analytics_report_email", "parameters": {}})
+
+        cur.refresh_csrf("/S13GeminiAiAssistant")
+        em_cur_club_c, _, em_cur_r = cur.post_json("/S13GeminiAiAssistant/ExecuteCopilotAction", {"actionKey": "send_club_announcement_email", "parameters": {"hubId": 3, "title": "Offline CLB Tháng Này", "content": "Mời thành viên tham gia trao đổi sách 0đ"}})
+
+        admin.refresh_csrf("/S13GeminiAiAssistant")
+        em_adm_rep_c, _, em_adm_r = admin.post_json("/S13GeminiAiAssistant/ExecuteCopilotAction", {"actionKey": "send_admin_analytics_report_email", "parameters": {}})
+
+        self.check(
+            "L9",
+            "AI Chat sends multi-scenario emails (reading progress, book recs, wallet/tier, club notice, admin KPI) with strict RBAC",
+            em_prog_c == 200
+            and em_rec_c == 200
+            and em_wal_c == 200
+            and em_u1_club_c == 403
+            and em_u1_adm_c == 403
+            and em_cur_club_c == 200
+            and em_adm_rep_c == 200,
+            f"prog={em_prog_c}, rec={em_rec_c}, wal={em_wal_c}, u1_rbac=({em_u1_club_c},{em_u1_adm_c}), cur={em_cur_club_c}({em_cur_r[:60]}), adm={em_adm_rep_c}({em_adm_r[:60]})",
+        )
+
 
 def wait_for_server(base_url: str, timeout_s: float = 40.0) -> bool:
     deadline = time.time() + timeout_s

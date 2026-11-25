@@ -5,8 +5,16 @@ public class PortalHomeViewModel
     public string? Keyword { get; set; }
     public string SourceFilter { get; set; } = "all";
     public string? CategorySlug { get; set; }
+    public string AvailabilityFilter { get; set; } = "all"; // all / Available / Borrowed
+    public string ConditionFilter { get; set; } = "all";    // all / New / Good / Fair / Worn
+    public string SortBy { get; set; } = "available";       // available / newest / title / pages
+    public int Page { get; set; } = 1;
+    public int PageSize { get; set; } = 12;
+    public int TotalFilteredCopies { get; set; }
+    public int TotalPages => PageSize > 0 ? Math.Max(1, (int)Math.Ceiling(TotalFilteredCopies / (double)PageSize)) : 1;
     public int TotalBooksCount { get; set; }
     public int TotalCopiesCount { get; set; }
+    public int AvailableCopiesCount { get; set; }
     public List<CategoryPortalDto> Categories { get; set; } = new();
     public List<PortalBookCardDto> BookCards { get; set; } = new();
 }

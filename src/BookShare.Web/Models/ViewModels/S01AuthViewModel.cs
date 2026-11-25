@@ -71,11 +71,12 @@ public class UpdateProfileRequestDto
 
 public class UiPreferencesDto
 {
-    public string Theme { get; set; } = "light";       // light / dark
-    public string Style { get; set; } = "standard";    // standard / sketchy / flatly / morph / cyborg
-    public string Palette { get; set; } = "blue";      // blue / ocean / emerald / gold / rose / lavender / sepia / coral / royal / midnight
-    public string Font { get; set; } = "roboto";       // roboto / bevietnam / lora / patrick / jetbrains
-    public string FontSize { get; set; } = "md";       // sm / md / lg / xl
+    public string Theme { get; set; } = "light";          // light / dark
+    public string Style { get; set; } = "standard";       // 9 styles
+    public string Palette { get; set; } = "blue";         // 12+ palettes
+    public string Background { get; set; } = "solid";     // 12 rich local backgrounds
+    public string Font { get; set; } = "roboto";          // 5 local Vietnamese fonts
+    public string FontSize { get; set; } = "md";          // xs / sm / md / lg / xl / 2xl / 3xl
 }
 
 public class ChangePasswordRequestDto

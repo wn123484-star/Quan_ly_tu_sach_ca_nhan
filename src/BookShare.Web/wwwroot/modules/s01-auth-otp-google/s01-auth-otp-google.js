@@ -229,10 +229,11 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // ---------- TAB CÀI ĐẶT GIAO DIỆN, PHONG CÁCH, PHÔNG CHỮ & CỠ CHỮ ----------
+    // ---------- TAB CÀI ĐẶT GIAO DIỆN, PHONG CÁCH, LOẠI NỀN, PHÔNG CHỮ & CỠ CHỮ ----------
     const prefTheme = document.getElementById('prefThemeMode');
     const prefStyle = document.getElementById('prefUiStyle');
     const prefPalette = document.getElementById('prefPalette');
+    const prefBg = document.getElementById('prefBgPattern');
     const prefFont = document.getElementById('prefFontFamily');
     const prefSize = document.getElementById('prefFontSize');
 
@@ -240,6 +241,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (prefTheme) prefTheme.value = p.theme || 'light';
         if (prefStyle) prefStyle.value = p.style || 'standard';
         if (prefPalette) prefPalette.value = p.palette || 'blue';
+        if (prefBg) prefBg.value = p.background || 'solid';
         if (prefFont) prefFont.value = p.font || 'roboto';
         if (prefSize) prefSize.value = p.fontSize || 'md';
     };
@@ -248,13 +250,14 @@ document.addEventListener('DOMContentLoaded', () => {
         theme: prefTheme?.value || 'light',
         style: prefStyle?.value || 'standard',
         palette: prefPalette?.value || 'blue',
+        background: prefBg?.value || 'solid',
         font: prefFont?.value || 'roboto',
         fontSize: prefSize?.value || 'md'
     });
 
     if (prefStyle) {
         syncPrefInputs(getUiPrefs());
-        [prefTheme, prefStyle, prefPalette, prefFont, prefSize].forEach(sel => {
+        [prefTheme, prefStyle, prefPalette, prefBg, prefFont, prefSize].forEach(sel => {
             sel?.addEventListener('change', () => {
                 const next = readPrefInputs();
                 if (sel === prefStyle && next.style === 'sketchy' && prefFont) {
@@ -279,12 +282,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 body: next
             });
             if (res.ok) {
-                toast(200, 'Đã lưu cài đặt giao diện', 'Phong cách, màu sắc, phông chữ & cỡ chữ đã đồng bộ vào tài khoản.');
+                toast(200, 'Đã lưu cài đặt giao diện', 'Phong cách, bảng màu, loại nền, phông chữ & cỡ chữ đã đồng bộ vào tài khoản.');
             }
         });
 
         document.getElementById('btnResetUiPrefs')?.addEventListener('click', async () => {
-            const def = { theme: 'light', style: 'standard', palette: 'blue', font: 'roboto', fontSize: 'md' };
+            const def = { theme: 'light', style: 'standard', palette: 'blue', background: 'solid', font: 'roboto', fontSize: 'md' };
             syncPrefInputs(def);
             applyUiPrefs(def, { persistRemote: false, silent: true });
             await apiFetch('/S01AuthOtpGoogle/SaveUiPreferences', { method: 'POST', body: def });

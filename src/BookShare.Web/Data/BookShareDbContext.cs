@@ -38,6 +38,10 @@ public partial class BookShareDbContext : DbContext
 
     public virtual DbSet<Category> Categories { get; set; }
 
+    public virtual DbSet<ClubMember> ClubMembers { get; set; }
+
+    public virtual DbSet<ClubPost> ClubPosts { get; set; }
+
     public virtual DbSet<ConditionReport> ConditionReports { get; set; }
 
     public virtual DbSet<Dispute> Disputes { get; set; }
@@ -364,10 +368,13 @@ public partial class BookShareDbContext : DbContext
         modelBuilder.Entity<Library>(entity =>
         {
             entity.Property(e => e.Address).HasMaxLength(350);
+            entity.Property(e => e.ClubRules).HasMaxLength(1000);
+            entity.Property(e => e.Description).HasMaxLength(600);
             entity.Property(e => e.HubType)
                 .HasMaxLength(30)
                 .HasDefaultValue("Library", "DF_Libraries_HubType");
             entity.Property(e => e.IsActive).HasDefaultValue(true, "DF_Libraries_IsActive");
+            entity.Property(e => e.IsPublicClub).HasDefaultValue(true, "DF_Libraries_IsPublicClub");
             entity.Property(e => e.ManagerUserId).HasMaxLength(450);
             entity.Property(e => e.Name).HasMaxLength(200);
             entity.Property(e => e.OpenHours)
@@ -379,6 +386,56 @@ public partial class BookShareDbContext : DbContext
                 .HasForeignKey(d => d.ManagerUserId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("FK_Libraries_AspNetUsers_Manager");
+        });
+
+        modelBuilder.Entity<ClubMember>(entity =>
+        {
+            entity.HasIndex(e => new { e.HubId, e.UserId }, "UX_ClubMembers_Hub_User").IsUnique();
+            entity.HasIndex(e => new { e.HubId, e.Status }, "IX_ClubMembers_Hub_Status");
+
+            entity.Property(e => e.AddedByUserId).HasMaxLength(450);
+            entity.Property(e => e.JoinNote).HasMaxLength(300);
+            entity.Property(e => e.JoinedAt).HasDefaultValueSql("(sysutcdatetime())", "DF_ClubMembers_JoinedAt");
+            entity.Property(e => e.MemberRole)
+                .HasMaxLength(20)
+                .HasDefaultValue("Member", "DF_ClubMembers_MemberRole");
+            entity.Property(e => e.Status)
+                .HasMaxLength(20)
+                .HasDefaultValue("Approved", "DF_ClubMembers_Status");
+            entity.Property(e => e.UserId).HasMaxLength(450);
+
+            entity.HasOne(d => d.Hub).WithMany(p => p.ClubMembers)
+                .HasForeignKey(d => d.HubId)
+                .HasConstraintName("FK_ClubMembers_Libraries");
+
+            entity.HasOne(d => d.User).WithMany(p => p.ClubMembers)
+                .HasForeignKey(d => d.UserId)
+                .HasConstraintName("FK_ClubMembers_AspNetUsers");
+
+            entity.HasOne(d => d.AddedByUser).WithMany(p => p.ClubMemberAddedByUsers)
+                .HasForeignKey(d => d.AddedByUserId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_ClubMembers_AddedByUser");
+        });
+
+        modelBuilder.Entity<ClubPost>(entity =>
+        {
+            entity.HasIndex(e => new { e.HubId, e.CreatedAt }, "IX_ClubPosts_Hub_CreatedAt").IsDescending(false, true);
+
+            entity.Property(e => e.AuthorUserId).HasMaxLength(450);
+            entity.Property(e => e.Content).HasMaxLength(1500);
+            entity.Property(e => e.CreatedAt).HasDefaultValueSql("(sysutcdatetime())", "DF_ClubPosts_CreatedAt");
+            entity.Property(e => e.IsPinned).HasDefaultValue(false, "DF_ClubPosts_IsPinned");
+            entity.Property(e => e.Title).HasMaxLength(200);
+
+            entity.HasOne(d => d.Hub).WithMany(p => p.ClubPosts)
+                .HasForeignKey(d => d.HubId)
+                .HasConstraintName("FK_ClubPosts_Libraries");
+
+            entity.HasOne(d => d.AuthorUser).WithMany(p => p.ClubPosts)
+                .HasForeignKey(d => d.AuthorUserId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_ClubPosts_AuthorUser");
         });
 
         modelBuilder.Entity<Loan>(entity =>

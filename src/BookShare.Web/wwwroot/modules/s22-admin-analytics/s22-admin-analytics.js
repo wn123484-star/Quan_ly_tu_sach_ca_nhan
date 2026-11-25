@@ -1,15 +1,26 @@
 import { apiFetch, loadScript, CDN, showSystemStatus, confirmDialog } from '../../js/core-api.js';
 
 document.addEventListener('DOMContentLoaded', () => {
-    // 1. Khởi tạo 2 biểu đồ thống kê Chart.js
+    // 1. Khởi tạo 2 biểu đồ thống kê Chart.js (hỗ trợ lọc động Thời gian / Kênh / Thể loại)
     const chartDataEl = document.getElementById('s22ChartData');
+    let distChart = null;
+    let revChart = null;
+
     if (chartDataEl && typeof window.Chart !== 'undefined') {
         loadCharts();
     }
 
+    document.getElementById('btnRefreshChartsAjax')?.addEventListener('click', () => {
+        loadCharts();
+    });
+
     async function loadCharts() {
-        // Lấy số liệu thật từ API (chỉ Admin); nếu API lỗi thì dùng dữ liệu nhúng sẵn trong trang
-        const res = await apiFetch('/S22AdminAnalytics/ChartData');
+        const range = document.getElementById('s22RangeFilter')?.value || 'all';
+        const channel = document.getElementById('s22ChannelFilter')?.value || 'all';
+        const categoryId = document.getElementById('s22CategoryFilter')?.value || '0';
+        const qs = `?range=${encodeURIComponent(range)}&channel=${encodeURIComponent(channel)}&categoryId=${encodeURIComponent(categoryId)}`;
+
+        const res = await apiFetch(`/S22AdminAnalytics/ChartData${qs}`, { button: null });
         const api = res.ok && res.data && typeof res.data === 'object' ? res.data : null;
         const attr = (name, parse) => parse(chartDataEl.getAttribute(name) || '0');
 
@@ -24,9 +35,21 @@ document.addEventListener('DOMContentLoaded', () => {
         const revFine = api ? api.fineRevenue : attr('data-rev-fine', parseFloat);
         const revDeposit = api ? api.simulatedDeposits : attr('data-rev-deposit', parseFloat);
 
+        if (api) {
+            const setTxt = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+            setTxt('kpiMembershipRev', `${Math.round(revMembership).toLocaleString('vi-VN')} đ`);
+            setTxt('kpiDepositRev', Math.round(revDeposit).toLocaleString('vi-VN'));
+            setTxt('kpiFineRev', `${Math.round(revFine).toLocaleString('vi-VN')} đ`);
+            setTxt('kpiOpenDisputes', String(api.openDisputes ?? 0));
+            setTxt('kpiLoanSplit', `${libLoans} Kho / ${p2pLoans} Cộng đồng`);
+            setTxt('kpiTotalLoans', String(api.totalLoans ?? 0));
+            setTxt('kpiAiMessages', String(api.aiMessages ?? 0));
+        }
+
         const ctxDist = document.getElementById('chartLoanAndCopyDistribution');
         if (ctxDist) {
-            new window.Chart(ctxDist, {
+            if (distChart) { distChart.destroy(); distChart = null; }
+            distChart = new window.Chart(ctxDist, {
                 type: 'doughnut',
                 data: {
                     labels: [
@@ -54,12 +77,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const ctxRev = document.getElementById('chartRevenueBreakdown');
         if (ctxRev) {
-            new window.Chart(ctxRev, {
+            if (revChart) { revChart.destroy(); revChart = null; }
+            revChart = new window.Chart(ctxRev, {
                 type: 'bar',
                 data: {
-                    labels: ['Phí Hạng Thẻ Premium', 'Phí Phạt Trễ Hạn', 'Tiền Cọc Bảo Lãnh'],
+                    labels: ['Phí Gói Hội Viên', 'Phí Phạt Trễ Hạn', 'Tiền Cọc Bảo Lãnh'],
                     datasets: [{
-                        label: 'Tổng giá trị giao dịch Sandbox (VNĐ)',
+                        label: 'Tổng giá trị giao dịch Tiền ảo (VNĐ)',
                         data: [revMembership, revFine, revDeposit],
                         backgroundColor: ['#2563eb', '#dc2626', '#0d9488'],
                         borderRadius: 8

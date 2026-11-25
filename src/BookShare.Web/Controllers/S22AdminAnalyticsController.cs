@@ -24,7 +24,17 @@ public class S22AdminAnalyticsController : Controller
     }
 
     [HttpGet]
-    public async Task<IActionResult> Index()
+    public async Task<IActionResult> Index(
+        string range = "all",
+        string channel = "all",
+        int categoryId = 0,
+        string? userKeyword = null,
+        string userRole = "all",
+        string userLock = "all",
+        string userTier = "all",
+        int userPage = 1,
+        string auditCategory = "all",
+        string upgradeStatus = "Pending")
     {
         var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? string.Empty;
         var currentUserRole = User.Identity?.IsAuthenticated == true
@@ -43,19 +53,45 @@ public class S22AdminAnalyticsController : Controller
             TempData["StatusDetail"] = "Tài khoản hiện tại không có quyền truy cập Trung tâm Quản trị Hệ thống. Vui lòng đăng nhập bằng tài khoản Quản trị viên.";
         }
 
-        var vm = await _adminService.GetAdminAnalyticsPageAsync(currentUserId, currentUserRole);
+        var filter = new S22AdminAnalyticsFilterDto
+        {
+            TimeRange = range,
+            ChannelFilter = channel,
+            CategoryId = categoryId,
+            UserKeyword = userKeyword,
+            UserRoleFilter = userRole,
+            UserLockFilter = userLock,
+            UserTierFilter = userTier,
+            UserPage = userPage,
+            UserPageSize = 20,
+            AuditCategoryFilter = auditCategory,
+            UpgradeStatusFilter = upgradeStatus
+        };
+
+        var vm = await _adminService.GetAdminAnalyticsPageAsync(currentUserId, currentUserRole, filter);
         return View("~/Views/Modules/S22_AdminAnalytics/Index.cshtml", vm);
     }
 
-    // API số liệu cho biểu đồ phân bổ và dòng tiền
+    // API số liệu cho biểu đồ phân bổ và dòng tiền (hỗ trợ bộ lọc thời gian, kênh & thể loại)
     [HttpGet]
     [Authorize(Roles = "Admin")]
-    public async Task<IActionResult> ChartData()
+    public async Task<IActionResult> ChartData(string range = "all", string channel = "all", int categoryId = 0)
     {
         var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
-        var vm = await _adminService.GetAdminAnalyticsPageAsync(currentUserId, "Admin");
+        var vm = await _adminService.GetAdminAnalyticsPageAsync(currentUserId, "Admin", new S22AdminAnalyticsFilterDto
+        {
+            TimeRange = range,
+            ChannelFilter = channel,
+            CategoryId = categoryId
+        });
         return Ok(new
         {
+            range = vm.TimeRange,
+            channel = vm.ChannelFilter,
+            categoryId = vm.CategoryId,
+            totalLoans = vm.TotalLoans,
+            openDisputes = vm.TotalOpenDisputes,
+            aiMessages = vm.TotalAiMessages,
             libraryLoans = vm.LibraryLoansCount,
             p2pLoans = vm.P2PLoansCount,
             availableCopies = vm.AvailableCopiesCount,
