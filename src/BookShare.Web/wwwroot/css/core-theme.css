@@ -976,6 +976,8 @@ main {
         margin-bottom: 2px;
     }
     .table-mobile-cards td .d-flex { flex-wrap: wrap; }
+    .table-mobile-cards td .justify-content-end { justify-content: flex-start !important; }
+    .table-mobile-cards td.text-end { text-align: left !important; }
     .table-responsive:has(> .table-mobile-cards) { max-height: none !important; overflow: visible; }
 }
 
@@ -2331,19 +2333,80 @@ html[data-bg-pattern="geometric-prism"] body {
     background-size: 40px 70px;
 }
 
-/* Đảm bảo tất cả 12 nền đều tối dịu & rõ chữ khi bật Dark Mode */
+/* Đảm bảo tất cả 12 nền đều tối dịu & rõ chữ khi bật Dark Mode hoặc giao diện nền tối (Terminal / Cyborg) */
 html[data-bs-theme="dark"][data-bg-pattern="paper-grain"] body,
 html[data-bs-theme="dark"][data-bg-pattern="sunset-glow"] body,
 html[data-bs-theme="dark"][data-bg-pattern="botanical"] body,
 html[data-bs-theme="dark"][data-bg-pattern="warm-linen"] body,
-html[data-bs-theme="dark"][data-bg-pattern="pastel-clouds"] body {
-    background-color: #0f172a;
+html[data-bs-theme="dark"][data-bg-pattern="pastel-clouds"] body,
+html[data-ui-style="terminal"][data-bg-pattern] body,
+html[data-ui-style="cyborg"][data-bg-pattern] body {
+    background-color: var(--portal-light-bg);
 }
-html[data-bs-theme="dark"][data-bg-pattern="starry-night"] body {
+
+html[data-bs-theme="dark"][data-bg-pattern="dot-grid"] body {
+    background-image: radial-gradient(rgba(96, 165, 250, 0.24) 1.25px, transparent 1.25px);
+}
+html[data-bs-theme="dark"][data-bg-pattern="graph-grid"] body {
+    background-image:
+        linear-gradient(to right, rgba(148, 163, 184, 0.1) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(148, 163, 184, 0.1) 1px, transparent 1px);
+}
+html[data-bs-theme="dark"][data-bg-pattern="notebook-lines"] body {
+    background-image:
+        linear-gradient(90deg, transparent 48px, rgba(248, 113, 113, 0.2) 48px, rgba(248, 113, 113, 0.2) 50px, transparent 50px),
+        repeating-linear-gradient(to bottom, transparent, transparent 27px, rgba(148, 163, 184, 0.14) 28px);
+}
+
+html[data-bs-theme="dark"][data-bg-pattern="starry-night"] body,
+html[data-ui-style="terminal"][data-bg-pattern="starry-night"] body,
+html[data-ui-style="cyborg"][data-bg-pattern="starry-night"] body {
     background-color: #090f20;
     background-image:
         radial-gradient(rgba(226, 232, 240, 0.55) 1.3px, transparent 1.3px),
         radial-gradient(rgba(56, 189, 248, 0.45) 1px, transparent 1px),
         radial-gradient(circle at 25% 20%, rgba(79, 70, 229, 0.25), transparent 55%);
     background-size: 52px 52px, 30px 30px, 100% 100%;
+}
+
+/* Đảm bảo tương phản nút viền tối & thẻ phụ trong Dark Mode, Terminal và Cyborg */
+[data-bs-theme="dark"] .btn-outline-dark,
+html[data-ui-style="terminal"] .btn-outline-dark,
+html[data-ui-style="cyborg"] .btn-outline-dark {
+    color: #e2e8f0;
+    border-color: #64748b;
+}
+[data-bs-theme="dark"] .btn-outline-dark:hover,
+html[data-ui-style="terminal"] .btn-outline-dark:hover,
+html[data-ui-style="cyborg"] .btn-outline-dark:hover {
+    background-color: #334155;
+    border-color: #94a3b8;
+    color: #ffffff;
+}
+[data-bs-theme="dark"] .bg-body-tertiary,
+html[data-ui-style="terminal"] .bg-body-tertiary,
+html[data-ui-style="cyborg"] .bg-body-tertiary {
+    background-color: var(--portal-surface-2) !important;
+    color: var(--portal-text);
+}
+[data-bs-theme="dark"] .badge.bg-light,
+html[data-ui-style="terminal"] .badge.bg-light,
+html[data-ui-style="cyborg"] .badge.bg-light {
+    background-color: var(--portal-surface-2) !important;
+    color: var(--portal-text) !important;
+    border-color: var(--portal-border) !important;
+}
+
+/* Chống tràn ngang Header & Phân trang khi chọn cỡ chữ lớn (xl / 2xl / 3xl) */
+html[data-font-size="xl"] .bs-utility-row,
+html[data-font-size="2xl"] .bs-utility-row,
+html[data-font-size="3xl"] .bs-utility-row,
+html[data-font-size="xl"] .bs-domain-nav-bar,
+html[data-font-size="2xl"] .bs-domain-nav-bar,
+html[data-font-size="3xl"] .bs-domain-nav-bar {
+    flex-wrap: wrap !important;
+}
+.pagination {
+    flex-wrap: wrap;
+    row-gap: 4px;
 }

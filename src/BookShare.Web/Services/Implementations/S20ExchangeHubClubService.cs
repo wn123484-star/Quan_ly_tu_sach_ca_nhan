@@ -470,7 +470,8 @@ public class S20ExchangeHubClubService : IS20ExchangeHubClubService
             return (false, "Không tìm thấy thành viên khớp với tài khoản hoặc địa chỉ Email đã nhập.");
         }
 
-        string assignedRole = request.MemberRole == "ViceLeader" ? "ViceLeader" : "Member";
+        bool isLeaderOrAdmin = await IsHubLeaderOrAdminAsync(hub, currentUserId, currentUserRole);
+        string assignedRole = (request.MemberRole == "ViceLeader" && isLeaderOrAdmin) ? "ViceLeader" : "Member";
         var existing = await _db.ClubMembers.FirstOrDefaultAsync(m => m.HubId == hub.Id && m.UserId == targetUser.Id);
         if (existing != null)
         {
@@ -757,8 +758,8 @@ public class S20ExchangeHubClubService : IS20ExchangeHubClubService
             return (false, "Không tìm thấy bản sao sách cần đăng ký gửi tại Trạm Hub.");
         }
 
-        bool isPrivileged = currentUserRole is "Curator" or "Admin";
-        if (copy.OwnerUserId != currentUserId && !isPrivileged)
+        bool isAdmin = string.Equals(currentUserRole, "Admin", StringComparison.OrdinalIgnoreCase);
+        if (copy.OwnerUserId != currentUserId && !isAdmin)
         {
             throw new UnauthorizedAccessException("Bạn chỉ được phép đăng ký ký gửi những bản sao sách thuộc sở hữu của mình.");
         }
@@ -789,19 +790,27 @@ public class S20ExchangeHubClubService : IS20ExchangeHubClubService
             .Include(bc => bc.OwnerUser)
             .FirstOrDefaultAsync(bc => bc.Id == request.BookCopyId);
 
-        if (copy == null)
-        {
-            return (false, "Không tìm thấy bản sao sách cần kiểm định.");
-        }
+        int targetHubId = request.HubId > 0 ? request.HubId : (copy?.LibraryId ?? 0);
+        Library? hub = targetHubId > 0
+            ? await _db.Libraries.FirstOrDefaultAsync(l => l.Id == targetHubId)
+            : null;
 
-        int targetHubId = request.HubId > 0 ? request.HubId : (copy.LibraryId ?? 0);
-        if (targetHubId > 0)
+        bool isAdmin = string.Equals(curatorUserRole, "Admin", StringComparison.OrdinalIgnoreCase);
+        if (hub != null)
         {
-            var hub = await _db.Libraries.FirstOrDefaultAsync(l => l.Id == targetHubId);
-            if (hub != null && !await CanManageClubAsync(hub, curatorUserId, curatorUserRole))
+            if (!await CanManageClubAsync(hub, curatorUserId, curatorUserRole))
             {
                 throw new UnauthorizedAccessException("Chỉ Quản trị viên hoặc Ban điều hành (Trưởng/Phó nhóm) của chính CLB này mới được kiểm định sách tại trạm.");
             }
+        }
+        else if (!isAdmin)
+        {
+            throw new UnauthorizedAccessException("Bạn cần là Trưởng/Phó nhóm của một Câu lạc bộ hợp lệ hoặc Quản trị viên để kiểm định sách tại trạm.");
+        }
+
+        if (copy == null)
+        {
+            return (false, "Không tìm thấy bản sao sách cần kiểm định.");
         }
 
         var allowedConditions = new[] { "New", "Good", "Fair", "Worn" };
@@ -854,14 +863,31 @@ public class S20ExchangeHubClubService : IS20ExchangeHubClubService
             .Include(lr => lr.Loan)
             .FirstOrDefaultAsync(lr => lr.Id == request.LoanRequestId);
 
+        bool isAdmin = string.Equals(curatorUserRole, "Admin", StringComparison.OrdinalIgnoreCase);
         if (req == null)
         {
+            if (!isAdmin && !string.Equals(curatorUserRole, "Curator", StringComparison.OrdinalIgnoreCase))
+            {
+                bool managesAnyClub = await _db.Libraries.AnyAsync(l => l.ManagerUserId == curatorUserId) ||
+                    await _db.ClubMembers.AnyAsync(m => m.UserId == curatorUserId && m.Status == "Approved" && (m.MemberRole == "Leader" || m.MemberRole == "ViceLeader"));
+                if (!managesAnyClub)
+                {
+                    throw new UnauthorizedAccessException("Chỉ Quản trị viên hoặc Ban điều hành (Trưởng/Phó nhóm) CLB mới được xác nhận giao nhận tại Điểm trạm.");
+                }
+            }
             return (false, "Không tìm thấy đơn mượn tại Trạm CLB.");
         }
 
-        if (req.PickupHub != null && !await CanManageClubAsync(req.PickupHub, curatorUserId, curatorUserRole))
+        if (req.PickupHub != null)
         {
-            throw new UnauthorizedAccessException("Chỉ Quản trị viên hoặc Trưởng/Phó nhóm phụ trách Điểm trạm CLB của đơn này mới được xác nhận giao nhận.");
+            if (!await CanManageClubAsync(req.PickupHub, curatorUserId, curatorUserRole))
+            {
+                throw new UnauthorizedAccessException("Chỉ Quản trị viên hoặc Trưởng/Phó nhóm phụ trách Điểm trạm CLB của đơn này mới được xác nhận giao nhận.");
+            }
+        }
+        else if (!isAdmin)
+        {
+            throw new UnauthorizedAccessException("Đơn mượn này không gắn với điểm trạm CLB nào bạn quản lý.");
         }
 
         var now = DateTime.UtcNow;
@@ -1017,20 +1043,33 @@ public class S20ExchangeHubClubService : IS20ExchangeHubClubService
         string curatorUserRole,
         S20UpdateHubStationDto request)
     {
-        if (string.IsNullOrWhiteSpace(request.Name) || string.IsNullOrWhiteSpace(request.Address))
-        {
-            return (false, "Tên điểm trạm và Địa chỉ không được để trống.");
-        }
-
         var hub = await _db.Libraries.FirstOrDefaultAsync(l => l.Id == request.HubId);
-        if (hub == null)
+        bool isAdmin = string.Equals(curatorUserRole, "Admin", StringComparison.OrdinalIgnoreCase);
+
+        if (hub != null)
         {
+            if (!await IsHubLeaderOrAdminAsync(hub, curatorUserId, curatorUserRole))
+            {
+                throw new UnauthorizedAccessException("Chỉ Quản trị viên hoặc Trưởng nhóm phụ trách CLB này mới được chỉnh sửa thông tin trạm.");
+            }
+        }
+        else
+        {
+            if (!isAdmin)
+            {
+                bool leadsAnyClub = await _db.Libraries.AnyAsync(l => l.ManagerUserId == curatorUserId) ||
+                    await _db.ClubMembers.AnyAsync(m => m.UserId == curatorUserId && m.Status == "Approved" && m.MemberRole == "Leader");
+                if (!leadsAnyClub)
+                {
+                    throw new UnauthorizedAccessException("Chỉ Quản trị viên hoặc Trưởng nhóm phụ trách CLB mới được chỉnh sửa thông tin trạm.");
+                }
+            }
             return (false, "Không tìm thấy Điểm trạm CLB / Thư viện cần cập nhật.");
         }
 
-        if (!await IsHubLeaderOrAdminAsync(hub, curatorUserId, curatorUserRole))
+        if (string.IsNullOrWhiteSpace(request.Name) || string.IsNullOrWhiteSpace(request.Address))
         {
-            throw new UnauthorizedAccessException("Chỉ Quản trị viên hoặc Trưởng nhóm phụ trách CLB này mới được chỉnh sửa thông tin trạm.");
+            return (false, "Tên điểm trạm và Địa chỉ không được để trống.");
         }
 
         hub.Name = request.Name.Trim();

@@ -376,6 +376,10 @@ public class S21LibrarianDeskService : IS21LibrarianDeskService
             {
                 return (false, $"Phiếu #{loanReq.Id} đã bàn giao sách thực tế, không thể từ chối.");
             }
+            if (loanReq.Status is "Rejected" or "Cancelled" or "Expired")
+            {
+                return (false, $"Phiếu #{loanReq.Id} đã ở trạng thái '{loanReq.Status}', không cần từ chối lại.");
+            }
 
             loanReq.Status = "Rejected";
             loanReq.ApproverId = staffUserId;
@@ -428,7 +432,7 @@ public class S21LibrarianDeskService : IS21LibrarianDeskService
                 loanReq.ApproverId = staffUserId;
             }
 
-            int days = Math.Clamp(loanReq.DesiredDays > 0 ? loanReq.DesiredDays : 14, 3, 30);
+            int days = Math.Clamp(loanReq.DesiredDays > 0 ? loanReq.DesiredDays : 14, 3, 45);
             var newLoan = new Loan
             {
                 LoanRequestId = loanReq.Id,
@@ -586,7 +590,7 @@ public class S21LibrarianDeskService : IS21LibrarianDeskService
             return (false, reason);
         }
 
-        int days = Math.Clamp(request.DesiredDays > 0 ? request.DesiredDays : 14, 3, 30);
+        int days = Math.Clamp(request.DesiredDays > 0 ? request.DesiredDays : 14, 3, 45);
         var now = DateTime.UtcNow;
 
         var loanReq = new LoanRequest
@@ -879,6 +883,14 @@ public class S21LibrarianDeskService : IS21LibrarianDeskService
         string cond = allowedCond.Contains(request.Condition) ? request.Condition : "New";
         string shelfLoc = string.IsNullOrWhiteSpace(request.ShelfLocation) ? "Kệ CNTT-A1" : request.ShelfLocation.Trim();
 
+        int targetLibraryId = request.LibraryId > 0 && await _db.Libraries.AnyAsync(l => l.Id == request.LibraryId)
+            ? request.LibraryId
+            : await _db.Libraries.OrderBy(l => l.Id).Select(l => l.Id).FirstOrDefaultAsync();
+        if (targetLibraryId <= 0)
+        {
+            return (false, "Chưa có chi nhánh Thư viện nào để tiếp nhận bản sao nhập kho.", new List<string>());
+        }
+
         var generatedBarcodes = new List<string>();
         var now = DateTime.UtcNow;
 
@@ -896,7 +908,7 @@ public class S21LibrarianDeskService : IS21LibrarianDeskService
                 BookId = book.Id,
                 Barcode = barcode,
                 OwnerType = "System",
-                LibraryId = request.LibraryId > 0 ? request.LibraryId : 1,
+                LibraryId = targetLibraryId,
                 OwnerUserId = null,
                 ShelfLocation = shelfLoc,
                 Condition = cond,
@@ -920,15 +932,24 @@ public class S21LibrarianDeskService : IS21LibrarianDeskService
     {
         var copy = await _db.BookCopies
             .Include(bc => bc.Book)
-            .FirstOrDefaultAsync(bc => bc.Id == request.BookCopyId);
+            .Include(bc => bc.LoanRequests)
+                .ThenInclude(lr => lr.Loan)
+            .FirstOrDefaultAsync(bc => bc.Id == request.BookCopyId && bc.OwnerType == "System");
 
         if (copy == null)
         {
-            return (false, "Không tìm thấy bản sao sách cần chuyển trạng thái.");
+            return (false, "Không tìm thấy bản sao sách Kho chung cần chuyển trạng thái.");
         }
 
         var allowedStatuses = new[] { "Available", "Damaged", "Lost" };
         string targetStatus = allowedStatuses.Contains(request.NewStatus) ? request.NewStatus : "Damaged";
+
+        bool hasOpenLoan = copy.LoanRequests.Any(lr =>
+            lr.Loan != null && (lr.Loan.Status == "Active" || lr.Loan.Status == "Overdue" || lr.Loan.Status == "Disputed"));
+        if (targetStatus == "Available" && hasOpenLoan)
+        {
+            return (false, $"Bản sao [{copy.Barcode}] đang có hợp đồng mượn chưa hoàn trả. Vui lòng thực hiện Nhận trả sách tại quầy trước khi đặt về Sẵn sàng.");
+        }
 
         var allowedConds = new[] { "New", "Good", "Fair", "Worn" };
         string targetCond = allowedConds.Contains(request.NewCondition) ? request.NewCondition : "Worn";

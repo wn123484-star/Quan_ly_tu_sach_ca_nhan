@@ -207,6 +207,11 @@ public class LoanFlowCoordinatorService : ILoanFlowCoordinatorService
             return (false, "Không tìm thấy thông tin người mượn.");
         }
 
+        if (borrower.LockoutEnd.HasValue && borrower.LockoutEnd.Value > DateTimeOffset.UtcNow)
+        {
+            return (false, $"Tài khoản của độc giả {borrower.FullName} hiện đang bị khóa, không thể duyệt mượn sách.");
+        }
+
         if (borrower.TrustScore < 50)
         {
             return (false, $"Người mượn {borrower.FullName} hiện có điểm uy tín dưới 50 nên chưa đủ điều kiện duyệt mượn.");

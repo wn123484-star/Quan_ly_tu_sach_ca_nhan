@@ -180,6 +180,10 @@
                     <h5 class="fw-bold mb-0"><i class="bi bi-people-fill text-primary me-2"></i>Thành Viên Nhóm CLB (@Model.TotalFilteredMembers)</h5>
                     <form method="get" asp-controller="S20ExchangeHubClub" asp-action="Index" class="d-flex gap-1 align-items-center">
                         <input type="hidden" name="hubId" value="@sel.HubId" />
+                        <input type="hidden" name="clubKeyword" value="@Model.ClubKeyword" />
+                        <input type="hidden" name="hubType" value="@Model.HubTypeFilter" />
+                        <input type="hidden" name="orderStatus" value="@Model.OrderStatusFilter" />
+                        <input type="hidden" name="orderPage" value="@Model.OrderPage" />
                         <select name="memberStatus" class="form-select form-select-sm" onchange="this.form.submit()" aria-label="Lọc trạng thái thành viên CLB">
                             <option value="all" selected="@(Model.MemberStatusFilter == "all")">Tất cả thành viên</option>
                             <option value="Approved" selected="@(Model.MemberStatusFilter == "Approved")">Đã duyệt</option>
@@ -215,7 +219,10 @@
                                 <label class="form-label small text-muted mb-1" for="addMemberRole">Vai trò nhóm</label>
                                 <select id="addMemberRole" class="form-select form-select-sm">
                                     <option value="Member" selected>Thành viên</option>
-                                    <option value="ViceLeader">Phó nhóm</option>
+                                    @if (Model.IsSelectedClubLeader)
+                                    {
+                                        <option value="ViceLeader">Phó nhóm</option>
+                                    }
                                 </select>
                             </div>
                             <div class="col-12 d-flex flex-wrap justify-content-between align-items-center gap-2 mt-2">
@@ -258,23 +265,23 @@
                             @foreach (var m in Model.SelectedClubMembers)
                             {
                                 <tr>
-                                    <td>
+                                    <td data-label="Thành viên">
                                         <div class="fw-bold">@m.FullName</div>
                                         <small class="text-muted">@m.Email • Uy tín @m.TrustScore</small>
                                     </td>
-                                    <td>
+                                    <td data-label="Vai trò CLB">
                                         <span class="badge @(m.MemberRole == "Leader" ? "bg-warning text-dark" : m.MemberRole == "ViceLeader" ? "bg-info text-dark" : "bg-light text-dark border")">
                                             @(m.MemberRole == "Leader" ? "👑 Trưởng nhóm" : m.MemberRole == "ViceLeader" ? "⭐ Phó nhóm" : "Thành viên")
                                         </span>
                                     </td>
-                                    <td>
+                                    <td data-label="Trạng thái">
                                         <span class="badge @(m.Status == "Approved" ? "bg-success" : "bg-warning text-dark")">
                                             @(m.Status == "Approved" ? "Chính thức" : "Chờ duyệt")
                                         </span>
                                     </td>
                                     @if (Model.CanManageSelectedClub)
                                     {
-                                        <td class="text-end">
+                                        <td class="text-end" data-label="Điều phối nhóm">
                                             <div class="d-flex justify-content-end gap-1 flex-wrap">
                                                 @if (m.Status == "Pending")
                                                 {
@@ -417,7 +424,7 @@
             </div>
         </div>
 
-        @if (User.IsInRole("Curator") || User.IsInRole("Admin"))
+        @if (Model.CanManageSelectedClub || User.IsInRole("Curator") || User.IsInRole("Admin"))
         {
             <div class="card border-0 shadow-sm rounded-4 bg-white border-start border-4 border-warning">
                 <div class="card-body p-4">
@@ -472,6 +479,10 @@
                     </div>
                     <form method="get" asp-controller="S20ExchangeHubClub" asp-action="Index" class="d-flex gap-1 align-items-center">
                         <input type="hidden" name="hubId" value="@(sel?.HubId)" />
+                        <input type="hidden" name="clubKeyword" value="@Model.ClubKeyword" />
+                        <input type="hidden" name="hubType" value="@Model.HubTypeFilter" />
+                        <input type="hidden" name="memberStatus" value="@Model.MemberStatusFilter" />
+                        <input type="hidden" name="memberPage" value="@Model.MemberPage" />
                         <select name="orderStatus" class="form-select form-select-sm" onchange="this.form.submit()" aria-label="Lọc trạng thái đơn giao nhận">
                             <option value="all" selected="@(Model.OrderStatusFilter == "all")">Tất cả (@Model.TotalFilteredOrders đơn)</option>
                             <option value="Pending" selected="@(Model.OrderStatusFilter == "Pending")">Chờ duyệt</option>
@@ -496,46 +507,53 @@
                             @foreach (var ord in Model.HubP2POrders)
                             {
                                 <tr>
-                                    <td>
+                                    <td data-label="Đơn / Bản sao">
                                         <code>#REQ-@ord.LoanRequestId</code> • <code>@ord.Barcode</code>
                                         <div class="fw-bold">@ord.BookTitle</div>
                                         <small class="text-muted"><i class="bi bi-geo-alt me-1"></i>@ord.HubName</small>
                                     </td>
-                                    <td>
+                                    <td data-label="Chủ sách → Người mượn">
                                         <div>Chủ: <strong>@ord.OwnerName</strong></div>
                                         <div>Mượn: <strong class="text-primary">@ord.BorrowerName</strong> (Trust: @ord.BorrowerTrustScore)</div>
                                     </td>
-                                    <td>
+                                    <td data-label="Trạng thái">
                                         <span class="badge bg-info text-dark d-block mb-1">Đơn: @ord.RequestStatus</span>
                                         <span class="badge @(ord.CopyStatus == "Borrowed" ? "bg-warning text-dark" : ord.CopyStatus == "InTransit" ? "bg-primary" : "bg-success")">
                                             Sách: @ord.CopyStatus
                                         </span>
                                     </td>
-                                    <td>
-                                        <div class="d-flex flex-column gap-1">
-                                            <button type="button" class="btn btn-xs btn-outline-primary fw-semibold js-hub-action"
-                                                    data-req-id="@ord.LoanRequestId" data-action="CheckInDropoff">
-                                                1. Nhận ký gửi (InTransit)
-                                            </button>
-                                            <button type="button" class="btn btn-xs btn-primary fw-bold js-hub-action"
-                                                    data-req-id="@ord.LoanRequestId" data-action="HandoverToBorrower">
-                                                2. Giao người mượn (+Quota)
-                                            </button>
-                                            <button type="button" class="btn btn-xs btn-outline-success fw-semibold js-hub-action"
-                                                    data-req-id="@ord.LoanRequestId" data-action="ConfirmReturnAtHub">
-                                                3. Nhận trả tại Hub
-                                            </button>
-                                            <div class="d-flex gap-1 mt-1">
-                                                <button type="button" class="btn btn-xs btn-outline-dark flex-fill js-qr-create"
-                                                        data-req-id="@ord.LoanRequestId" data-type="Handover">
-                                                    <i class="bi bi-qr-code me-1"></i>QR Giao
+                                    <td data-label="Xác nhận tại Điểm trạm">
+                                        @if (Model.CanManageSelectedClub || User.IsInRole("Curator") || User.IsInRole("Admin"))
+                                        {
+                                            <div class="d-flex flex-column gap-1">
+                                                <button type="button" class="btn btn-xs btn-outline-primary fw-semibold js-hub-action"
+                                                        data-req-id="@ord.LoanRequestId" data-action="CheckInDropoff">
+                                                    1. Nhận ký gửi (InTransit)
                                                 </button>
-                                                <button type="button" class="btn btn-xs btn-outline-dark flex-fill js-qr-create"
-                                                        data-req-id="@ord.LoanRequestId" data-type="Return">
-                                                    <i class="bi bi-qr-code me-1"></i>QR Trả
+                                                <button type="button" class="btn btn-xs btn-primary fw-bold js-hub-action"
+                                                        data-req-id="@ord.LoanRequestId" data-action="HandoverToBorrower">
+                                                    2. Giao người mượn (+Quota)
                                                 </button>
+                                                <button type="button" class="btn btn-xs btn-outline-success fw-semibold js-hub-action"
+                                                        data-req-id="@ord.LoanRequestId" data-action="ConfirmReturnAtHub">
+                                                    3. Nhận trả tại Hub
+                                                </button>
+                                                <div class="d-flex gap-1 mt-1">
+                                                    <button type="button" class="btn btn-xs btn-outline-dark flex-fill js-qr-create"
+                                                            data-req-id="@ord.LoanRequestId" data-type="Handover">
+                                                        <i class="bi bi-qr-code me-1"></i>QR Giao
+                                                    </button>
+                                                    <button type="button" class="btn btn-xs btn-outline-dark flex-fill js-qr-create"
+                                                            data-req-id="@ord.LoanRequestId" data-type="Return">
+                                                        <i class="bi bi-qr-code me-1"></i>QR Trả
+                                                    </button>
+                                                </div>
                                             </div>
-                                        </div>
+                                        }
+                                        else
+                                        {
+                                            <span class="badge bg-light text-dark border">Ban điều hành CLB xử lý</span>
+                                        }
                                     </td>
                                 </tr>
                             }

@@ -2725,16 +2725,22 @@ class QARunner:
         cur_idor_add_c, _, _ = cur.post_json("/S20ExchangeHubClub/AddClubMember", {"hubId": new_hub_id, "targetUserId": "u-user-03", "memberRole": "Member"}) if new_hub_id else (0, {}, "")
         cur_idor_post_c, _, _ = cur.post_json("/S20ExchangeHubClub/CreateClubPost", {"hubId": new_hub_id, "title": "Hack", "content": "Unauthorized"}) if new_hub_id else (0, {}, "")
 
-        # Dedicated Club Leader (u2) adds u3 like a Group & publishes pinned club post
+        # Dedicated Club Leader (u2, even if regular User role) adds u3 like a Group, edits own club & publishes pinned post
         u2.refresh_csrf("/S20ExchangeHubClub")
         u2_add_c, _, u2_add_raw = u2.post_json("/S20ExchangeHubClub/AddClubMember", {"hubId": new_hub_id, "targetUserId": "u-user-03", "memberRole": "ViceLeader"}) if new_hub_id else (0, {}, "")
+        u2_upd_c, _, u2_upd_raw = u2.post_json("/S20ExchangeHubClub/UpdateHubStation", {"hubId": new_hub_id, "name": club_name, "address": "Phòng 305 Nhà A (Updated)", "openHours": "08:00 - 20:00", "phone": "0901234567"}) if new_hub_id else (0, {}, "")
         u2_post_c, _, u2_post_raw = u2.post_json("/S20ExchangeHubClub/CreateClubPost", {"hubId": new_hub_id, "title": "Lịch offline tuần này", "content": "Hẹn gặp tại thư viện lúc 15h", "isPinned": True}) if new_hub_id else (0, {}, "")
         adm_post_c, _, _ = admin.post_json("/S20ExchangeHubClub/CreateClubPost", {"hubId": new_hub_id, "title": "Thông báo từ Admin", "content": "Chúc mừng CLB khai trương", "isPinned": False}) if new_hub_id else (0, {}, "")
         hub_view_c, hub_view_html, _ = u2.get(f"/S20ExchangeHubClub?hubId={new_hub_id}") if new_hub_id else (0, "", {})
 
+        # Admin safety guards: cannot demote u-admin-01 or self-lock
+        admin.refresh_csrf("/S22AdminAnalytics")
+        demote_root_c, _, _ = admin.post_json("/S22AdminAnalytics/ChangeUserRole", {"userId": "u-admin-01", "newRole": "User"})
+        lock_root_c, _, _ = admin.post_json("/S22AdminAnalytics/ToggleUserLock", {"userId": "u-admin-01", "lockAccount": True})
+
         self.check(
             "L9",
-            "S20 Per-Club Governance: Admin creates club, Leader adds members & posts, unrelated Curator blocked (403 Anti-IDOR)",
+            "S20 Per-Club Governance: Admin creates club, Leader edits/adds/posts, unrelated Curator blocked (403 Anti-IDOR) & Admin root protected",
             u1_cc_c == 403
             and adm_cc_c == 200
             and new_hub_id > 0
@@ -2742,12 +2748,15 @@ class QARunner:
             and cur_idor_add_c == 403
             and cur_idor_post_c == 403
             and u2_add_c == 200
+            and u2_upd_c == 200
             and u2_post_c == 200
             and adm_post_c == 200
             and hub_view_c == 200
             and club_name in html_lib.unescape(hub_view_html)
-            and "Lịch offline tuần này" in html_lib.unescape(hub_view_html),
-            f"u1_cc={u1_cc_c}, adm_cc={adm_cc_c}(id={new_hub_id},{adm_cc_raw[:60]}), join={u1_join_c}, idor=({cur_idor_add_c},{cur_idor_post_c}), u2=({u2_add_c},{u2_post_c}), adm_p={adm_post_c}",
+            and "Lịch offline tuần này" in html_lib.unescape(hub_view_html)
+            and demote_root_c == 400
+            and lock_root_c == 400,
+            f"u1_cc={u1_cc_c}, adm_cc={adm_cc_c}(id={new_hub_id},{adm_cc_raw[:60]}), join={u1_join_c}, idor=({cur_idor_add_c},{cur_idor_post_c}), u2=({u2_add_c},{u2_upd_c},{u2_post_c}), root=({demote_root_c},{lock_root_c})",
         )
 
         # 9.9.3 Home & S22 Admin Analytics Filters & Pagination

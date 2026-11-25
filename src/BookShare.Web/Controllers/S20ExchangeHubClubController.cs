@@ -237,11 +237,11 @@ public class S20ExchangeHubClubController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    [Authorize(Roles = "Curator,Admin")]
+    [Authorize]
     public async Task<IActionResult> VerifyPhysicalBook([FromBody] S20CuratorVerifyCopyDto request)
     {
         var curatorUserId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
-        var curatorUserRole = User.FindFirstValue(ClaimTypes.Role) ?? "Curator";
+        var curatorUserRole = User.FindFirstValue(ClaimTypes.Role) ?? "User";
         try
         {
             var (success, message) = await _hubService.CuratorVerifyPhysicalCopyAsync(curatorUserId, curatorUserRole, request);
@@ -260,11 +260,11 @@ public class S20ExchangeHubClubController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    [Authorize(Roles = "Curator,Admin")]
+    [Authorize]
     public async Task<IActionResult> ProcessHubHandover([FromBody] S20CuratorHandoverActionDto request)
     {
         var curatorUserId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
-        var curatorUserRole = User.FindFirstValue(ClaimTypes.Role) ?? "Curator";
+        var curatorUserRole = User.FindFirstValue(ClaimTypes.Role) ?? "User";
         try
         {
             var (success, message) = await _hubService.CuratorProcessHubHandoverAsync(curatorUserId, curatorUserRole, request);
@@ -283,11 +283,11 @@ public class S20ExchangeHubClubController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    [Authorize(Roles = "Curator,Admin")]
+    [Authorize]
     public async Task<IActionResult> UpdateHubStation([FromBody] S20UpdateHubStationDto request)
     {
         var curatorUserId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
-        var curatorUserRole = User.FindFirstValue(ClaimTypes.Role) ?? "Curator";
+        var curatorUserRole = User.FindFirstValue(ClaimTypes.Role) ?? "User";
         try
         {
             var (success, message) = await _hubService.UpdateHubStationInfoAsync(curatorUserId, curatorUserRole, request);

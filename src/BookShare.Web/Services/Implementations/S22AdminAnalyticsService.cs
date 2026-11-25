@@ -91,7 +91,7 @@ public class S22AdminAnalyticsService : IS22AdminAnalyticsService
             .Where(t => (t.TransactionType == "Membership" || t.TransactionType == "MembershipSwitch") && t.PaymentStatus == "Completed")
             .Sum(t => t.Amount);
         var fineRev = txs
-            .Where(t => t.TransactionType == "Fine" && t.PaymentStatus == "Completed")
+            .Where(t => (t.TransactionType == "Fine" || t.TransactionType == "Compensation") && t.PaymentStatus == "Completed")
             .Sum(t => t.Amount);
         var depositTotal = txs
             .Where(t => t.TransactionType == "SimulatedDeposit")
@@ -129,10 +129,7 @@ public class S22AdminAnalyticsService : IS22AdminAnalyticsService
         var allUserItems = usersRaw.Select(u =>
         {
             var roleName = u.Roles.FirstOrDefault()?.Name ?? "User";
-            var activeMem = u.Memberships
-                .Where(m => m.IsActive)
-                .OrderByDescending(m => m.StartDate)
-                .FirstOrDefault();
+            var effectivePlan = MembershipTierCatalog.GetEffectivePolicy(u.Memberships, nowUtc);
 
             return new S22AdminUserItemDto
             {
@@ -143,7 +140,7 @@ public class S22AdminAnalyticsService : IS22AdminAnalyticsService
                 RoleName = roleName,
                 TrustScore = u.TrustScore,
                 LendQuotaBonus = u.LendQuotaBonus,
-                MembershipTier = activeMem?.Tier ?? "Free",
+                MembershipTier = effectivePlan.Tier,
                 IsLockedOut = u.LockoutEnd.HasValue && u.LockoutEnd.Value > nowOffset,
                 CreatedAt = u.CreatedAt
             };
@@ -183,68 +180,81 @@ public class S22AdminAnalyticsService : IS22AdminAnalyticsService
             .Take(safeUserPageSize)
             .ToList();
 
-        // Tổng hợp Nhật ký thao tác hệ thống (có lọc theo danh mục)
+        // Tổng hợp Nhật ký thao tác hệ thống (lọc trực tiếp theo danh mục & khoảng thời gian trong SQL)
         var auditLogs = new List<S22SystemAuditLogDto>();
+        string auditCat = string.IsNullOrWhiteSpace(filter.AuditCategoryFilter) ? "all" : filter.AuditCategoryFilter.Trim();
 
-        var recentTxs = await _db.Transactions
-            .AsNoTracking()
-            .Include(t => t.User)
-            .OrderByDescending(t => t.CreatedAt)
-            .Take(8)
-            .ToListAsync();
-        foreach (var t in recentTxs)
+        if (auditCat == "all" || auditCat.Equals("TRANSACTION", StringComparison.OrdinalIgnoreCase))
         {
-            auditLogs.Add(new S22SystemAuditLogDto
+            var txAuditQ = _db.Transactions.AsNoTracking().Include(t => t.User).AsQueryable();
+            if (cutoffDate.HasValue) txAuditQ = txAuditQ.Where(t => t.CreatedAt >= cutoffDate.Value);
+            var recentTxs = await txAuditQ
+                .OrderByDescending(t => t.CreatedAt)
+                .Take(auditCat == "all" ? 8 : 15)
+                .ToListAsync();
+            foreach (var t in recentTxs)
             {
-                Category = "TRANSACTION",
-                BadgeClass = "bs-badge-success",
-                ActorName = t.User.FullName,
-                Summary = $"Giao dịch {t.TransactionType} ({t.Amount:N0}đ) qua {t.PaymentGateway} [{t.PaymentStatus}]",
-                Timestamp = t.CreatedAt
-            });
+                auditLogs.Add(new S22SystemAuditLogDto
+                {
+                    Category = "TRANSACTION",
+                    BadgeClass = "bs-badge-success",
+                    ActorName = t.User.FullName,
+                    Summary = $"Giao dịch {t.TransactionType} ({t.Amount:N0}đ) qua {t.PaymentGateway} [{t.PaymentStatus}]",
+                    Timestamp = t.CreatedAt
+                });
+            }
         }
 
-        var recentDisputes = await _db.Disputes
-            .AsNoTracking()
-            .Include(d => d.RaisedByUser)
-            .OrderByDescending(d => d.CreatedAt)
-            .Take(6)
-            .ToListAsync();
-        foreach (var d in recentDisputes)
+        if (auditCat == "all" || auditCat.Equals("TRANH CHẤP", StringComparison.OrdinalIgnoreCase))
         {
-            auditLogs.Add(new S22SystemAuditLogDto
+            var dispAuditQ = _db.Disputes.AsNoTracking().Include(d => d.RaisedByUser).AsQueryable();
+            if (cutoffDate.HasValue) dispAuditQ = dispAuditQ.Where(d => d.CreatedAt >= cutoffDate.Value);
+            var recentDisputes = await dispAuditQ
+                .OrderByDescending(d => d.CreatedAt)
+                .Take(auditCat == "all" ? 6 : 15)
+                .ToListAsync();
+            foreach (var d in recentDisputes)
             {
-                Category = "TRANH CHẤP",
-                BadgeClass = "bs-badge-danger",
-                ActorName = d.RaisedByUser.FullName,
-                Summary = $"Hồ sơ khiếu nại #{d.Id:D4} (Hợp đồng #{d.LoanId}) — Trạng thái: {d.Status}",
-                Timestamp = d.CreatedAt
-            });
+                auditLogs.Add(new S22SystemAuditLogDto
+                {
+                    Category = "TRANH CHẤP",
+                    BadgeClass = "bs-badge-danger",
+                    ActorName = d.RaisedByUser.FullName,
+                    Summary = $"Hồ sơ khiếu nại #{d.Id:D4} (Hợp đồng #{d.LoanId}) — Trạng thái: {d.Status}",
+                    Timestamp = d.CreatedAt
+                });
+            }
         }
 
-        var recentNotifs = await _db.Notifications
-            .AsNoTracking()
-            .Include(n => n.User)
-            .OrderByDescending(n => n.CreatedAt)
-            .Take(8)
-            .ToListAsync();
-        foreach (var n in recentNotifs)
+        if (auditCat == "all" ||
+            auditCat.Equals("EMAIL", StringComparison.OrdinalIgnoreCase) ||
+            auditCat.Equals("THÔNG BÁO", StringComparison.OrdinalIgnoreCase))
         {
-            auditLogs.Add(new S22SystemAuditLogDto
+            var notifAuditQ = _db.Notifications.AsNoTracking().Include(n => n.User).AsQueryable();
+            if (cutoffDate.HasValue) notifAuditQ = notifAuditQ.Where(n => n.CreatedAt >= cutoffDate.Value);
+            if (auditCat.Equals("EMAIL", StringComparison.OrdinalIgnoreCase))
             {
-                Category = n.EmailSentViaResend ? "EMAIL" : "THÔNG BÁO",
-                BadgeClass = "bs-badge-info",
-                ActorName = n.User.FullName,
-                Summary = $"{n.Title} ({n.Type})",
-                Timestamp = n.CreatedAt
-            });
-        }
-
-        if (!string.IsNullOrWhiteSpace(filter.AuditCategoryFilter) && filter.AuditCategoryFilter != "all")
-        {
-            auditLogs = auditLogs
-                .Where(a => string.Equals(a.Category, filter.AuditCategoryFilter, StringComparison.OrdinalIgnoreCase))
-                .ToList();
+                notifAuditQ = notifAuditQ.Where(n => n.EmailSentViaResend);
+            }
+            else if (auditCat.Equals("THÔNG BÁO", StringComparison.OrdinalIgnoreCase))
+            {
+                notifAuditQ = notifAuditQ.Where(n => !n.EmailSentViaResend);
+            }
+            var recentNotifs = await notifAuditQ
+                .OrderByDescending(n => n.CreatedAt)
+                .Take(auditCat == "all" ? 8 : 15)
+                .ToListAsync();
+            foreach (var n in recentNotifs)
+            {
+                auditLogs.Add(new S22SystemAuditLogDto
+                {
+                    Category = n.EmailSentViaResend ? "EMAIL" : "THÔNG BÁO",
+                    BadgeClass = "bs-badge-info",
+                    ActorName = n.User.FullName,
+                    Summary = $"{n.Title} ({n.Type})",
+                    Timestamp = n.CreatedAt
+                });
+            }
         }
 
         auditLogs = auditLogs
@@ -436,6 +446,25 @@ public class S22AdminAnalyticsService : IS22AdminAnalyticsService
         var allowedRoles = new[] { "User", "Curator", "Librarian", "Admin" };
         string targetRoleName = allowedRoles.Contains(request.NewRole) ? request.NewRole : "User";
 
+        bool currentlyAdmin = user.Roles.Any(r => r.NormalizedName == "ADMIN");
+        if (currentlyAdmin && targetRoleName != "Admin")
+        {
+            if (string.Equals(user.Id, "u-admin-01", StringComparison.OrdinalIgnoreCase))
+            {
+                return (false, "Không được phép hạ quyền tài khoản Quản trị viên gốc của hệ thống.");
+            }
+            if (string.Equals(user.Id, adminUserId, StringComparison.OrdinalIgnoreCase))
+            {
+                return (false, "Không thể tự hạ quyền Quản trị viên của tài khoản đang đăng nhập.");
+            }
+            int otherAdmins = await _db.AspNetUsers
+                .CountAsync(u => u.Id != user.Id && u.Roles.Any(r => r.NormalizedName == "ADMIN"));
+            if (otherAdmins == 0)
+            {
+                return (false, "Không thể hạ quyền Quản trị viên duy nhất còn lại của hệ thống.");
+            }
+        }
+
         var targetRole = await _db.AspNetRoles
             .FirstOrDefaultAsync(r => r.Name == targetRoleName);
 
@@ -462,9 +491,9 @@ public class S22AdminAnalyticsService : IS22AdminAnalyticsService
             return (false, "Không tìm thấy tài khoản cần khóa/mở khóa.");
         }
 
-        if (user.Id == "u-admin-01" && request.LockAccount)
+        if ((user.Id == "u-admin-01" || string.Equals(user.Id, adminUserId, StringComparison.OrdinalIgnoreCase)) && request.LockAccount)
         {
-            return (false, "Không được phép khóa tài khoản Quản trị viên gốc.");
+            return (false, "Không được phép khóa tài khoản Quản trị viên gốc hoặc tài khoản đang đăng nhập.");
         }
 
         if (request.LockAccount)

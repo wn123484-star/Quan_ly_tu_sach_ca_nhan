@@ -250,24 +250,24 @@
                     @foreach (var item in Model.UnifiedLoans)
                     {
                         <tr>
-                            <td>
+                            <td data-label="Phiếu / Sách">
                                 <span class="badge bg-dark">#@item.LoanRequestId</span>
                                 <code class="ms-1 fw-bold">@item.Barcode</code>
                                 <div class="fw-bold mt-1">@item.BookTitle</div>
                                 <small class="text-muted">Yêu cầu: @item.RequestedAt.ToString("dd/MM/yyyy HH:mm") (@item.DesiredDays ngày)</small>
                             </td>
-                            <td>
+                            <td data-label="Kênh & Nguồn">
                                 <span class="badge @(item.LoanType == "Library" ? "bg-primary" : "bg-info text-dark")">
                                     @(item.LoanType == "Library" ? "🏛️ Kho Thư viện" : "🤝 Cộng đồng P2P")
                                 </span>
                                 <div class="small text-muted mt-1">@item.SourceDisplay</div>
                             </td>
-                            <td>
+                            <td data-label="Độc giả mượn">
                                 <div class="fw-bold">@item.BorrowerName</div>
                                 <small class="text-muted d-block">@item.BorrowerEmail</small>
                                 <span class="badge bg-warning text-dark">Uy tín: @item.BorrowerTrustScore</span>
                             </td>
-                            <td>
+                            <td data-label="Trạng thái & Hạn trả">
                                 @if (item.LoanStatus == "Returned")
                                 {
                                     <span class="badge bg-success">✅ Đã trả (@(item.ReturnDate?.ToString("dd/MM/yyyy") ?? ""))</span>
@@ -297,7 +297,7 @@
                                     <div class="text-danger fw-bold mt-1">Phí trễ: @item.FineAmount.ToString("N0")đ</div>
                                 }
                             </td>
-                            <td class="text-end">
+                            <td class="text-end" data-label="Thao tác Thủ thư">
                                 <div class="d-flex flex-wrap justify-content-end gap-1">
                                     @if (item.RequestStatus == "Pending")
                                     {

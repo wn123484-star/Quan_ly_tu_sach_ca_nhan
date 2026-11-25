@@ -24,17 +24,15 @@ public class S08LibraryLoanService : IS08LibraryLoanService
             .AsNoTracking()
             .FirstOrDefaultAsync(u => u.Id == currentUserId);
 
-        var activeMembership = user?.Memberships
-            .Where(m => m.IsActive)
-            .OrderByDescending(m => m.MaxConcurrentLoans)
-            .FirstOrDefault();
-
-        string tier = activeMembership?.Tier ?? "Free";
-        int maxLoans = activeMembership?.MaxConcurrentLoans ?? 2;
+        var nowUtc = DateTime.UtcNow;
+        var effectivePolicy = MembershipTierCatalog.GetEffectivePolicy(user?.Memberships, nowUtc);
+        string tier = effectivePolicy.Tier;
+        int maxLoans = effectivePolicy.MaxConcurrentLoans;
         int bonus = user?.LendQuotaBonus ?? 0;
 
         int activeLoansCount = await _db.Loans
-            .CountAsync(l => l.LoanRequest.BorrowerId == currentUserId && l.Status == "Active");
+            .CountAsync(l => l.LoanRequest.BorrowerId == currentUserId &&
+                             (l.Status == "Active" || l.Status == "Overdue" || l.Status == "Disputed"));
 
         var availableCopies = await _db.BookCopies
             .AsNoTracking()
@@ -74,18 +72,15 @@ public class S08LibraryLoanService : IS08LibraryLoanService
 
         var activeLoanCountsByUser = await _db.Loans
             .AsNoTracking()
-            .Where(l => l.Status == "Active")
+            .Where(l => l.Status == "Active" || l.Status == "Overdue" || l.Status == "Disputed")
             .GroupBy(l => l.LoanRequest.BorrowerId)
             .Select(g => new { BorrowerId = g.Key, Count = g.Count() })
             .ToDictionaryAsync(x => x.BorrowerId, x => x.Count);
 
         var items = requests.Select(lr =>
         {
-            var bMembership = lr.Borrower.Memberships
-                .Where(m => m.IsActive)
-                .OrderByDescending(m => m.MaxConcurrentLoans)
-                .FirstOrDefault();
-            int bMax = (bMembership?.MaxConcurrentLoans ?? 2) + lr.Borrower.LendQuotaBonus;
+            var bPolicy = MembershipTierCatalog.GetEffectivePolicy(lr.Borrower.Memberships, nowUtc);
+            int bMax = bPolicy.MaxConcurrentLoans + lr.Borrower.LendQuotaBonus;
             activeLoanCountsByUser.TryGetValue(lr.BorrowerId, out int bActive);
 
             return new S08LibraryLoanItemDto
@@ -102,7 +97,7 @@ public class S08LibraryLoanService : IS08LibraryLoanService
                 ShelfLocation = lr.BookCopy.ShelfLocation ?? "Kệ A1 - Tầng 2",
                 BorrowerId = lr.BorrowerId,
                 BorrowerName = lr.Borrower.FullName,
-                BorrowerTier = bMembership?.Tier ?? "Free",
+                BorrowerTier = bPolicy.Tier,
                 BorrowerActiveLoans = bActive,
                 BorrowerMaxQuota = bMax,
                 DesiredDays = lr.DesiredDays,

@@ -732,15 +732,22 @@ public class S13GeminiAiService : IS13GeminiAiService
                 if (requestedHubId > 0)
                 {
                     targetClub = await _db.Libraries.AsNoTracking().FirstOrDefaultAsync(l => l.Id == requestedHubId);
-                    if (targetClub != null && !isAdmin && targetClub.ManagerUserId != currentUserId && !managedClubIds.Contains(targetClub.Id))
+                    if (targetClub == null)
+                    {
+                        return (false, "Không tìm thấy Câu lạc bộ được chỉ định để gửi thông báo.");
+                    }
+                    if (!isAdmin && targetClub.ManagerUserId != currentUserId && !managedClubIds.Contains(targetClub.Id))
                     {
                         throw new UnauthorizedAccessException("Bạn không phải Trưởng/Phó nhóm của Câu lạc bộ này.");
                     }
                 }
-                targetClub ??= await _db.Libraries.AsNoTracking()
-                    .Where(l => isAdmin || l.ManagerUserId == currentUserId || managedClubIds.Contains(l.Id))
-                    .OrderByDescending(l => l.HubType == "ClubStation")
-                    .FirstOrDefaultAsync();
+                else
+                {
+                    targetClub = await _db.Libraries.AsNoTracking()
+                        .Where(l => isAdmin || l.ManagerUserId == currentUserId || managedClubIds.Contains(l.Id))
+                        .OrderByDescending(l => l.HubType == "ClubStation")
+                        .FirstOrDefaultAsync();
+                }
 
                 if (targetClub == null)
                 {
@@ -789,6 +796,11 @@ public class S13GeminiAiService : IS13GeminiAiService
                         CreatedAt = DateTime.UtcNow
                     });
                     sentCount++;
+                }
+
+                if (sentCount == 0)
+                {
+                    return (false, $"Chưa có thành viên nào trong CLB \"{targetClub.Name}\" cập nhật địa chỉ Email hợp lệ để nhận thư thông báo.");
                 }
 
                 await _db.SaveChangesAsync();

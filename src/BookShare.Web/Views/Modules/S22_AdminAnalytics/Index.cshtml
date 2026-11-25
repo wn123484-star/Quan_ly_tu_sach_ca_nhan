@@ -79,6 +79,12 @@
 
 <!-- BỘ LỌC THỐNG KÊ & BIỂU ĐỒ TOÀN HỆ THỐNG -->
 <form method="get" asp-controller="S22AdminAnalytics" asp-action="Index" id="s22AnalyticsFilterForm" class="card border-0 shadow-sm rounded-4 p-3 mb-4 bg-white" data-report-ignore>
+    <input type="hidden" name="userKeyword" value="@Model.UserKeyword" />
+    <input type="hidden" name="userRole" value="@Model.UserRoleFilter" />
+    <input type="hidden" name="userLock" value="@Model.UserLockFilter" />
+    <input type="hidden" name="userTier" value="@Model.UserTierFilter" />
+    <input type="hidden" name="auditCategory" value="@Model.AuditCategoryFilter" />
+    <input type="hidden" name="upgradeStatus" value="@Model.UpgradeStatusFilter" />
     <div class="row g-2 align-items-end">
         <div class="col-md-3">
             <label class="form-label small fw-bold mb-1" for="s22RangeFilter"><i class="bi bi-calendar-range text-primary me-1"></i>Khoảng thời gian thống kê</label>
@@ -250,29 +256,37 @@
                         <tbody>
                             @foreach (var u in Model.Users)
                             {
+                                var isProtectedRoot = u.UserId == "u-admin-01" || u.UserId == Model.CurrentUserId;
+                                var tierBadgeClass = u.MembershipTier switch
+                                {
+                                    "Scholar" => "bg-warning text-dark",
+                                    "Premium" => "bg-primary",
+                                    "Standard" => "bg-info text-dark",
+                                    _ => "bg-secondary"
+                                };
                                 <tr>
-                                    <td>
+                                    <td data-label="Họ tên & Email">
                                         <div class="fw-bold">@u.FullName</div>
                                         <small class="text-muted">@u.Email</small>
                                     </td>
-                                    <td>
+                                    <td data-label="Uy tín / Gói">
                                         <span class="badge bg-warning text-dark">Trust: @u.TrustScore</span>
-                                        <span class="badge @(u.MembershipTier == "Premium" ? "bg-primary" : "bg-secondary")">@u.MembershipTier</span>
+                                        <span class="badge @tierBadgeClass">@u.MembershipTier</span>
                                     </td>
-                                    <td>
+                                    <td data-label="Phân quyền">
                                         <div class="d-flex gap-1">
-                                            <select class="form-select form-select-sm js-role-select" data-user-id="@u.UserId" style="width:115px;">
+                                            <select class="form-select form-select-sm js-role-select" data-user-id="@u.UserId" style="width:115px;" disabled="@(isProtectedRoot ? "disabled" : null)">
                                                 <option value="User" selected="@(u.RoleName == "User")">User</option>
                                                 <option value="Curator" selected="@(u.RoleName == "Curator")">Curator</option>
                                                 <option value="Librarian" selected="@(u.RoleName == "Librarian")">Librarian</option>
                                                 <option value="Admin" selected="@(u.RoleName == "Admin")">Admin</option>
                                             </select>
-                                            <button type="button" class="btn btn-xs btn-primary fw-bold js-btn-save-role" data-user-id="@u.UserId">
+                                            <button type="button" class="btn btn-xs btn-primary fw-bold js-btn-save-role" data-user-id="@u.UserId" disabled="@(isProtectedRoot ? "disabled" : null)">
                                                 Lưu
                                             </button>
                                         </div>
                                     </td>
-                                    <td>
+                                    <td data-label="Trạng thái Khóa">
                                         <div class="d-flex flex-wrap gap-1">
                                             @if (u.IsLockedOut)
                                             {
@@ -284,11 +298,11 @@
                                             else
                                             {
                                                 <button type="button" class="btn btn-xs btn-outline-warning text-dark fw-semibold js-btn-toggle-lock"
-                                                        data-user-id="@u.UserId" data-lock="true">
+                                                        data-user-id="@u.UserId" data-lock="true" disabled="@(isProtectedRoot ? "disabled" : null)">
                                                     <i class="bi bi-lock-fill me-1"></i>Khóa TK
                                                 </button>
                                             }
-                                            @if (u.UserId != "u-admin-01" && u.UserId != Model.CurrentUserId)
+                                            @if (!isProtectedRoot)
                                             {
                                                 <button type="button" class="btn btn-xs btn-outline-danger fw-semibold js-btn-delete-user"
                                                         data-user-id="@u.UserId"
@@ -421,17 +435,29 @@
                         @foreach (var req in Model.PendingRoleUpgrades)
                         {
                             <div class="p-3 rounded-3 border bg-light small" data-upgrade-id="@req.Id">
-                                <div class="fw-bold text-dark">@req.UserFullName (@req.UserEmail)</div>
+                                <div class="d-flex justify-content-between align-items-center gap-2">
+                                    <div class="fw-bold text-dark">@req.UserFullName (@req.UserEmail)</div>
+                                    <span class="badge @(req.Status == "Approved" ? "bg-success" : req.Status == "Rejected" ? "bg-danger" : "bg-warning text-dark")">
+                                        @(req.Status == "Approved" ? "Đã duyệt" : req.Status == "Rejected" ? "Đã từ chối" : "Chờ duyệt")
+                                    </span>
+                                </div>
                                 <div class="text-primary fw-semibold">@req.OrganizationName</div>
                                 <p class="text-muted mb-2">@req.Reason</p>
-                                <div class="d-flex gap-2">
-                                    <button type="button" class="btn btn-xs btn-success fw-bold js-btn-review-upgrade" data-id="@req.Id" data-approve="true">
-                                        <i class="bi bi-check2-circle me-1"></i>Phê duyệt
-                                    </button>
-                                    <button type="button" class="btn btn-xs btn-outline-danger fw-semibold js-btn-review-upgrade" data-id="@req.Id" data-approve="false">
-                                        <i class="bi bi-x-circle me-1"></i>Từ chối
-                                    </button>
-                                </div>
+                                @if (req.Status == "Pending")
+                                {
+                                    <div class="d-flex gap-2">
+                                        <button type="button" class="btn btn-xs btn-success fw-bold js-btn-review-upgrade" data-id="@req.Id" data-approve="true">
+                                            <i class="bi bi-check2-circle me-1"></i>Phê duyệt
+                                        </button>
+                                        <button type="button" class="btn btn-xs btn-outline-danger fw-semibold js-btn-review-upgrade" data-id="@req.Id" data-approve="false">
+                                            <i class="bi bi-x-circle me-1"></i>Từ chối
+                                        </button>
+                                    </div>
+                                }
+                                else if (!string.IsNullOrWhiteSpace(req.ReviewNote))
+                                {
+                                    <div class="small text-secondary fst-italic"><i class="bi bi-chat-left-text me-1"></i>@req.ReviewNote</div>
+                                }
                             </div>
                         }
                     </div>
