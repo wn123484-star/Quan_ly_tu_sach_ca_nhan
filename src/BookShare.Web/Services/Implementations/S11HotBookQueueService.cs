@@ -6,6 +6,10 @@ using Microsoft.EntityFrameworkCore;
 
 namespace BookShare.Web.Services.Implementations;
 
+/// <summary>
+/// [S11] Dịch vụ xếp hàng đặt trước theo thứ tự ưu tiên hạng Hội viên + thời gian đăng ký, giữ chỗ 48 giờ và kích hoạt thông báo khi có sách trả.
+/// </summary>
+/// <remarks>Bảo mật Anti-IDOR: Thành viên chỉ được hủy lượt đặt trước của chính mình.</remarks>
 public class S11HotBookQueueService : IS11HotBookQueueService
 {
     private readonly BookShareDbContext _db;

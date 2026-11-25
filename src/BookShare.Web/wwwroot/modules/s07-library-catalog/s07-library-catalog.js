@@ -1,4 +1,8 @@
 /**
+ * [S07] FRONTEND MODULE (s07-library-catalog.js)
+ * Tài liệu ánh xạ dịch vụ & phân quyền: docs/SERVICE_CODE_MAP.md
+ */
+/**
  * MODULE S07: LIBRARY CATALOG (s07-library-catalog.js)
  * Đóng gói ES6 Module độc lập cho dịch vụ S07
  */

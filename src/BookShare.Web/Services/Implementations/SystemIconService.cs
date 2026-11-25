@@ -11,6 +11,10 @@ using Microsoft.Extensions.Caching.Memory;
 
 namespace BookShare.Web.Services.Implementations;
 
+/// <summary>
+/// [CORE-ICONS] Dịch vụ tải lên, lưu trữ bền vững nhị phân trong CSDL (kèm đồng bộ đĩa) và phục vụ ảnh biểu tượng qua đường dẫn /assets/system-icons/{key} không bao giờ 404 khi restart container.
+/// </summary>
+/// <remarks>Hỗ trợ PNG/JPG/WebP/SVG có kiểm tra Magic Bytes và khôi phục mặc định.</remarks>
 public class SystemIconService : ISystemIconService
 {
     public const string CacheKey = "bookshare:system-icons:v1";

@@ -14,7 +14,7 @@
             <span class="badge bg-primary mb-1">SỔ TAY TRI THỨC &amp; TRÍCH DẪN CỘNG ĐỒNG</span>
             <h4 class="fw-bold mb-1">🖋️ Sổ Tay Ghi Chú &amp; Trích Dẫn Sách Của @Model.UserFullName</h4>
             <p class="text-muted small mb-0">
-                Lưu giữ trích dẫn tâm đắc (<code>QuoteText</code>), ghi chú chiêm nghiệm (<code>NoteContent</code>) theo từng trang sách (<code>PageNumber</code>) và chia sẻ công khai cùng cộng đồng.
+                Lưu giữ trích dẫn tâm đắc và ghi chú chiêm nghiệm theo từng trang sách và chia sẻ công khai cùng cộng đồng.
             </p>
         </div>
         <div class="d-flex gap-3">
@@ -98,7 +98,7 @@
                     </div>
 
                     <div class="mb-3">
-                        <label class="form-label small fw-bold text-secondary">Số trang sách (<code>PageNumber</code>)</label>
+                        <label class="form-label small fw-bold text-secondary">Số trang sách</label>
                         <div class="input-group">
                             <span class="input-group-text bg-light"><i class="bi bi-bookmark-star text-primary"></i></span>
                             <input type="number" id="notePageNumber" class="form-control" min="1" max="5000" value="45" required />
@@ -106,13 +106,13 @@
                     </div>
 
                     <div class="mb-3">
-                        <label class="form-label small fw-bold text-secondary">Câu trích dẫn nguyên văn từ sách (<code>QuoteText</code>)</label>
+                        <label class="form-label small fw-bold text-secondary">Câu trích dẫn nguyên văn từ sách</label>
                         <textarea id="noteQuoteText" class="form-control s04-quote-textarea" rows="3"
                                   placeholder="Nhập câu trích dẫn tâm đắc trong trang sách (không bắt buộc)..."></textarea>
                     </div>
 
                     <div class="mb-3">
-                        <label class="form-label small fw-bold text-secondary">Ghi chú cá nhân / Cảm nhận (<code>NoteContent</code>) *</label>
+                        <label class="form-label small fw-bold text-secondary">Ghi chú cá nhân / Cảm nhận *</label>
                         <textarea id="noteContentText" class="form-control" rows="4" required
                                   placeholder="Ghi lại bài học, ý tưởng ứng dụng hoặc suy nghĩ cá nhân của bạn..."></textarea>
                     </div>
@@ -120,7 +120,7 @@
                     <div class="form-check form-switch mb-3 p-3 rounded-3 bg-light border">
                         <input class="form-check-input ms-0 me-2" type="checkbox" id="noteIsPublic" checked />
                         <label class="form-check-label small fw-semibold" for="noteIsPublic">
-                            Chia sẻ công khai trích dẫn này lên Cộng đồng BookShare (<code>IsPublic</code>)
+                            Chia sẻ công khai trích dẫn này lên Cộng đồng BookShare
                         </label>
                     </div>
 

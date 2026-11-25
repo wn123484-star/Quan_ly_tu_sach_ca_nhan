@@ -9,6 +9,10 @@ namespace BookShare.Web.Services.Implementations;
 /// Khi có ReCaptcha__SiteKey &amp; ReCaptcha__SecretKey thật -> Gọi POST https://www.google.com/recaptcha/api/siteverify
 /// và yêu cầu success == true, score &gt;= 0.5.
 /// </summary>
+/// <summary>
+/// [CORE-AUTH] Dịch vụ kiểm tra mã phản hồi Google reCAPTCHA v3 (tự động bỏ qua an toàn khi môi trường nội bộ chưa cấu hình khóa).
+/// </summary>
+/// <remarks>Bảo vệ các luồng đăng nhập, đăng ký và gửi OTP công khai.</remarks>
 public class RecaptchaService : IRecaptchaService
 {
     private const string SiteVerifyUrl = "https://www.google.com/recaptcha/api/siteverify";

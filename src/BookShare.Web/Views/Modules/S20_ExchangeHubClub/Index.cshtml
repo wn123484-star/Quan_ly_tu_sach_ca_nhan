@@ -42,8 +42,8 @@
         <div class="col-md-4">
             <select name="hubType" class="form-select form-select-sm" aria-label="Lọc loại hình điểm trạm">
                 <option value="all" selected="@(Model.HubTypeFilter == "all")">🌐 Tất cả Câu lạc bộ &amp; Thư viện</option>
-                <option value="ClubStation" selected="@(Model.HubTypeFilter == "ClubStation")">⛺ Câu lạc bộ Sách (ClubStation)</option>
-                <option value="DropoffHub" selected="@(Model.HubTypeFilter == "DropoffHub")">📍 Điểm ký gửi cộng đồng (DropoffHub)</option>
+                <option value="ClubStation" selected="@(Model.HubTypeFilter == "ClubStation")">⛺ Câu lạc bộ Sách</option>
+                <option value="DropoffHub" selected="@(Model.HubTypeFilter == "DropoffHub")">📍 Điểm ký gửi cộng đồng</option>
                 <option value="Library" selected="@(Model.HubTypeFilter == "Library")">🏛️ Thư viện Đối tác</option>
             </select>
         </div>
@@ -213,7 +213,7 @@
                             </div>
                             <div class="col-md-4">
                                 <label class="form-label small text-muted mb-1" for="addMemberEmail">Hoặc nhập Email thành viên</label>
-                                <input type="email" id="addMemberEmail" class="form-control form-control-sm" placeholder="thanhvien@cmc.edu.vn" />
+                                <input type="email" id="addMemberEmail" class="form-control form-control-sm" placeholder="Nhập địa chỉ email thành viên cần thêm..." />
                             </div>
                             <div class="col-md-3">
                                 <label class="form-label small text-muted mb-1" for="addMemberRole">Vai trò nhóm</label>
@@ -528,15 +528,15 @@
                                             <div class="d-flex flex-column gap-1">
                                                 <button type="button" class="btn btn-xs btn-outline-primary fw-semibold js-hub-action"
                                                         data-req-id="@ord.LoanRequestId" data-action="CheckInDropoff">
-                                                    1. Nhận ký gửi (InTransit)
+                                                    1. Nhận sách ký gửi
                                                 </button>
                                                 <button type="button" class="btn btn-xs btn-primary fw-bold js-hub-action"
                                                         data-req-id="@ord.LoanRequestId" data-action="HandoverToBorrower">
-                                                    2. Giao người mượn (+Quota)
+                                                    2. Giao người mượn (+1 Suất thưởng)
                                                 </button>
                                                 <button type="button" class="btn btn-xs btn-outline-success fw-semibold js-hub-action"
                                                         data-req-id="@ord.LoanRequestId" data-action="ConfirmReturnAtHub">
-                                                    3. Nhận trả tại Hub
+                                                    3. Nhận sách trả tại Trạm
                                                 </button>
                                                 <div class="d-flex gap-1 mt-1">
                                                     <button type="button" class="btn btn-xs btn-outline-dark flex-fill js-qr-create"

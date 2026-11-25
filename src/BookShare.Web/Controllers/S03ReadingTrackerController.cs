@@ -6,6 +6,10 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace BookShare.Web.Controllers;
 
+/// <summary>
+/// [S03] Controller theo dõi Tiến độ đọc sách từng trang, Mục tiêu đọc cá nhân và Xuất tệp sao lưu tiến độ đọc.
+/// </summary>
+/// <remarks>RBAC: Thành viên đã đăng nhập (chỉ xem và cập nhật tiến độ đọc thuộc tài khoản của mình).</remarks>
 public class S03ReadingTrackerController : Controller
 {
     private readonly IS03ReadingTrackerService _trackerService;

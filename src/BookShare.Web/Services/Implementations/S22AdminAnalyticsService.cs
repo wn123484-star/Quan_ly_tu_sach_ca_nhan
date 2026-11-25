@@ -7,6 +7,10 @@ using Microsoft.EntityFrameworkCore;
 
 namespace BookShare.Web.Services.Implementations;
 
+/// <summary>
+/// [S22] Dịch vụ cung cấp dữ liệu KPI/biểu đồ toàn hệ thống, lọc & phân trang người dùng, đổi vai trò, khóa/mở khóa tài khoản (kèm thu hồi phiên đăng nhập tức thì) và phê duyệt đề nghị nâng quyền Chủ nhiệm CLB.
+/// </summary>
+/// <remarks>Chỉ dành cho vai trò Admin.</remarks>
 public class S22AdminAnalyticsService : IS22AdminAnalyticsService
 {
     private readonly BookShareDbContext _db;

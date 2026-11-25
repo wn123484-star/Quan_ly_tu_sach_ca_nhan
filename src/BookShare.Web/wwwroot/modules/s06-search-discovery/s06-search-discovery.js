@@ -1,4 +1,8 @@
 /**
+ * [S06] FRONTEND MODULE (s06-search-discovery.js)
+ * Tài liệu ánh xạ dịch vụ & phân quyền: docs/SERVICE_CODE_MAP.md
+ */
+/**
  * MODULE S06: SEARCH & DISCOVERY (s06-search-discovery.js)
  * Đóng gói ES6 Module độc lập cho dịch vụ S06
  */

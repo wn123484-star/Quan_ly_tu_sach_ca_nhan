@@ -8,14 +8,14 @@
     <link rel="stylesheet" href="~/modules/s09-p2p-loan-flow/s09-p2p-loan-flow.css" asp-append-version="true" />
 }
 
-<!-- 1. THÔNG TIN ĐIỂM UY TÍN (TRUSTSCORE), THƯỞNG QUOTA P2P & ĐẶT MƯỢN P2P MỚI -->
+<!-- 1. THÔNG TIN ĐIỂM UY TÍN, THƯỞNG HẠN MỨC MƯỢN & ĐẶT MƯỢN CỘNG ĐỒNG MỚI -->
 <section class="card border-0 shadow-sm rounded-4 p-4 mb-4 bg-white">
     <div class="row g-4 align-items-center">
         <div class="col-lg-6">
-            <span class="badge bg-primary mb-1">MẠNG LƯỚI CHIA SẺ SÁCH NGANG HÀNG P2P</span>
-            <h4 class="fw-bold mb-1">🤝 Giao Dịch Mượn Sách P2P Cộng Đồng &amp; Điểm Hẹn An Toàn</h4>
+            <span class="badge bg-primary mb-1">MẠNG LƯỚI CHIA SẺ SÁCH CỘNG ĐỒNG</span>
+            <h4 class="fw-bold mb-1">🤝 Giao Dịch Mượn Sách Cộng Đồng &amp; Điểm Hẹn An Toàn</h4>
             <p class="text-muted small mb-3">
-                Chủ sách xét duyệt dựa trên <strong>Điểm uy tín (<code>TrustScore</code>)</strong> của người mượn &rarr; Hẹn giao nhận tại <strong>Trạm Sách CLB / Hub</strong> &rarr; Xác nhận ký gửi (<code>InTransit</code>) &rarr; Bàn giao (<code>Borrowed</code>) và tự động cộng thưởng <strong><code>+1 LendQuotaBonus</code></strong> cho chủ sách.
+                Chủ sách xét duyệt dựa trên <strong>Điểm uy tín</strong> của người mượn &rarr; Hẹn giao nhận tại <strong>Trạm Sách CLB / Điểm ký gửi</strong> &rarr; Xác nhận <strong>Đã gửi tại trạm</strong> &rarr; <strong>Bàn giao sách</strong> và tự động cộng thưởng <strong>+1 suất mượn thưởng</strong> cho chủ sách.
             </p>
             <div class="d-flex flex-wrap gap-2">
                 <div class="s09-badge-pill">
@@ -24,7 +24,7 @@
                 </div>
                 <div class="s09-badge-pill">
                     <i class="bi bi-gift-fill text-warning me-1"></i>
-                    Thưởng hạn mức cho mượn P2P (<code>LendQuotaBonus</code>): <strong class="text-primary">+@Model.CurrentUserLendQuotaBonus cuốn</strong>
+                    Suất mượn thưởng từ chia sẻ sách: <strong class="text-primary">+@Model.CurrentUserLendQuotaBonus cuốn</strong>
                 </div>
             </div>
         </div>
@@ -32,20 +32,20 @@
         <div class="col-lg-6">
             <div class="s09-create-box p-3 rounded-4">
                 <h6 class="fw-bold small text-primary mb-2">
-                    <i class="bi bi-people-fill me-1"></i>Gửi Yêu Cầu Mượn Sách P2P Từ Chủ Tủ Sách Cá Nhân
+                    <i class="bi bi-people-fill me-1"></i>Gửi Yêu Cầu Mượn Sách Từ Tủ Sách Cá Nhân
                 </h6>
                 <form id="s09CreateP2PForm" class="row g-2 align-items-end">
                     <div class="col-md-6">
-                        <label class="form-label small text-muted mb-1">Bản sao P2P đang mở cho mượn</label>
+                        <label class="form-label small text-muted mb-1">Bản sao cộng đồng đang mở cho mượn</label>
                         <select id="s09BookCopyId" class="form-select form-select-sm" required>
                             @foreach (var c in Model.AvailableP2PCopies)
                             {
-                                <option value="@c.BookCopyId" selected="@(preselectedCopyId == c.BookCopyId)">[@c.Barcode] @c.Title — Chủ sách: @c.OwnerName (Trust: @c.OwnerTrustScore)</option>
+                                <option value="@c.BookCopyId" selected="@(preselectedCopyId == c.BookCopyId)">[@c.Barcode] @c.Title — Chủ sách: @c.OwnerName (Uy tín: @c.OwnerTrustScore)</option>
                             }
                         </select>
                     </div>
                     <div class="col-md-4">
-                        <label class="form-label small text-muted mb-1">Điểm hẹn giao nhận (Hub/CLB)</label>
+                        <label class="form-label small text-muted mb-1">Điểm hẹn giao nhận (Trạm CLB)</label>
                         <select id="s09PickupHubId" class="form-select form-select-sm">
                             @foreach (var h in Model.PickupHubs)
                             {
@@ -55,7 +55,7 @@
                     </div>
                     <div class="col-md-2">
                         <button type="submit" class="btn btn-primary btn-sm w-100 fw-bold py-2">
-                            <i class="bi bi-send-check me-1"></i>Mượn P2P
+                            <i class="bi bi-send-check me-1"></i>Gửi mượn
                         </button>
                     </div>
                 </form>
@@ -64,14 +64,14 @@
     </div>
 </section>
 
-<!-- 2. DANH SÁCH GIAO DỊCH MƯỢN P2P & CÁC BƯỚC ĐIỀU PHỐI -->
+<!-- 2. DANH SÁCH GIAO DỊCH MƯỢN CỘNG ĐỒNG & CÁC BƯỚC ĐIỀU PHỐI -->
 <section class="card border-0 shadow-sm rounded-4 p-4 bg-white">
     <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
         <h6 class="fw-bold mb-0">
-            <i class="bi bi-arrow-left-right text-primary me-2"></i>Danh Sách Giao Dịch Mượn Sách P2P Giữa Các Độc Giả (@Model.P2PItems.Count phiếu)
+            <i class="bi bi-arrow-left-right text-primary me-2"></i>Danh Sách Giao Dịch Mượn Sách Cộng Đồng (@Model.P2PItems.Count phiếu)
         </h6>
         <span class="small text-muted">
-            Mỗi lần xác nhận bàn giao P2P thành công, Chủ sách được cộng <code>+1 LendQuotaBonus</code> và <code>+3 TrustScore</code>
+            Mỗi lần xác nhận bàn giao thành công, Chủ sách được cộng <strong>+1 suất mượn thưởng</strong> và <strong>+3 điểm uy tín</strong>
         </span>
     </div>
 
@@ -81,6 +81,31 @@
             int stepIndex = item.LoanStatus == "Returned" ? 4
                 : (item.LoanId != null || item.CopyStatus == "InTransit" ? 3
                 : (item.RequestStatus == "Approved" ? 2 : 1));
+            bool isOwner = Model.CurrentUserId == item.OwnerUserId;
+            bool isBorrower = Model.CurrentUserId == item.BorrowerId;
+            bool isPrivilegedStaff = Model.CurrentUserRole is "Librarian" or "Admin";
+            bool isClubLeaderHere = item.PickupHubId.HasValue && Model.ManagedHubIds.Contains(item.PickupHubId.Value);
+            bool canApprove = isOwner || isPrivilegedStaff;
+            bool canManageStage = isOwner || isPrivilegedStaff || Model.CurrentUserRole == "Curator" || isClubLeaderHere;
+            bool canCancel = item.LoanId == null && (item.RequestStatus == "Pending" || item.RequestStatus == "Approved") && (isBorrower || isOwner || isPrivilegedStaff || isClubLeaderHere);
+            string copyStatusVi = item.CopyStatus switch
+            {
+                "Available" => "Sẵn sàng",
+                "Reserved" => "Đã giữ chỗ",
+                "InTransit" => "Đã gửi tại trạm",
+                "Borrowed" => "Đang mượn",
+                "Damaged" => "Hư hỏng",
+                "Lost" => "Thất lạc",
+                _ => item.CopyStatus
+            };
+            string reqStatusVi = item.RequestStatus switch
+            {
+                "Pending" => "Chờ duyệt",
+                "Approved" => "Đã duyệt",
+                "Rejected" => "Đã từ chối",
+                "Cancelled" => "Đã hủy",
+                _ => item.RequestStatus
+            };
 
             <div class="s09-p2p-card p-3 rounded-4">
                 <div class="row g-3 align-items-center">
@@ -91,9 +116,9 @@
                                  onerror="this.src='/images/book-placeholder.svg'" />
                             <div>
                                 <div class="d-flex align-items-center gap-2 mb-1">
-                                    <span class="badge bg-info text-dark">P2P #@item.LoanRequestId</span>
+                                    <span class="badge bg-info text-dark">Phiếu #@item.LoanRequestId</span>
                                     <code class="fw-bold">@item.Barcode</code>
-                                    <span class="badge bg-light text-dark border">@item.CopyStatus</span>
+                                    <span class="badge bg-light text-dark border">@copyStatusVi</span>
                                 </div>
                                 <h6 class="fw-bold text-dark mb-1">@item.BookTitle</h6>
                                 <div class="small text-muted">
@@ -106,14 +131,14 @@
                     <div class="col-lg-4">
                         <div class="p-2 rounded-3 bg-light border small">
                             <div class="d-flex justify-content-between mb-1">
-                                <span class="text-muted">Chủ tủ sách (Lender):</span>
+                                <span class="text-muted">Chủ tủ sách:</span>
                                 <span>
                                     <strong>@item.OwnerName</strong>
-                                    <span class="badge bg-warning text-dark">Bonus +@item.OwnerQuotaBonus</span>
+                                    <span class="badge bg-warning text-dark">Thưởng +@item.OwnerQuotaBonus</span>
                                 </span>
                             </div>
                             <div class="d-flex justify-content-between mb-1">
-                                <span class="text-muted">Người mượn & Điểm uy tín:</span>
+                                <span class="text-muted">Người mượn &amp; Điểm uy tín:</span>
                                 <span>
                                     <strong>@item.BorrowerName</strong>
                                     <span class="badge bg-success"><i class="bi bi-shield-check me-1"></i>@item.BorrowerTrustScore đ</span>
@@ -137,32 +162,48 @@
                         <div class="d-flex justify-content-between small mb-2 px-1">
                             <span class="@(stepIndex >= 1 ? "text-primary fw-bold" : "text-muted")">1. Yêu cầu</span>
                             <span class="@(stepIndex >= 2 ? "text-primary fw-bold" : "text-muted")">2. Duyệt</span>
-                            <span class="@(stepIndex >= 3 ? "text-primary fw-bold" : "text-muted")">3. @(item.LoanId == null && item.CopyStatus == "InTransit" ? "Tại Hub" : "Giao nhận")</span>
+                            <span class="@(stepIndex >= 3 ? "text-primary fw-bold" : "text-muted")">3. @(item.LoanId == null && item.CopyStatus == "InTransit" ? "Tại trạm" : "Giao nhận")</span>
                             <span class="@(stepIndex >= 4 ? "text-success fw-bold" : "text-muted")">4. Đã trả</span>
                         </div>
 
                         <div class="d-flex flex-wrap justify-content-end gap-2">
                             @if (item.RequestStatus == "Pending")
                             {
-                                <button type="button" class="btn btn-sm btn-success fw-bold js-s09-approve"
-                                        data-req-id="@item.LoanRequestId" data-approve="true">
-                                    <i class="bi bi-check2-circle me-1"></i>Chủ Sách Duyệt P2P
-                                </button>
-                                <button type="button" class="btn btn-sm btn-outline-danger js-s09-approve"
-                                        data-req-id="@item.LoanRequestId" data-approve="false">
-                                    Từ chối
-                                </button>
+                                if (canApprove)
+                                {
+                                    <button type="button" class="btn btn-sm btn-success fw-bold js-s09-approve"
+                                            data-req-id="@item.LoanRequestId" data-approve="true">
+                                        <i class="bi bi-check2-circle me-1"></i>Chủ Sách Duyệt
+                                    </button>
+                                    <button type="button" class="btn btn-sm btn-outline-danger js-s09-approve"
+                                            data-req-id="@item.LoanRequestId" data-approve="false">
+                                        Từ chối
+                                    </button>
+                                }
+                                if (canCancel)
+                                {
+                                    <button type="button" class="btn btn-sm btn-outline-secondary js-s09-cancel"
+                                            data-req-id="@item.LoanRequestId">
+                                        <i class="bi bi-x-circle me-1"></i>Hủy yêu cầu
+                                    </button>
+                                }
                             }
                             else if (item.RequestStatus == "Approved" && item.LoanId == null && item.CopyStatus != "InTransit")
                             {
-                                <button type="button" class="btn btn-sm btn-info fw-bold text-dark js-s09-stage"
-                                        data-req-id="@item.LoanRequestId" data-stage="InTransit">
-                                    <i class="bi bi-truck me-1"></i>Mang Ra Trạm Hub (InTransit)
-                                </button>
-                                <button type="button" class="btn btn-sm btn-primary fw-bold js-s09-stage"
-                                        data-req-id="@item.LoanRequestId" data-stage="HandoverBorrowed">
-                                    <i class="bi bi-handshake me-1"></i>Giao Nhận Ngay (+1 Quota)
-                                </button>
+                                if (canManageStage)
+                                {
+                                    <button type="button" class="btn btn-sm btn-info fw-bold text-dark js-s09-stage"
+                                            data-req-id="@item.LoanRequestId" data-stage="InTransit">
+                                        <i class="bi bi-truck me-1"></i>Đã Gửi Tại Trạm
+                                    </button>
+                                }
+                                if (canManageStage || isBorrower)
+                                {
+                                    <button type="button" class="btn btn-sm btn-primary fw-bold js-s09-stage"
+                                            data-req-id="@item.LoanRequestId" data-stage="HandoverBorrowed">
+                                        <i class="bi bi-handshake me-1"></i>Xác Nhận Giao Sách (+1 Suất thưởng)
+                                    </button>
+                                }
                                 <button type="button" class="btn btn-sm btn-outline-primary fw-bold js-qr-create"
                                         data-req-id="@item.LoanRequestId" data-type="Handover">
                                     <i class="bi bi-qr-code me-1"></i>Tạo QR giao sách
@@ -171,12 +212,19 @@
                                         data-req-id="@item.LoanRequestId">
                                     <i class="bi bi-qr-code-scan me-1"></i>Quét QR nhận
                                 </button>
+                                if (canCancel)
+                                {
+                                    <button type="button" class="btn btn-sm btn-outline-secondary js-s09-cancel"
+                                            data-req-id="@item.LoanRequestId">
+                                        <i class="bi bi-x-circle me-1"></i>Hủy phiếu
+                                    </button>
+                                }
                             }
                             else if (item.CopyStatus == "InTransit" && item.LoanId == null)
                             {
                                 <button type="button" class="btn btn-sm btn-primary fw-bold js-s09-stage"
                                         data-req-id="@item.LoanRequestId" data-stage="HandoverBorrowed">
-                                    <i class="bi bi-box2-heart-fill me-1"></i>Xác Nhận Nhận Sách (+1 LendQuotaBonus)
+                                    <i class="bi bi-box2-heart-fill me-1"></i>Xác Nhận Nhận Sách (+1 Suất thưởng)
                                 </button>
                                 <button type="button" class="btn btn-sm btn-outline-primary fw-bold js-qr-create"
                                         data-req-id="@item.LoanRequestId" data-type="Handover">
@@ -189,10 +237,13 @@
                             }
                             else if (item.LoanId != null && item.LoanStatus != "Returned")
                             {
-                                <button type="button" class="btn btn-sm btn-warning fw-bold text-dark js-s09-stage"
-                                        data-req-id="@item.LoanRequestId" data-stage="Returned">
-                                    <i class="bi bi-arrow-return-left me-1"></i>Xác Nhận Hoàn Trả P2P (+2 TrustScore)
-                                </button>
+                                if (canManageStage)
+                                {
+                                    <button type="button" class="btn btn-sm btn-warning fw-bold text-dark js-s09-stage"
+                                            data-req-id="@item.LoanRequestId" data-stage="Returned">
+                                        <i class="bi bi-arrow-return-left me-1"></i>Xác Nhận Hoàn Trả (+2 Uy tín)
+                                    </button>
+                                }
                                 <button type="button" class="btn btn-sm btn-outline-primary fw-bold js-qr-create"
                                         data-req-id="@item.LoanRequestId" data-type="Return">
                                     <i class="bi bi-qr-code me-1"></i>Tạo QR trả sách
@@ -206,13 +257,13 @@
                             {
                                 var p2pReviewTargetId = Model.CurrentUserId == item.BorrowerId ? item.OwnerUserId : item.BorrowerId;
                                 <span class="badge bg-success py-2 px-3">
-                                    <i class="bi bi-check2-all me-1"></i>Hoàn tất P2P (@(item.ReturnDate?.ToString("dd/MM/yyyy") ?? "Đã trả"))
+                                    <i class="bi bi-check2-all me-1"></i>Hoàn tất (@(item.ReturnDate?.ToString("dd/MM/yyyy") ?? "Đã trả"))
                                 </span>
                                 <a asp-controller="S10ConditionReport" asp-action="Index" asp-route-loanId="@item.LoanId"
                                    class="btn btn-sm btn-outline-primary">
                                     <i class="bi bi-shield-check me-1"></i>Hộ Chiếu Kiểm Định
                                 </a>
-                                <!-- [FEAT-LOGIC] Khép kín vòng đời P2P Mượn -> Trả -> Đánh giá 2 chiều & Cộng TrustScore -->
+                                <!-- [FEAT-LOGIC] Khép kín vòng đời P2P Mượn -> Trả -> Đánh giá 2 chiều & Cộng điểm uy tín -->
                                 <a asp-controller="S15TrustScoreReview" asp-action="Index"
                                    asp-route-loanId="@item.LoanId"
                                    asp-route-targetType="User"
@@ -223,7 +274,7 @@
                             }
                             else
                             {
-                                <span class="badge bg-secondary py-2 px-3">@item.RequestStatus</span>
+                                <span class="badge bg-secondary py-2 px-3">@reqStatusVi</span>
                             }
                         </div>
                     </div>

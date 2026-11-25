@@ -6,6 +6,10 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace BookShare.Web.Controllers;
 
+/// <summary>
+/// [S17] Controller Ví Bảo Lãnh tiền ảo phi thương mại: nạp tiền ảo, thanh toán ký quỹ/phí phạt/hội viên, xác thực chữ ký HMAC-SHA512 và hoàn trả cọc.
+/// </summary>
+/// <remarks>RBAC: Thành viên thực hiện giao dịch trên tài khoản của mình; Thủ thư/Admin hoàn trả tiền cọc. Chống lặp thanh toán bằng khóa idempotency và kiểm tra chữ ký.</remarks>
 public class S17SandboxPaymentController : Controller
 {
     private readonly IS17SandboxPaymentService _paymentService;

@@ -1,3 +1,7 @@
+/**
+ * [S18] FRONTEND MODULE (s18-notification-hub.js)
+ * Tài liệu ánh xạ dịch vụ & phân quyền: docs/SERVICE_CODE_MAP.md
+ */
 import { apiFetch, confirmDialog, getRecaptchaToken } from '../../js/core-api.js';
 
 document.addEventListener('DOMContentLoaded', () => {

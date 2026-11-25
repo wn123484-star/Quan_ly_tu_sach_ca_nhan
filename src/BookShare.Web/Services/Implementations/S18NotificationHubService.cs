@@ -6,6 +6,10 @@ using Microsoft.EntityFrameworkCore;
 
 namespace BookShare.Web.Services.Implementations;
 
+/// <summary>
+/// [S18] Dịch vụ quản lý hộp thư thông báo, đánh dấu đã đọc đơn lẻ/hàng loạt, đồng bộ xác minh OTP Email 6 số với Hồ sơ S01 và phát hành Email thông báo qua Resend.
+/// </summary>
+/// <remarks>Bảo mật: Giới hạn tần suất gửi OTP và khóa tạm khi nhập sai 5 lần.</remarks>
 public class S18NotificationHubService : IS18NotificationHubService
 {
     private readonly BookShareDbContext _db;

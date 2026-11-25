@@ -2,6 +2,10 @@ using BookShare.Web.Models.ViewModels;
 
 namespace BookShare.Web.Services.Interfaces;
 
+/// <summary>
+/// [S04] Giao diện dịch vụ Sổ tay Ghi chú và Trích dẫn sách theo số trang.
+/// </summary>
+/// <remarks>Triển khai bởi: S04BookNotesService.</remarks>
 public interface IS04BookNotesService
 {
     Task<S04BookNotesPageViewModel> GetBookNotesPageAsync(
@@ -23,6 +27,10 @@ public interface IS04BookNotesService
         int noteId);
 }
 
+/// <summary>
+/// [S05] Giao diện dịch vụ Tra cứu ISBN tự động và Biên mục đầu sách/bản sao.
+/// </summary>
+/// <remarks>Triển khai bởi: S05IsbnCatalogService.</remarks>
 public interface IS05IsbnCatalogService
 {
     Task<S05IsbnCatalogPageViewModel> GetIsbnCatalogPageAsync(string currentUserId, string currentUserRole);
@@ -41,6 +49,10 @@ public interface IS05IsbnCatalogService
             int bookId);
     }
 
+/// <summary>
+/// [S06] Giao diện dịch vụ Tìm kiếm đa tiêu chí, Lọc nâng cao và Gợi ý từ khóa tức thì.
+/// </summary>
+/// <remarks>Triển khai bởi: S06SearchDiscoveryService.</remarks>
 public interface IS06SearchDiscoveryService
 {
     Task<S06SearchDiscoveryPageViewModel> SearchCopiesAsync(S06SearchDiscoveryFilterDto filter);
@@ -50,6 +62,10 @@ public interface IS06SearchDiscoveryService
         QuickLoanRequestDto request);
 }
 
+/// <summary>
+/// [S07] Giao diện dịch vụ Danh mục Kho chung Thư viện đối tác và Điều chuyển vị trí kệ.
+/// </summary>
+/// <remarks>Triển khai bởi: S07LibraryCatalogService.</remarks>
 public interface IS07LibraryCatalogService
 {
     Task<S07LibraryCatalogPageViewModel> GetLibraryCatalogAsync(

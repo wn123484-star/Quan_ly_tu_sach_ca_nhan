@@ -6,6 +6,10 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace BookShare.Web.Controllers;
 
+/// <summary>
+/// [S07] Controller quản lý Danh mục Kho chung Thư viện đối tác, thống kê trạng thái lưu thông và điều chuyển vị trí kệ sách.
+/// </summary>
+/// <remarks>RBAC: Công khai xem danh mục; Chỉ Thủ thư (Librarian) và Quản trị viên (Admin) được cập nhật vị trí kệ.</remarks>
 public class S07LibraryCatalogController : Controller
 {
     private readonly IS07LibraryCatalogService _catalogService;

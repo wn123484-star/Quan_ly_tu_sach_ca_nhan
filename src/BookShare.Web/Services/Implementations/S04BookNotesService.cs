@@ -6,6 +6,10 @@ using Microsoft.EntityFrameworkCore;
 
 namespace BookShare.Web.Services.Implementations;
 
+/// <summary>
+/// [S04] Dịch vụ CRUD ghi chú đọc sách & câu trích dẫn tâm đắc, hỗ trợ gắn cờ chia sẻ cộng đồng và lọc theo đầu sách.
+/// </summary>
+/// <remarks>Bảo mật Anti-IDOR: Chỉ tác giả ghi chú hoặc Admin được sửa/xóa.</remarks>
 public class S04BookNotesService : IS04BookNotesService
 {
     private readonly BookShareDbContext _db;

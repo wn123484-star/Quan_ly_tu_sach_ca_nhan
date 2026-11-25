@@ -5,6 +5,10 @@ using Microsoft.EntityFrameworkCore;
 
 namespace BookShare.Web.Data;
 
+/// <summary>
+/// [CORE-DB] Ngữ cảnh Entity Framework Core (Database-First) ánh xạ toàn bộ 25 bảng quan hệ của hệ sinh thái Thư viện Số & Chia sẻ Sách cộng đồng BookShare.
+/// </summary>
+/// <remarks>Lưu ý kiến trúc: Controller tuyệt đối không gọi trực tiếp BookShareDbContext mà phải đi qua tầng Services.</remarks>
 public partial class BookShareDbContext : DbContext
 {
     public BookShareDbContext(DbContextOptions<BookShareDbContext> options)

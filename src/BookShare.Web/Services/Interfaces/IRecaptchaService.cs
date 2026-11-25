@@ -4,6 +4,10 @@ namespace BookShare.Web.Services.Interfaces;
 /// [BOT-GUARD] Dịch vụ xác thực Google reCAPTCHA v3 chạy ngầm (Score-based) chống Bot &amp; Spam.
 /// Cấu hình qua biến môi trường .env: ReCaptcha__SiteKey và ReCaptcha__SecretKey.
 /// </summary>
+/// <summary>
+/// [CORE-AUTH] Giao diện dịch vụ xác thực Google reCAPTCHA v3 chống bot tự động trên biểu mẫu công khai.
+/// </summary>
+/// <remarks>Triển khai bởi: RecaptchaService.</remarks>
 public interface IRecaptchaService
 {
     string SiteKey { get; }

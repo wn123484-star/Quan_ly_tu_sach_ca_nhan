@@ -1,3 +1,7 @@
+/**
+ * [S21] FRONTEND MODULE (s21-librarian-desk.js)
+ * Tài liệu ánh xạ dịch vụ & phân quyền: docs/SERVICE_CODE_MAP.md
+ */
 import { apiFetch, openBarcodeScanner, showSystemStatus, confirmDialog, showHandoverQrModal } from '../../js/core-api.js';
 
 document.addEventListener('DOMContentLoaded', () => {

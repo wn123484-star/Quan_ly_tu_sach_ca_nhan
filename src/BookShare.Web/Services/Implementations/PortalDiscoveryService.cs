@@ -5,6 +5,10 @@ using Microsoft.EntityFrameworkCore;
 
 namespace BookShare.Web.Services.Implementations;
 
+/// <summary>
+/// [CORE-HOME] Dịch vụ truy vấn Trang chủ với bộ lọc đầy đủ (Từ khóa, Nguồn sách, Thể loại, Sẵn sàng, Tình trạng, Sắp xếp, Phân trang) và tra cứu nhanh kho sách cho khung chat AI chế độ khách.
+/// </summary>
+/// <remarks>Tối ưu truy vấn chỉ đọc với AsNoTracking.</remarks>
 public class PortalDiscoveryService : IPortalDiscoveryService
 {
     private readonly BookShareDbContext _db;

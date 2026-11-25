@@ -1,4 +1,8 @@
 /**
+ * [S01] FRONTEND MODULE (s01-auth-otp-google.js)
+ * Tài liệu ánh xạ dịch vụ & phân quyền: docs/SERVICE_CODE_MAP.md
+ */
+/**
  * XÁC THỰC, QUÊN MẬT KHẨU OTP, ĐĂNG NHẬP NHANH QR, TẢI AVATAR & HỒ SƠ CÁ NHÂN (s01-auth-otp-google.js)
  */
 import { apiFetch, showSystemStatus, getRecaptchaToken, renderQrCode, openUniversalScanner, toast, getUiPrefs, applyUiPrefs } from '../../js/core-api.js';

@@ -2,6 +2,10 @@ using BookShare.Web.Models.ViewModels;
 
 namespace BookShare.Web.Services.Interfaces;
 
+/// <summary>
+/// [S13] Giao diện dịch vụ Trợ lý Đọc sách AI Gemini và điều phối lệnh giao diện/Email.
+/// </summary>
+/// <remarks>Triển khai bởi: S13GeminiAiService.</remarks>
 public interface IS13GeminiAiService
 {
     Task<S13GeminiAssistantPageViewModel> GetAssistantPageAsync(string currentUserId, int? sessionId = null);
@@ -45,6 +49,10 @@ public interface IS13GeminiAiService
             string? customNote = null);
     }
 
+/// <summary>
+/// [S14] Giao diện dịch vụ Gợi ý sách cá nhân hóa và Lộ trình đọc theo mục tiêu.
+/// </summary>
+/// <remarks>Triển khai bởi: S14AiRecommendationService.</remarks>
 public interface IS14AiRecommendationService
 {
     Task<S14AiRecommendationPageViewModel> GetRecommendationsPageAsync(
@@ -57,6 +65,10 @@ public interface IS14AiRecommendationService
         S14GenerateCustomRecRequestDto request);
 }
 
+/// <summary>
+/// [S15] Giao diện dịch vụ Điểm uy tín và Đánh giá cộng đồng hai chiều.
+/// </summary>
+/// <remarks>Triển khai bởi: S15TrustScoreReviewService.</remarks>
 public interface IS15TrustScoreReviewService
 {
     Task<S15TrustScoreReviewPageViewModel> GetTrustScoreReviewPageAsync(string currentUserId);

@@ -2,6 +2,10 @@ using BookShare.Web.Models.ViewModels;
 
 namespace BookShare.Web.Services.Interfaces;
 
+/// <summary>
+/// [CORE-EMAIL] Giao diện dịch vụ gửi Email thực (Resend API / SMTP) và phát hành/xác thực mã OTP 6 chữ số.
+/// </summary>
+/// <remarks>Triển khai bởi: ResendEmailService.</remarks>
 public interface IResendEmailService
 {
     Task<(bool Success, string Message, string? DevOtpCode)> GenerateAndSendOtpAsync(
@@ -20,6 +24,10 @@ public interface IResendEmailService
         string htmlBody);
 }
 
+/// <summary>
+/// [S01] Giao diện dịch vụ Xác thực, Đăng ký, Google OAuth, Khôi phục mật khẩu OTP, Hồ sơ cá nhân, Tải ảnh đại diện và Cá nhân hóa giao diện.
+/// </summary>
+/// <remarks>Triển khai bởi: S01AuthOtpService.</remarks>
 public interface IS01AuthOtpService
 {
     Task<S01AuthPageViewModel> GetAuthPageViewModelAsync(string? currentUserId, string? returnUrl = null);

@@ -1,3 +1,7 @@
+/**
+ * [S20] FRONTEND MODULE (s20-exchange-hub-club.js)
+ * Tài liệu ánh xạ dịch vụ & phân quyền: docs/SERVICE_CODE_MAP.md
+ */
 import { apiFetch, showHandoverQrModal, confirmDialog } from '../../js/core-api.js';
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -14,9 +18,9 @@ document.addEventListener('DOMContentLoaded', () => {
             html: `
                 <div class="text-start small">
                     <label class="fw-bold mb-1">Tên Câu lạc bộ / Điểm trạm *</label>
-                    <input id="swalNewClubName" class="form-control form-control-sm mb-2" placeholder="VD: CLB Đọc Sách Công Nghệ CMC" />
+                    <input id="swalNewClubName" class="form-control form-control-sm mb-2" placeholder="Nhập tên Câu lạc bộ hoặc Điểm trạm sách..." />
                     <label class="fw-bold mb-1">Địa chỉ sinh hoạt &amp; giao nhận *</label>
-                    <input id="swalNewClubAddr" class="form-control form-control-sm mb-2" placeholder="VD: Tầng 2, Tòa nhà CMC, Cầu Giấy" />
+                    <input id="swalNewClubAddr" class="form-control form-control-sm mb-2" placeholder="Nhập địa chỉ cụ thể của Câu lạc bộ / Điểm trạm..." />
                     <div class="row g-2 mb-2">
                         <div class="col-6">
                             <label class="fw-bold mb-1">Loại hình</label>

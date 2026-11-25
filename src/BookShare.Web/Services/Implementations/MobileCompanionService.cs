@@ -6,6 +6,10 @@ using Microsoft.EntityFrameworkCore;
 
 namespace BookShare.Web.Services.Implementations;
 
+/// <summary>
+/// [CORE-MOBILE] Dịch vụ tổng hợp dữ liệu tinh gọn cho màn hình di động: thẻ độc giả, phiếu mượn hiện tại, thông báo chưa đọc và đánh dấu đã đọc ngay khi mở từ thông báo đẩy.
+/// </summary>
+/// <remarks>Đồng bộ trực tiếp với CSDL chính BookShare.</remarks>
 public class MobileCompanionService : IMobileCompanionService
 {
     private readonly BookShareDbContext _db;

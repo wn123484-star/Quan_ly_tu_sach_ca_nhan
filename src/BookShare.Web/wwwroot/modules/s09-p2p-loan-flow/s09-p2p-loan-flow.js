@@ -1,4 +1,8 @@
 /**
+ * [S09] FRONTEND MODULE (s09-p2p-loan-flow.js)
+ * Tài liệu ánh xạ dịch vụ & phân quyền: docs/SERVICE_CODE_MAP.md
+ */
+/**
  * MODULE S09: P2P LOAN FLOW (s09-p2p-loan-flow.js)
  * Đóng gói ES6 Module độc lập cho dịch vụ S09
  */
@@ -59,6 +63,23 @@ document.addEventListener('DOMContentLoaded', () => {
                     setTimeout(() => window.location.reload(), 1800);
                     return;
                 }
+                window.location.reload();
+            }
+        });
+    });
+
+    // 3b. Hủy yêu cầu mượn P2P trước khi bàn giao (Người mượn / Chủ sách / Quản lý trạm / Thủ thư / Admin)
+    document.querySelectorAll('.js-s09-cancel').forEach(btn => {
+        btn.addEventListener('click', async () => {
+            const loanRequestId = parseInt(btn.getAttribute('data-req-id') || '0', 10);
+            if (!loanRequestId) return;
+
+            const res = await apiFetch('/S09P2PLoanFlow/CancelRequest', {
+                method: 'POST',
+                body: { loanRequestId }
+            });
+
+            if (res.ok) {
                 window.location.reload();
             }
         });

@@ -7,6 +7,10 @@ using Microsoft.EntityFrameworkCore;
 
 namespace BookShare.Web.Services.Implementations;
 
+/// <summary>
+/// [S14] Dịch vụ chấm điểm mức độ phù hợp đầu sách dựa trên lịch sử đọc, thể loại quan tâm, độ sẵn sàng trong kho và mục tiêu kỹ năng người dùng nhập.
+/// </summary>
+/// <remarks>Hỗ trợ hoạt động tức thì cả online lẫn offline.</remarks>
 public class S14AiRecommendationService : IS14AiRecommendationService
 {
     private readonly BookShareDbContext _db;

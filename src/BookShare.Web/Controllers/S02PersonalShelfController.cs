@@ -6,6 +6,10 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace BookShare.Web.Controllers;
 
+/// <summary>
+/// [S02] Controller quản lý Tủ sách cá nhân, Kệ sách tùy chỉnh và Bản sao chia sẻ cộng đồng của từng thành viên.
+/// </summary>
+/// <remarks>RBAC: Mọi thành viên đã đăng nhập (Anti-IDOR chặt: chỉ chủ sở hữu hoặc Admin được chỉnh sửa/xóa kệ và bản sao của chính mình).</remarks>
 public class S02PersonalShelfController : Controller
 {
     private readonly IS02PersonalShelfService _shelfService;

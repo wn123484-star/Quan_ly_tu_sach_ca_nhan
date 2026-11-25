@@ -1,3 +1,7 @@
+/**
+ * [S22] FRONTEND MODULE (s22-admin-analytics.js)
+ * Tài liệu ánh xạ dịch vụ & phân quyền: docs/SERVICE_CODE_MAP.md
+ */
 import { apiFetch, loadScript, CDN, showSystemStatus, confirmDialog } from '../../js/core-api.js';
 
 document.addEventListener('DOMContentLoaded', () => {

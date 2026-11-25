@@ -9,6 +9,10 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace BookShare.Web.Controllers;
 
+/// <summary>
+/// [CORE-QR-AUTH] Controller Đăng nhập nhanh không cần mật khẩu bằng mã QR giữa các thiết bị (khởi tạo phiên QR, kiểm tra trạng thái polling và xác nhận từ thiết bị đã đăng nhập).
+/// </summary>
+/// <remarks>RBAC: Thiết bị mới tạo/kiểm tra phiên QR ẩn danh; Thiết bị xác nhận bắt buộc phải đã đăng nhập hợp lệ và chống spam bằng Rate Limiter.</remarks>
 [Route("api/qr-login")]
 public class QrAuthController : Controller
 {

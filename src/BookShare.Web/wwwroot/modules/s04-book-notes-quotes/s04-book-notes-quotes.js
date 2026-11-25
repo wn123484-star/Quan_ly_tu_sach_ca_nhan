@@ -1,4 +1,8 @@
 /**
+ * [S04] FRONTEND MODULE (s04-book-notes-quotes.js)
+ * Tài liệu ánh xạ dịch vụ & phân quyền: docs/SERVICE_CODE_MAP.md
+ */
+/**
  * MODULE S04: BOOK NOTES & QUOTES (s04-book-notes-quotes.js)
  * Đóng gói ES6 Module độc lập cho dịch vụ S04
  */

@@ -44,7 +44,7 @@
                     <div>
                         <label class="form-label small fw-bold">Mô tả hư hại / vi phạm tình trạng sách</label>
                         <textarea id="disputeReason" class="form-control" rows="3"
-                                  placeholder="VD: Sách trả về bị rách bìa sau, ướt góc trang 45-60 so với ảnh biên bản lúc giao..." required></textarea>
+                                  placeholder="Mô tả rõ tình trạng hư hại hoặc sai lệch so với lúc nhận sách..." required></textarea>
                     </div>
 
                     <div>
@@ -90,7 +90,7 @@
                     <div class="card-body p-4">
                         <p class="mb-3">
                             <strong>Người mượn liên quan:</strong> <span class="text-primary fw-bold">@d.BorrowerName</span>
-                            <span class="badge bg-warning text-dark ms-1">TrustScore hiện tại: @d.BorrowerTrustScore</span>
+                            <span class="badge bg-warning text-dark ms-1">Điểm uy tín hiện tại: @d.BorrowerTrustScore</span>
                             <br />
                             <strong>Lý do khiếu nại:</strong> <span class="text-danger">@d.Reason</span>
                         </p>
@@ -140,15 +140,15 @@
                                 <div class="col-md-3">
                                     <label class="small text-muted">Quyết định</label>
                                     <select class="form-select form-select-sm js-decision-status" data-id="@d.DisputeId">
-                                        <option value="Resolved" selected>Resolved (Xác nhận vi phạm)</option>
-                                        <option value="Rejected">Rejected (Bác bỏ khiếu nại)</option>
-                                        <option value="UnderReview">UnderReview (Đang thẩm tra)</option>
+                                        <option value="Resolved" selected>Xác nhận vi phạm</option>
+                                        <option value="Rejected">Bác bỏ khiếu nại</option>
+                                        <option value="UnderReview">Đang thẩm tra</option>
                                     </select>
                                 </div>
                                 <div class="col-md-3">
-                                    <label class="small text-muted">Trừ điểm TrustScore</label>
+                                    <label class="small text-muted">Trừ điểm uy tín</label>
                                     <select class="form-select form-select-sm js-penalty-score" data-id="@d.DisputeId">
-                                        <option value="10" selected>-10 điểm TrustScore</option>
+                                        <option value="10" selected>-10 điểm uy tín</option>
                                         <option value="20">-20 điểm (Hư hỏng nặng)</option>
                                         <option value="30">-30 điểm (Làm mất sách)</option>
                                         <option value="0">0 điểm (Cảnh cáo)</option>
@@ -165,9 +165,9 @@
                                 <div class="col-md-3">
                                     <label class="small text-muted">Trạng thái Bản sao</label>
                                     <select class="form-select form-select-sm js-copy-status" data-id="@d.DisputeId">
-                                        <option value="Damaged" selected>Damaged (Hư hỏng)</option>
-                                        <option value="Lost">Lost (Thất lạc)</option>
-                                        <option value="Available">Available (Dùng tiếp)</option>
+                                        <option value="Damaged" selected>Hư hỏng</option>
+                                        <option value="Lost">Thất lạc</option>
+                                        <option value="Available">Sẵn sàng dùng tiếp</option>
                                     </select>
                                 </div>
                                 <div class="col-md-3 mt-2">
@@ -177,7 +177,7 @@
                                 <div class="col-md-6 mt-2">
                                     <label class="small text-muted">Ghi chú phán quyết</label>
                                     <input type="text" class="form-control form-control-sm js-resolution-note" data-id="@d.DisputeId"
-                                           value="Đã đối chiếu ảnh Handover & Return: Xác nhận sách bị hư hại bìa, trừ TrustScore và xử lý bồi thường." />
+                                           value="Đã đối chiếu ảnh lúc giao và lúc trả: Xác nhận tình trạng vi phạm, cập nhật điểm uy tín và xử lý bồi thường." />
                                 </div>
                                 <div class="col-md-3 mt-2 d-grid">
                                     <button type="button" class="btn btn-sm btn-danger fw-bold js-btn-resolve" data-id="@d.DisputeId">

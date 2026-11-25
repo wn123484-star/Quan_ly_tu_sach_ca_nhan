@@ -6,6 +6,10 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace BookShare.Web.Controllers;
 
+/// <summary>
+/// [S11] Controller Hàng chờ đặt trước Sách Hot (FIFO kết hợp ưu tiên Hạng hội viên) và Giữ chỗ 48 giờ khi có bản sao hoàn trả.
+/// </summary>
+/// <remarks>RBAC: Thành viên đăng ký/hủy lượt chờ của chính mình; Thủ thư & Admin có quyền kích hoạt thông báo thủ công tới vị trí #1.</remarks>
 public class S11HotBookQueueController : Controller
 {
     private readonly IS11HotBookQueueService _queueService;

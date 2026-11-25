@@ -1,4 +1,8 @@
 /**
+ * [S12] FRONTEND MODULE (s12-loan-renewal-fine.js)
+ * Tài liệu ánh xạ dịch vụ & phân quyền: docs/SERVICE_CODE_MAP.md
+ */
+/**
  * MODULE S12: LOAN RENEWAL & OVERDUE FINE (s12-loan-renewal-fine.js)
  * Đóng gói ES6 Module độc lập cho dịch vụ S12
  */

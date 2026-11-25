@@ -6,6 +6,10 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace BookShare.Web.Controllers;
 
+/// <summary>
+/// [S13] Controller Trợ lý Đọc sách AI Gemini: quản lý nhiều phiên trò chuyện bền vững theo vai trò, điều khiển giao diện và gửi báo cáo Email.
+/// </summary>
+/// <remarks>RBAC: Thành viên đã đăng nhập (lịch sử hội thoại tách biệt tuyệt đối theo từng tài khoản và vai trò, kèm giới hạn chống spam).</remarks>
 public class S13GeminiAiAssistantController : Controller
 {
     private readonly IS13GeminiAiService _geminiService;

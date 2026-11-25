@@ -5,6 +5,10 @@ using Microsoft.EntityFrameworkCore;
 
 namespace BookShare.Web.BackgroundJobs;
 
+/// <summary>
+/// [CORE-JOBS] Tập hợp 3 tác vụ nền định kỳ chạy tự động qua Hangfire Server: nhắc hạn trả sách lúc 07:00, tính phí quá hạn lúc 00:05 và dọn phiếu/giữ chỗ quá hạn mỗi 30 phút.
+/// </summary>
+/// <remarks>Đăng ký lịch chạy tại Program.cs sau sự kiện ApplicationStarted.</remarks>
 public class BookShareDailyJobs
 {
     private readonly BookShareDbContext _db;

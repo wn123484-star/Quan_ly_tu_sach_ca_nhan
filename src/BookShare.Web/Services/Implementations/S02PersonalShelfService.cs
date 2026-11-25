@@ -6,6 +6,10 @@ using Microsoft.EntityFrameworkCore;
 
 namespace BookShare.Web.Services.Implementations;
 
+/// <summary>
+/// [S02] Dịch vụ xử lý nghiệp vụ Tủ sách cá nhân: tạo/sửa/xóa kệ, thêm bản sao sách cá nhân, bật/tắt trạng thái mở cho mượn cộng đồng.
+/// </summary>
+/// <remarks>Bảo mật Anti-IDOR: Xác minh quyền sở hữu kệ và bản sao trước mọi thao tác ghi/xóa.</remarks>
 public class S02PersonalShelfService : IS02PersonalShelfService
 {
     private readonly BookShareDbContext _db;

@@ -42,17 +42,17 @@
 
                 <form id="s10UploadReportForm" enctype="multipart/form-data">
                     <div class="mb-3">
-                        <label class="form-label small fw-bold text-secondary">Chọn hợp đồng mượn (<code>LoanId</code>)</label>
+                        <label class="form-label small fw-bold text-secondary">Chọn hợp đồng mượn</label>
                         <select id="s10LoanId" name="loanId" class="form-select" required>
                             @foreach (var item in Model.LoanComparisons)
                             {
                                 if (Model.SelectedLoanId == item.LoanId)
                                 {
-                                    <option value="@item.LoanId" selected>Loan #@item.LoanId — [@item.Barcode] @item.BookTitle (@item.BorrowerName)</option>
+                                    <option value="@item.LoanId" selected>Hợp đồng #@item.LoanId — [@item.Barcode] @item.BookTitle (@item.BorrowerName)</option>
                                 }
                                 else
                                 {
-                                    <option value="@item.LoanId">Loan #@item.LoanId — [@item.Barcode] @item.BookTitle (@item.BorrowerName)</option>
+                                    <option value="@item.LoanId">Hợp đồng #@item.LoanId — [@item.Barcode] @item.BookTitle (@item.BorrowerName)</option>
                                 }
                             }
                         </select>
@@ -60,20 +60,20 @@
 
                     <div class="row g-2 mb-3">
                         <div class="col-6">
-                            <label class="form-label small fw-bold text-secondary">Thời điểm lập (<code>ReportType</code>)</label>
+                            <label class="form-label small fw-bold text-secondary">Thời điểm lập biên bản</label>
                             <select id="s10ReportType" name="reportType" class="form-select">
                                 <option value="Handover">Lúc Giao (Handover)</option>
                                 <option value="Return" selected>Lúc Trả (Return)</option>
                             </select>
                         </div>
                         <div class="col-6">
-                            <label class="form-label small fw-bold text-secondary">Độ mới (<code>ConditionGrade</code>)</label>
+                            <label class="form-label small fw-bold text-secondary">Mức độ nguyên vẹn</label>
                             <select id="s10ConditionGrade" name="conditionGrade" class="form-select">
                                 <option value="New">Mới nguyên (New)</option>
-                                <option value="Good" selected>Tốt / Nguyên vẹn (Good)</option>
-                                <option value="Fair">Khá / Quăn góc nhẹ (Fair)</option>
-                                <option value="Worn">Cũ / Sờn gáy (Worn)</option>
-                                <option value="Damaged">Hư hỏng / Rách trang (Damaged)</option>
+                                <option value="Good" selected>Tốt / Nguyên vẹn</option>
+                                <option value="Fair">Khá / Quăn góc nhẹ</option>
+                                <option value="Worn">Cũ / Sờn gáy</option>
+                                <option value="Damaged">Hư hỏng / Rách trang</option>
                             </select>
                         </div>
                     </div>
@@ -94,7 +94,7 @@
                     </div>
 
                     <div class="mb-3">
-                        <label class="form-label small fw-bold text-secondary">Ghi chú kiểm định (<code>Note</code>)</label>
+                        <label class="form-label small fw-bold text-secondary">Ghi chú kiểm định</label>
                         <textarea id="s10Note" name="note" class="form-control" rows="3"
                                   placeholder="Mô tả chi tiết tình trạng bìa trước, bìa sau, gáy sách và các trang bên trong..."></textarea>
                     </div>

@@ -6,6 +6,10 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace BookShare.Web.Controllers;
 
+/// <summary>
+/// [S21] Controller Quầy Nghiệp vụ Thủ thư hợp nhất: Quét mã vạch tự động (Mượn <-> Trả), Cho mượn trực tiếp tại quầy, Xử lý mọi phiếu mượn Kho chung & P2P, Nhập kho hàng loạt.
+/// </summary>
+/// <remarks>RBAC: Chỉ Thủ thư (Librarian) và Quản trị viên (Admin) được truy cập vận hành và gọi các thao tác kho/cho mượn.</remarks>
 public class S21LibrarianDeskController : Controller
 {
     private readonly IS21LibrarianDeskService _deskService;

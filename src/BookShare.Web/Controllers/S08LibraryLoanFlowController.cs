@@ -6,6 +6,10 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace BookShare.Web.Controllers;
 
+/// <summary>
+/// [S08] Controller điều phối Luồng Mượn – Duyệt – Bàn giao – Hoàn trả – Hủy phiếu đối với sách Kho chung Thư viện.
+/// </summary>
+/// <remarks>RBAC: Độc giả tạo phiếu & hủy phiếu chưa bàn giao của mình; Thủ thư & Admin duyệt, bàn giao và thu hồi sách trả.</remarks>
 public class S08LibraryLoanFlowController : Controller
 {
     private readonly IS08LibraryLoanService _libraryLoanService;

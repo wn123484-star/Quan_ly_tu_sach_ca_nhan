@@ -1,4 +1,13 @@
 /**
+ * [CORE-JS] THƯ VIỆN FRONTEND DÙNG CHUNG BOOKSHARE (wwwroot/js/core-api.js)
+ * Nhiệm vụ chính:
+ *   - apiFetch(): Wrapper gọi API tự động đính CSRF Token, parse lỗi 400/401/403/429/500 & hiện thông báo.
+ *   - openBarcodeScannerModal(): Khung quét Camera QR/Barcode hình vuông, tự xin quyền và tự tắt khi đóng/ESC.
+ *   - showHandoverQrModal() & confirmHandoverQrModal(): Giao nhận & hoàn trả sách qua QR ([CORE-QR-HANDOVER]).
+ *   - Áp dụng đồng bộ 9 phong cách giao diện, 13 bảng màu, 12 nền trang, 5 phông chữ và 7 cỡ chữ ([S01]/[S13]).
+ *   - Pháo hoa chúc mừng (celebrate) và quản lý thông báo pop-up nhanh ([S18]).
+ */
+/**
  * BOOKSHARE CORE API & UI HELPER (wwwroot/js/core-api.js)
  * - Tự động đính kèm AntiForgeryToken (CSRF) vào mọi request POST/PUT/DELETE
  * - Cập nhật thanh trạng thái #systemStatusBox (Mã 200, 300, 400, 404, 500) & Toast SweetAlert2

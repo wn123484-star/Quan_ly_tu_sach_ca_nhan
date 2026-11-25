@@ -11,6 +11,10 @@ using Microsoft.EntityFrameworkCore;
 
 namespace BookShare.Web.Services.Implementations;
 
+/// <summary>
+/// [CORE-EMAIL] Dịch vụ gửi Email HTML định dạng chuyên nghiệp qua Resend API (có dự phòng SMTP/Dev mode) và quản lý vòng đời mã OTP 6 số băm SHA-256 hết hạn sau 5 phút.
+/// </summary>
+/// <remarks>Tích hợp chống spam gửi OTP liên tục và khóa tạm khi nhập sai quá 5 lần.</remarks>
 public class ResendEmailService : IResendEmailService
 {
     private readonly BookShareDbContext _db;

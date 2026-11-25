@@ -6,6 +6,10 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace BookShare.Web.Controllers;
 
+/// <summary>
+/// [S19] Controller Khiếu nại & Phân xử Tranh chấp tình trạng sách: mở hồ sơ khiếu nại (tạm khóa hợp đồng), đối chiếu ảnh và ban hành phán quyết.
+/// </summary>
+/// <remarks>RBAC: Chỉ các bên thuộc hợp đồng mượn hoặc nhân sự quản lý được xem/mở khiếu nại; Chỉ Quản trị viên (Admin) được ban hành phán quyết xử phạt & bồi thường.</remarks>
 public class S19DisputeResolutionController : Controller
 {
     private readonly IS19DisputeResolutionService _disputeService;

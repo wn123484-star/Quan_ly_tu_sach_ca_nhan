@@ -7,6 +7,10 @@ using Microsoft.Extensions.Caching.Memory;
 
 namespace BookShare.Web.Services.Implementations;
 
+/// <summary>
+/// [CORE-DB] Dịch vụ tự động đồng bộ các bảng/cột mở rộng, đảm bảo 4 vai trò chuẩn (Admin, Librarian, Curator, User), tài khoản Quản trị viên gốc và 18 biểu tượng mặc định ngay lúc startup.
+/// </summary>
+/// <remarks>Chạy an toàn idempotent nhiều lần không gây trùng dữ liệu.</remarks>
 public class DatabaseBootstrapService : IDatabaseBootstrapService
 {
     private static readonly SemaphoreSlim InitLock = new(1, 1);

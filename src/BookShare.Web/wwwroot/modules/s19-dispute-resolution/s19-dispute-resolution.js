@@ -1,3 +1,7 @@
+/**
+ * [S19] FRONTEND MODULE (s19-dispute-resolution.js)
+ * Tài liệu ánh xạ dịch vụ & phân quyền: docs/SERVICE_CODE_MAP.md
+ */
 import { apiFetch, confirmDialog } from '../../js/core-api.js';
 
 document.addEventListener('DOMContentLoaded', () => {

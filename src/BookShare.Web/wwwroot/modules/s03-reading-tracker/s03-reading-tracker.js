@@ -1,4 +1,8 @@
 /**
+ * [S03] FRONTEND MODULE (s03-reading-tracker.js)
+ * Tài liệu ánh xạ dịch vụ & phân quyền: docs/SERVICE_CODE_MAP.md
+ */
+/**
  * MODULE THEO DÕI TIẾN ĐỘ ĐỌC SÁCH (s03-reading-tracker.js)
  */
 import { apiFetch, showSystemStatus, confirmDialog } from '../../js/core-api.js';

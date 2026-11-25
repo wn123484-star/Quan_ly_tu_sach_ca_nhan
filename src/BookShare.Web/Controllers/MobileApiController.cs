@@ -5,6 +5,10 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace BookShare.Web.Controllers;
 
+/// <summary>
+/// [CORE-MOBILE] Controller API đồng bộ dành cho Ứng dụng di động đồng hành (Mobile Companion): tổng quan cá nhân, quét QR đăng nhập, thông báo và đánh dấu đã đọc.
+/// </summary>
+/// <remarks>RBAC: Xác thực bằng Cookie phiên hoặc mã phiên di động hợp lệ, hỗ trợ định tuyến thống nhất cho ứng dụng PWA/Mobile.</remarks>
 [Route("api/mobile")]
 public class MobileApiController : Controller
 {

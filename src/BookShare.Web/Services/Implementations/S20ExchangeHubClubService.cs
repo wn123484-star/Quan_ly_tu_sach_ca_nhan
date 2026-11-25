@@ -6,6 +6,10 @@ using Microsoft.EntityFrameworkCore;
 
 namespace BookShare.Web.Services.Implementations;
 
+/// <summary>
+/// [S20] Dịch vụ quản lý đa Câu lạc bộ độc lập: thành lập CLB, tuyển/duyệt/phân quyền thành viên (Trưởng nhóm, Phó nhóm, Thành viên), bảng tin CLB, tủ sách CLB và điều phối đơn ký gửi/giao nhận tại trạm.
+/// </summary>
+/// <remarks>Phân quyền chặt theo từng CLB: chỉ Trưởng/Phó CLB của đúng CLB đó hoặc Admin mới được quản trị.</remarks>
 public class S20ExchangeHubClubService : IS20ExchangeHubClubService
 {
     private readonly BookShareDbContext _db;

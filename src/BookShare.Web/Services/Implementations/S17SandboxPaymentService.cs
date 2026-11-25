@@ -11,6 +11,10 @@ using Microsoft.Extensions.Caching.Memory;
 
 namespace BookShare.Web.Services.Implementations;
 
+/// <summary>
+/// [S17] Dịch vụ thanh toán tiền ảo phi thương mại minh bạch: nạp ví ảo, thanh toán cọc/phí phạt/gói hội viên, xác thực chữ ký HMAC-SHA512 và mở khóa hợp đồng tranh chấp sau khi hoàn tất bồi thường.
+/// </summary>
+/// <remarks>Bảo mật: Chống thanh toán lặp (Idempotency), chống spam nạp ví và kiểm tra sở hữu giao dịch.</remarks>
 public class S17SandboxPaymentService : IS17SandboxPaymentService
 {
     private const decimal MinTopUpAmount = 1_000m;

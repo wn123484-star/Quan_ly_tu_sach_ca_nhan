@@ -7,6 +7,10 @@ using Microsoft.EntityFrameworkCore;
 
 namespace BookShare.Web.Services.Implementations;
 
+/// <summary>
+/// [S03] Dịch vụ cập nhật số trang đã đọc, tự động tính phần trăm hoàn thành, trạng thái đọc (Đang đọc / Hoàn thành) và xuất tệp sao lưu tiến độ.
+/// </summary>
+/// <remarks>Dữ liệu tách biệt theo từng UserId.</remarks>
 public class S03ReadingTrackerService : IS03ReadingTrackerService
 {
     private readonly BookShareDbContext _db;

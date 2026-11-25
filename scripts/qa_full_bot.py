@@ -3336,6 +3336,130 @@ class QARunner:
             f"codes={club_join_codes}",
         )
 
+        # ------------------------------------------------------------------
+        # 10.4 Release 5.4 Hardening: Null-Body Filter, Validation, S09 Cancel,
+        # Neutral Placeholders, Professional UI Wording & 100% Service Tagging
+        # ------------------------------------------------------------------
+
+        # 1. Global ValidateNonNullBodyFilter -> JSON `null` returns HTTP 400 (never 500)
+        u2.refresh_csrf("/S02PersonalShelf")
+        null_body_endpoints = [
+            "/S02PersonalShelf/CreateShelf",
+            "/S08LibraryLoanFlow/CreateRequest",
+            "/S09P2PLoanFlow/CancelRequest",
+            "/S20ExchangeHubClub/JoinClub",
+        ]
+        null_results = []
+        for ep in null_body_endpoints:
+            nc, nj, _ = u2.post_json(ep, None)  # type: ignore[arg-type]
+            null_results.append((ep, nc, isinstance(nj, dict) and bool(nj.get("message"))))
+        self.check(
+            "L10",
+            "Global ValidateNonNullBodyFilter blocks JSON `null` with clean HTTP 400 Vietnamese JSON (never 500)",
+            all(code == 400 and has_msg for _, code, has_msg in null_results),
+            f"results={null_results}",
+        )
+
+        # 2. Input Validation Tightening (S01 Phone & Avatar XSS, S05 ISBN/Year/Pages/Cover XSS, S19 Evidence XSS)
+        u2.refresh_csrf("/S01AuthOtpGoogle")
+        bad_phone_c, _, _ = u2.post_json("/S01AuthOtpGoogle/UpdateProfile", {"fullName": "Kiểm Thử Hợp Lệ", "phoneNumber": "khong-phai-sdt-99999999999"})
+        bad_avt_c, _, _ = u2.post_json("/S01AuthOtpGoogle/UpdateProfile", {"fullName": "Kiểm Thử Hợp Lệ", "avatarUrl": "javascript:alert(1)"})
+        u2.refresh_csrf("/S05IsbnAutoCatalog")
+        bad_cov_c, _, _ = u2.post_json("/S05IsbnAutoCatalog/SaveBookAndCopy", {"isbn": "9780134494166", "title": "Test", "author": "Author", "pageCount": 200, "coverImageUrl": "javascript:alert(1)"})
+        bad_yr_c, _, _ = u2.post_json("/S05IsbnAutoCatalog/SaveBookAndCopy", {"isbn": "9780134494166", "title": "Test", "author": "Author", "pageCount": 200, "publishedYear": 1400})
+        bad_pg_c, _, _ = u2.post_json("/S05IsbnAutoCatalog/SaveBookAndCopy", {"isbn": "9780134494166", "title": "Test", "author": "Author", "pageCount": 99999})
+        u2.refresh_csrf("/S19DisputeResolution")
+        bad_ev_c, _, _ = u2.post_json("/S19DisputeResolution/CreateDispute", {"loanId": 1, "reason": "Test URL safety", "evidenceImageUrl": "javascript:alert(1)"})
+        self.check(
+            "L10",
+            "Field validation blocks invalid VN phone, javascript: image URLs, out-of-range year/pages (all HTTP 400)",
+            all(c == 400 for c in (bad_phone_c, bad_avt_c, bad_cov_c, bad_yr_c, bad_pg_c, bad_ev_c)),
+            f"phone={bad_phone_c}, avt={bad_avt_c}, cov={bad_cov_c}, yr={bad_yr_c}, pg={bad_pg_c}, ev={bad_ev_c}",
+        )
+
+        # 3. S09 P2P CancelRequest E2E + Anti-IDOR (User creates -> unrelated User gets 403 -> Borrower cancels 200)
+        _, s09_h, _ = u2.get("/S09P2PLoanFlow")
+        s09_sel_m = re.search(r'id="s09BookCopyId"[^>]*>(.*?)</select>', s09_h, re.S)
+        s09_cids = [int(x) for x in re.findall(r'<option\s+value="(\d+)"', s09_sel_m.group(1))] if s09_sel_m else []
+        u2.refresh_csrf("/S09P2PLoanFlow")
+        p2p_cid = 0
+        p2p_cr_c = 0
+        p2p_cr_raw = ""
+        for cand_cid in s09_cids:
+            c_try, _, raw_try = u2.post_json("/S09P2PLoanFlow/CreateRequest", {"bookCopyId": cand_cid, "pickupHubId": 3, "desiredDays": 7})
+            p2p_cid, p2p_cr_c, p2p_cr_raw = cand_cid, c_try, raw_try
+            if c_try == 200:
+                break
+        _, s09_after, _ = u2.get("/S09P2PLoanFlow")
+        p2p_req_m = re.search(r'js-s09-cancel[^>]*data-req-id="(\d+)"', s09_after)
+        if not p2p_req_m:
+            p2p_req_m = re.search(r'data-req-id="(\d+)"[^>]*class="[^"]*js-s09-cancel', s09_after)
+        p2p_req_id = int(p2p_req_m.group(1)) if p2p_req_m else 0
+        # Unrelated user (`club_spammer`) must receive 403 Anti-IDOR
+        club_spammer.refresh_csrf("/S09P2PLoanFlow")
+        p2p_idor_c, _, _ = club_spammer.post_json("/S09P2PLoanFlow/CancelRequest", {"loanRequestId": p2p_req_id}) if p2p_req_id else (0, {}, "")
+        # Original borrower (`u2`) cancels cleanly with 200
+        p2p_can_c, _, _ = u2.post_json("/S09P2PLoanFlow/CancelRequest", {"loanRequestId": p2p_req_id}) if p2p_req_id else (0, {}, "")
+        self.check(
+            "L10",
+            "S09 P2P CancelRequest allows borrower cancel (200) while blocking unrelated user with 403 Anti-IDOR",
+            p2p_cid > 0 and p2p_cr_c == 200 and p2p_req_id > 0 and p2p_idor_c == 403 and p2p_can_c == 200,
+            f"cid={p2p_cid}, cr={p2p_cr_c}, raw={p2p_cr_raw[:80]}, reqId={p2p_req_id}, idor={p2p_idor_c}, cancel={p2p_can_c}",
+        )
+
+        # 4. Static Audit: Neutral Placeholders across ALL Views & custom JS
+        web_root = WEB_DIR
+        bad_ph_re = re.compile(
+            r"Nguyễn Văn An|Nguyễn Minh Anh|@cmc\.edu\.vn|tenban@gmail\.com|nhapemail@domain\.com|ĐH CMC|Tòa nhà CMC|Robert C\. Martin|Nguyễn Nhật Ánh|Clean Code|BS-SYS|Barcode|URL ảnh|0988xxxxxx|Cầu Giấy",
+            re.I,
+        )
+        non_neutral_phs: list[str] = []
+        for fpath in list((web_root / "Views").rglob("*.cshtml")) + list((web_root / "wwwroot").rglob("*.js")):
+            if "vendor" in fpath.parts or "lib" in fpath.parts:
+                continue
+            txt = fpath.read_text(encoding="utf-8", errors="ignore")
+            for ph in re.findall(r'placeholder="([^"]*)"', txt):
+                if bad_ph_re.search(ph):
+                    non_neutral_phs.append(f"{fpath.name}:{ph}")
+        self.check(
+            "L10",
+            "Static UX Audit: 100% of input placeholders across Views & JS are neutral (0 personal/school/tech bias)",
+            len(non_neutral_phs) == 0,
+            f"violations={non_neutral_phs[:5]}",
+        )
+
+        # 5. Static Audit: Zero raw SQL column <code> tags in visible Views
+        raw_col_tags: list[str] = []
+        for fpath in (web_root / "Views").rglob("*.cshtml"):
+            txt = fpath.read_text(encoding="utf-8", errors="ignore")
+            for col in re.findall(r"<code>([^<@]+)</code>", txt):
+                raw_col_tags.append(f"{fpath.name}:{col}")
+        self.check(
+            "L10",
+            "Static UX Audit: Zero raw database column names exposed in static <code> labels on Views",
+            len(raw_col_tags) == 0,
+            f"tags={raw_col_tags[:5]}",
+        )
+
+        # 6. Static Audit: 100% Service Code Tagging ([S01]..[S22], [CORE-*]) across Controllers, Services, Interfaces & Map Doc
+        svc_code_re = re.compile(r"\[(S\d{2}|CORE-[A-Z\-]+)\]")
+        untagged_cs: list[str] = []
+        for folder in (web_root / "Controllers", web_root / "Services" / "Implementations", web_root / "Services" / "Interfaces", web_root / "Filters"):
+            for fpath in folder.glob("*.cs"):
+                if not svc_code_re.search(fpath.read_text(encoding="utf-8", errors="ignore")):
+                    untagged_cs.append(str(fpath.relative_to(web_root)))
+        for core_f in (web_root / "Program.cs", web_root / "Data" / "BookShareDbContext.cs", web_root / "BackgroundJobs" / "BookShareDailyJobs.cs"):
+            if not svc_code_re.search(core_f.read_text(encoding="utf-8", errors="ignore")):
+                untagged_cs.append(str(core_f.relative_to(web_root)))
+        map_doc = ROOT_DIR / "docs" / "SERVICE_CODE_MAP.md"
+        map_ok = map_doc.exists() and all(f"[S{i:02d}]" in map_doc.read_text(encoding="utf-8") for i in range(1, 23))
+        self.check(
+            "L10",
+            "Developer Docs Audit: 100% Controllers/Services/Interfaces/Filters/Core tagged with Service Codes & docs/SERVICE_CODE_MAP.md complete",
+            len(untagged_cs) == 0 and map_ok,
+            f"untagged={untagged_cs}, map_ok={map_ok}",
+        )
+
 
 def wait_for_server(base_url: str, timeout_s: float = 40.0) -> bool:
     deadline = time.time() + timeout_s

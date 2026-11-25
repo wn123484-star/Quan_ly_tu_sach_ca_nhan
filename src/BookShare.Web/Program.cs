@@ -1,7 +1,21 @@
+// =============================================================================
+// [CORE-BOOTSTRAP] ĐIỂM KHỞI ĐỘNG HỆ THỐNG BOOKSHARE WEB PORTAL (Program.cs)
+// Kiến trúc: ASP.NET Core MVC + Strict Service Layer (22 phân hệ [S01]..[S22] + [CORE-*])
+// Thành phần chính:
+//   1. Nạp biến môi trường (.env) & đăng ký EF Core BookShareDbContext (SQL Server)
+//   2. Xác thực Cookie (có thu hồi phiên tức thì khi tài khoản bị khóa) & Google OAuth 2.0
+//   3. Phân quyền 4 vai trò (Admin, Librarian, Curator, User) + Quyền Trưởng/Phó CLB (S20)
+//   4. Đăng ký toàn bộ Dịch vụ Nghiệp vụ [S01]..[S22] & [CORE-*] vào DI Container
+//   5. Bộ lọc toàn cục ValidateNonNullBodyFilter (chặn [FromBody] null -> HTTP 400)
+//   6. Middleware bắt ngoại lệ tập trung (429 Anti-Spam, 403 Anti-IDOR, 400 JSON/DB, 409 Concurrency)
+//   7. Khởi chạy Hangfire Server & đăng ký 3 tác vụ nền định kỳ (BookShareDailyJobs)
+// Tài liệu ánh xạ mã dịch vụ đầy đủ: docs/SERVICE_CODE_MAP.md
+// =============================================================================
 using System.Security.Claims;
 using System.Text.Json;
 using BookShare.Web.BackgroundJobs;
 using BookShare.Web.Data;
+using BookShare.Web.Filters;
 using BookShare.Web.Services.Implementations;
 using BookShare.Web.Services.Interfaces;
 using Hangfire;
@@ -212,7 +226,11 @@ builder.Services.AddHangfire(config => config
     .UseSqlServerStorage(connectionString));
 builder.Services.AddHangfireServer();
 
-builder.Services.AddControllersWithViews();
+// Đăng ký MVC Controllers/Views kèm bộ lọc toàn cục chặn [FromBody] null -> trả HTTP 400 chuẩn
+builder.Services.AddControllersWithViews(options =>
+{
+    options.Filters.Add<ValidateNonNullBodyFilter>();
+});
 
 // 7. Cấu hình ForwardedHeaders cho Nginx Reverse Proxy (Nhận diện đúng https:// cho Google OAuth /signin-google)
 builder.Services.Configure<ForwardedHeadersOptions>(options =>
@@ -318,6 +336,87 @@ app.Use(async (context, next) =>
         }
 
         context.Response.StatusCode = StatusCodes.Status403Forbidden;
+    }
+    catch (Exception ex) when (ex is BadHttpRequestException or JsonException or ArgumentException or FormatException)
+    {
+        // [CORE-EXCEPTION] Bắt lỗi định dạng JSON / tham số đầu vào sai -> trả HTTP 400 thân thiện, không nổ HTTP 500
+        if (context.Response.HasStarted)
+        {
+            throw;
+        }
+
+        if (IsApiOrAjaxRequest(context))
+        {
+            context.Response.Clear();
+            context.Response.StatusCode = StatusCodes.Status400BadRequest;
+            context.Response.ContentType = "application/json; charset=utf-8";
+            var payload = JsonSerializer.Serialize(new
+            {
+                success = false,
+                statusCode = StatusCodes.Status400BadRequest,
+                title = "Dữ liệu gửi lên chưa hợp lệ",
+                message = "Thông tin gửi lên không đúng định dạng hoặc vượt quá giới hạn cho phép. Vui lòng kiểm tra và thử lại.",
+                requestId = System.Diagnostics.Activity.Current?.Id ?? context.TraceIdentifier
+            });
+            await context.Response.WriteAsync(payload);
+            return;
+        }
+
+        context.Response.StatusCode = StatusCodes.Status400BadRequest;
+    }
+    catch (DbUpdateConcurrencyException)
+    {
+        // [CORE-EXCEPTION] Xung đột cập nhật đồng thời (Optimistic Concurrency) -> trả HTTP 409 Conflict
+        if (context.Response.HasStarted)
+        {
+            throw;
+        }
+
+        if (IsApiOrAjaxRequest(context))
+        {
+            context.Response.Clear();
+            context.Response.StatusCode = StatusCodes.Status409Conflict;
+            context.Response.ContentType = "application/json; charset=utf-8";
+            var payload = JsonSerializer.Serialize(new
+            {
+                success = false,
+                statusCode = StatusCodes.Status409Conflict,
+                title = "Xung đột cập nhật dữ liệu",
+                message = "Bản ghi này vừa được thay đổi bởi một thao tác khác. Vui lòng tải lại trang và thực hiện lại.",
+                requestId = System.Diagnostics.Activity.Current?.Id ?? context.TraceIdentifier
+            });
+            await context.Response.WriteAsync(payload);
+            return;
+        }
+
+        context.Response.StatusCode = StatusCodes.Status409Conflict;
+    }
+    catch (DbUpdateException)
+    {
+        // [CORE-EXCEPTION] Bắt lỗi ràng buộc toàn vẹn CSDL -> tuyệt đối không lộ câu lệnh SQL ra phía người dùng
+        if (context.Response.HasStarted)
+        {
+            throw;
+        }
+
+        if (IsApiOrAjaxRequest(context))
+        {
+            context.Response.Clear();
+            context.Response.StatusCode = StatusCodes.Status400BadRequest;
+            context.Response.ContentType = "application/json; charset=utf-8";
+            var payload = JsonSerializer.Serialize(new
+            {
+                success = false,
+                statusCode = StatusCodes.Status400BadRequest,
+                title = "Không thể lưu dữ liệu",
+                message = "Dữ liệu gửi lên vi phạm ràng buộc hệ thống hoặc bị trùng lặp. Vui lòng kiểm tra lại và thử lại.",
+                requestId = System.Diagnostics.Activity.Current?.Id ?? context.TraceIdentifier
+            });
+            await context.Response.WriteAsync(payload);
+            return;
+        }
+
+        context.Response.StatusCode = StatusCodes.Status400BadRequest;
     }
 });
 

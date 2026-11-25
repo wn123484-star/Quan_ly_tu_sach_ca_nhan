@@ -6,6 +6,10 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace BookShare.Web.Controllers;
 
+/// <summary>
+/// [S20] Controller quản trị Câu lạc bộ Sách & Điểm trạm giao nhận: thành lập CLB, duyệt/phân vai thành viên (Trưởng nhóm/Phó nhóm), bảng tin CLB và điều phối đơn tại trạm.
+/// </summary>
+/// <remarks>RBAC: Thành viên xin gia nhập CLB; Trưởng/Phó CLB điều hành thành viên, bảng tin, tủ sách và đơn hàng tại CLB của mình; Admin có toàn quyền.</remarks>
 public class S20ExchangeHubClubController : Controller
 {
     private readonly IS20ExchangeHubClubService _hubService;

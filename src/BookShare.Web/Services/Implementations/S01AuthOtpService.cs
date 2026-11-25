@@ -8,6 +8,10 @@ using Microsoft.EntityFrameworkCore;
 
 namespace BookShare.Web.Services.Implementations;
 
+/// <summary>
+/// [S01] Dịch vụ triển khai toàn bộ nghiệp vụ Tài khoản & Xác thực: đăng nhập/đăng ký, hash mật khẩu ASP.NET Identity, Google OAuth 2.0, OTP quên mật khẩu, cập nhật hồ sơ/avatar và lưu cấu hình giao diện.
+/// </summary>
+/// <remarks>Bảo mật: Khóa tạm khi sai OTP 5 lần, kiểm tra định dạng Email/SĐT Việt Nam/URL ảnh an toàn, tách bạch tên hiển thị với Email.</remarks>
 public class S01AuthOtpService : IS01AuthOtpService
 {
     private const long MaxAvatarSizeBytes = 2 * 1024 * 1024; // 2 MB
@@ -105,7 +109,22 @@ public class S01AuthOtpService : IS01AuthOtpService
 
         if (AuthConfigHelper.IsValidEmailFormat(cleanFullName))
         {
-            return (false, "Tên hiển thị phải tách biệt với địa chỉ Email. Vui lòng nhập tên gọi hiển thị của bạn (VD: Nguyễn Văn An) và điền Email ở ô Email riêng.", null);
+            return (false, "Tên hiển thị cần tách biệt với địa chỉ Email. Vui lòng nhập tên gọi hiển thị của bạn và điền Email ở ô Email riêng.", null);
+        }
+
+        if (!AuthConfigHelper.IsValidVietnamPhone(request.PhoneNumber))
+        {
+            return (false, "Số điện thoại chưa đúng định dạng (cần 9–11 chữ số, bắt đầu bằng 0 hoặc +84).", null);
+        }
+
+        if (!string.IsNullOrWhiteSpace(request.Address) && request.Address.Trim().Length > 250)
+        {
+            return (false, "Địa chỉ liên hệ không được vượt quá 250 ký tự.", null);
+        }
+
+        if (!AuthConfigHelper.IsSafeImageUrl(request.AvatarUrl))
+        {
+            return (false, "Đường dẫn ảnh đại diện không hợp lệ hoặc không an toàn.", null);
         }
 
         var user = await _db.AspNetUsers
@@ -132,7 +151,7 @@ public class S01AuthOtpService : IS01AuthOtpService
             {
                 if (!AuthConfigHelper.IsValidEmailFormat(trimmedEmail))
                 {
-                    return (false, "Địa chỉ Email nhận thư không đúng định dạng hợp lệ (VD: tenban@gmail.com).", null);
+                    return (false, "Địa chỉ Email nhận thông báo chưa đúng định dạng hợp lệ.", null);
                 }
 
                 string normalizedNewEmail = trimmedEmail.ToUpperInvariant();
@@ -735,9 +754,30 @@ public class S01AuthOtpService : IS01AuthOtpService
             return (false, "Vui lòng điền đầy đủ Họ tên, Email và Mật khẩu.", null);
         }
 
-        if (input.Password.Length < 6)
+        var cleanRegName = input.FullName.Trim();
+        if (cleanRegName.Length < 2 || cleanRegName.Length > 150)
         {
-            return (false, "Mật khẩu đăng ký phải có tối thiểu 6 ký tự.", null);
+            return (false, "Họ và tên phải có độ dài từ 2 đến 150 ký tự.", null);
+        }
+
+        if (AuthConfigHelper.IsValidEmailFormat(cleanRegName))
+        {
+            return (false, "Họ và tên hiển thị không được dùng địa chỉ Email.", null);
+        }
+
+        if (!AuthConfigHelper.IsValidEmailFormat(input.Email))
+        {
+            return (false, "Địa chỉ Email đăng ký không đúng định dạng hợp lệ.", null);
+        }
+
+        if (input.Password.Length < 6 || input.Password.Length > 128)
+        {
+            return (false, "Mật khẩu đăng ký phải có độ dài từ 6 đến 128 ký tự.", null);
+        }
+
+        if (!string.IsNullOrWhiteSpace(input.Address) && input.Address.Trim().Length > 250)
+        {
+            return (false, "Địa chỉ khu vực không được vượt quá 250 ký tự.", null);
         }
 
         await EnsureCoreAdminBootstrapAsync();

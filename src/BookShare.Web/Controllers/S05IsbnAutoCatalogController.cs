@@ -6,6 +6,10 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace BookShare.Web.Controllers;
 
+/// <summary>
+/// [S05] Controller Tra cứu & Biên mục đầu sách tự động qua mã ISBN (CSDL nội bộ -> Kho chuẩn -> OpenLibrary API) và Cấp mã bản sao vật lý.
+/// </summary>
+/// <remarks>RBAC: Thành viên thêm sách vào tủ cá nhân (User); Thủ thư & Admin được thêm vào Kho chung Thư viện (System) và sửa/xóa đầu sách danh mục.</remarks>
 public class S05IsbnAutoCatalogController : Controller
 {
     private readonly IS05IsbnCatalogService _isbnService;

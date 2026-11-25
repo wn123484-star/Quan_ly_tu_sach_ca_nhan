@@ -8,6 +8,10 @@ using Microsoft.EntityFrameworkCore;
 
 namespace BookShare.Web.Services.Implementations;
 
+/// <summary>
+/// [CORE-QR-AUTH] Dịch vụ quản lý vòng đời phiên đăng nhập QR (tạo mã ngắn hạn -> thiết bị đã đăng nhập quét phê duyệt -> thiết bị mới nhận Cookie xác thực một lần).
+/// </summary>
+/// <remarks>Tích hợp Rate Limiter chống spam tạo phiên QR và tự động hủy phiên đã sử dụng.</remarks>
 public class QrAuthService : IQrAuthService
 {
     private const string WebLoginFlow = "WebLoginByMobile";

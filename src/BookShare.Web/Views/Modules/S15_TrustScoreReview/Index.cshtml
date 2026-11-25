@@ -1,6 +1,6 @@
 @model BookShare.Web.Models.ViewModels.S15TrustScoreReviewPageViewModel
 @{
-    ViewData["Title"] = "Hệ Thống Điểm Uy Tín TrustScore & Đánh Giá Cộng Đồng 2 Chiều";
+    ViewData["Title"] = "Hệ Thống Điểm Uy Tín & Đánh Giá Cộng Đồng Hai Chiều";
 }
 
 @section Styles {
@@ -37,7 +37,7 @@
                 <div>
                     <label class="bs-label">Loại đối tượng đánh giá</label>
                     <select id="reviewTargetType" class="bs-select">
-                        <option value="User">👤 Đánh giá Uy tín Thành viên (Cộng/Trừ TrustScore)</option>
+                        <option value="User">👤 Đánh giá Uy tín Thành viên (Cộng/Trừ điểm uy tín)</option>
                         <option value="Book">📘 Đánh giá Chất lượng Nội dung Đầu sách</option>
                     </select>
                 </div>
@@ -65,29 +65,29 @@
                 <div>
                     <label class="bs-label">Mức xếp hạng sao (1 -> 5 sao)</label>
                     <select id="reviewRating" class="bs-select">
-                        <option value="5">⭐⭐⭐⭐⭐ (5 sao — Xuất sắc • +5 TrustScore)</option>
-                        <option value="4">⭐⭐⭐⭐ (4 sao — Tốt • +2 TrustScore)</option>
-                        <option value="3">⭐⭐⭐ (3 sao — Bình thường • +0 TrustScore)</option>
-                        <option value="2">⭐⭐ (2 sao — Trễ hẹn / Sách nhăn • -3 TrustScore)</option>
-                        <option value="1">⭐ (1 sao — Vi phạm nghiêm trọng • -6 TrustScore)</option>
+                        <option value="5">⭐⭐⭐⭐⭐ (5 sao — Xuất sắc • +5 điểm uy tín)</option>
+                        <option value="4">⭐⭐⭐⭐ (4 sao — Tốt • +2 điểm uy tín)</option>
+                        <option value="3">⭐⭐⭐ (3 sao — Bình thường • +0 điểm uy tín)</option>
+                        <option value="2">⭐⭐ (2 sao — Trễ hẹn / Sách nhăn • -3 điểm uy tín)</option>
+                        <option value="1">⭐ (1 sao — Vi phạm nghiêm trọng • -6 điểm uy tín)</option>
                     </select>
                 </div>
 
                 <div>
                     <label class="bs-label">Nhận xét chi tiết</label>
                     <textarea id="reviewComment" class="bs-textarea" rows="3"
-                              placeholder="Ghi nhận tình trạng bảo quản sách, độ đúng giờ tại điểm hẹn Hub hoặc cảm nhận chuyên môn về cuốn sách..." required></textarea>
+                              placeholder="Chia sẻ nhận xét về tình trạng bảo quản sách, độ đúng hẹn hoặc cảm nhận của bạn..." required></textarea>
                 </div>
 
                 <button type="submit" id="btnSubmitReview" class="bs-btn bs-btn-primary" style="width:100%;">
-                    ⭐ Gửi Đánh giá & Cập nhật TrustScore
+                    ⭐ Gửi Đánh giá &amp; Cập nhật Điểm Uy Tín
                 </button>
             </form>
         </section>
 
         <!-- BẢNG VINH DANH ĐỘC GIẢ UY TÍN -->
         <section class="bs-card s15-leaderboard-card">
-            <h3>🏆 Bảng Vinh danh Độc giả Uy tín (Top TrustScore)</h3>
+            <h3>🏆 Bảng Vinh danh Độc giả Uy tín Hàng đầu</h3>
             <div class="s15-leader-list">
                 @foreach (var leader in Model.Leaderboard)
                 {
@@ -142,7 +142,7 @@
                             @if (rev.TargetType == "User")
                             {
                                 <span class="s15-delta @(rev.TrustScoreDelta >= 0 ? "pos" : "neg")">
-                                    (@(rev.TrustScoreDelta >= 0 ? $"+{rev.TrustScoreDelta}" : rev.TrustScoreDelta.ToString()) TrustScore)
+                                    (@(rev.TrustScoreDelta >= 0 ? $"+{rev.TrustScoreDelta}" : rev.TrustScoreDelta.ToString()) điểm uy tín)
                                 </span>
                             }
                         </div>

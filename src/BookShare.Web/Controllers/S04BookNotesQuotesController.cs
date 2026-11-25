@@ -6,6 +6,10 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace BookShare.Web.Controllers;
 
+/// <summary>
+/// [S04] Controller quản lý Sổ tay Ghi chú, Trích dẫn tâm đắc theo số trang và Nguồn trích dẫn chia sẻ công khai.
+/// </summary>
+/// <remarks>RBAC: Khách/Thành viên xem trích dẫn công khai; Thành viên đã đăng nhập tạo/sửa/xóa ghi chú của chính mình (Anti-IDOR).</remarks>
 public class S04BookNotesQuotesController : Controller
 {
     private readonly IS04BookNotesService _notesService;

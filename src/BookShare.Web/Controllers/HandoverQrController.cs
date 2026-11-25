@@ -6,6 +6,10 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace BookShare.Web.Controllers;
 
+/// <summary>
+/// [CORE-QR-HANDOVER] Controller Giao nhận & Hoàn trả sách trực tiếp bằng mã QR hai chiều (phát hành mã QR tạm thời và quét xác nhận bàn giao/trả sách).
+/// </summary>
+/// <remarks>RBAC: Yêu cầu đăng nhập; Service kiểm tra chặt quyền của Chủ sách, Người mượn, Trưởng/Phó CLB, Thủ thư hoặc Admin trước khi chốt giao dịch.</remarks>
 [Route("api/handover-qr")]
 public class HandoverQrController : Controller
 {

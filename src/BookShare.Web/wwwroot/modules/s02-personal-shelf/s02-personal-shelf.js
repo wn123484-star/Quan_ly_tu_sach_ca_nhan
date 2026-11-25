@@ -1,4 +1,8 @@
 /**
+ * [S02] FRONTEND MODULE (s02-personal-shelf.js)
+ * Tài liệu ánh xạ dịch vụ & phân quyền: docs/SERVICE_CODE_MAP.md
+ */
+/**
  * MODULE S02: PERSONAL SHELF MANAGEMENT (s02-personal-shelf.js)
  * Đóng gói ES6 Module độc lập cho dịch vụ S02
  */

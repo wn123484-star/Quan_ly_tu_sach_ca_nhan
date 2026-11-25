@@ -1,3 +1,7 @@
+/**
+ * [S17] FRONTEND MODULE (s17-sandbox-payment.js)
+ * Tài liệu ánh xạ dịch vụ & phân quyền: docs/SERVICE_CODE_MAP.md
+ */
 import {
     apiFetch,
     showSystemStatus,

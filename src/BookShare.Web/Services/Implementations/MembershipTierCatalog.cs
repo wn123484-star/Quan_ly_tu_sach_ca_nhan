@@ -6,6 +6,10 @@ namespace BookShare.Web.Services.Implementations;
 /// <summary>
 /// Nguồn chân lý duy nhất cho chính sách 4 cấp gói hội viên mượn sách (100% tiền ảo nội bộ, 0đ giá bán sách).
 /// </summary>
+/// <summary>
+/// [S16] Danh mục chuẩn hóa cấu hình 4 hạng Hội viên BookShare (Miễn phí, Học Thuật, Nghiên Cứu, Bảo Trợ): hạn mức mượn đồng thời, số ngày mượn tối đa và ưu tiên hàng chờ.
+/// </summary>
+/// <remarks>Dùng chung nhất quán trên S08, S09, S11, S16, S17 và S21.</remarks>
 public static class MembershipTierCatalog
 {
     public const decimal TierSwitchFee = 15_000m;

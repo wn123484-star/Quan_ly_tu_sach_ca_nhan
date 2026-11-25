@@ -9,6 +9,10 @@ using Microsoft.Extensions.Configuration;
 
 namespace BookShare.Web.Services.Implementations;
 
+/// <summary>
+/// [S10] Dịch vụ lưu trữ và đối chiếu biên bản ảnh tình trạng sách trước/sau khi mượn, kiểm tra chữ ký nhị phân (Magic Bytes PNG/JPG/WebP) và cách ly dữ liệu theo bên liên quan.
+/// </summary>
+/// <remarks>Chống spam upload ảnh bằng Rate Limiter (tối đa 12 biên bản / 5 phút).</remarks>
 public class S10ConditionReportService : IS10ConditionReportService
 {
     private const long MaxConditionImageBytes = 5 * 1024 * 1024; // 5 MB

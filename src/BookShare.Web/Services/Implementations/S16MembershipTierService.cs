@@ -7,6 +7,10 @@ using Microsoft.EntityFrameworkCore;
 
 namespace BookShare.Web.Services.Implementations;
 
+/// <summary>
+/// [S16] Dịch vụ quản lý đăng ký, nâng cấp/chuyển đổi giữa 4 hạng Hội viên (có tính phí chuyển đổi minh bạch) và hủy gói về Miễn phí.
+/// </summary>
+/// <remarks>Đồng bộ thanh toán qua Ví Bảo Lãnh S17 và chống trùng lặp gói đang hiệu lực.</remarks>
 public class S16MembershipTierService : IS16MembershipTierService
 {
     private readonly BookShareDbContext _db;

@@ -14,7 +14,7 @@
             <span class="badge bg-primary mb-1">CỔNG TÌM KIẾM ĐA TIÊU CHÍ &amp; MƯỢN SÁCH TRỰC TUYẾN</span>
             <h4 class="fw-bold mb-1">🔍 Khám Phá Kho Sách Chung &amp; Tủ Sách Cộng Đồng P2P</h4>
             <p class="text-muted small mb-0">
-                Tìm kiếm đa tiêu chí theo Tên sách, Tác giả, ISBN, Thể loại, Khu vực địa lý, Điểm uy tín (<code>TrustScore</code>) và gửi phiếu mượn trực tiếp (100% chia sẻ phi thương mại).
+                Tìm kiếm đa tiêu chí theo Tên sách, Tác giả, ISBN, Thể loại, Khu vực địa lý, Điểm uy tín và gửi phiếu mượn trực tiếp (100% chia sẻ phi thương mại).
             </p>
         </div>
 
@@ -37,28 +37,28 @@
     <form method="get" asp-controller="S06SearchDiscovery" asp-action="Index" class="s06-filter-box p-3 rounded-4">
         <div class="row g-3">
             <div class="col-lg-4 col-md-6">
-                <label class="form-label small fw-bold text-secondary mb-1">Từ khóa (Tên sách / Mã Barcode)</label>
+                <label class="form-label small fw-bold text-secondary mb-1">Từ khóa (Tên sách / Mã bản sao)</label>
                 <div class="input-group input-group-sm">
                     <span class="input-group-text bg-white"><i class="bi bi-search text-primary"></i></span>
                     <input type="text" name="keyword" value="@Model.Filter.Keyword" class="form-control"
-                           placeholder="Nhập tên sách, mã Barcode (VD: Clean Code, BS-SYS)..." />
+                           placeholder="Nhập tên sách, tác giả hoặc mã bản sao..." />
                 </div>
             </div>
 
             <div class="col-lg-3 col-md-6">
-                <label class="form-label small fw-bold text-secondary mb-1">Tác giả (<code>Author</code>)</label>
+                <label class="form-label small fw-bold text-secondary mb-1">Tác giả</label>
                 <input type="text" name="author" value="@Model.Filter.Author" class="form-control form-control-sm"
-                       placeholder="VD: Robert C. Martin, Nguyễn Nhật Ánh..." />
+                       placeholder="Nhập tên tác giả..." />
             </div>
 
             <div class="col-lg-2 col-md-4">
                 <label class="form-label small fw-bold text-secondary mb-1">Mã vạch ISBN</label>
                 <input type="text" name="isbn" value="@Model.Filter.Isbn" class="form-control form-control-sm"
-                       placeholder="VD: 9780132350884" />
+                       placeholder="Nhập mã ISBN đầu sách..." />
             </div>
 
             <div class="col-lg-3 col-md-4">
-                <label class="form-label small fw-bold text-secondary mb-1">Thể loại (<code>CategoryId</code>)</label>
+                <label class="form-label small fw-bold text-secondary mb-1">Thể loại</label>
                 <select name="categoryId" class="form-select form-select-sm">
                     <option value="">-- Tất cả thể loại --</option>
                     @foreach (var cat in Model.Categories)
@@ -76,13 +76,13 @@
             </div>
 
             <div class="col-lg-3 col-md-4">
-                <label class="form-label small fw-bold text-secondary mb-1">Khu vực địa lý (<code>AreaFilter</code>)</label>
+                <label class="form-label small fw-bold text-secondary mb-1">Khu vực giao nhận</label>
                 <input type="text" name="areaFilter" value="@Model.Filter.AreaFilter" class="form-control form-control-sm"
-                       placeholder="VD: Cầu Giấy, Đống Đa, Nam Từ Liêm..." />
+                       placeholder="Nhập quận, huyện hoặc khu vực..." />
             </div>
 
             <div class="col-lg-3 col-md-4">
-                <label class="form-label small fw-bold text-secondary mb-1">Nguồn sở hữu (<code>OwnerType</code>)</label>
+                <label class="form-label small fw-bold text-secondary mb-1">Nguồn sở hữu</label>
                 <select name="ownerType" class="form-select form-select-sm">
                     <option value="all" selected="@(Model.Filter.OwnerType == "all")">Tất cả (Kho chung + P2P)</option>
                     <option value="System" selected="@(Model.Filter.OwnerType == "System")">Kho chung Thư viện (System)</option>
@@ -94,16 +94,16 @@
                 <label class="form-label small fw-bold text-secondary mb-1">Trạng thái bản sao</label>
                 <select name="statusFilter" class="form-select form-select-sm">
                     <option value="all" selected="@(Model.Filter.StatusFilter == "all")">Mọi trạng thái</option>
-                    <option value="Available" selected="@(Model.Filter.StatusFilter == "Available")">Sẵn sàng (Available)</option>
-                    <option value="Borrowed" selected="@(Model.Filter.StatusFilter == "Borrowed")">Đang mượn (Borrowed)</option>
-                    <option value="Reserved" selected="@(Model.Filter.StatusFilter == "Reserved")">Đã đặt giữ (Reserved)</option>
+                    <option value="Available" selected="@(Model.Filter.StatusFilter == "Available")">Sẵn sàng cho mượn</option>
+                    <option value="Borrowed" selected="@(Model.Filter.StatusFilter == "Borrowed")">Đang được mượn</option>
+                    <option value="Reserved" selected="@(Model.Filter.StatusFilter == "Reserved")">Đã giữ chỗ</option>
                 </select>
             </div>
 
             <div class="col-lg-2 col-md-4">
                 <label class="form-label small fw-bold text-secondary mb-1">Uy tín tối thiểu</label>
                 <select name="minTrustScore" class="form-select form-select-sm">
-                    <option value="0" selected="@(Model.Filter.MinTrustScore == 0)">Mọi điểm TrustScore</option>
+                    <option value="0" selected="@(Model.Filter.MinTrustScore == 0)">Mọi mức điểm uy tín</option>
                     <option value="80" selected="@(Model.Filter.MinTrustScore == 80)">Từ 80 điểm trở lên</option>
                     <option value="95" selected="@(Model.Filter.MinTrustScore == 95)">Từ 95 điểm trở lên</option>
                 </select>
@@ -305,7 +305,7 @@ else
 
                     <div class="p-3 rounded-3 bg-light border mb-3 small">
                         <div class="d-flex justify-content-between mb-1">
-                            <span class="text-muted">Mã bản sao (Barcode):</span>
+                            <span class="text-muted">Mã bản sao:</span>
                             <code class="fw-bold" id="modalBarcode">BS-SYS-0001</code>
                         </div>
                         <div class="d-flex justify-content-between">
@@ -324,7 +324,7 @@ else
                             </select>
                         </div>
                         <div class="col-md-7">
-                            <label class="form-label small fw-bold text-secondary">Điểm trạm nhận sách an toàn (<code>PickupHub</code>)</label>
+                            <label class="form-label small fw-bold text-secondary">Điểm trạm nhận sách an toàn</label>
                             <select id="loanPickupHubId" class="form-select">
                                 @foreach (var hub in Model.PickupHubs)
                                 {
@@ -337,7 +337,7 @@ else
                     <div class="mb-3">
                         <label class="form-label small fw-bold text-secondary">Lời nhắn gửi Thủ thư / Chủ sách P2P</label>
                         <textarea id="loanRequestNote" class="form-control" rows="2"
-                                  placeholder="VD: Em xin phép nhận sách vào chiều thứ 5 tại sảnh thư viện..."></textarea>
+                                  placeholder="Nhập lời nhắn hoặc thời gian dự kiến nhận sách..."></textarea>
                     </div>
 
                     <div class="d-flex justify-content-end gap-2">

@@ -9,6 +9,10 @@ using Microsoft.EntityFrameworkCore;
 
 namespace BookShare.Web.Services.Implementations;
 
+/// <summary>
+/// [S13] Dịch vụ tích hợp Google Gemini API kèm chế độ dự phòng nội bộ thông minh: lưu lịch sử chat theo vai trò, phân tích lệnh đổi giao diện/font/cỡ chữ/nền và gửi 7 loại báo cáo Email qua Resend.
+/// </summary>
+/// <remarks>Bảo mật: Chỉ gửi báo cáo đúng phạm vi dữ liệu mà vai trò người dùng được phép xem.</remarks>
 public class S13GeminiAiService : IS13GeminiAiService
 {
     private static readonly HashSet<string> AllowedRoutes = new(StringComparer.OrdinalIgnoreCase)

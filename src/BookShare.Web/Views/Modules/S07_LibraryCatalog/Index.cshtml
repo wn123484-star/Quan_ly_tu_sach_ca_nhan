@@ -29,7 +29,7 @@
             <div class="input-group input-group-sm">
                 <span class="input-group-text bg-light"><i class="bi bi-upc-scan text-primary"></i></span>
                 <input type="text" name="keyword" value="@Model.Keyword" class="form-control"
-                       placeholder="Tìm Barcode, vị trí kệ, tên sách..." />
+                       placeholder="Tìm theo mã bản sao, vị trí kệ hoặc tên sách..." />
                 <button type="submit" class="btn btn-primary fw-bold px-3">Tìm Kệ</button>
             </div>
         </form>
@@ -41,7 +41,7 @@
             <div class="s07-kpi-card p-3 rounded-4 border bg-success bg-opacity-10">
                 <div class="d-flex justify-content-between align-items-center">
                     <div>
-                        <div class="small text-muted fw-semibold">Sẵn sàng trên kệ (Available)</div>
+                        <div class="small text-muted fw-semibold">Sẵn sàng trên kệ</div>
                         <div class="fs-3 fw-bold text-success">@Model.AvailableCount</div>
                     </div>
                     <i class="bi bi-check2-circle fs-2 text-success opacity-75"></i>
@@ -52,7 +52,7 @@
             <div class="s07-kpi-card p-3 rounded-4 border bg-info bg-opacity-10">
                 <div class="d-flex justify-content-between align-items-center">
                     <div>
-                        <div class="small text-muted fw-semibold">Đã đặt giữ chỗ (Reserved)</div>
+                        <div class="small text-muted fw-semibold">Đã đặt giữ chỗ</div>
                         <div class="fs-3 fw-bold text-primary">@Model.ReservedCount</div>
                     </div>
                     <i class="bi bi-bookmark-check fs-2 text-primary opacity-75"></i>
@@ -63,7 +63,7 @@
             <div class="s07-kpi-card p-3 rounded-4 border bg-warning bg-opacity-10">
                 <div class="d-flex justify-content-between align-items-center">
                     <div>
-                        <div class="small text-muted fw-semibold">Đang cho mượn (Borrowed)</div>
+                        <div class="small text-muted fw-semibold">Đang cho mượn</div>
                         <div class="fs-3 fw-bold text-warning">@Model.BorrowedCount</div>
                     </div>
                     <i class="bi bi-arrow-left-right fs-2 text-warning opacity-75"></i>
@@ -74,7 +74,7 @@
             <div class="s07-kpi-card p-3 rounded-4 border bg-danger bg-opacity-10">
                 <div class="d-flex justify-content-between align-items-center">
                     <div>
-                        <div class="small text-muted fw-semibold">Bảo trì / Hư hỏng (Damaged)</div>
+                        <div class="small text-muted fw-semibold">Bảo trì / Hư hỏng</div>
                         <div class="fs-3 fw-bold text-danger">@Model.DamagedOrLostCount</div>
                     </div>
                     <i class="bi bi-tools fs-2 text-danger opacity-75"></i>
@@ -129,22 +129,22 @@
             <a asp-controller="S07LibraryCatalog" asp-action="Index"
                asp-route-libraryId="@Model.SelectedLibraryId" asp-route-statusFilter="Available" asp-route-keyword="@Model.Keyword"
                class="btn btn-sm @(Model.StatusFilter == "Available" ? "btn-success fw-bold" : "btn-outline-success") rounded-pill px-3">
-                Available (@Model.AvailableCount)
+                Sẵn sàng (@Model.AvailableCount)
             </a>
             <a asp-controller="S07LibraryCatalog" asp-action="Index"
                asp-route-libraryId="@Model.SelectedLibraryId" asp-route-statusFilter="Reserved" asp-route-keyword="@Model.Keyword"
                class="btn btn-sm @(Model.StatusFilter == "Reserved" ? "btn-primary fw-bold" : "btn-outline-primary") rounded-pill px-3">
-                Reserved (@Model.ReservedCount)
+                Giữ chỗ (@Model.ReservedCount)
             </a>
             <a asp-controller="S07LibraryCatalog" asp-action="Index"
                asp-route-libraryId="@Model.SelectedLibraryId" asp-route-statusFilter="Borrowed" asp-route-keyword="@Model.Keyword"
                class="btn btn-sm @(Model.StatusFilter == "Borrowed" ? "btn-warning fw-bold" : "btn-outline-warning") rounded-pill px-3">
-                Borrowed (@Model.BorrowedCount)
+                Đang mượn (@Model.BorrowedCount)
             </a>
             <a asp-controller="S07LibraryCatalog" asp-action="Index"
                asp-route-libraryId="@Model.SelectedLibraryId" asp-route-statusFilter="Damaged" asp-route-keyword="@Model.Keyword"
                class="btn btn-sm @(Model.StatusFilter == "Damaged" ? "btn-danger fw-bold" : "btn-outline-danger") rounded-pill px-3">
-                Damaged (@Model.DamagedOrLostCount)
+                Hư hỏng (@Model.DamagedOrLostCount)
             </a>
         </div>
 
@@ -170,10 +170,10 @@
         <table class="table table-hover align-middle mb-0 table-mobile-cards">
             <thead class="table-light small text-uppercase text-muted">
                 <tr>
-                    <th>Mã Barcode</th>
+                    <th>Mã Bản Sao</th>
                     <th>Đầu sách & ISBN</th>
                     <th>Thư viện lưu trữ</th>
-                    <th>Vị trí Kệ sách (<code>ShelfLocation</code>)</th>
+                    <th>Vị trí Kệ sách</th>
                     <th>Độ mới</th>
                     <th>Trạng thái tồn kho</th>
                     <th class="text-end">Thao tác</th>
@@ -211,15 +211,15 @@
                         <td>
                             @if (copy.Status == "Available")
                             {
-                                <span class="badge bg-success"><i class="bi bi-check-circle me-1"></i>Available</span>
+                                <span class="badge bg-success"><i class="bi bi-check-circle me-1"></i>Sẵn sàng</span>
                             }
                             else if (copy.Status == "Reserved")
                             {
-                                <span class="badge bg-primary"><i class="bi bi-bookmark-star me-1"></i>Reserved</span>
+                                <span class="badge bg-primary"><i class="bi bi-bookmark-star me-1"></i>Giữ chỗ</span>
                             }
                             else if (copy.Status == "Borrowed")
                             {
-                                <span class="badge bg-warning text-dark"><i class="bi bi-clock-history me-1"></i>Borrowed</span>
+                                <span class="badge bg-warning text-dark"><i class="bi bi-clock-history me-1"></i>Đang mượn</span>
                             }
                             else
                             {
@@ -316,7 +316,7 @@
                         <i class="bi bi-shield-lock-fill text-primary me-1"></i>Điều chuyển vị trí kệ (Chỉ Thủ thư / Admin):
                     </label>
                     <div class="input-group input-group-sm">
-                        <input type="text" id="locNewShelfInput" class="form-control" placeholder="VD: Kệ CNTT-B3 - Tầng 3" required />
+                        <input type="text" id="locNewShelfInput" class="form-control" placeholder="Nhập vị trí kệ mới (tầng, dãy, mã kệ)..." required />
                         <button type="submit" class="btn btn-primary fw-bold">Lưu Vị Trí Kệ</button>
                     </div>
                 </form>

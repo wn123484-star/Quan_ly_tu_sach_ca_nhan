@@ -73,10 +73,10 @@
     <div class="col-lg-8">
         <div class="card border-0 shadow-sm rounded-4 bg-white h-100">
             <div class="card-body p-4">
-                <h6 class="fw-bold mb-3"><i class="bi bi-plus-circle-fill text-primary me-2"></i>Thêm Sách Vào Tủ Cá Nhân & Gắn Kệ (Sinh mã Barcode P2P)</h6>
+                <h6 class="fw-bold mb-3"><i class="bi bi-plus-circle-fill text-primary me-2"></i>Thêm Sách Vào Tủ Cá Nhân &amp; Gắn Kệ (Cấp mã bản sao tự động)</h6>
                 <form id="s02AddBookCopyForm" class="row g-3 align-items-end">
                     <div class="col-md-5">
-                        <label class="form-label small text-muted">Chọn đầu sách từ Danh mục (Books)</label>
+                        <label class="form-label small text-muted">Chọn đầu sách từ Danh mục hệ thống</label>
                         <select id="selectBookId" class="form-select form-select-sm">
                             @foreach (var b in Model.CatalogBooks)
                             {
@@ -125,7 +125,7 @@
                 <h6 class="fw-bold mb-3"><i class="bi bi-folder-plus text-success me-2"></i>Tạo Kệ Sách Tùy Chỉnh Mới</h6>
                 <form id="s02CreateShelfForm">
                     <div class="mb-2">
-                        <input type="text" id="newShelfName" class="form-control form-control-sm" placeholder="Tên kệ (VD: Sách Ôn Thi Cuối Kỳ)" required />
+                        <input type="text" id="newShelfName" class="form-control form-control-sm" placeholder="Nhập tên kệ sách cá nhân..." required />
                     </div>
                     <div class="mb-2">
                         <input type="text" id="newShelfDesc" class="form-control form-control-sm" placeholder="Mô tả ngắn về kệ sách..." />

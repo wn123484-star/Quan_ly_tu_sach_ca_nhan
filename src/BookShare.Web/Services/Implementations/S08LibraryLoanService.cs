@@ -6,6 +6,10 @@ using Microsoft.EntityFrameworkCore;
 
 namespace BookShare.Web.Services.Implementations;
 
+/// <summary>
+/// [S08] Dịch vụ quản lý vòng đời 4 bước phiếu mượn Kho chung (Pending -> Approved/Reserved -> Borrowed -> Returned) và Hủy phiếu trước bàn giao.
+/// </summary>
+/// <remarks>Liên kết ILoanFlowCoordinatorService để kiểm soát hạn mức mượn, chống duyệt trùng và tự động thông báo hàng chờ S11 khi trả sách.</remarks>
 public class S08LibraryLoanService : IS08LibraryLoanService
 {
     private readonly BookShareDbContext _db;

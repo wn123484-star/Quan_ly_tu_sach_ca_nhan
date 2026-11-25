@@ -6,6 +6,10 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace BookShare.Web.Controllers;
 
+/// <summary>
+/// [S16] Controller quản lý Hạng Hội viên 4 cấp (Miễn phí / Học Thuật / Nghiên Cứu / Bảo Trợ), chuyển đổi gói có phí chuyển đổi minh bạch và hủy gói.
+/// </summary>
+/// <remarks>RBAC: Thành viên đăng ký/chuyển đổi/hủy gói của chính mình; Admin quản trị và đối soát toàn bộ danh sách hội viên.</remarks>
 public class S16MembershipTierController : Controller
 {
     private readonly IS16MembershipTierService _membershipService;

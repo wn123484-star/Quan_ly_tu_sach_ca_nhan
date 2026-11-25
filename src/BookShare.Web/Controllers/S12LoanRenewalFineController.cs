@@ -6,6 +6,10 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace BookShare.Web.Controllers;
 
+/// <summary>
+/// [S12] Controller Gia hạn hợp đồng mượn (tối đa 2 lần, tự động chặn nếu quá hạn hoặc đang có hàng chờ) và Tính/Xử lý phí trễ hạn.
+/// </summary>
+/// <remarks>RBAC: Độc giả gia hạn hợp đồng của chính mình; Thủ thư & Admin tính/chốt phí trễ hạn.</remarks>
 public class S12LoanRenewalFineController : Controller
 {
     private readonly IS12LoanRenewalFineService _renewalFineService;

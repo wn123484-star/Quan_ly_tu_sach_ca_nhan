@@ -6,6 +6,10 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace BookShare.Web.Controllers;
 
+/// <summary>
+/// [S06] Controller Tìm kiếm & Khám phá sách đa tiêu chí (Từ khóa, Tác giả, ISBN, Thể loại, Khu vực, Trạng thái, Điểm uy tín), Gợi ý tức thì và Đặt mượn nhanh.
+/// </summary>
+/// <remarks>RBAC: Công khai (mọi người dùng và khách tham quan đều có thể tra cứu danh mục miễn phí 0đ).</remarks>
 public class S06SearchDiscoveryController : Controller
 {
     private readonly IS06SearchDiscoveryService _searchService;

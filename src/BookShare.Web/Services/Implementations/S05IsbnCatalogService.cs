@@ -7,6 +7,10 @@ using Microsoft.EntityFrameworkCore;
 
 namespace BookShare.Web.Services.Implementations;
 
+/// <summary>
+/// [S05] Dịch vụ biên mục thông minh 3 tầng (CSDL nội bộ -> Kho ISBN chuẩn -> OpenLibrary API), kiểm tra hợp lệ ISBN/số trang/năm xuất bản/URL ảnh và tự sinh mã bản sao duy nhất.
+/// </summary>
+/// <remarks>Phân quyền: Chỉ Thủ thư/Admin được tạo bản sao Kho chung (System) hoặc sửa/xóa đầu sách.</remarks>
 public class S05IsbnCatalogService : IS05IsbnCatalogService
 {
     private readonly BookShareDbContext _db;
@@ -283,6 +287,36 @@ public class S05IsbnCatalogService : IS05IsbnCatalogService
             return (false, "Vui lòng nhập đầy đủ Mã ISBN, Tên đầu sách và Tác giả.", string.Empty, 0);
         }
 
+        if (cleanIsbn.Length < 8 || cleanIsbn.Length > 20)
+        {
+            return (false, "Mã ISBN không hợp lệ (cần từ 10 đến 13 chữ số chuẩn).", string.Empty, 0);
+        }
+
+        if (request.Title.Trim().Length > 200 || request.Author.Trim().Length > 150)
+        {
+            return (false, "Tên đầu sách (tối đa 200 ký tự) hoặc tên tác giả (tối đa 150 ký tự) quá dài.", string.Empty, 0);
+        }
+
+        if (request.PublishedYear.HasValue && (request.PublishedYear.Value < 1800 || request.PublishedYear.Value > DateTime.UtcNow.Year + 2))
+        {
+            return (false, $"Năm xuất bản không hợp lệ (chỉ chấp nhận từ 1800 đến {DateTime.UtcNow.Year + 2}).", string.Empty, 0);
+        }
+
+        if (request.PageCount < 0 || request.PageCount > 5000)
+        {
+            return (false, "Số trang sách phải nằm trong khoảng từ 1 đến 5.000 trang.", string.Empty, 0);
+        }
+
+        if (!AuthConfigHelper.IsSafeImageUrl(request.CoverImageUrl))
+        {
+            return (false, "Đường dẫn ảnh bìa sách không hợp lệ hoặc không an toàn.", string.Empty, 0);
+        }
+
+        if (!string.IsNullOrWhiteSpace(request.Summary) && request.Summary.Trim().Length > 2000)
+        {
+            return (false, "Tóm tắt nội dung sách không được vượt quá 2.000 ký tự.", string.Empty, 0);
+        }
+
         var ownerType = request.TargetOwnerType == "System" ? "System" : "User";
         if (ownerType == "System" && currentUserRole != "Librarian" && currentUserRole != "Admin")
         {
@@ -401,6 +435,26 @@ public class S05IsbnCatalogService : IS05IsbnCatalogService
                 if (string.IsNullOrWhiteSpace(request.Title) || string.IsNullOrWhiteSpace(request.Author))
                 {
                     return (false, "Tên đầu sách và Tác giả không được để trống.");
+                }
+
+                if (request.Title.Trim().Length > 200 || request.Author.Trim().Length > 150)
+                {
+                    return (false, "Tên đầu sách (tối đa 200 ký tự) hoặc tên tác giả (tối đa 150 ký tự) vượt quá giới hạn.");
+                }
+
+                if (request.PublishedYear.HasValue && (request.PublishedYear.Value < 1800 || request.PublishedYear.Value > DateTime.UtcNow.Year + 2))
+                {
+                    return (false, $"Năm xuất bản không hợp lệ (chỉ chấp nhận từ 1800 đến {DateTime.UtcNow.Year + 2}).");
+                }
+
+                if (request.PageCount < 0 || request.PageCount > 5000)
+                {
+                    return (false, "Số trang sách phải nằm trong khoảng từ 1 đến 5.000 trang.");
+                }
+
+                if (!AuthConfigHelper.IsSafeImageUrl(request.CoverImageUrl))
+                {
+                    return (false, "Đường dẫn ảnh bìa sách không hợp lệ hoặc không an toàn.");
                 }
 
                 var book = await _db.Books.FirstOrDefaultAsync(b => b.Id == request.BookId);

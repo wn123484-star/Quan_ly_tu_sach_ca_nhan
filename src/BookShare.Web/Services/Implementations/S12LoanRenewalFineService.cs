@@ -8,6 +8,10 @@ using Microsoft.EntityFrameworkCore;
 
 namespace BookShare.Web.Services.Implementations;
 
+/// <summary>
+/// [S12] Dịch vụ xử lý gia hạn (+7 ngày, tối đa 2 lần, chặn khi sách quá hạn hoặc đang có người xếp hàng chờ) và ghi nhận/thu phí trễ hạn 5.000đ/ngày.
+/// </summary>
+/// <remarks>Bảo mật Anti-IDOR: Chỉ chủ hợp đồng mượn hoặc Thủ thư/Admin được gia hạn.</remarks>
 public class S12LoanRenewalFineService : IS12LoanRenewalFineService
 {
     private readonly BookShareDbContext _db;

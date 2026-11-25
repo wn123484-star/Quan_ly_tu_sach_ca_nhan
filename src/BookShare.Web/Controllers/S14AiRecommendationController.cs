@@ -6,6 +6,10 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace BookShare.Web.Controllers;
 
+/// <summary>
+/// [S14] Controller Gợi ý sách cá nhân hóa và Xây dựng lộ trình đọc sách thông minh theo lịch sử đọc & mục tiêu học tập.
+/// </summary>
+/// <remarks>RBAC: Mọi người dùng (cá nhân hóa sâu hơn khi đã đăng nhập và có dữ liệu tủ sách/tiến độ đọc).</remarks>
 public class S14AiRecommendationController : Controller
 {
     private readonly IS14AiRecommendationService _recService;

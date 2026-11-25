@@ -2,6 +2,10 @@ using BookShare.Web.Models.ViewModels;
 
 namespace BookShare.Web.Services.Interfaces;
 
+/// <summary>
+/// [CORE-QR-HANDOVER] Giao diện dịch vụ tạo và xác nhận mã QR bàn giao / hoàn trả sách trực tiếp.
+/// </summary>
+/// <remarks>Triển khai bởi: BookHandoverQrService.</remarks>
 public interface IBookHandoverQrService
 {
     Task<(bool Success, string Message, CreateHandoverQrResultDto? Data)> CreateHandoverQrAsync(
@@ -15,6 +19,10 @@ public interface IBookHandoverQrService
         ConfirmHandoverQrRequestDto request);
 }
 
+/// <summary>
+/// [CORE-QR-AUTH] Giao diện dịch vụ Đăng nhập nhanh bằng mã QR không cần nhập mật khẩu.
+/// </summary>
+/// <remarks>Triển khai bởi: QrAuthService.</remarks>
 public interface IQrAuthService
 {
     Task<(bool Success, string Message, CreateQrLoginResultDto? Data)> CreateWebLoginSessionAsync(
@@ -42,6 +50,10 @@ public interface IQrAuthService
         MobileClaimQrLoginRequestDto request);
 }
 
+/// <summary>
+/// [CORE-MOBILE] Giao diện dịch vụ hỗ trợ Ứng dụng di động đồng hành (Mobile Companion / PWA).
+/// </summary>
+/// <remarks>Triển khai bởi: MobileCompanionService.</remarks>
 public interface IMobileCompanionService
 {
     Task<MobileUnreadNotificationsResponseDto> GetUnreadNotificationsAsync(

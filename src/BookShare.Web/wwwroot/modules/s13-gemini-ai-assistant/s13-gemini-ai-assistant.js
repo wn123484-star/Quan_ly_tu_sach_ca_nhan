@@ -1,3 +1,7 @@
+/**
+ * [S13] FRONTEND MODULE (s13-gemini-ai-assistant.js)
+ * Tài liệu ánh xạ dịch vụ & phân quyền: docs/SERVICE_CODE_MAP.md
+ */
 import { apiFetch, showSystemStatus, renderMarkdown, confirmDialog, applyClientCommands, renderCopilotExtras, getUiPrefs, applyUiPrefs } from '../../js/core-api.js';
 
 document.addEventListener('DOMContentLoaded', () => {

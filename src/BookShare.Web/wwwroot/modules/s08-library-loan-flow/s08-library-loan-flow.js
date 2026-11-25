@@ -1,4 +1,8 @@
 /**
+ * [S08] FRONTEND MODULE (s08-library-loan-flow.js)
+ * Tài liệu ánh xạ dịch vụ & phân quyền: docs/SERVICE_CODE_MAP.md
+ */
+/**
  * MODULE S08: LIBRARY LOAN FLOW (s08-library-loan-flow.js)
  * Đóng gói ES6 Module độc lập cho dịch vụ S08
  */

@@ -1,3 +1,7 @@
+/**
+ * [S16] FRONTEND MODULE (s16-membership-tier.js)
+ * Tài liệu ánh xạ dịch vụ & phân quyền: docs/SERVICE_CODE_MAP.md
+ */
 import { apiFetch, showQrPaymentInvoiceModal, celebrate, confirmDialog } from '../../js/core-api.js';
 
 function makeIdempotencyKey(prefix) {

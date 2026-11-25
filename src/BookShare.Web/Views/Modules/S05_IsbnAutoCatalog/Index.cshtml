@@ -26,7 +26,7 @@
                 <div class="input-group">
                     <span class="input-group-text bg-white border-end-0"><i class="bi bi-barcode text-primary fs-5"></i></span>
                     <input type="text" id="isbnQueryInput" class="form-control border-start-0 fw-bold"
-                           value="@(Model.PresetSamples.FirstOrDefault()?.ISBN ?? "")" placeholder="Nhập mã ISBN-13 hoặc ISBN-10 cần tra cứu..." />
+                           value="@(Model.PresetSamples.FirstOrDefault()?.ISBN ?? "")" placeholder="Nhập mã số sách tiêu chuẩn (ISBN 10 hoặc 13 chữ số)..." />
                     <button type="button" id="btnScanIsbnCamera" class="btn btn-outline-primary" title="Quét mã ISBN bằng Camera" aria-label="Quét mã ISBN bằng Camera">
                         <i class="bi bi-camera-video-fill"></i>
                     </button>
@@ -68,33 +68,33 @@
                 <form id="s05SaveCatalogForm" class="row g-3">
                     <div class="col-md-4">
                         <label class="form-label small fw-bold text-secondary">Mã chuẩn ISBN *</label>
-                        <input type="text" id="catIsbn" class="form-control fw-bold" value="" placeholder="Nhập hoặc bấm Tra cứu ISBN..." required />
+                        <input type="text" id="catIsbn" class="form-control fw-bold" value="" placeholder="Nhập mã ISBN hoặc bấm Tra cứu..." required />
                     </div>
                     <div class="col-md-8">
-                        <label class="form-label small fw-bold text-secondary">Tên đầu sách (<code>Title</code>) *</label>
+                        <label class="form-label small fw-bold text-secondary">Tên đầu sách *</label>
                         <input type="text" id="catTitle" class="form-control fw-bold"
                                value="" placeholder="Tên đầu sách sẽ tự động điền khi tra cứu ISBN..." required />
                     </div>
 
                     <div class="col-md-5">
-                        <label class="form-label small fw-bold text-secondary">Tác giả (<code>Author</code>) *</label>
+                        <label class="form-label small fw-bold text-secondary">Tác giả *</label>
                         <input type="text" id="catAuthor" class="form-control" value="" placeholder="Tên tác giả..." required />
                     </div>
                     <div class="col-md-4">
-                        <label class="form-label small fw-bold text-secondary">Nhà xuất bản (<code>Publisher</code>)</label>
+                        <label class="form-label small fw-bold text-secondary">Nhà xuất bản</label>
                         <input type="text" id="catPublisher" class="form-control" value="" placeholder="Nhà xuất bản..." />
                     </div>
                     <div class="col-md-3">
-                        <label class="form-label small fw-bold text-secondary">Năm XB (<code>PublishedYear</code>)</label>
+                        <label class="form-label small fw-bold text-secondary">Năm xuất bản</label>
                         <input type="number" id="catPublishedYear" class="form-control" value="2025" min="1900" max="2030" />
                     </div>
 
                     <div class="col-md-4">
-                        <label class="form-label small fw-bold text-secondary">Tổng số trang (<code>PageCount</code>)</label>
+                        <label class="form-label small fw-bold text-secondary">Tổng số trang</label>
                         <input type="number" id="catPageCount" class="form-control" value="300" min="10" max="5000" required />
                     </div>
                     <div class="col-md-4">
-                        <label class="form-label small fw-bold text-secondary">Thể loại (<code>CategoryId</code>)</label>
+                        <label class="form-label small fw-bold text-secondary">Thể loại</label>
                         <select id="catCategoryId" class="form-select">
                             @foreach (var cat in Model.Categories)
                             {
@@ -103,13 +103,13 @@
                         </select>
                     </div>
                     <div class="col-md-4">
-                        <label class="form-label small fw-bold text-secondary">URL Ảnh bìa (<code>CoverImageUrl</code>)</label>
+                        <label class="form-label small fw-bold text-secondary">Đường dẫn ảnh bìa</label>
                         <input type="text" id="catCoverUrl" class="form-control"
-                               value="" placeholder="URL ảnh bìa sách..."/>
+                               value="" placeholder="Nhập đường dẫn ảnh bìa sách (không bắt buộc)..."/>
                     </div>
 
                     <div class="col-12">
-                        <label class="form-label small fw-bold text-secondary">Tóm tắt nội dung (<code>Summary</code>)</label>
+                        <label class="form-label small fw-bold text-secondary">Tóm tắt nội dung</label>
                         <textarea id="catSummary" class="form-control" rows="2" placeholder="Tóm tắt nội dung đầu sách..."></textarea>
                     </div>
 
@@ -187,7 +187,7 @@
                 </div>
 
                 <div class="s05-barcode-ticket p-3 rounded-3 text-center">
-                    <div class="small text-muted fw-semibold mb-1">NHÃN BARCODE VẬT LÝ DỰ KIẾN</div>
+                    <div class="small text-muted fw-semibold mb-1">MÃ BẢN SAO VẬT LÝ DỰ KIẾN</div>
                     <div class="fs-5 fw-bold font-monospace text-dark"><i class="bi bi-upc-scan me-1"></i>BS-AUTO-ISBN</div>
                     <div class="small text-success fw-semibold mt-1">
                         <i class="bi bi-shield-check me-1"></i>Chuẩn lưu thông phi thương mại (0đ)

@@ -7,6 +7,10 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace BookShare.Web.Controllers;
 
+/// <summary>
+/// [S10] Controller Hộ chiếu Kiểm định Tình trạng Sách: lưu trữ, đối chiếu ảnh bìa/gáy lúc giao (Handover) và lúc trả (Return).
+/// </summary>
+/// <remarks>RBAC: Chỉ các bên liên quan trực tiếp của hợp đồng mượn (Người mượn, Chủ sách) hoặc nhân sự vận hành (Curator/Librarian/Admin) mới được xem và tải ảnh (kiểm tra Magic Bytes).</remarks>
 public class S10ConditionReportController : Controller
 {
     private readonly IS10ConditionReportService _conditionService;

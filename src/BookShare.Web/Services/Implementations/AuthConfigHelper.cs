@@ -1,12 +1,17 @@
 using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
+using System.Text.RegularExpressions;
 using BookShare.Web.Services.Interfaces;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 
 namespace BookShare.Web.Services.Implementations;
 
+/// <summary>
+/// [CORE-AUTH] Lớp tiện ích tĩnh hỗ trợ Xác thực & Kiểm tra hợp lệ đầu vào: đọc khóa Google OAuth, dựng ClaimsPrincipal/Cookie, kiểm tra định dạng Email, SĐT Việt Nam, URL ảnh an toàn và băm SHA-256.
+/// </summary>
+/// <remarks>Dùng chung trên toàn hệ thống Web và Services.</remarks>
 public static class AuthConfigHelper
 {
     public const string ExternalCookieScheme = "BookShare.External";
@@ -132,6 +137,51 @@ public static class AuthConfigHelper
             chars[i] = alphabet[RandomNumberGenerator.GetInt32(alphabet.Length)];
         }
         return new string(chars);
+    }
+
+    /// <summary>
+    /// Kiểm tra định dạng số điện thoại hợp lệ (hỗ trợ chuẩn Việt Nam 9-11 chữ số, cho phép dấu cách/gạch ngang).
+    /// </summary>
+    public static bool IsValidVietnamPhone(string? phone)
+    {
+        if (string.IsNullOrWhiteSpace(phone))
+        {
+            return true;
+        }
+
+        string compact = Regex.Replace(phone.Trim(), @"[\s\-\.\(\)]", string.Empty);
+        return Regex.IsMatch(compact, @"^(?:\+84|84|0)[0-9]{8,10}$");
+    }
+
+    /// <summary>
+    /// Kiểm tra đường dẫn ảnh có an toàn không (chỉ cho phép đường dẫn tương đối bắt đầu bằng '/' hoặc http/https,
+    /// chặn tuyệt đối giao thức nguy hiểm như javascript:, vbscript:, data:).
+    /// </summary>
+    public static bool IsSafeImageUrl(string? url)
+    {
+        if (string.IsNullOrWhiteSpace(url))
+        {
+            return true;
+        }
+
+        string trimmed = url.Trim();
+        if (trimmed.Length > 1000)
+        {
+            return false;
+        }
+
+        if (trimmed.StartsWith('/') && !trimmed.StartsWith("//", StringComparison.Ordinal))
+        {
+            return !trimmed.Contains('\r') && !trimmed.Contains('\n');
+        }
+
+        if (Uri.TryCreate(trimmed, UriKind.Absolute, out var parsed))
+        {
+            return parsed.Scheme.Equals(Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase)
+                || parsed.Scheme.Equals(Uri.UriSchemeHttp, StringComparison.OrdinalIgnoreCase);
+        }
+
+        return false;
     }
 
     public static string ComputeSha256Hex(string rawInput)

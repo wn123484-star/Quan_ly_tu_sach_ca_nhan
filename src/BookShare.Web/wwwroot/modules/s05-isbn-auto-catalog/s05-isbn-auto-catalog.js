@@ -1,4 +1,8 @@
 /**
+ * [S05] FRONTEND MODULE (s05-isbn-auto-catalog.js)
+ * Tài liệu ánh xạ dịch vụ & phân quyền: docs/SERVICE_CODE_MAP.md
+ */
+/**
  * MODULE S05: ISBN AUTO CATALOG (s05-isbn-auto-catalog.js)
  * Đóng gói ES6 Module độc lập cho dịch vụ S05
  */

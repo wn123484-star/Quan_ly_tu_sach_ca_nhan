@@ -7,6 +7,10 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace BookShare.Web.Controllers;
 
+/// <summary>
+/// [CORE-HOME] Controller Cổng Trang chủ BookShare: bộ lọc khám phá sách đa tiêu chí, API khung chat AI nhanh, phục vụ tài nguyên biểu tượng tùy chỉnh và trang báo lỗi chuẩn hóa (400/401/403/404/500).
+/// </summary>
+/// <remarks>RBAC: Công khai cho Trang chủ và tra cứu; API lịch sử/reset AI tự động cách ly dữ liệu theo phiên đăng nhập hiện tại.</remarks>
 public class HomeController : Controller
 {
     private static readonly (string Prefix, string Url, string Label, string[] Keywords)[] ModuleRoutes =

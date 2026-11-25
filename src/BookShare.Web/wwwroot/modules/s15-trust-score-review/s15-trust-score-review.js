@@ -1,3 +1,7 @@
+/**
+ * [S15] FRONTEND MODULE (s15-trust-score-review.js)
+ * Tài liệu ánh xạ dịch vụ & phân quyền: docs/SERVICE_CODE_MAP.md
+ */
 import { apiFetch, showSystemStatus, confirmDialog } from '../../js/core-api.js';
 
 document.addEventListener('DOMContentLoaded', () => {

@@ -6,6 +6,10 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace BookShare.Web.Controllers;
 
+/// <summary>
+/// [S18] Controller Trung tâm Thông báo: xem/đọc thông báo, đồng bộ xác minh OTP Email, đánh dấu đã đọc tức thì và gửi chiến dịch Email nhắc hạn.
+/// </summary>
+/// <remarks>RBAC: Thành viên quản lý thông báo và xác minh Email cá nhân; Thủ thư & Admin gửi thông báo hàng loạt / chiến dịch nhắc hạn.</remarks>
 public class S18NotificationHubController : Controller
 {
     private readonly IS18NotificationHubService _notificationService;

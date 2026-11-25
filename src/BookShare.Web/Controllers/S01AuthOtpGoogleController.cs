@@ -10,6 +10,10 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace BookShare.Web.Controllers;
 
+/// <summary>
+/// [S01] Controller xử lý Xác thực tài khoản, Đăng nhập/Đăng ký, Google OAuth 2.0, Quên mật khẩu OTP 6 số, Hồ sơ cá nhân, Tải ảnh đại diện và Cá nhân hóa giao diện.
+/// </summary>
+/// <remarks>RBAC: Khách (đăng nhập/đăng ký/quên mật khẩu); Thành viên đã đăng nhập (cập nhật hồ sơ, đổi mật khẩu, tải avatar, lưu cấu hình giao diện, gửi đề nghị Chủ nhiệm CLB). Chống Spam: Rate-limit OTP, đăng nhập, đăng ký và kiểm tra Google reCAPTCHA v3.</remarks>
 public class S01AuthOtpGoogleController : Controller
 {
     private readonly IS01AuthOtpService _authService;

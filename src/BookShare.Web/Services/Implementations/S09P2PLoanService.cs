@@ -6,6 +6,10 @@ using Microsoft.EntityFrameworkCore;
 
 namespace BookShare.Web.Services.Implementations;
 
+/// <summary>
+/// [S09] Dịch vụ điều phối mượn sách giữa độc giả qua Trạm CLB/Điểm hẹn: tạo yêu cầu, chủ sách duyệt, ký gửi tại trạm, bàn giao (cộng +1 suất thưởng & +3 uy tín), hoàn trả (+2 uy tín) và hủy yêu cầu.
+/// </summary>
+/// <remarks>Phân quyền: Hỗ trợ Chủ sách, Người mượn, Trưởng/Phó CLB quản lý điểm trạm, Thủ thư và Admin; chống cày điểm uy tín trong 24h.</remarks>
 public class S09P2PLoanService : IS09P2PLoanService
 {
     private readonly BookShareDbContext _db;
@@ -28,6 +32,24 @@ public class S09P2PLoanService : IS09P2PLoanService
 
         bool isStaff = currentUser != null &&
                        currentUser.Roles.Any(r => r.Name == "Curator" || r.Name == "Librarian" || r.Name == "Admin");
+        string currentRole = currentUser?.Roles.FirstOrDefault()?.Name ?? "Guest";
+
+        // Tập hợp các Câu lạc bộ / Điểm trạm mà người dùng hiện tại đang là Trưởng nhóm hoặc Phó nhóm
+        var managedHubIds = new List<int>();
+        if (!string.IsNullOrWhiteSpace(currentUserId))
+        {
+            var managerHubIds = await _db.Libraries
+                .AsNoTracking()
+                .Where(l => l.IsActive && l.ManagerUserId == currentUserId)
+                .Select(l => l.Id)
+                .ToListAsync();
+            var leaderClubIds = await _db.ClubMembers
+                .AsNoTracking()
+                .Where(m => m.UserId == currentUserId && m.Status == "Approved" && (m.MemberRole == "Leader" || m.MemberRole == "ViceLeader"))
+                .Select(m => m.HubId)
+                .ToListAsync();
+            managedHubIds = managerHubIds.Concat(leaderClubIds).Distinct().ToList();
+        }
 
         var hubs = await _db.Libraries
             .AsNoTracking()
@@ -72,7 +94,11 @@ public class S09P2PLoanService : IS09P2PLoanService
                 .Include(lr => lr.PickupHub)
                 .Include(lr => lr.Loan)
                 .Where(lr => lr.LoanType == "P2P" &&
-                             (isStaff || lr.BorrowerId == currentUserId || lr.BookCopy.OwnerUserId == currentUserId || lr.ApproverId == currentUserId))
+                             (isStaff ||
+                              lr.BorrowerId == currentUserId ||
+                              lr.BookCopy.OwnerUserId == currentUserId ||
+                              lr.ApproverId == currentUserId ||
+                              (lr.PickupHubId.HasValue && managedHubIds.Contains(lr.PickupHubId.Value))))
                 .OrderByDescending(lr => lr.RequestedAt)
                 .ToListAsync();
 
@@ -111,8 +137,10 @@ public class S09P2PLoanService : IS09P2PLoanService
         {
             CurrentUserId = currentUserId,
             CurrentUserName = currentUser?.FullName ?? "Khách tham quan",
+            CurrentUserRole = currentRole,
             CurrentUserTrustScore = currentUser?.TrustScore ?? 100,
             CurrentUserLendQuotaBonus = currentUser?.LendQuotaBonus ?? 0,
+            ManagedHubIds = managedHubIds,
             PickupHubs = hubs,
             AvailableP2PCopies = availableP2P,
             P2PItems = items
@@ -300,7 +328,9 @@ public class S09P2PLoanService : IS09P2PLoanService
 
         bool isOwner = loanReq.BookCopy.OwnerUserId == currentUserId;
         bool isBorrower = loanReq.BorrowerId == currentUserId;
-        bool isStaff = currentUserRole is "Curator" or "Librarian" or "Admin";
+        bool isClubLeaderForHub = loanReq.PickupHubId.HasValue &&
+            await IsClubLeaderOrManagerAsync(currentUserId, loanReq.PickupHubId.Value);
+        bool isStaff = currentUserRole is "Curator" or "Librarian" or "Admin" || isClubLeaderForHub;
         var now = DateTime.UtcNow;
 
         if (request.Stage == "InTransit")
@@ -454,5 +484,102 @@ public class S09P2PLoanService : IS09P2PLoanService
         }
 
         return (false, "Trạng thái chuyển tiếp P2P không hợp lệ.");
+    }
+
+    public async Task<(bool Success, string Message)> CancelP2PLoanRequestAsync(
+        string currentUserId,
+        string currentUserRole,
+        int loanRequestId)
+    {
+        var loanReq = await _db.LoanRequests
+            .Include(lr => lr.BookCopy)
+                .ThenInclude(bc => bc.Book)
+            .Include(lr => lr.Loan)
+            .FirstOrDefaultAsync(lr => lr.Id == loanRequestId && lr.LoanType == "P2P");
+
+        if (loanReq == null)
+        {
+            return (false, "Không tìm thấy yêu cầu mượn sách cộng đồng cần hủy.");
+        }
+
+        bool isBorrower = loanReq.BorrowerId == currentUserId;
+        bool isOwner = loanReq.BookCopy.OwnerUserId == currentUserId;
+        bool isClubLeaderForHub = loanReq.PickupHubId.HasValue &&
+            await IsClubLeaderOrManagerAsync(currentUserId, loanReq.PickupHubId.Value);
+        bool isPrivileged = currentUserRole is "Librarian" or "Admin" || isClubLeaderForHub;
+
+        if (!isBorrower && !isOwner && !isPrivileged)
+        {
+            throw new UnauthorizedAccessException("Bạn không có quyền hủy yêu cầu mượn sách cộng đồng của thành viên khác.");
+        }
+
+        if (loanReq.Loan != null)
+        {
+            return (false, "Giao dịch này đã hoàn tất bàn giao sách thực tế, không thể hủy yêu cầu.");
+        }
+
+        if (loanReq.Status is "Rejected" or "Cancelled")
+        {
+            return (false, "Yêu cầu mượn sách này đã kết thúc trước đó.");
+        }
+
+        // Giải phóng bản sao về trạng thái Sẵn sàng nếu không còn phiếu đã duyệt nào khác giữ chỗ
+        if (loanReq.BookCopy.Status is "Reserved" or "InTransit")
+        {
+            bool hasOtherHold = await _db.LoanRequests.AnyAsync(lr =>
+                lr.BookCopyId == loanReq.BookCopyId &&
+                lr.Id != loanReq.Id &&
+                lr.Status == "Approved" &&
+                (lr.Loan == null || lr.Loan.Status != "Returned"));
+            if (!hasOtherHold)
+            {
+                loanReq.BookCopy.Status = "Available";
+            }
+        }
+
+        string bookTitle = loanReq.BookCopy.Book.Title;
+        string barcode = loanReq.BookCopy.Barcode;
+        string? counterpartyId = isBorrower ? loanReq.BookCopy.OwnerUserId : loanReq.BorrowerId;
+        if (!string.IsNullOrWhiteSpace(counterpartyId) && counterpartyId != currentUserId)
+        {
+            _db.Notifications.Add(new Notification
+            {
+                UserId = counterpartyId,
+                Title = $"Yêu cầu mượn sách cộng đồng #{loanReq.Id} đã được hủy",
+                Content = $"Yêu cầu mượn bản sao [{barcode}] - \"{bookTitle}\" đã được hủy trước khi bàn giao.",
+                Type = "System",
+                IsRead = false,
+                EmailSentViaResend = false,
+                CreatedAt = DateTime.UtcNow
+            });
+        }
+
+        _db.LoanRequests.Remove(loanReq);
+        await _db.SaveChangesAsync();
+
+        return (true, $"Đã hủy yêu cầu mượn sách cộng đồng #{loanRequestId} (\"{bookTitle}\") thành công.");
+    }
+
+    private async Task<bool> IsClubLeaderOrManagerAsync(string userId, int hubId)
+    {
+        if (string.IsNullOrWhiteSpace(userId) || hubId <= 0)
+        {
+            return false;
+        }
+
+        bool isHubManager = await _db.Libraries
+            .AsNoTracking()
+            .AnyAsync(l => l.Id == hubId && l.IsActive && l.ManagerUserId == userId);
+        if (isHubManager)
+        {
+            return true;
+        }
+
+        return await _db.ClubMembers
+            .AsNoTracking()
+            .AnyAsync(m => m.HubId == hubId &&
+                           m.UserId == userId &&
+                           m.Status == "Approved" &&
+                           (m.MemberRole == "Leader" || m.MemberRole == "ViceLeader"));
     }
 }

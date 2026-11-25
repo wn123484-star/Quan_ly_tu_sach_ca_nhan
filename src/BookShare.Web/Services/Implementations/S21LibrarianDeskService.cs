@@ -6,6 +6,10 @@ using Microsoft.EntityFrameworkCore;
 
 namespace BookShare.Web.Services.Implementations;
 
+/// <summary>
+/// [S21] Dịch vụ vận hành tập trung cho Thủ thư và Quản trị viên: quét mã vạch tự động mượn/trả, lập phiếu cho mượn trực tiếp tại quầy, duyệt/bàn giao/thu hồi mọi phiếu mượn Kho chung & P2P, nhập kho hàng loạt và thanh lý bản sao.
+/// </summary>
+/// <remarks>Tích hợp đầy đủ lọc đa tiêu chí và phân trang máy chủ.</remarks>
 public class S21LibrarianDeskService : IS21LibrarianDeskService
 {
     private readonly BookShareDbContext _db;

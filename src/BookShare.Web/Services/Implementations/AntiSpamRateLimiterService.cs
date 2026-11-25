@@ -3,6 +3,10 @@ using Microsoft.Extensions.Caching.Memory;
 
 namespace BookShare.Web.Services.Implementations;
 
+/// <summary>
+/// [CORE-ANTISPAM] Dịch vụ chống spam tập trung dùng MemoryCache: kiểm soát giới hạn số lượt gọi theo cửa sổ thời gian (trả HTTP 429 + Retry-After) và khóa tạm khi nhập sai OTP/mật khẩu quá ngưỡng.
+/// </summary>
+/// <remarks>Đăng ký Singleton trong Program.cs.</remarks>
 public class AntiSpamRateLimiterService : IAntiSpamRateLimiterService
 {
     private readonly IMemoryCache _cache;

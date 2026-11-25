@@ -213,7 +213,7 @@
         <div class="col-md-3">
             <select name="loanStatus" class="form-select form-select-sm" aria-label="Lọc theo trạng thái phiếu">
                 <option value="all" selected="@(Model.LoanStatusFilter == "all")">Tất cả trạng thái</option>
-                <option value="Pending" selected="@(Model.LoanStatusFilter == "Pending")">⏳ Chờ duyệt (Pending)</option>
+                <option value="Pending" selected="@(Model.LoanStatusFilter == "Pending")">⏳ Chờ duyệt</option>
                 <option value="Approved" selected="@(Model.LoanStatusFilter == "Approved")">📌 Đã duyệt chờ giao</option>
                 <option value="Active" selected="@(Model.LoanStatusFilter == "Active")">📖 Đang mượn</option>
                 <option value="Overdue" selected="@(Model.LoanStatusFilter == "Overdue")">⚠️ Đang quá hạn</option>
@@ -434,7 +434,7 @@
                         </div>
                     </div>
                     <button type="submit" class="btn btn-success fw-bold">
-                        <i class="bi bi-plus-circle-fill me-1"></i>Tự Động Sinh Barcode &amp; Nhập Kho
+                        <i class="bi bi-plus-circle-fill me-1"></i>Tự Động Cấp Mã Bản Sao &amp; Nhập Kho
                     </button>
                 </form>
             </div>
@@ -500,11 +500,11 @@
                     <div class="col-md-3">
                         <select name="copyStatus" class="form-select form-select-sm" aria-label="Lọc trạng thái bản sao">
                             <option value="all" selected="@(Model.CopyStatusFilter == "all")">Mọi trạng thái</option>
-                            <option value="Available" selected="@(Model.CopyStatusFilter == "Available")">Available (Sẵn sàng)</option>
-                            <option value="Borrowed" selected="@(Model.CopyStatusFilter == "Borrowed")">Borrowed (Đang mượn)</option>
-                            <option value="Reserved" selected="@(Model.CopyStatusFilter == "Reserved")">Reserved (Giữ chỗ)</option>
-                            <option value="Damaged" selected="@(Model.CopyStatusFilter == "Damaged")">Damaged (Hư hỏng)</option>
-                            <option value="Lost" selected="@(Model.CopyStatusFilter == "Lost")">Lost (Thất lạc)</option>
+                            <option value="Available" selected="@(Model.CopyStatusFilter == "Available")">Sẵn sàng</option>
+                            <option value="Borrowed" selected="@(Model.CopyStatusFilter == "Borrowed")">Đang mượn</option>
+                            <option value="Reserved" selected="@(Model.CopyStatusFilter == "Reserved")">Giữ chỗ</option>
+                            <option value="Damaged" selected="@(Model.CopyStatusFilter == "Damaged")">Hư hỏng</option>
+                            <option value="Lost" selected="@(Model.CopyStatusFilter == "Lost")">Thất lạc</option>
                         </select>
                     </div>
                     <div class="col-md-2">
@@ -525,10 +525,10 @@
                     <table class="table table-hover align-middle small mb-0 table-mobile-cards">
                         <thead class="table-light sticky-top">
                             <tr>
-                                <th>Barcode / Đầu sách</th>
+                                <th>Mã Bản Sao / Đầu sách</th>
                                 <th>Vị trí kệ</th>
                                 <th>Trạng thái</th>
-                                <th>Chuyển trạng thái (Damaged / Lost)</th>
+                                <th>Cập nhật trạng thái bản sao</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -556,15 +556,15 @@
                                         <div class="btn-group btn-group-sm">
                                             <button type="button" class="btn btn-xs btn-outline-success js-change-state"
                                                     data-id="@c.BookCopyId" data-status="Available" data-cond="Good">
-                                                Available
+                                                Sẵn sàng
                                             </button>
                                             <button type="button" class="btn btn-xs btn-outline-warning text-dark js-change-state"
                                                     data-id="@c.BookCopyId" data-status="Damaged" data-cond="Worn">
-                                                Damaged
+                                                Hư hỏng
                                             </button>
                                             <button type="button" class="btn btn-xs btn-outline-danger js-change-state"
                                                     data-id="@c.BookCopyId" data-status="Lost" data-cond="Worn">
-                                                Lost
+                                                Thất lạc
                                             </button>
                                             <button type="button" class="btn btn-xs btn-outline-secondary js-delete-sys-copy"
                                                     data-id="@c.BookCopyId" data-barcode="@c.Barcode" title="Thanh lý / Xóa bản sao kho chung">

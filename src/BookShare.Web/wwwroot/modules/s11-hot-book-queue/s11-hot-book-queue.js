@@ -1,4 +1,8 @@
 /**
+ * [S11] FRONTEND MODULE (s11-hot-book-queue.js)
+ * Tài liệu ánh xạ dịch vụ & phân quyền: docs/SERVICE_CODE_MAP.md
+ */
+/**
  * MODULE S11: HOT BOOK QUEUE (s11-hot-book-queue.js)
  * Đóng gói ES6 Module độc lập cho dịch vụ S11
  */

@@ -6,6 +6,10 @@ using Microsoft.EntityFrameworkCore;
 
 namespace BookShare.Web.Services.Implementations;
 
+/// <summary>
+/// [S06] Dịch vụ truy vấn danh mục sách tối ưu (AsNoTracking + phân trang) hỗ trợ lọc đồng thời theo Từ khóa, Tác giả, ISBN, Thể loại, Khu vực, Nguồn sở hữu, Trạng thái và Điểm uy tín.
+/// </summary>
+/// <remarks>Tối ưu hiệu năng truy vấn bằng Projection DTO.</remarks>
 public class S06SearchDiscoveryService : IS06SearchDiscoveryService
 {
     private readonly BookShareDbContext _db;

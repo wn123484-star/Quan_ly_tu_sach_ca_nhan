@@ -7,6 +7,10 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace BookShare.Web.Controllers;
 
+/// <summary>
+/// [S22] Controller Trung tâm Quản trị Hệ thống & Thống kê Biểu đồ: quản lý người dùng/vai trò/khóa tài khoản, duyệt đề nghị Chủ nhiệm CLB và tùy biến 18 biểu tượng hệ thống.
+/// </summary>
+/// <remarks>RBAC: Chỉ Quản trị viên (Admin). Mọi thao tác quản trị đều đi qua kiểm tra quyền nghiêm ngặt và thu hồi Cookie ngay khi khóa tài khoản.</remarks>
 public class S22AdminAnalyticsController : Controller
 {
     private readonly IS22AdminAnalyticsService _adminService;

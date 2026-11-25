@@ -6,6 +6,10 @@ using Microsoft.EntityFrameworkCore;
 
 namespace BookShare.Web.Services.Implementations;
 
+/// <summary>
+/// [CORE-QR-HANDOVER] Dịch vụ phát hành mã QR bàn giao/hoàn trả dùng một lần (có thời hạn ngắn) và xử lý quét xác nhận chuyển trạng thái hợp đồng mượn (S08/S09) tức thì.
+/// </summary>
+/// <remarks>Kiểm tra quyền hai chiều giữa Chủ sách/Thủ thư/Trưởng CLB và Người mượn.</remarks>
 public class BookHandoverQrService : IBookHandoverQrService
 {
     private const string Prefix = "BOOKSHARE-HANDOVER:v1:";

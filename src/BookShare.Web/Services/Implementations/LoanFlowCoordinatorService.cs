@@ -5,6 +5,10 @@ using Microsoft.EntityFrameworkCore;
 
 namespace BookShare.Web.Services.Implementations;
 
+/// <summary>
+/// [CORE-COORDINATOR] Bộ điều phối tập trung kiểm tra điều kiện mượn (hạn mức gói + suất thưởng, sách quá hạn/tranh chấp chưa xử lý), chống duyệt trùng 1 bản sao và tự động báo hàng chờ S11 khi có sách trả.
+/// </summary>
+/// <remarks>Bảo đảm nhất quán nghiệp vụ mượn trả trên toàn hệ thống.</remarks>
 public class LoanFlowCoordinatorService : ILoanFlowCoordinatorService
 {
     private readonly BookShareDbContext _db;

@@ -6,6 +6,10 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace BookShare.Web.Controllers;
 
+/// <summary>
+/// [S15] Controller Hệ thống Điểm uy tín và Đánh giá hai chiều (Độc giả <-> Chủ sách & Đánh giá đầu sách) kèm Bảng vinh danh.
+/// </summary>
+/// <remarks>RBAC: Thành viên chỉ được chấm điểm thành viên khác khi đã có giao dịch mượn trả hoàn tất giữa hai bên (chống tự chấm điểm và chống phá hoại điểm uy tín).</remarks>
 public class S15TrustScoreReviewController : Controller
 {
     private readonly IS15TrustScoreReviewService _reviewService;

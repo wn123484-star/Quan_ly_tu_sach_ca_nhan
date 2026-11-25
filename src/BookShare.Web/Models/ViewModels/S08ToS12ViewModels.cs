@@ -93,8 +93,10 @@ public class S09P2PLoanPageViewModel
 {
     public string CurrentUserId { get; set; } = string.Empty;
     public string CurrentUserName { get; set; } = string.Empty;
+    public string CurrentUserRole { get; set; } = "User";
     public int CurrentUserTrustScore { get; set; } = 100;
     public int CurrentUserLendQuotaBonus { get; set; }
+    public List<int> ManagedHubIds { get; set; } = new();
     public List<LibraryOptionDto> PickupHubs { get; set; } = new();
     public List<S09AvailableP2PCopyDto> AvailableP2PCopies { get; set; } = new();
     public List<S09P2PLoanItemDto> P2PItems { get; set; } = new();
@@ -161,6 +163,11 @@ public class P2PStageTransitionDto
 {
     public int LoanRequestId { get; set; }
     public string Stage { get; set; } = "InTransit"; // InTransit / HandoverBorrowed / Returned
+}
+
+public class CancelP2PLoanRequestDto
+{
+    public int LoanRequestId { get; set; }
 }
 
 /* =========================================================================

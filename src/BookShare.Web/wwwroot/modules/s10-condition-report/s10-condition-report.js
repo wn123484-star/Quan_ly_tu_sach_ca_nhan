@@ -1,4 +1,8 @@
 /**
+ * [S10] FRONTEND MODULE (s10-condition-report.js)
+ * Tài liệu ánh xạ dịch vụ & phân quyền: docs/SERVICE_CODE_MAP.md
+ */
+/**
  * MODULE S10: CONDITION REPORT (s10-condition-report.js)
  * Đóng gói ES6 Module độc lập cho dịch vụ S10
  */

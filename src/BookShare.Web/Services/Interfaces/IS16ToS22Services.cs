@@ -2,6 +2,10 @@ using BookShare.Web.Models.ViewModels;
 
 namespace BookShare.Web.Services.Interfaces;
 
+/// <summary>
+/// [S16] Giao diện dịch vụ Hạng Hội viên 4 cấp, Chuyển đổi gói và Hủy gói.
+/// </summary>
+/// <remarks>Triển khai bởi: S16MembershipTierService.</remarks>
 public interface IS16MembershipTierService
 {
     Task<S16MembershipTierPageViewModel> GetMembershipTierPageAsync(string currentUserId);
@@ -20,6 +24,10 @@ public interface IS16MembershipTierService
         string? reason = null);
 }
 
+/// <summary>
+/// [S17] Giao diện dịch vụ Ví Bảo Lãnh tiền ảo, Tạo đơn thanh toán, Xác thực chữ ký HMAC-SHA512 và Hoàn cọc.
+/// </summary>
+/// <remarks>Triển khai bởi: S17SandboxPaymentService.</remarks>
 public interface IS17SandboxPaymentService
 {
     Task<S17SandboxPaymentPageViewModel> GetSandboxPaymentPageAsync(
@@ -80,6 +88,10 @@ public interface IS17SandboxPaymentService
     string ComputeHmacSha512(string rawData);
 }
 
+/// <summary>
+/// [S18] Giao diện dịch vụ Trung tâm Thông báo, Xác minh OTP Email và Gửi chiến dịch nhắc hạn.
+/// </summary>
+/// <remarks>Triển khai bởi: S18NotificationHubService.</remarks>
 public interface IS18NotificationHubService
 {
     Task<S18NotificationHubPageViewModel> GetNotificationHubPageAsync(
@@ -109,6 +121,10 @@ public interface IS18NotificationHubService
         int notificationId);
 }
 
+/// <summary>
+/// [S19] Giao diện dịch vụ Khiếu nại & Phân xử Tranh chấp tình trạng sách.
+/// </summary>
+/// <remarks>Triển khai bởi: S19DisputeResolutionService.</remarks>
 public interface IS19DisputeResolutionService
 {
     Task<S19DisputeResolutionPageViewModel> GetDisputeResolutionPageAsync(
@@ -135,6 +151,10 @@ public interface IS19DisputeResolutionService
         int disputeId);
 }
 
+/// <summary>
+/// [S20] Giao diện dịch vụ Quản trị Câu lạc bộ Sách & Điểm trạm giao nhận cộng đồng.
+/// </summary>
+/// <remarks>Triển khai bởi: S20ExchangeHubClubService.</remarks>
 public interface IS20ExchangeHubClubService
 {
     Task<S20ExchangeHubClubPageViewModel> GetExchangeHubPageAsync(
@@ -216,6 +236,10 @@ public interface IS20ExchangeHubClubService
         S20DeleteClubPostDto request);
 }
 
+/// <summary>
+/// [S21] Giao diện dịch vụ Quầy Nghiệp vụ Thủ thư hợp nhất (Quét mã vạch, Cho mượn trực tiếp, Xử lý phiếu mượn & Quản lý tồn kho).
+/// </summary>
+/// <remarks>Triển khai bởi: S21LibrarianDeskService.</remarks>
 public interface IS21LibrarianDeskService
 {
     Task<S21LibrarianDeskPageViewModel> GetLibrarianDeskPageAsync(
@@ -257,6 +281,10 @@ public interface IS21LibrarianDeskService
         int bookCopyId);
 }
 
+/// <summary>
+/// [S22] Giao diện dịch vụ Quản trị Hệ thống, Thống kê biểu đồ, Phân quyền tài khoản và Duyệt Chủ nhiệm CLB.
+/// </summary>
+/// <remarks>Triển khai bởi: S22AdminAnalyticsService.</remarks>
 public interface IS22AdminAnalyticsService
 {
     Task<S22AdminAnalyticsPageViewModel> GetAdminAnalyticsPageAsync(

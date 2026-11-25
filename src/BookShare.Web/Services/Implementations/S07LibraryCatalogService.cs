@@ -5,6 +5,10 @@ using Microsoft.EntityFrameworkCore;
 
 namespace BookShare.Web.Services.Implementations;
 
+/// <summary>
+/// [S07] Dịch vụ hiển thị tồn kho theo từng Thư viện đối tác, thống kê KPI trạng thái bản sao và cập nhật vị trí kệ cho Thủ thư.
+/// </summary>
+/// <remarks>Phân quyền: Thao tác đổi vị trí kệ chỉ dành cho Librarian/Admin.</remarks>
 public class S07LibraryCatalogService : IS07LibraryCatalogService
 {
     private readonly BookShareDbContext _db;

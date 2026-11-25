@@ -1,3 +1,7 @@
+/**
+ * [S14] FRONTEND MODULE (s14-ai-recommendation.js)
+ * Tài liệu ánh xạ dịch vụ & phân quyền: docs/SERVICE_CODE_MAP.md
+ */
 import { apiFetch, getRecaptchaToken } from '../../js/core-api.js';
 
 document.addEventListener('DOMContentLoaded', () => {

@@ -7,6 +7,10 @@ using Microsoft.EntityFrameworkCore;
 
 namespace BookShare.Web.Services.Implementations;
 
+/// <summary>
+/// [S19] Dịch vụ tạo/sửa/rút hồ sơ khiếu nại (tạm khóa hợp đồng mượn), cách ly dữ liệu theo bên liên quan và thực thi phán quyết của Quản trị viên (trừ điểm uy tín, cập nhật trạng thái bản sao, phát hành hóa đơn bồi thường S17).
+/// </summary>
+/// <remarks>Chống spam tối đa 6 hồ sơ/10 phút và kiểm tra URL ảnh bằng chứng an toàn.</remarks>
 public class S19DisputeResolutionService : IS19DisputeResolutionService
 {
     private readonly BookShareDbContext _db;
@@ -170,6 +174,11 @@ public class S19DisputeResolutionService : IS19DisputeResolutionService
         if (request.Reason.Trim().Length > 2000)
         {
             return (false, "Lý do khiếu nại không được vượt quá 2.000 ký tự.", 0);
+        }
+
+        if (!AuthConfigHelper.IsSafeImageUrl(request.EvidenceImageUrl))
+        {
+            return (false, "Đường dẫn ảnh bằng chứng không hợp lệ hoặc không an toàn.", 0);
         }
 
         var (allowed, retrySec, rlMsg) = _rateLimiter.TryConsume(
@@ -461,6 +470,11 @@ public class S19DisputeResolutionService : IS19DisputeResolutionService
             if (string.IsNullOrWhiteSpace(request.Reason))
             {
                 return (false, "Nội dung lý do khiếu nại không được để trống.");
+            }
+
+            if (request.Reason.Trim().Length > 2000)
+            {
+                return (false, "Nội dung lý do khiếu nại không được vượt quá 2.000 ký tự.");
             }
 
             var dispute = await _db.Disputes.FirstOrDefaultAsync(d => d.Id == request.DisputeId);

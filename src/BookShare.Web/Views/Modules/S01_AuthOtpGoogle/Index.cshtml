@@ -163,7 +163,7 @@
                             <div class="mb-2">
                                 <label class="form-label small fw-bold" for="fpEmailInput">Bước 1: Địa chỉ Email đăng ký</label>
                                 <div class="input-group input-group-sm">
-                                    <input type="email" id="fpEmailInput" class="form-control" placeholder="nhapemail@domain.com" />
+                                    <input type="email" id="fpEmailInput" class="form-control" placeholder="Nhập địa chỉ email đã đăng ký..." />
                                     <button type="button" id="btnFpSendOtp" class="btn btn-primary fw-bold">Gửi mã OTP</button>
                                 </div>
                             </div>
@@ -212,7 +212,7 @@
                             @if (!Model.IsGoogleOAuthConfigured)
                             {
                                 <div class="small text-muted text-center mt-2">
-                                    <i class="bi bi-info-circle me-1"></i>Đăng nhập Google hiện chưa được kích hoạt (cần cấu hình khóa Google OAuth 2.0 hợp lệ trong tệp <code>.env</code>).
+                                    <i class="bi bi-info-circle me-1"></i>Tính năng đăng nhập bằng Google hiện chưa được kích hoạt trên máy chủ này.
                                 </div>
                             }
                         </form>
@@ -236,11 +236,11 @@
                                 <div class="row g-3">
                                     <div class="col-md-6">
                                         <label class="form-label small fw-bold" for="regFullName">Họ và tên đầy đủ *</label>
-                                        <input type="text" id="regFullName" name="FullName" class="form-control" placeholder="VD: Nguyễn Văn An" required />
+                                        <input type="text" id="regFullName" name="FullName" class="form-control" placeholder="Nhập họ và tên đầy đủ của bạn..." required />
                                     </div>
                                     <div class="col-md-6">
                                         <label class="form-label small fw-bold" for="regEmail">Địa chỉ Email *</label>
-                                        <input type="email" id="regEmail" name="Email" class="form-control" placeholder="sinhvien@cmc.edu.vn" required />
+                                        <input type="email" id="regEmail" name="Email" class="form-control" placeholder="Nhập địa chỉ email của bạn..." required />
                                     </div>
                                     <div class="col-md-6">
                                         <label class="form-label small fw-bold" for="regPassword">Mật khẩu (tối thiểu 6 ký tự) *</label>
@@ -248,7 +248,7 @@
                                     </div>
                                     <div class="col-md-6">
                                         <label class="form-label small fw-bold" for="regAddress">Khu vực giao nhận sách P2P</label>
-                                        <input type="text" id="regAddress" name="Address" class="form-control" value="" placeholder="VD: Cầu Giấy, Hà Nội" />
+                                        <input type="text" id="regAddress" name="Address" class="form-control" value="" placeholder="Nhập quận/huyện, tỉnh/thành phố..." />
                                     </div>
                                     <div class="col-12">
                                         <div class="small text-muted mb-2">
@@ -375,12 +375,12 @@
                                 <div class="row g-3">
                                     <div class="col-md-6">
                                         <label class="form-label small fw-bold" for="profFullName">Tên hiển thị (khác với Email) *</label>
-                                        <input type="text" id="profFullName" class="form-control" value="@Model.CurrentUserFullName" placeholder="VD: Nguyễn Minh Anh" required />
+                                        <input type="text" id="profFullName" class="form-control" value="@Model.CurrentUserFullName" placeholder="Nhập tên hiển thị của bạn..." required />
                                         <div class="form-text small">Tên hiển thị trên đầu trang, phiếu mượn &amp; hội thoại AI.</div>
                                     </div>
                                     <div class="col-md-6">
                                         <label class="form-label small fw-bold" for="profEmail">Email liên hệ &amp; nhận thư</label>
-                                        <input type="email" id="profEmail" class="form-control" value="@Model.CurrentUserEmail" placeholder="VD: tenban@gmail.com" />
+                                        <input type="email" id="profEmail" class="form-control" value="@Model.CurrentUserEmail" placeholder="Nhập địa chỉ email nhận thông báo..." />
                                         <div class="form-text small">Dùng để gửi OTP, khôi phục mật khẩu, nhắc hạn trả sách và bản lưu chat AI.</div>
                                     </div>
                                     <div class="col-md-6">
@@ -389,11 +389,11 @@
                                     </div>
                                     <div class="col-md-6">
                                         <label class="form-label small fw-bold" for="profPhone">Số điện thoại</label>
-                                        <input type="text" id="profPhone" class="form-control" value="@Model.CurrentUserPhoneNumber" placeholder="0988xxxxxx" />
+                                        <input type="text" id="profPhone" class="form-control" value="@Model.CurrentUserPhoneNumber" placeholder="Nhập số điện thoại liên hệ..." />
                                     </div>
                                     <div class="col-12">
                                         <label class="form-label small fw-bold" for="profAddress">Địa chỉ / Khu vực giao nhận</label>
-                                        <input type="text" id="profAddress" class="form-control" value="@Model.CurrentUserAddress" placeholder="VD: Cầu Giấy, Hà Nội" />
+                                        <input type="text" id="profAddress" class="form-control" value="@Model.CurrentUserAddress" placeholder="Nhập quận/huyện, tỉnh/thành phố..." />
                                     </div>
                                     <div class="col-12 text-end">
                                         <button type="submit" class="btn btn-primary fw-bold px-4">
@@ -447,7 +447,7 @@
                                         <form id="s01CuratorRequestForm" class="row g-2">
                                             <div class="col-md-6">
                                                 <label class="form-label small fw-bold" for="curatorOrgName">Tên CLB / Điểm trạm dự kiến *</label>
-                                                <input type="text" id="curatorOrgName" class="form-control form-control-sm" placeholder="VD: CLB Sách Sinh viên ĐH CMC" required />
+                                                <input type="text" id="curatorOrgName" class="form-control form-control-sm" placeholder="Nhập tên câu lạc bộ hoặc điểm trạm dự kiến..." required />
                                             </div>
                                             <div class="col-md-6">
                                                 <label class="form-label small fw-bold" for="curatorReason">Kinh nghiệm &amp; Cam kết vận hành *</label>

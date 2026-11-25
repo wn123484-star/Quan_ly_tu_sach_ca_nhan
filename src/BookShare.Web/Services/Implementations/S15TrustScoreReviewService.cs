@@ -6,6 +6,10 @@ using Microsoft.EntityFrameworkCore;
 
 namespace BookShare.Web.Services.Implementations;
 
+/// <summary>
+/// [S15] Dịch vụ ghi nhận đánh giá 1-5 sao cho đầu sách hoặc thành viên, tự động cộng/trừ Điểm uy tín (0..200) và hiển thị Bảng vinh danh.
+/// </summary>
+/// <remarks>Chống gian lận: Chặn tự chấm điểm, yêu cầu phải có giao dịch mượn trả hoàn tất giữa hai bên và giới hạn spam theo ngày.</remarks>
 public class S15TrustScoreReviewService : IS15TrustScoreReviewService
 {
     private readonly BookShareDbContext _db;
