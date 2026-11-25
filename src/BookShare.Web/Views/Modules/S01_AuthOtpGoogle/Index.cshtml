@@ -228,27 +228,27 @@
                         </div>
                     </div>
 
-                        <!-- TAB 2: ĐĂNG KÝ TÀI KHOẢN MỚI -->
+                        <!-- TAB 2: ĐĂNG KÝ TÀI KHOẢN MỚI (CHẶN AUTOFILL THÔNG TIN ĐĂNG NHẬP CŨ) -->
                         <div class="tab-pane fade" id="tabRegister" role="tabpanel">
-                            <form id="s01RegisterForm" asp-controller="S01AuthOtpGoogle" asp-action="Register" method="post">
+                            <form id="s01RegisterForm" asp-controller="S01AuthOtpGoogle" asp-action="Register" method="post" autocomplete="off">
                                 @Html.AntiForgeryToken()
                                 <input type="hidden" name="RecaptchaToken" id="registerRecaptchaToken" />
                                 <div class="row g-3">
                                     <div class="col-md-6">
                                         <label class="form-label small fw-bold" for="regFullName">Họ và tên đầy đủ *</label>
-                                        <input type="text" id="regFullName" name="FullName" class="form-control" placeholder="Nhập họ và tên đầy đủ của bạn..." required />
+                                        <input type="text" id="regFullName" name="FullName" class="form-control" autocomplete="off" data-lpignore="true" placeholder="Nhập họ và tên đầy đủ của bạn..." required />
                                     </div>
                                     <div class="col-md-6">
                                         <label class="form-label small fw-bold" for="regEmail">Địa chỉ Email *</label>
-                                        <input type="email" id="regEmail" name="Email" class="form-control" placeholder="Nhập địa chỉ email của bạn..." required />
+                                        <input type="email" id="regEmail" name="Email" class="form-control" value="" autocomplete="off" data-lpignore="true" placeholder="Nhập địa chỉ email của bạn..." required />
                                     </div>
                                     <div class="col-md-6">
                                         <label class="form-label small fw-bold" for="regPassword">Mật khẩu (tối thiểu 6 ký tự) *</label>
-                                        <input type="password" id="regPassword" name="Password" class="form-control" value="" minlength="6" placeholder="Nhập mật khẩu..." required />
+                                        <input type="password" id="regPassword" name="Password" class="form-control" value="" minlength="6" autocomplete="new-password" data-lpignore="true" placeholder="Nhập mật khẩu..." required />
                                     </div>
                                     <div class="col-md-6">
-                                        <label class="form-label small fw-bold" for="regAddress">Khu vực giao nhận sách P2P</label>
-                                        <input type="text" id="regAddress" name="Address" class="form-control" value="" placeholder="Nhập quận/huyện, tỉnh/thành phố..." />
+                                        <label class="form-label small fw-bold" for="regAddress">Khu vực giao nhận sách cộng đồng</label>
+                                        <input type="text" id="regAddress" name="Address" class="form-control" value="" autocomplete="off" data-lpignore="true" placeholder="Nhập quận/huyện, tỉnh/thành phố..." />
                                     </div>
                                     <div class="col-12">
                                         <div class="small text-muted mb-2">
@@ -480,7 +480,7 @@
                                     </select>
                                 </div>
                                 <div class="col-md-6">
-                                    <label class="form-label small fw-bold" for="prefUiStyle">Phong cách thiết kế (9 lựa chọn)</label>
+                                    <label class="form-label small fw-bold" for="prefUiStyle">Phong cách Bootstrap (15 lựa chọn)</label>
                                     <select id="prefUiStyle" class="form-select">
                                         <option value="standard">📘 Chuẩn Hiện Đại (BookShare Default)</option>
                                         <option value="sketchy">✏️ Nét Vẽ Nghệch Ngoặc (Sketchy Hand-Drawn)</option>
@@ -489,6 +489,12 @@
                                         <option value="paper">📜 Trang Sách Cổ Điển (Paper Literary)</option>
                                         <option value="neobrutal">💥 Truyện Tranh Pop (Neo-Brutalism)</option>
                                         <option value="pastel">🍬 Kẹo Ngọt Dịu Mắt (Soft Pastel)</option>
+                                        <option value="lux">💎 Sang Trọng Tối Giản (Bootstrap Lux)</option>
+                                        <option value="zephyr">🌬️ Hiện Đại Thoáng Sạch (Bootstrap Zephyr)</option>
+                                        <option value="quartz">🔮 Pha Lê Trong Suốt (Bootstrap Quartz)</option>
+                                        <option value="journal">📰 Tạp Chí Biên Tập (Bootstrap Journal)</option>
+                                        <option value="minty">🍃 Bạc Hà Trẻ Trung (Bootstrap Minty)</option>
+                                        <option value="vapor">🌆 Đêm Neon Rực Rỡ (Bootstrap Vapor Dark)</option>
                                         <option value="cyborg">⚡ Đêm Công Nghệ (Cyborg Dark)</option>
                                         <option value="terminal">💻 Lập Trình Viên (Retro Terminal)</option>
                                     </select>

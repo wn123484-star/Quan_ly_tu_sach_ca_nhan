@@ -1,6 +1,7 @@
 @model BookShare.Web.Models.ViewModels.S13GeminiAssistantPageViewModel
 @{
     ViewData["Title"] = "Trợ Lý Đọc Sách AI & Tra Cứu Kho Sách";
+    bool isAuthS13 = User.Identity?.IsAuthenticated == true && !string.IsNullOrWhiteSpace(Model.CurrentUserId);
 }
 
 @section Styles {
@@ -43,32 +44,45 @@
             <div class="s13-panel-head">
                 <h3>💬 Phiên hội thoại AI</h3>
             </div>
-            <form id="formCreateAiSession" class="s13-new-session-form">
-                <input type="text" id="newSessionTitle" class="bs-input" placeholder="Nhập tên chủ đề trò chuyện mới..." required />
-                <button type="submit" id="btnCreateSession" class="bs-btn bs-btn-primary">+ Tạo phiên</button>
-            </form>
+            @if (isAuthS13)
+            {
+                <form id="formCreateAiSession" class="s13-new-session-form">
+                    <input type="text" id="newSessionTitle" class="bs-input" placeholder="Nhập tên chủ đề trò chuyện mới..." required />
+                    <button type="submit" id="btnCreateSession" class="bs-btn bs-btn-primary">+ Tạo phiên</button>
+                </form>
 
-            <div class="s13-session-list">
-                @foreach (var s in Model.Sessions)
-                {
-                    <div class="s13-session-item @(Model.SelectedSessionId == s.SessionId ? "active" : "")">
-                        <a href="/S13GeminiAiAssistant?sessionId=@s.SessionId" class="text-decoration-none text-reset flex-grow-1">
-                            <strong>@s.Title</strong>
-                            <small>@s.ModelName • @s.UpdatedAt.ToString("dd/MM HH:mm")</small>
-                        </a>
-                        <div class="d-flex align-items-center gap-1">
-                            <span class="bs-badge bs-badge-info">@s.MessageCount tin</span>
-                            @if (Model.Sessions.Count > 1)
-                            {
-                                <button type="button" class="btn btn-xs btn-outline-danger py-0 px-1 js-s13-delete-session"
-                                        data-session-id="@s.SessionId" data-session-title="@s.Title" title="Xóa phiên hội thoại này">
-                                    <i class="bi bi-trash3"></i>
-                                </button>
-                            }
+                <div class="s13-session-list">
+                    @foreach (var s in Model.Sessions)
+                    {
+                        <div class="s13-session-item @(Model.SelectedSessionId == s.SessionId ? "active" : "")">
+                            <a href="/S13GeminiAiAssistant?sessionId=@s.SessionId" class="text-decoration-none text-reset flex-grow-1">
+                                <strong>@s.Title</strong>
+                                <small>@s.ModelName • @s.UpdatedAt.ToString("dd/MM HH:mm")</small>
+                            </a>
+                            <div class="d-flex align-items-center gap-1">
+                                <span class="bs-badge bs-badge-info">@s.MessageCount tin</span>
+                                @if (Model.Sessions.Count > 1)
+                                {
+                                    <button type="button" class="btn btn-xs btn-outline-danger py-0 px-1 js-s13-delete-session"
+                                            data-session-id="@s.SessionId" data-session-title="@s.Title" title="Xóa phiên hội thoại này">
+                                        <i class="bi bi-trash3"></i>
+                                    </button>
+                                }
+                            </div>
                         </div>
-                    </div>
-                }
-            </div>
+                    }
+                </div>
+            }
+            else
+            {
+                <div class="p-3 rounded-3 border bg-body-tertiary text-center small">
+                    <i class="bi bi-lock-fill text-warning fs-4 d-block mb-1"></i>
+                    <p class="mb-2 text-muted">Lịch sử hội thoại AI được bảo mật và lưu riêng theo từng tài khoản thành viên.</p>
+                    <a href="/S01AuthOtpGoogle?returnUrl=%2FS13GeminiAiAssistant" class="btn btn-primary btn-sm fw-bold w-100">
+                        <i class="bi bi-box-arrow-in-right me-1"></i>Đăng nhập để tạo phiên
+                    </a>
+                </div>
+            }
         </div>
 
         <div class="bs-card s13-panel">
@@ -97,38 +111,47 @@
     <section class="bs-card s13-chat-card">
         <div class="s13-chat-header">
             <div>
-                <h2>Phiên #@Model.SelectedSessionId — Hỏi đáp Học thuật &amp; Kho sách</h2>
-                <span class="bs-muted" style="font-size:0.82rem;">Người dùng: <strong>@Model.CurrentUserName</strong> • Lịch sử lưu bền vững theo tài khoản</span>
+                <h2>@(isAuthS13 ? $"Phiên #{Model.SelectedSessionId} — Hỏi đáp Học thuật & Kho sách" : "Trợ Lý Đọc Sách AI — Yêu Cầu Đăng Nhập")</h2>
+                <span class="bs-muted" style="font-size:0.82rem;">@(isAuthS13 ? $"Người dùng: {Model.CurrentUserName} • Lịch sử lưu bảo mật theo tài khoản" : "Chế độ Khách — Đăng nhập để trò chuyện, lưu lịch sử riêng và gửi báo cáo Email")</span>
             </div>
             <div class="d-flex flex-wrap gap-2">
-                <div class="dropdown">
-                    <button type="button" class="btn btn-outline-primary btn-sm fw-bold dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
-                        <i class="bi bi-envelope-arrow-up me-1"></i>AI Gửi Email
+                @if (isAuthS13)
+                {
+                    <div class="dropdown">
+                        <button type="button" class="btn btn-outline-primary btn-sm fw-bold dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
+                            <i class="bi bi-envelope-arrow-up me-1"></i>AI Gửi Email
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-end small">
+                            <li><button type="button" id="btnS13EmailChat" class="dropdown-item"><i class="bi bi-chat-square-text text-primary me-2"></i>Gửi bản lưu hội thoại AI</button></li>
+                            <li><button type="button" class="dropdown-item js-s13-ai-email" data-action="send_my_reminder_email"><i class="bi bi-clock-history text-warning me-2"></i>Báo cáo lịch mượn &amp; hạn trả</button></li>
+                            <li><button type="button" class="dropdown-item js-s13-ai-email" data-action="send_reading_progress_email"><i class="bi bi-book-half text-success me-2"></i>Báo cáo tiến độ đọc &amp; trích dẫn</button></li>
+                            <li><button type="button" class="dropdown-item js-s13-ai-email" data-action="send_book_recommendations_email"><i class="bi bi-stars text-info me-2"></i>Gợi ý sách sẵn sàng cho mượn</button></li>
+                            <li><button type="button" class="dropdown-item js-s13-ai-email" data-action="send_wallet_membership_email"><i class="bi bi-wallet2 text-primary me-2"></i>Sao kê Ví tiền ảo &amp; Gói hội viên</button></li>
+                            @if (User.IsInRole("Curator") || User.IsInRole("Admin"))
+                            {
+                                <li><hr class="dropdown-divider" /></li>
+                                <li><button type="button" class="dropdown-item js-s13-ai-email" data-action="send_club_announcement_email"><i class="bi bi-megaphone text-warning me-2"></i>Gửi thư mời sinh hoạt CLB</button></li>
+                            }
+                            @if (User.IsInRole("Librarian") || User.IsInRole("Admin"))
+                            {
+                                <li><button type="button" class="dropdown-item js-s13-ai-email" data-action="send_due_reminders_batch"><i class="bi bi-send-exclamation text-danger me-2"></i>Chiến dịch nhắc hạn hàng loạt</button></li>
+                            }
+                            @if (User.IsInRole("Admin"))
+                            {
+                                <li><button type="button" class="dropdown-item js-s13-ai-email" data-action="send_admin_analytics_report_email"><i class="bi bi-speedometer2 text-danger me-2"></i>Báo cáo thống kê vận hành Admin</button></li>
+                            }
+                        </ul>
+                    </div>
+                    <button type="button" id="btnS13ResetChat" class="btn btn-outline-danger btn-sm fw-bold">
+                        <i class="bi bi-arrow-counterclockwise me-1"></i>Làm mới chat
                     </button>
-                    <ul class="dropdown-menu dropdown-menu-end small">
-                        <li><button type="button" id="btnS13EmailChat" class="dropdown-item"><i class="bi bi-chat-square-text text-primary me-2"></i>Gửi bản lưu hội thoại AI</button></li>
-                        <li><button type="button" class="dropdown-item js-s13-ai-email" data-action="send_my_reminder_email"><i class="bi bi-clock-history text-warning me-2"></i>Báo cáo lịch mượn &amp; hạn trả</button></li>
-                        <li><button type="button" class="dropdown-item js-s13-ai-email" data-action="send_reading_progress_email"><i class="bi bi-book-half text-success me-2"></i>Báo cáo tiến độ đọc &amp; trích dẫn</button></li>
-                        <li><button type="button" class="dropdown-item js-s13-ai-email" data-action="send_book_recommendations_email"><i class="bi bi-stars text-info me-2"></i>Gợi ý sách sẵn sàng cho mượn</button></li>
-                        <li><button type="button" class="dropdown-item js-s13-ai-email" data-action="send_wallet_membership_email"><i class="bi bi-wallet2 text-primary me-2"></i>Sao kê Ví tiền ảo &amp; Gói hội viên</button></li>
-                        @if (User.IsInRole("Curator") || User.IsInRole("Admin"))
-                        {
-                            <li><hr class="dropdown-divider" /></li>
-                            <li><button type="button" class="dropdown-item js-s13-ai-email" data-action="send_club_announcement_email"><i class="bi bi-megaphone text-warning me-2"></i>Gửi thư mời sinh hoạt CLB</button></li>
-                        }
-                        @if (User.IsInRole("Librarian") || User.IsInRole("Admin"))
-                        {
-                            <li><button type="button" class="dropdown-item js-s13-ai-email" data-action="send_due_reminders_batch"><i class="bi bi-send-exclamation text-danger me-2"></i>Chiến dịch nhắc hạn hàng loạt</button></li>
-                        }
-                        @if (User.IsInRole("Admin"))
-                        {
-                            <li><button type="button" class="dropdown-item js-s13-ai-email" data-action="send_admin_analytics_report_email"><i class="bi bi-speedometer2 text-danger me-2"></i>Báo cáo thống kê vận hành Admin</button></li>
-                        }
-                    </ul>
-                </div>
-                <button type="button" id="btnS13ResetChat" class="btn btn-outline-danger btn-sm fw-bold">
-                    <i class="bi bi-arrow-counterclockwise me-1"></i>Reset Chat
-                </button>
+                }
+                else
+                {
+                    <a href="/S01AuthOtpGoogle?returnUrl=%2FS13GeminiAiAssistant" class="btn btn-primary btn-sm fw-bold">
+                        <i class="bi bi-box-arrow-in-right me-1"></i>Đăng nhập ngay
+                    </a>
+                }
                 <a href="/S14AiRecommendation" class="btn btn-outline-secondary btn-sm fw-bold">🎯 Gợi Ý Sách AI</a>
             </div>
         </div>
@@ -144,6 +167,12 @@
                 <option value="paper">Style: Trang sách cổ điển</option>
                 <option value="neobrutal">Style: Truyện tranh Pop</option>
                 <option value="pastel">Style: Kẹo ngọt dịu mắt</option>
+                <option value="lux">Style: Sang trọng Lux</option>
+                <option value="zephyr">Style: Hiện đại Zephyr</option>
+                <option value="quartz">Style: Pha lê Quartz</option>
+                <option value="journal">Style: Tạp chí Journal</option>
+                <option value="minty">Style: Bạc hà Minty</option>
+                <option value="vapor">Style: Đêm Neon Vapor</option>
                 <option value="cyborg">Style: Đêm công nghệ</option>
                 <option value="terminal">Style: Lập trình viên</option>
             </select>
@@ -193,44 +222,65 @@
             </select>
         </div>
 
-        <!-- GỢI Ý PROMPT NHANH -->
-        <div class="s13-prompt-chips">
-            <button type="button" class="s13-chip js-quick-prompt" data-prompt="Hiện tại kho sách BookShare còn những cuốn sách Công nghệ hay Kiến trúc phần mềm nào sẵn sàng cho mượn?">
-                🔍 Kiểm tra sách CNTT còn sẵn bản sao
-            </button>
-            <button type="button" class="s13-chip js-quick-prompt" data-prompt="Tóm tắt 3 nguyên tắc quan trọng nhất của cuốn Clean Code và cách áp dụng vào đồ án ASP.NET Core.">
-                📖 Tóm tắt trọng tâm Clean Code
-            </button>
-            <button type="button" class="s13-chip js-quick-prompt" data-prompt="Giải thích quy định hạn mức mượn sách theo điểm uy tín TrustScore và mức phí bảo trì trễ hạn.">
-                ⚖️ Hỏi quy định hạn mức & phí trễ hạn
-            </button>
-        </div>
+        @if (isAuthS13)
+        {
+            <!-- GỢI Ý PROMPT NHANH -->
+            <div class="s13-prompt-chips">
+                <button type="button" class="s13-chip js-quick-prompt" data-prompt="Hiện tại kho sách BookShare còn những đầu sách nổi bật nào sẵn sàng cho mượn?">
+                    🔍 Kiểm tra sách còn sẵn bản sao
+                </button>
+                <button type="button" class="s13-chip js-quick-prompt" data-prompt="Gợi ý cho mình một lộ trình đọc sách phù hợp từ các đầu sách hiện có trong kho.">
+                    📖 Gợi ý lộ trình đọc sách
+                </button>
+                <button type="button" class="s13-chip js-quick-prompt" data-prompt="Giải thích quy định hạn mức mượn sách theo điểm uy tín và chính sách trễ hạn.">
+                    ⚖️ Hỏi quy định hạn mức &amp; phí trễ hạn
+                </button>
+            </div>
 
-        <!-- DANH SÁCH TIN NHẮN -->
-        <div id="s13ChatViewport" class="s13-chat-viewport" role="log" aria-live="polite" aria-label="Hội thoại với Trợ lý AI">
-            @foreach (var msg in Model.Messages)
-            {
-                var isAi = msg.Sender.Equals("Gemini", StringComparison.OrdinalIgnoreCase);
-                <div class="s13-msg-row @(isAi ? "ai" : "user")">
-                    <div class="s13-msg-avatar">@(isAi ? "🤖" : "👤")</div>
-                    <div class="s13-msg-bubble">
-                        <div class="s13-msg-meta">
-                            <strong>@(isAi ? "Trợ lý AI BookShare" : Model.CurrentUserName)</strong>
-                            <span>@msg.CreatedAt.ToString("dd/MM/yyyy HH:mm") @(msg.PromptTokens > 0 ? $"• {msg.PromptTokens} tokens" : "")</span>
+            <!-- DANH SÁCH TIN NHẮN -->
+            <div id="s13ChatViewport" class="s13-chat-viewport" role="log" aria-live="polite" aria-label="Hội thoại với Trợ lý AI">
+                @foreach (var msg in Model.Messages)
+                {
+                    var isAi = msg.Sender.Equals("Gemini", StringComparison.OrdinalIgnoreCase);
+                    <div class="s13-msg-row @(isAi ? "ai" : "user")">
+                        <div class="s13-msg-avatar">@(isAi ? "🤖" : "👤")</div>
+                        <div class="s13-msg-bubble">
+                            <div class="s13-msg-meta">
+                                <strong>@(isAi ? "Trợ lý AI BookShare" : Model.CurrentUserName)</strong>
+                                <span>@msg.CreatedAt.ToString("dd/MM/yyyy HH:mm") @(msg.PromptTokens > 0 ? $"• {msg.PromptTokens} tokens" : "")</span>
+                            </div>
+                            <div class="s13-msg-text">@msg.MessageText</div>
                         </div>
-                        <div class="s13-msg-text">@msg.MessageText</div>
                     </div>
-                </div>
-            }
-        </div>
+                }
+            </div>
 
-        <!-- FORM GỬI TIN NHẮN -->
-        <form id="formSendS13Chat" class="s13-chat-input-bar">
-            <input type="hidden" id="s13CurrentSessionId" value="@Model.SelectedSessionId" />
-            <input type="text" id="s13MessageInput" class="bs-input"
-                   placeholder="Nhập câu hỏi về sách trong kho, tóm tắt nội dung hoặc lộ trình đọc..." required />
-            <button type="submit" id="btnSendS13Chat" class="bs-btn bs-btn-primary">Gửi câu hỏi ➔</button>
-        </form>
+            <!-- FORM GỬI TIN NHẮN -->
+            <form id="formSendS13Chat" class="s13-chat-input-bar">
+                <input type="hidden" id="s13CurrentSessionId" value="@Model.SelectedSessionId" />
+                <input type="text" id="s13MessageInput" class="bs-input"
+                       placeholder="Nhập câu hỏi về sách trong kho, tóm tắt nội dung hoặc lộ trình đọc..." required />
+                <button type="submit" id="btnSendS13Chat" class="bs-btn bs-btn-primary">Gửi câu hỏi ➔</button>
+            </form>
+        }
+        else
+        {
+            <div class="p-4 p-md-5 text-center my-auto">
+                <div class="display-5 mb-2">🔒</div>
+                <h5 class="fw-bold mb-2">Đăng nhập để trải nghiệm trọn vẹn Trợ lý Đọc sách AI</h5>
+                <p class="bs-muted small mx-auto mb-3" style="max-width:480px;">
+                    Để bảo vệ quyền riêng tư và tách biệt lịch sử hội thoại theo từng thành viên, tính năng trò chuyện AI toàn trang, lưu nhiều phiên hội thoại, tra cứu hạn trả cá nhân và gửi báo cáo Email chỉ mở khi bạn đã đăng nhập.
+                </p>
+                <div class="d-flex justify-content-center gap-2 flex-wrap">
+                    <a href="/S01AuthOtpGoogle?returnUrl=%2FS13GeminiAiAssistant" class="btn btn-primary fw-bold px-4">
+                        <i class="bi bi-box-arrow-in-right me-1"></i>Đăng nhập tài khoản
+                    </a>
+                    <a href="/S01AuthOtpGoogle?tab=qr" class="btn btn-outline-primary fw-bold px-3">
+                        <i class="bi bi-qr-code-scan me-1"></i>Đăng nhập nhanh QR
+                    </a>
+                </div>
+            </div>
+        }
     </section>
 </div>
 

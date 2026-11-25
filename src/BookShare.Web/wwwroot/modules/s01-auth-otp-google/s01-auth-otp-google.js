@@ -28,6 +28,23 @@ document.addEventListener('DOMContentLoaded', () => {
     bindRecaptchaForm('s01LoginForm', 'loginRecaptchaToken', 'login');
     bindRecaptchaForm('s01RegisterForm', 'registerRecaptchaToken', 'register');
 
+    // Chống trình duyệt tự động điền (autofill) email/mật khẩu đăng nhập cũ vào tab Đăng ký mới
+    const clearRegisterAutofill = () => {
+        const regForm = document.getElementById('s01RegisterForm');
+        if (!regForm || regForm.dataset.userTyped === '1') return;
+        const regEmail = document.getElementById('regEmail');
+        const regPass = document.getElementById('regPassword');
+        if (regEmail) regEmail.value = '';
+        if (regPass) regPass.value = '';
+    };
+    const regFormEl = document.getElementById('s01RegisterForm');
+    regFormEl?.addEventListener('input', () => { regFormEl.dataset.userTyped = '1'; }, { once: true });
+    document.getElementById('btnTabRegister')?.addEventListener('shown.bs.tab', () => {
+        clearRegisterAutofill();
+        setTimeout(clearRegisterAutofill, 120);
+    });
+    setTimeout(clearRegisterAutofill, 250);
+
     // ---------- QUÊN MẬT KHẨU (EMAIL -> XÁC THỰC OTP -> ĐẶT MẬT KHẨU MỚI) ----------
     const fpPanel = document.getElementById('s01ForgotPasswordPanel');
     const btnOpenFp = document.getElementById('btnOpenForgotPassword');
@@ -267,7 +284,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (sel === prefStyle && next.style === 'sketchy' && prefFont) {
                     next.font = 'patrick';
                     prefFont.value = 'patrick';
-                } else if (sel === prefStyle && next.style === 'paper' && prefFont) {
+                } else if (sel === prefStyle && (next.style === 'paper' || next.style === 'journal') && prefFont) {
                     next.font = 'lora';
                     prefFont.value = 'lora';
                 } else if (sel === prefStyle && next.style === 'terminal' && prefFont) {

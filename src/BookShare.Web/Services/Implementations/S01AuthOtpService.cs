@@ -254,7 +254,8 @@ public class S01AuthOtpService : IS01AuthOtpService
     {
         var allowedStyles = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
         {
-            "standard", "sketchy", "flatly", "morph", "cyborg", "paper", "neobrutal", "pastel", "terminal"
+            "standard", "sketchy", "flatly", "morph", "cyborg", "paper", "neobrutal", "pastel", "terminal",
+            "lux", "zephyr", "vapor", "quartz", "journal", "minty"
         };
         var allowedPalettes = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
         {

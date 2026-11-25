@@ -4,7 +4,7 @@
  * - KHÔNG cache trang HTML & API (dữ liệu cá nhân, phiếu mượn, CSRF token luôn lấy mới từ server)
  * - Mất mạng khi mở trang: hiển thị trang báo Offline thân thiện
  */
-const CACHE_NAME = 'bookshare-static-v7';
+const CACHE_NAME = 'bookshare-static-v8';
 
 const PRECACHE_URLS = [
     '/css/core-theme.css',

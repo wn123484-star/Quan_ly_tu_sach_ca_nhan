@@ -45,7 +45,8 @@
                 flatly: '/vendor/bootswatch/flatly.min.css',
                 morph: '/vendor/bootswatch/morph.min.css',
                 cyborg: '/vendor/bootswatch/cyborg.min.css',
-                terminal: '/vendor/bootswatch/cyborg.min.css'
+                terminal: '/vendor/bootswatch/cyborg.min.css',
+                vapor: '/vendor/bootswatch/cyborg.min.css'
             };
             var prefs = { theme: 'light', style: 'standard', palette: 'blue', background: 'solid', font: 'roboto', fontSize: 'md' };
             try {
@@ -67,7 +68,7 @@
                 }
             } catch (e) { }
             var html = document.documentElement;
-            html.setAttribute('data-bs-theme', (prefs.style === 'cyborg' || prefs.style === 'terminal') ? 'dark' : prefs.theme);
+            html.setAttribute('data-bs-theme', (prefs.style === 'cyborg' || prefs.style === 'terminal' || prefs.style === 'vapor') ? 'dark' : prefs.theme);
             html.setAttribute('data-ui-style', prefs.style);
             html.setAttribute('data-bg-pattern', prefs.background);
             html.setAttribute('data-font-family', prefs.font);
@@ -100,7 +101,7 @@
     <link rel="stylesheet" href="~/css/core-theme.css" asp-append-version="true" />
     @await RenderSectionAsync("Styles", required: false)
 </head>
-<body data-portal-palette="blue" data-authenticated="@(isAuthenticated ? "1" : "0")" class="@(isMobileApp ? "is-mobile-app" : null)">
+<body data-portal-palette="blue" data-authenticated="@(isAuthenticated ? "1" : "0")" data-user-id="@(isAuthenticated ? (User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "") : "")" class="@(isMobileApp ? "is-mobile-app" : null)">
     <script>
         if (window.__bsInitialUiPrefs && window.__bsInitialUiPrefs.palette) {
             document.body.setAttribute('data-portal-palette', window.__bsInitialUiPrefs.palette);
@@ -329,6 +330,12 @@
                                         <button type="button" class="btn btn-xs btn-outline-light py-0 px-2" data-set-ui-style="paper">📜 Trang sách</button>
                                         <button type="button" class="btn btn-xs btn-outline-warning py-0 px-2" data-set-ui-style="neobrutal">💥 Truyện tranh</button>
                                         <button type="button" class="btn btn-xs btn-outline-info py-0 px-2" data-set-ui-style="pastel">🍬 Kẹo ngọt</button>
+                                        <button type="button" class="btn btn-xs btn-outline-light py-0 px-2" data-set-ui-style="lux">💎 Lux</button>
+                                        <button type="button" class="btn btn-xs btn-outline-info py-0 px-2" data-set-ui-style="zephyr">🌬️ Zephyr</button>
+                                        <button type="button" class="btn btn-xs btn-outline-warning py-0 px-2" data-set-ui-style="vapor">🌆 Vapor</button>
+                                        <button type="button" class="btn btn-xs btn-outline-info py-0 px-2" data-set-ui-style="quartz">🔮 Quartz</button>
+                                        <button type="button" class="btn btn-xs btn-outline-light py-0 px-2" data-set-ui-style="journal">📰 Journal</button>
+                                        <button type="button" class="btn btn-xs btn-outline-success py-0 px-2" data-set-ui-style="minty">🍃 Minty</button>
                                         <button type="button" class="btn btn-xs btn-outline-success py-0 px-2" data-set-ui-style="terminal">💻 Terminal</button>
                                     </div>
                                 </li>
@@ -364,7 +371,7 @@
                                 <li><button type="button" class="dropdown-item" data-set-palette="coral" data-palette-name="Cam Hoàng Hôn">🟠 Cam Hoàng Hôn</button></li>
                                 <li><button type="button" class="dropdown-item" data-set-palette="midnight" data-palette-name="Đêm Ngân Hà">🌌 Đêm Ngân Hà</button></li>
                                 <li><hr class="dropdown-divider border-secondary opacity-25 my-1" /></li>
-                                <li class="px-3 py-1 small text-warning fw-bold">✏️ Phong cách giao diện (9 kiểu)</li>
+                                <li class="px-3 py-1 small text-warning fw-bold">✏️ Phong cách Bootstrap (15 kiểu)</li>
                                 <li><button type="button" class="dropdown-item" data-set-ui-style="standard">📘 Chuẩn Hiện Đại</button></li>
                                 <li><button type="button" class="dropdown-item" data-set-ui-style="sketchy">✏️ Nét Vẽ Nghệch Ngoặc (Sketchy)</button></li>
                                 <li><button type="button" class="dropdown-item" data-set-ui-style="morph">🫧 Kính Mờ Mềm Mại (Morph)</button></li>
@@ -372,6 +379,12 @@
                                 <li><button type="button" class="dropdown-item" data-set-ui-style="paper">📜 Trang Sách Cổ Điển (Paper)</button></li>
                                 <li><button type="button" class="dropdown-item" data-set-ui-style="neobrutal">💥 Truyện Tranh Pop (Neo-Brutal)</button></li>
                                 <li><button type="button" class="dropdown-item" data-set-ui-style="pastel">🍬 Kẹo Ngọt Dịu Mắt (Pastel)</button></li>
+                                <li><button type="button" class="dropdown-item" data-set-ui-style="lux">💎 Sang Trọng Tối Giản (Lux)</button></li>
+                                <li><button type="button" class="dropdown-item" data-set-ui-style="zephyr">🌬️ Hiện Đại Thoáng Sạch (Zephyr)</button></li>
+                                <li><button type="button" class="dropdown-item" data-set-ui-style="quartz">🔮 Pha Lê Trong Suốt (Quartz)</button></li>
+                                <li><button type="button" class="dropdown-item" data-set-ui-style="journal">📰 Tạp Chí Biên Tập (Journal)</button></li>
+                                <li><button type="button" class="dropdown-item" data-set-ui-style="minty">🍃 Bạc Hà Trẻ Trung (Minty)</button></li>
+                                <li><button type="button" class="dropdown-item" data-set-ui-style="vapor">🌆 Đêm Neon Rực Rỡ (Vapor)</button></li>
                                 <li><button type="button" class="dropdown-item" data-set-ui-style="cyborg">⚡ Đêm Công Nghệ (Cyborg)</button></li>
                                 <li><button type="button" class="dropdown-item" data-set-ui-style="terminal">💻 Lập Trình Viên (Terminal)</button></li>
                             </ul>
@@ -465,7 +478,7 @@
     <!-- 4. WIDGET TRỢ LÝ AI GỌN NHẸ Ở GÓC PHẢI DƯỚI (LỊCH SỬ BỀN VỮNG THEO PHÂN QUYỀN + RESET + EMAIL + STYLE) -->
     @if (!isAiFullPage)
     {
-        <div id="aiFloatingWidget" class="ai-chat-widget" data-authenticated="@(isAuthenticated ? "1" : "0")" data-user-role="@currentRole">
+        <div id="aiFloatingWidget" class="ai-chat-widget" data-authenticated="@(isAuthenticated ? "1" : "0")" data-user-id="@(isAuthenticated ? (User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "") : "")" data-user-role="@(isAuthenticated ? currentRole : "Guest")">
             <button type="button" id="btnToggleAIChat" class="ai-chat-fab shadow" aria-expanded="false" aria-controls="aiChatPopup" title="Trợ lý AI Thủ thư" aria-label="Mở Trợ lý AI Thủ thư">
                 @IconService.RenderIconHtml("ai_fab", "bi-stars", "fs-4")
             </button>
@@ -477,7 +490,7 @@
                         <div class="min-w-0">
                             <strong class="small d-block text-truncate">Trợ lý AI BookShare</strong>
                             <span id="aiWidgetSubtitle" style="font-size: 0.68rem; opacity: 0.9;" class="d-block text-truncate">
-                                @(isAuthenticated ? $"Phiên lưu bền vững • {currentRole}" : "Tư vấn kho sách & giao diện")
+                                @(isAuthenticated ? $"Phiên bảo mật riêng • {currentRole}" : "Chế độ Khách (giới hạn)")
                             </span>
                         </div>
                     </div>
@@ -490,10 +503,10 @@
                             <button type="button" id="btnEmailAIChat" class="btn btn-sm text-white p-0 px-1" title="Gửi bản lưu hội thoại qua Email" aria-label="Gửi hội thoại qua Email">
                                 <i class="bi bi-envelope-arrow-up" aria-hidden="true"></i>
                             </button>
+                            <button type="button" id="btnResetAIChat" class="btn btn-sm text-white p-0 px-1" title="Đặt lại cuộc trò chuyện" aria-label="Đặt lại cuộc trò chuyện">
+                                <i class="bi bi-arrow-counterclockwise" aria-hidden="true"></i>
+                            </button>
                         }
-                        <button type="button" id="btnResetAIChat" class="btn btn-sm text-white p-0 px-1" title="Đặt lại cuộc trò chuyện (Reset Chat)" aria-label="Đặt lại cuộc trò chuyện">
-                            <i class="bi bi-arrow-counterclockwise" aria-hidden="true"></i>
-                        </button>
                         <a asp-controller="S13GeminiAiAssistant" asp-action="Index" class="btn btn-sm text-white p-0 px-1" title="Mở toàn trang Trợ lý AI" aria-label="Mở toàn trang Trợ lý AI">
                             <i class="bi bi-arrows-angle-expand" aria-hidden="true"></i>
                         </a>
@@ -516,6 +529,12 @@
                         <option value="paper">Style: Trang sách cổ điển</option>
                         <option value="neobrutal">Style: Truyện tranh Pop</option>
                         <option value="pastel">Style: Kẹo ngọt dịu mắt</option>
+                        <option value="lux">Style: Sang trọng Lux</option>
+                        <option value="zephyr">Style: Hiện đại Zephyr</option>
+                        <option value="quartz">Style: Pha lê Quartz</option>
+                        <option value="journal">Style: Tạp chí Journal</option>
+                        <option value="minty">Style: Bạc hà Minty</option>
+                        <option value="vapor">Style: Đêm Neon Vapor</option>
                         <option value="cyborg">Style: Đêm công nghệ</option>
                         <option value="terminal">Style: Lập trình viên</option>
                     </select>
@@ -565,18 +584,37 @@
                     </select>
                 </div>
 
+                @if (!isAuthenticated)
+                {
+                    <div id="aiGuestLoginBanner" class="px-3 py-2 border-bottom bg-warning bg-opacity-10 d-flex align-items-center justify-content-between gap-2 small">
+                        <span style="font-size:0.74rem; line-height:1.3;">
+                            <i class="bi bi-lock-fill text-warning me-1"></i><strong>Chế độ Khách:</strong> Đăng nhập để lưu lịch sử riêng &amp; mở trọn vẹn tính năng AI.
+                        </span>
+                        <a asp-controller="S01AuthOtpGoogle" asp-action="Index" class="btn btn-primary btn-xs fw-bold flex-shrink-0">
+                            Đăng nhập
+                        </a>
+                    </div>
+                }
+
                 <div class="px-2 py-2 border-bottom bg-body-tertiary d-flex gap-1 flex-wrap">
-                    <button type="button" class="btn btn-outline-primary btn-xs ai-quick-prompt" data-prompt="Gợi ý sách sẵn sàng cho mượn trong kho ĐH CMC.">📚 Sách sẵn có</button>
-                    <button type="button" class="btn btn-outline-success btn-xs ai-quick-prompt" data-prompt="Kiểm tra tiến độ đọc và hạn trả sách hiện tại của mình.">⏰ Hạn trả</button>
-                    <button type="button" class="btn btn-outline-warning text-dark btn-xs ai-quick-prompt" data-prompt="Đổi giao diện sang phong cách nét vẽ nghệch ngoặc màu vàng mộng mơ.">✏️ Thử Sketchy</button>
+                    <button type="button" class="btn btn-outline-primary btn-xs ai-quick-prompt" data-prompt="Gợi ý sách sẵn sàng cho mượn trong kho thư viện.">📚 Sách sẵn có</button>
+                    @if (isAuthenticated)
+                    {
+                        <button type="button" class="btn btn-outline-success btn-xs ai-quick-prompt" data-prompt="Kiểm tra tiến độ đọc và hạn trả sách hiện tại của mình.">⏰ Hạn trả</button>
+                    }
+                    <button type="button" class="btn btn-outline-warning text-dark btn-xs ai-quick-prompt" data-prompt="Đổi giao diện sang phong cách nét vẽ nghệch ngoặc màu vàng mộng mơ.">✏️ Thử phong cách</button>
                 </div>
 
                 <div id="aiChatWidgetMessages" class="ai-chat-messages p-3" role="log" aria-live="polite">
-                    <div class="ai-msg ai-msg-bot">Xin chào! Mình là Trợ lý AI BookShare. Bạn cần tìm sách mượn miễn phí hay tùy chỉnh giao diện, font chữ?</div>
+                    <div class="ai-msg ai-msg-bot">
+                        @(isAuthenticated
+                            ? "Xin chào! Mình là Trợ lý AI BookShare. Bạn cần tìm sách mượn miễn phí, kiểm tra hạn trả hay tùy chỉnh giao diện?"
+                            : "Xin chào! Bạn đang dùng chế độ Khách (giới hạn, không lưu lịch sử). Hãy đăng nhập để lưu lịch sử trò chuyện riêng và trải nghiệm trọn vẹn Trợ lý AI!")
+                    </div>
                 </div>
 
                 <form id="aiChatWidgetForm" class="border-top p-2 d-flex gap-2 bg-white">
-                    <input type="text" id="aiChatWidgetInput" class="form-control form-control-sm" placeholder="Nhập câu hỏi hoặc lệnh đổi giao diện..." autocomplete="off" aria-label="Câu hỏi cho trợ lý AI" />
+                    <input type="text" id="aiChatWidgetInput" class="form-control form-control-sm" placeholder="@(isAuthenticated ? "Nhập câu hỏi hoặc lệnh đổi giao diện..." : "Hỏi sách công khai hoặc đăng nhập để dùng đầy đủ...")" autocomplete="off" aria-label="Câu hỏi cho trợ lý AI" />
                     <button type="submit" class="btn btn-primary btn-sm px-3" aria-label="Gửi câu hỏi"><i class="bi bi-send" aria-hidden="true"></i></button>
                 </form>
             </div>

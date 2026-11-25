@@ -136,7 +136,10 @@ public class S20ExchangeHubClubService : IS20ExchangeHubClubService
                 HubId = m.HubId,
                 UserId = m.UserId,
                 FullName = m.User.FullName,
-                Email = m.User.Email ?? string.Empty,
+                // [ANTI-PII-LEAK] Chỉ Quản trị viên / Trưởng-Phó CLB hoặc chính chủ mới nhìn thấy Email thành viên
+                Email = (canManageSelected || string.Equals(m.UserId, currentUserId, StringComparison.OrdinalIgnoreCase))
+                    ? (m.User.Email ?? string.Empty)
+                    : string.Empty,
                 SystemRole = m.User.Roles.FirstOrDefault()?.Name ?? "User",
                 TrustScore = m.User.TrustScore,
                 MemberRole = m.MemberRole,

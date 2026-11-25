@@ -282,6 +282,29 @@ app.UseRouting();
 app.UseAuthentication();
 app.UseAuthorization();
 
+// [CORE-SECURITY] Chống lưu cache trình duyệt (bfcache / disk cache) cho trang đã đăng nhập & lịch sử chat AI
+// Đảm bảo sau khi đăng xuất, bấm nút Back hoặc mở lại tab tuyệt đối không lộ lịch sử chat hay dữ liệu tài khoản cũ.
+app.Use(async (context, next) =>
+{
+    bool isPrivatePath = context.User.Identity?.IsAuthenticated == true
+        || context.Request.Path.StartsWithSegments("/api/ai-chat", StringComparison.OrdinalIgnoreCase)
+        || context.Request.Path.StartsWithSegments("/S13GeminiAiAssistant", StringComparison.OrdinalIgnoreCase)
+        || context.Request.Path.StartsWithSegments("/S01AuthOtpGoogle/Logout", StringComparison.OrdinalIgnoreCase);
+
+    if (isPrivatePath)
+    {
+        context.Response.OnStarting(() =>
+        {
+            context.Response.Headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0";
+            context.Response.Headers["Pragma"] = "no-cache";
+            context.Response.Headers["Expires"] = "0";
+            return Task.CompletedTask;
+        });
+    }
+
+    await next();
+});
+
 app.Use(async (context, next) =>
 {
     try

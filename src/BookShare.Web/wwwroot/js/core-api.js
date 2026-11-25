@@ -353,7 +353,7 @@ function initTrustTierCelebration() {
         headerBadge.className = `trust-tier trust-tier-${tier.toLowerCase()}`;
         headerBadge.innerHTML = `<i class="bi bi-gem" aria-hidden="true"></i>${tier}`;
         headerBadge.setAttribute('aria-label', `Hạng uy tín ${tier}`);
-        headerBadge.title = `Hạng uy tín ${tier} (TrustScore ${score})`;
+        headerBadge.title = `Hạng uy tín ${tier} (Điểm uy tín ${score})`;
     }
 
     const key = `bookshare_trust_tier_${userId}`;
@@ -361,7 +361,7 @@ function initTrustTierCelebration() {
     try { previous = localStorage.getItem(key); } catch { /* bỏ qua */ }
     if (previous && TRUST_TIERS.indexOf(tier) > TRUST_TIERS.indexOf(previous)) {
         celebrate();
-        toast(200, `Chúc mừng! Bạn đã lên hạng ${tier} 🎉`, `TrustScore hiện tại: ${score} điểm.`);
+        toast(200, `Chúc mừng! Bạn đã lên hạng ${tier} 🎉`, `Điểm uy tín hiện tại: ${score} điểm.`);
     }
     try { localStorage.setItem(key, tier); } catch { /* bỏ qua */ }
 }
@@ -1002,7 +1002,13 @@ const STYLE_CSS_MAP = {
     paper: '/vendor/bootstrap/bootstrap.min.css',
     neobrutal: '/vendor/bootstrap/bootstrap.min.css',
     pastel: '/vendor/bootstrap/bootstrap.min.css',
-    terminal: '/vendor/bootswatch/cyborg.min.css'
+    terminal: '/vendor/bootswatch/cyborg.min.css',
+    lux: '/vendor/bootstrap/bootstrap.min.css',
+    zephyr: '/vendor/bootstrap/bootstrap.min.css',
+    vapor: '/vendor/bootswatch/cyborg.min.css',
+    quartz: '/vendor/bootstrap/bootstrap.min.css',
+    journal: '/vendor/bootstrap/bootstrap.min.css',
+    minty: '/vendor/bootstrap/bootstrap.min.css'
 };
 
 export const STYLE_LABELS = {
@@ -1014,7 +1020,13 @@ export const STYLE_LABELS = {
     paper: 'Trang Sách Cổ Điển',
     neobrutal: 'Truyện Tranh Pop',
     pastel: 'Kẹo Ngọt Dịu Mắt',
-    terminal: 'Lập Trình Viên'
+    terminal: 'Lập Trình Viên',
+    lux: 'Sang Trọng Tối Giản',
+    zephyr: 'Hiện Đại Thoáng Sạch',
+    vapor: 'Đêm Neon Rực Rỡ',
+    quartz: 'Pha Lê Trong Suốt',
+    journal: 'Tạp Chí Biên Tập',
+    minty: 'Bạc Hà Trẻ Trung'
 };
 
 export const PALETTE_LABELS = {
@@ -1050,7 +1062,7 @@ export const BG_LABELS = {
 
 const ALLOWED_FONT_SIZES = ['xs', 'sm', 'md', 'lg', 'xl', '2xl', '3xl'];
 
-const DARK_LOCKED_STYLES = new Set(['cyborg', 'terminal']);
+const DARK_LOCKED_STYLES = new Set(['cyborg', 'terminal', 'vapor']);
 
 export function getUiPrefs() {
     const def = { theme: 'light', style: 'standard', palette: 'blue', background: 'solid', font: 'roboto', fontSize: 'md' };
@@ -1750,14 +1762,67 @@ document.addEventListener('DOMContentLoaded', () => {
             const st = btn.getAttribute('data-set-ui-style') || 'standard';
             const patch = { style: st };
             if (st === 'sketchy') patch.font = 'patrick';
-            else if (st === 'paper') patch.font = 'lora';
+            else if (st === 'paper' || st === 'journal') patch.font = 'lora';
             else if (st === 'terminal') patch.font = 'jetbrains';
             else if (st === 'standard' && ['patrick', 'jetbrains'].includes(getUiPrefs().font)) patch.font = 'roboto';
             applyUiPrefs(patch, { persistRemote: true, silent: false });
         });
     });
 
-    // Khung Chat AI Gemini nổi góc phải (Tải lịch sử bền vững theo phân quyền + Reset + Gửi Email + Style/Font)
+    // [SECURITY-LOGOUT] Xóa sạch mọi dữ liệu phiên & lịch sử chat cục bộ khi đăng xuất hoặc đổi tài khoản
+    const wipePrivateClientState = () => {
+        try {
+            sessionStorage.removeItem('bookshare_guest_ai_chat_v1');
+            sessionStorage.removeItem('bookshare_unread_seen');
+            sessionStorage.removeItem('bookshare_last_auth_uid');
+            localStorage.removeItem('bookshare_last_toasted_notif_id');
+            Object.keys(localStorage).forEach(k => {
+                if (k.startsWith('bookshare_trust_tier_') || k.startsWith('bookshare_guest_ai_chat')) {
+                    localStorage.removeItem(k);
+                }
+            });
+            Object.keys(sessionStorage).forEach(k => {
+                if (k.startsWith('bookshare_guest_ai_chat')) {
+                    sessionStorage.removeItem(k);
+                }
+            });
+        } catch { /* bỏ qua */ }
+        const msgBox = document.getElementById('aiChatWidgetMessages');
+        if (msgBox) msgBox.innerHTML = '';
+        const popup = document.getElementById('aiChatPopup');
+        if (popup) popup.classList.add('d-none');
+    };
+
+    const currentBodyAuth = document.body?.getAttribute('data-authenticated') === '1';
+    const currentBodyUid = document.body?.getAttribute('data-user-id') || '';
+    try {
+        // Luôn xóa cache chat khách cũ nếu còn tồn dư
+        sessionStorage.removeItem('bookshare_guest_ai_chat_v1');
+        const prevUid = sessionStorage.getItem('bookshare_last_auth_uid') || '';
+        if (!currentBodyAuth) {
+            if (prevUid) wipePrivateClientState();
+        } else {
+            if (prevUid && prevUid !== currentBodyUid) {
+                wipePrivateClientState();
+            }
+            sessionStorage.setItem('bookshare_last_auth_uid', currentBodyUid);
+        }
+    } catch { /* bỏ qua */ }
+
+    document.querySelectorAll('form[action*="Logout"]').forEach(logoutForm => {
+        logoutForm.addEventListener('submit', () => {
+            wipePrivateClientState();
+        }, true);
+    });
+
+    // Chặn lộ trang đã đăng nhập / lịch sử chat AI qua bfcache khi bấm nút Back sau khi đăng xuất
+    window.addEventListener('pageshow', (e) => {
+        if (e.persisted && (currentBodyAuth || window.location.pathname.toLowerCase().includes('s13geminiaiassistant'))) {
+            window.location.reload();
+        }
+    });
+
+    // Khung Chat AI Gemini nổi góc phải (Lịch sử bảo mật theo tài khoản đăng nhập + Khóa chế độ Khách)
     const aiWidget = document.getElementById('aiFloatingWidget');
     const btnToggleChat = document.getElementById('btnToggleAIChat');
     const btnMinimizeChat = document.getElementById('btnMinimizeAIChat');
@@ -1771,7 +1836,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const chatInput = document.getElementById('aiChatWidgetInput');
     const chatMessages = document.getElementById('aiChatWidgetMessages');
     const isAuthUser = aiWidget?.getAttribute('data-authenticated') === '1';
-    const guestChatKey = 'bookshare_guest_ai_chat_v1';
     let activeAiSessionId = 0;
     let historyLoaded = false;
 
@@ -1779,7 +1843,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (chatMessages) chatMessages.scrollTo({ top: chatMessages.scrollHeight, behavior: 'smooth' });
     };
 
-    const appendWidgetMsg = (text, isBot, extras = null, { saveGuest = false } = {}) => {
+    const appendWidgetMsg = (text, isBot, extras = null) => {
         if (!chatMessages) return;
         const div = document.createElement('div');
         div.className = `ai-msg ${isBot ? 'ai-msg-bot ai-md' : 'ai-msg-user'}`;
@@ -1793,14 +1857,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         chatMessages.appendChild(div);
         scrollChatToBottom();
-
-        if (saveGuest && !isAuthUser) {
-            try {
-                const list = JSON.parse(sessionStorage.getItem(guestChatKey) || '[]');
-                list.push({ sender: isBot ? 'Gemini' : 'User', text });
-                sessionStorage.setItem(guestChatKey, JSON.stringify(list.slice(-30)));
-            } catch { /* bỏ qua */ }
-        }
     };
 
     const loadPersistentAiHistory = async () => {
@@ -1810,10 +1866,16 @@ document.addEventListener('DOMContentLoaded', () => {
             try {
                 const res = await fetch('/api/ai-chat/history', {
                     headers: { Accept: 'application/json' },
-                    credentials: 'same-origin'
+                    credentials: 'same-origin',
+                    cache: 'no-store'
                 });
                 if (!res.ok) return;
                 const data = await res.json();
+                if (!data?.authenticated) {
+                    chatMessages.innerHTML = '';
+                    appendWidgetMsg('Phiên đăng nhập đã kết thúc. Vui lòng đăng nhập lại để xem lịch sử trò chuyện riêng của bạn.', true);
+                    return;
+                }
                 activeAiSessionId = Number(data.sessionId) || 0;
                 const msgs = Array.isArray(data.messages) ? data.messages : [];
                 if (msgs.length > 0) {
@@ -1824,21 +1886,11 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
                 }
             } catch { /* giữ lời chào mặc định nếu mất mạng tạm */ }
-        } else {
-            try {
-                const saved = JSON.parse(sessionStorage.getItem(guestChatKey) || '[]');
-                if (Array.isArray(saved) && saved.length > 0) {
-                    chatMessages.innerHTML = '';
-                    for (const m of saved) {
-                        appendWidgetMsg(m.text || '', m.sender === 'Gemini');
-                    }
-                }
-            } catch { /* bỏ qua */ }
         }
     };
 
-    // Nạp lịch sử nền ngay khi tải trang (giữ đúng lịch sử theo tài khoản & phân quyền)
-    if (aiWidget) {
+    // Nạp lịch sử nền chỉ khi đã đăng nhập (chế độ Khách không lưu / không đọc bất kỳ lịch sử nào)
+    if (aiWidget && isAuthUser) {
         loadPersistentAiHistory();
     }
 
@@ -1847,7 +1899,7 @@ document.addEventListener('DOMContentLoaded', () => {
         chatPopup.classList.toggle('d-none', !open);
         btnToggleChat?.setAttribute('aria-expanded', String(open));
         if (open) {
-            loadPersistentAiHistory();
+            if (isAuthUser) loadPersistentAiHistory();
             scrollChatToBottom();
             chatInput?.focus();
         }
@@ -1883,7 +1935,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const st = e.target.value;
         const patch = { style: st };
         if (st === 'sketchy') patch.font = 'patrick';
-        else if (st === 'paper') patch.font = 'lora';
+        else if (st === 'paper' || st === 'journal') patch.font = 'lora';
         else if (st === 'terminal') patch.font = 'jetbrains';
         applyUiPrefs(patch, { persistRemote: true, silent: true });
     });
@@ -1900,8 +1952,12 @@ document.addEventListener('DOMContentLoaded', () => {
         applyUiPrefs({ fontSize: e.target.value }, { persistRemote: true, silent: true });
     });
 
-    // Nút Reset Chat (xóa lịch sử phiên hiện tại & làm mới lời chào theo phân quyền)
+    // Nút Reset Chat (chỉ khả dụng khi đã đăng nhập)
     btnResetChat?.addEventListener('click', async () => {
+        if (!isAuthUser) {
+            toast(401, 'Yêu cầu đăng nhập', 'Vui lòng đăng nhập để quản lý lịch sử trò chuyện AI.');
+            return;
+        }
         const ok = await confirmDialog({
             title: 'Đặt lại cuộc trò chuyện AI?',
             text: 'Lịch sử tin nhắn trong phiên chat hiện tại sẽ được làm mới sạch sẽ.',
@@ -1909,16 +1965,6 @@ document.addEventListener('DOMContentLoaded', () => {
             danger: true
         });
         if (!ok) return;
-
-        if (!isAuthUser) {
-            try { sessionStorage.removeItem(guestChatKey); } catch { /* bỏ qua */ }
-            if (chatMessages) {
-                chatMessages.innerHTML = '';
-                appendWidgetMsg('Đã làm mới cuộc trò chuyện! Bạn cần tìm sách mượn miễn phí hay đổi phong cách giao diện?', true);
-            }
-            toast(200, 'Đã đặt lại khung chat AI', 'Bạn có thể bắt đầu cuộc trò chuyện mới.');
-            return;
-        }
 
         const res = await apiFetch('/api/ai-chat/reset', {
             method: 'POST',
@@ -1966,7 +2012,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const promptText = chatInput.value.trim();
             if (!promptText) return;
 
-            appendWidgetMsg(promptText, false, null, { saveGuest: true });
+            appendWidgetMsg(promptText, false);
             chatInput.value = '';
             chatInput.disabled = true;
 
@@ -1986,9 +2032,9 @@ document.addEventListener('DOMContentLoaded', () => {
                     appendWidgetMsg(res.data.reply, true, {
                         clientCommands: res.data.clientCommands || [],
                         actionCards: res.data.actionCards || []
-                    }, { saveGuest: true });
+                    });
                 } else {
-                    appendWidgetMsg('Trợ lý AI: Bạn có thể tra cứu sách trong **Kho chung ĐH CMC** hoặc kiểm tra tiến độ đọc tại mục **Tiến Độ Đọc Sách**.', true, null, { saveGuest: true });
+                    appendWidgetMsg('Trợ lý AI: Bạn có thể tra cứu sách trong **Kho chung Thư viện** hoặc đăng nhập để sử dụng đầy đủ tính năng cá nhân hóa.', true);
                 }
             } finally {
                 typing.remove();

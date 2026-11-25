@@ -154,7 +154,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
                         const ok = await confirmDialog({
                             title: `Xóa đánh giá #${reviewId}?`,
-                            text: 'Đánh giá này sẽ bị xóa và điểm TrustScore liên quan sẽ được hoàn tác.',
+                            text: 'Đánh giá này sẽ bị xóa và điểm uy tín liên quan sẽ được hoàn tác.',
                             confirmText: 'Xóa đánh giá'
                         });
                         if (!ok) return;

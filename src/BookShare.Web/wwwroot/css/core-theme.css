@@ -854,9 +854,61 @@ main {
     color: var(--portal-text);
     border-color: var(--portal-border) !important;
 }
-[data-bs-theme="dark"] main .s13-msg-row.user .s13-msg-bubble { background-color: #1d4ed8 !important; color: #fff; }
+[data-bs-theme="dark"] main .s13-msg-row.user .s13-msg-bubble { background-color: #1d4ed8 !important; color: #fff !important; }
 [data-bs-theme="dark"] main .s18-notif-card.is-unread { background-color: #13314a !important; }
-[data-bs-theme="dark"] main .s02-shelf-tab.active { background-color: #1e3a5f !important; }
+[data-bs-theme="dark"] main .s02-shelf-tab.active { background-color: var(--portal-accent) !important; color: #ffffff !important; border-color: var(--portal-accent) !important; }
+[data-bs-theme="dark"] main .s02-shelf-tab:not(.active) { background-color: var(--portal-surface-2) !important; color: var(--portal-text) !important; border-color: var(--portal-border) !important; }
+[data-bs-theme="dark"] .form-control,
+[data-bs-theme="dark"] .form-select,
+[data-bs-theme="dark"] .input-group-text {
+    background-color: #0f172a;
+    color: #f1f5f9;
+    border-color: var(--portal-border);
+}
+[data-bs-theme="dark"] .form-control::placeholder {
+    color: #94a3b8;
+}
+[data-bs-theme="dark"] .form-control:focus,
+[data-bs-theme="dark"] .form-select:focus {
+    background-color: #0f172a;
+    color: #ffffff;
+    border-color: var(--portal-accent-glow);
+}
+[data-bs-theme="dark"] .modal-content,
+[data-bs-theme="dark"] .dropdown-menu:not(.bs-domain-dropdown .dropdown-menu),
+[data-bs-theme="dark"] .list-group-item {
+    background-color: var(--portal-surface) !important;
+    color: var(--portal-text) !important;
+    border-color: var(--portal-border) !important;
+}
+/* Sửa lỗi Chrome Autofill phủ nền xám-xanh đè màu chữ trên ô nhập ở cả Sáng & Tối */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus,
+textarea:-webkit-autofill,
+select:-webkit-autofill {
+    -webkit-text-fill-color: var(--portal-text) !important;
+    -webkit-box-shadow: 0 0 0 1000px var(--portal-surface) inset !important;
+    transition: background-color 9999s ease-in-out 0s;
+}
+[data-bs-theme="dark"] input:-webkit-autofill,
+[data-bs-theme="dark"] input:-webkit-autofill:hover,
+[data-bs-theme="dark"] input:-webkit-autofill:focus {
+    -webkit-text-fill-color: #f1f5f9 !important;
+    -webkit-box-shadow: 0 0 0 1000px #0f172a inset !important;
+}
+/* Nâng vị trí SweetAlert2 Toast góc dưới-phải lên cao hơn nút Trợ lý AI nổi -> KHÔNG bao giờ bị đè */
+.swal2-container.swal2-bottom-end {
+    padding-bottom: 86px !important;
+    padding-right: 16px !important;
+    z-index: 1095 !important;
+}
+@media (max-width: 767.98px) {
+    .swal2-container.swal2-bottom-end {
+        padding-bottom: 148px !important;
+        padding-right: 12px !important;
+    }
+}
 
 /* Status banner tối, giữ màu nhận diện ở viền trái */
 [data-bs-theme="dark"] .status-banner { background-color: var(--portal-surface) !important; color: var(--portal-text) !important; }
@@ -2161,20 +2213,37 @@ html[data-ui-style="cyborg"] .bg-white,
     border-color: rgba(15, 23, 42, 0.56) !important;
 }
 
-/* Phong cách 6: Trang Sách Cổ Điển (Paper Literary) */
-html[data-ui-style="paper"] {
+/* Phong cách 6: Trang Sách Cổ Điển (Paper Literary) — Tách riêng Sáng & Tối để không đè Dark Mode */
+html:not([data-bs-theme="dark"])[data-ui-style="paper"] {
     --portal-light-bg: #faf6ee;
     --portal-surface: #fffdf8;
     --portal-surface-2: #f4ecdc;
     --portal-border: #dfd3bc;
     --portal-text: #2c2419;
 }
-html[data-ui-style="paper"] .card,
-html[data-ui-style="paper"] .bs-card,
-html[data-ui-style="paper"] .bs-adaptive-card {
+html:not([data-bs-theme="dark"])[data-ui-style="paper"] .card,
+html:not([data-bs-theme="dark"])[data-ui-style="paper"] .bs-card,
+html:not([data-bs-theme="dark"])[data-ui-style="paper"] .bs-adaptive-card {
     border-radius: 10px !important;
     border: 1px solid #d6c7ac !important;
     box-shadow: 0 3px 0 #e6dac3, 0 8px 20px rgba(72, 54, 24, 0.07) !important;
+}
+html[data-bs-theme="dark"][data-ui-style="paper"] {
+    --portal-light-bg: #171411;
+    --portal-surface: #211d18;
+    --portal-surface-2: #2a241e;
+    --portal-border: #463c30;
+    --portal-text: #f3eadc;
+    --bs-body-bg: #171411;
+    --bs-body-color: #f3eadc;
+    --bs-border-color: #463c30;
+}
+html[data-bs-theme="dark"][data-ui-style="paper"] .card,
+html[data-bs-theme="dark"][data-ui-style="paper"] .bs-card,
+html[data-bs-theme="dark"][data-ui-style="paper"] .bs-adaptive-card {
+    border-radius: 10px !important;
+    border: 1px solid #463c30 !important;
+    box-shadow: 0 3px 0 #0e0b09, 0 10px 24px rgba(0, 0, 0, 0.42) !important;
 }
 
 /* Phong cách 7: Truyện Tranh Pop (Neo-Brutalism) */
@@ -2188,10 +2257,21 @@ html[data-ui-style="neobrutal"] .bs-notif-popover {
     border-radius: 12px !important;
     box-shadow: 5px 5px 0 var(--portal-text) !important;
 }
+html[data-bs-theme="dark"][data-ui-style="neobrutal"] .card,
+html[data-bs-theme="dark"][data-ui-style="neobrutal"] .bs-card,
+html[data-bs-theme="dark"][data-ui-style="neobrutal"] .bs-adaptive-card,
+html[data-bs-theme="dark"][data-ui-style="neobrutal"] .ai-chat-popup {
+    border-color: #60a5fa !important;
+    box-shadow: 4px 4px 0 rgba(96, 165, 250, 0.45) !important;
+}
 html[data-ui-style="neobrutal"] .btn {
     border: 2px solid var(--portal-text) !important;
     box-shadow: 3px 3px 0 var(--portal-text) !important;
     font-weight: 800 !important;
+}
+html[data-bs-theme="dark"][data-ui-style="neobrutal"] .btn {
+    border-color: #64748b !important;
+    box-shadow: 2px 2px 0 rgba(96, 165, 250, 0.4) !important;
 }
 html[data-ui-style="neobrutal"] .btn:active {
     transform: translate(2px, 2px);
@@ -2241,6 +2321,168 @@ html[data-ui-style="terminal"] .bg-white,
 html[data-ui-style="terminal"] .bg-light {
     background-color: #0c1926 !important;
     color: #d1fae5 !important;
+}
+
+/* =========================================================================
+   6 PHONG CÁCH BOOTSTRAP MỞ RỘNG (LUX, ZEPHYR, VAPOR, QUARTZ, JOURNAL, MINTY)
+   Tổng 15 phong cách nội bộ — 100% tương thích cả Sáng (Light) & Tối (Dark)
+   ========================================================================= */
+
+/* Phong cách 10: Sang Trọng Tối Giản (Bootstrap Lux) */
+html[data-ui-style="lux"] .card,
+html[data-ui-style="lux"] .bs-card,
+html[data-ui-style="lux"] .bs-adaptive-card,
+html[data-ui-style="lux"] .ai-chat-popup,
+html[data-ui-style="lux"] .bs-notif-popover,
+html[data-ui-style="lux"] .btn,
+html[data-ui-style="lux"] .form-control,
+html[data-ui-style="lux"] .form-select {
+    border-radius: 2px !important;
+}
+html[data-ui-style="lux"] .card,
+html[data-ui-style="lux"] .bs-card,
+html[data-ui-style="lux"] .bs-adaptive-card {
+    border: 1px solid var(--portal-border) !important;
+    box-shadow: 0 2px 10px rgba(15, 23, 42, 0.05) !important;
+}
+html[data-ui-style="lux"] h1,
+html[data-ui-style="lux"] h2,
+html[data-ui-style="lux"] h3,
+html[data-ui-style="lux"] h4,
+html[data-ui-style="lux"] h5,
+html[data-ui-style="lux"] .btn {
+    letter-spacing: 0.04em;
+}
+
+/* Phong cách 11: Hiện Đại Thoáng Sạch (Bootstrap Zephyr) */
+html[data-ui-style="zephyr"] .card,
+html[data-ui-style="zephyr"] .bs-card,
+html[data-ui-style="zephyr"] .bs-adaptive-card,
+html[data-ui-style="zephyr"] .ai-chat-popup {
+    border-radius: 16px !important;
+    border: 1px solid rgba(148, 163, 184, 0.22) !important;
+    box-shadow: 0 10px 28px rgba(15, 23, 42, 0.08), 0 2px 6px rgba(15, 23, 42, 0.04) !important;
+}
+html[data-ui-style="zephyr"] .btn {
+    border-radius: 10px !important;
+    box-shadow: 0 2px 6px rgba(15, 23, 42, 0.08);
+}
+
+/* Phong cách 12: Đêm Neon Rực Rỡ (Bootstrap Vapor — Nền tối Neon Synthwave) */
+html[data-ui-style="vapor"] {
+    --portal-light-bg: #13092b;
+    --portal-surface: #1d113d;
+    --portal-surface-2: #271852;
+    --portal-text: #f5f3ff;
+    --portal-border: #7c3aed;
+    --portal-accent: #e879f9;
+    --portal-accent-glow: #38bdf8;
+    --bs-body-bg: #13092b;
+    --bs-body-color: #f5f3ff;
+    --bs-border-color: #5b21b6;
+}
+html[data-ui-style="vapor"] .card,
+html[data-ui-style="vapor"] .bs-card,
+html[data-ui-style="vapor"] .bs-adaptive-card,
+html[data-ui-style="vapor"] .ai-chat-popup,
+html[data-ui-style="vapor"] .bs-notif-popover {
+    background-color: #1d113d !important;
+    color: #f5f3ff !important;
+    border: 1.5px solid rgba(232, 121, 249, 0.45) !important;
+    box-shadow: 0 0 18px rgba(124, 58, 237, 0.28), 0 8px 24px rgba(0, 0, 0, 0.45) !important;
+}
+html[data-ui-style="vapor"] .bg-white,
+html[data-ui-style="vapor"] .bg-light,
+html[data-ui-style="vapor"] .bg-body-tertiary {
+    background-color: #1d113d !important;
+    color: #f5f3ff !important;
+}
+html[data-ui-style="vapor"] .form-control,
+html[data-ui-style="vapor"] .form-select {
+    background-color: #120829 !important;
+    color: #f5f3ff !important;
+    border-color: rgba(56, 189, 248, 0.45) !important;
+}
+
+/* Phong cách 13: Pha Lê Trong Suốt (Bootstrap Quartz Glassmorphism — Hỗ trợ Sáng & Tối) */
+html:not([data-bs-theme="dark"])[data-ui-style="quartz"] body {
+    background-image:
+        radial-gradient(circle at 12% 14%, rgba(99, 102, 241, 0.16), transparent 42%),
+        radial-gradient(circle at 88% 18%, rgba(236, 72, 153, 0.14), transparent 44%),
+        radial-gradient(circle at 50% 88%, rgba(56, 189, 248, 0.16), transparent 46%);
+    background-attachment: fixed;
+}
+html[data-bs-theme="dark"][data-ui-style="quartz"] body {
+    background-image:
+        radial-gradient(circle at 12% 14%, rgba(99, 102, 241, 0.22), transparent 42%),
+        radial-gradient(circle at 88% 18%, rgba(236, 72, 153, 0.18), transparent 44%),
+        radial-gradient(circle at 50% 88%, rgba(56, 189, 248, 0.18), transparent 46%);
+    background-attachment: fixed;
+}
+html[data-ui-style="quartz"] .card,
+html[data-ui-style="quartz"] .bs-card,
+html[data-ui-style="quartz"] .bs-adaptive-card,
+html[data-ui-style="quartz"] .ai-chat-popup {
+    backdrop-filter: blur(16px) saturate(135%);
+    -webkit-backdrop-filter: blur(16px) saturate(135%);
+    border-radius: 20px !important;
+    border: 1.5px solid rgba(148, 163, 184, 0.38) !important;
+    box-shadow: 0 12px 32px rgba(30, 58, 138, 0.12) !important;
+}
+
+/* Phong cách 14: Tạp Chí Biên Tập (Bootstrap Journal Editorial) */
+html[data-ui-style="journal"] .card,
+html[data-ui-style="journal"] .bs-card,
+html[data-ui-style="journal"] .bs-adaptive-card {
+    border-radius: 6px !important;
+    border: 1px solid var(--portal-border) !important;
+    border-top: 3px solid var(--portal-accent) !important;
+    box-shadow: 0 4px 14px rgba(15, 23, 42, 0.06) !important;
+}
+html[data-ui-style="journal"] .btn {
+    border-radius: 4px !important;
+    font-weight: 700;
+}
+
+/* Phong cách 15: Bạc Hà Trẻ Trung (Bootstrap Minty) */
+html[data-ui-style="minty"] .card,
+html[data-ui-style="minty"] .bs-card,
+html[data-ui-style="minty"] .bs-adaptive-card,
+html[data-ui-style="minty"] .ai-chat-popup {
+    border-radius: 22px !important;
+    border: 1.5px solid rgba(16, 185, 129, 0.32) !important;
+    box-shadow: 0 10px 26px rgba(16, 185, 129, 0.09) !important;
+}
+html[data-ui-style="minty"] .btn,
+html[data-ui-style="minty"] .badge {
+    border-radius: 999px !important;
+}
+
+/* Ghi đè bảo vệ Dark Mode toàn cục cho mọi Bootswatch theme (Sketchy / Morph / Flatly / Vapor) */
+html[data-bs-theme="dark"][data-ui-style="sketchy"] body,
+html[data-bs-theme="dark"][data-ui-style="morph"] body,
+html[data-bs-theme="dark"][data-ui-style="flatly"] body {
+    background-color: var(--portal-light-bg) !important;
+    color: var(--portal-text) !important;
+}
+html[data-bs-theme="dark"][data-ui-style="sketchy"] .card,
+html[data-bs-theme="dark"][data-ui-style="morph"] .card,
+html[data-bs-theme="dark"][data-ui-style="flatly"] .card,
+html[data-bs-theme="dark"][data-ui-style="sketchy"] .form-control,
+html[data-bs-theme="dark"][data-ui-style="morph"] .form-control,
+html[data-bs-theme="dark"][data-ui-style="flatly"] .form-control,
+html[data-bs-theme="dark"][data-ui-style="sketchy"] .form-select,
+html[data-bs-theme="dark"][data-ui-style="morph"] .form-select,
+html[data-bs-theme="dark"][data-ui-style="flatly"] .form-select {
+    background-color: var(--portal-surface) !important;
+    color: var(--portal-text) !important;
+    border-color: var(--portal-border) !important;
+}
+html[data-bs-theme="dark"][data-ui-style="sketchy"] .card,
+html[data-bs-theme="dark"][data-ui-style="sketchy"] .bs-adaptive-card,
+html[data-bs-theme="dark"][data-ui-style="sketchy"] .ai-chat-popup {
+    border-color: #64748b !important;
+    box-shadow: 3px 4px 0 rgba(0, 0, 0, 0.45) !important;
 }
 
 /* =========================================================================
@@ -2333,15 +2575,16 @@ html[data-bg-pattern="geometric-prism"] body {
     background-size: 40px 70px;
 }
 
-/* Đảm bảo tất cả 12 nền đều tối dịu & rõ chữ khi bật Dark Mode hoặc giao diện nền tối (Terminal / Cyborg) */
+/* Đảm bảo tất cả 12 nền đều tối dịu & rõ chữ khi bật Dark Mode hoặc giao diện nền tối (Terminal / Cyborg / Vapor) */
 html[data-bs-theme="dark"][data-bg-pattern="paper-grain"] body,
 html[data-bs-theme="dark"][data-bg-pattern="sunset-glow"] body,
 html[data-bs-theme="dark"][data-bg-pattern="botanical"] body,
 html[data-bs-theme="dark"][data-bg-pattern="warm-linen"] body,
 html[data-bs-theme="dark"][data-bg-pattern="pastel-clouds"] body,
 html[data-ui-style="terminal"][data-bg-pattern] body,
-html[data-ui-style="cyborg"][data-bg-pattern] body {
-    background-color: var(--portal-light-bg);
+html[data-ui-style="cyborg"][data-bg-pattern] body,
+html[data-ui-style="vapor"][data-bg-pattern] body {
+    background-color: var(--portal-light-bg) !important;
 }
 
 html[data-bs-theme="dark"][data-bg-pattern="dot-grid"] body {

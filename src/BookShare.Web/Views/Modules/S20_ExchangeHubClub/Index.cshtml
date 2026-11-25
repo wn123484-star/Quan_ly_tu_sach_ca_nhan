@@ -120,7 +120,7 @@
                     <span class="badge bg-primary">KHÔNG GIAN NHÓM CLB #@sel.HubId</span>
                     <span class="badge bg-warning text-dark"><i class="bi bi-crown-fill me-1"></i>Trưởng nhóm: @sel.ManagerName</span>
                     <span class="badge bg-info text-dark">@sel.ApprovedMembersCount thành viên</span>
-                    <span class="badge bg-light text-dark border">@sel.OpenHours • @sel.Phone</span>
+                    <span class="badge bg-light text-dark border">@sel.OpenHours@(User.Identity?.IsAuthenticated == true ? $" • {sel.Phone}" : "")</span>
                 </div>
                 <h4 class="fw-bold mb-1">@sel.Name</h4>
                 @if (!string.IsNullOrWhiteSpace(sel.Description))
@@ -267,7 +267,7 @@
                                 <tr>
                                     <td data-label="Thành viên">
                                         <div class="fw-bold">@m.FullName</div>
-                                        <small class="text-muted">@m.Email • Uy tín @m.TrustScore</small>
+                                        <small class="text-muted">@(!string.IsNullOrWhiteSpace(m.Email) ? $"{m.Email} • " : "")Uy tín @m.TrustScore</small>
                                     </td>
                                     <td data-label="Vai trò CLB">
                                         <span class="badge @(m.MemberRole == "Leader" ? "bg-warning text-dark" : m.MemberRole == "ViceLeader" ? "bg-info text-dark" : "bg-light text-dark border")">
@@ -514,7 +514,7 @@
                                     </td>
                                     <td data-label="Chủ sách → Người mượn">
                                         <div>Chủ: <strong>@ord.OwnerName</strong></div>
-                                        <div>Mượn: <strong class="text-primary">@ord.BorrowerName</strong> (Trust: @ord.BorrowerTrustScore)</div>
+                                        <div>Mượn: <strong class="text-primary">@ord.BorrowerName</strong> (Uy tín: @ord.BorrowerTrustScore)</div>
                                     </td>
                                     <td data-label="Trạng thái">
                                         <span class="badge bg-info text-dark d-block mb-1">Đơn: @ord.RequestStatus</span>

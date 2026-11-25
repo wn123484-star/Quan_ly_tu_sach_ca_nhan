@@ -3460,6 +3460,88 @@ class QARunner:
             f"untagged={untagged_cs}, map_ok={map_ok}",
         )
 
+        # ------------------------------------------------------------------
+        # 10.5 Release 5.5 Security & UX Hardening:
+        #   - Logout AI chat isolation & Cache-Control: no-store
+        #   - Guest AI login gate on S13 + 401 on /api/ai-chat/reset
+        #   - S20 club member email/phone PII masking for Guest
+        #   - Register form anti-autofill attributes
+        #   - Dark Mode Paper fix, Toast non-overlap & 15 Bootstrap Themes
+        # ------------------------------------------------------------------
+        logout_chat_actor = SessionClient(self.base_url)
+        logout_chat_actor.login("minhanh@cmc.edu.vn", "User@123")
+        logout_chat_actor.refresh_csrf("/")
+        secret_chat_marker = f"SECRET_LOGOUT_CHAT_{ts_spam}"
+        logout_chat_actor.post_json("/api/ai-chat/quick-ask", {"message": f"Ghi nhớ {secret_chat_marker}"})
+        hist_in_c, hist_in_raw, hist_in_hdrs = logout_chat_actor.get("/api/ai-chat/history", accept_json=True)
+        cc_header = (hist_in_hdrs.get("Cache-Control") or hist_in_hdrs.get("cache-control") or "").lower()
+        # Logout -> verify chat history is completely invisible, reset blocked 401, S13 shows login gate
+        logout_chat_actor.logout()
+        hist_out_c, hist_out_raw, _ = logout_chat_actor.get("/api/ai-chat/history", accept_json=True)
+        hist_out_j = json.loads(hist_out_raw) if hist_out_raw.startswith("{") else {}
+        logout_chat_actor.refresh_csrf("/")
+        rst_guest_c, _, _ = logout_chat_actor.post_json("/api/ai-chat/reset", {})
+        s13_g_c, s13_g_html, _ = logout_chat_actor.get("/S13GeminiAiAssistant")
+        self.check(
+            "L10",
+            "Logout AI Security: Chat history sends no-store, vanishes on logout (messages=[], requiresLogin=true), /api/ai-chat/reset=401 & S13 shows login gate",
+            hist_in_c == 200
+            and secret_chat_marker in hist_in_raw
+            and "no-store" in cc_header
+            and hist_out_c == 200
+            and hist_out_j.get("authenticated") is False
+            and hist_out_j.get("requiresLogin") is True
+            and len(hist_out_j.get("messages") or []) == 0
+            and secret_chat_marker not in hist_out_raw
+            and rst_guest_c == 401
+            and s13_g_c == 200
+            and 'id="formSendS13Chat"' not in s13_g_html
+            and "Đăng nhập để trải nghiệm trọn vẹn" in s13_g_html,
+            f"in={hist_in_c}, cc={cc_header}, out={hist_out_j}, rst={rst_guest_c}, s13={s13_g_c}",
+        )
+
+        # S20 PII Isolation for Guest & Register anti-autofill
+        s20_g_c, s20_g_html, _ = logout_chat_actor.get("/S20ExchangeHubClub")
+        s01_g_c, s01_g_html, _ = logout_chat_actor.get("/S01AuthOtpGoogle")
+        self.check(
+            "L10",
+            "Anti-PII & Anti-Autofill: Guest S20 hides member emails/phones & S01 Register sets autocomplete=off/new-password",
+            s20_g_c == 200
+            and "@cmc.edu.vn" not in s20_g_html
+            and "@bookshare.vn" not in s20_g_html
+            and s01_g_c == 200
+            and 'id="s01RegisterForm"' in s01_g_html
+            and 'autocomplete="new-password"' in s01_g_html,
+            f"s20={s20_g_c}, s01={s01_g_c}",
+        )
+
+        # Dark Mode Paper fix, Toast clearance & 15 Bootstrap Themes (Lux, Zephyr, Vapor, Quartz, Journal, Minty)
+        theme_css_v55 = (web_root / "wwwroot" / "css" / "core-theme.css").read_text(encoding="utf-8", errors="ignore")
+        core_js_v55 = (web_root / "wwwroot" / "js" / "core-api.js").read_text(encoding="utf-8", errors="ignore")
+        new_themes = ("lux", "zephyr", "vapor", "quartz", "journal", "minty")
+        u1.refresh_csrf("/S01AuthOtpGoogle")
+        sv_vap_c, sv_vap_j, _ = u1.post_json("/S01AuthOtpGoogle/SaveUiPreferences", {"theme": "dark", "style": "vapor", "palette": "royal", "background": "starry-night", "font": "roboto", "fontSize": "md"})
+        sv_qtz_c, sv_qtz_j, _ = u1.post_json("/S01AuthOtpGoogle/SaveUiPreferences", {"theme": "light", "style": "quartz", "palette": "blue", "background": "solid", "font": "roboto", "fontSize": "md"})
+        ai_qtz_c, ai_qtz_j, _ = u1.post_json("/api/ai-chat/quick-ask", {"message": "Đổi giao diện sang phong cách pha lê quartz"})
+        ai_qtz_cmds = (ai_qtz_j or {}).get("clientCommands") or []
+        has_qtz_cmd = any((c.get("args") or {}).get("style") == "quartz" for c in ai_qtz_cmds)
+        # Restore u1 default UI prefs
+        u1.post_json("/S01AuthOtpGoogle/SaveUiPreferences", {"theme": "light", "style": "standard", "palette": "blue", "background": "solid", "font": "roboto", "fontSize": "md"})
+        self.check(
+            "L10",
+            "Dark Mode Fix & 15 Bootstrap Themes: Paper Dark Mode scoped, Toast elevated above AI FAB, & 6 new themes (lux/zephyr/vapor/quartz/journal/minty) synced in CSS/JS/DB/AI",
+            'html:not([data-bs-theme="dark"])[data-ui-style="paper"]' in theme_css_v55
+            and 'html[data-bs-theme="dark"][data-ui-style="paper"]' in theme_css_v55
+            and ".swal2-container.swal2-bottom-end" in theme_css_v55
+            and "input:-webkit-autofill" in theme_css_v55
+            and "wipePrivateClientState" in core_js_v55
+            and all(f'data-ui-style="{t}"' in theme_css_v55 for t in new_themes)
+            and sv_vap_c == 200 and ((sv_vap_j or {}).get("preferences") or {}).get("style") == "vapor"
+            and sv_qtz_c == 200 and ((sv_qtz_j or {}).get("preferences") or {}).get("style") == "quartz"
+            and ai_qtz_c == 200 and has_qtz_cmd,
+            f"vap={sv_vap_c}, qtz={sv_qtz_c}, ai_qtz={ai_qtz_c}:{ai_qtz_cmds}",
+        )
+
 
 def wait_for_server(base_url: str, timeout_s: float = 40.0) -> bool:
     deadline = time.time() + timeout_s

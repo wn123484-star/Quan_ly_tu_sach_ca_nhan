@@ -182,7 +182,7 @@
             <label class="form-label small fw-bold mb-1" for="homeFilterSource">Nguồn sách</label>
             <select id="homeFilterSource" name="source" class="form-select form-select-sm">
                 <option value="all" selected="@(Model.SourceFilter == "all")">🌐 Tất cả nguồn</option>
-                <option value="System" selected="@(Model.SourceFilter == "System")">🏛️ Kho Chung ĐH CMC</option>
+                <option value="System" selected="@(Model.SourceFilter == "System")">🏛️ Kho Chung Thư Viện</option>
                 <option value="User" selected="@(Model.SourceFilter == "User")">🤝 Tủ Sách P2P</option>
             </select>
         </div>
@@ -287,7 +287,7 @@
                                  class="book-cover w-100 lazy-blur" alt="Bìa sách @b.Title" loading="lazy" decoding="async"
                                  onerror="this.onerror=null;this.src='@bookPlaceholderUrl'" />
                             <span class="position-absolute top-0 start-0 m-2 @(b.OwnerType == "System" ? "owner-badge-lib" : "owner-badge-p2p")">
-                                @(b.OwnerType == "System" ? "🏛️ Kho chung ĐH CMC" : "🤝 Tủ sách P2P")
+                                @(b.OwnerType == "System" ? "🏛️ Kho chung Thư viện" : "🤝 Tủ sách Cộng đồng")
                             </span>
                             <span class="position-absolute top-0 end-0 m-2 badge @(b.Status == "Available" ? "bg-success" : "bg-warning text-dark")">
                                 @(b.Status == "Available" ? "Sẵn sàng mượn" : $"Đang mượn / Hàng chờ ({b.QueueCount})")

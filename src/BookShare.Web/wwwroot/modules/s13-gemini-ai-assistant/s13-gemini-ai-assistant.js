@@ -240,7 +240,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     const patch = { [key]: el.value };
                     if (key === 'style' && el.value === 'sketchy') {
                         patch.font = 'patrick';
-                    } else if (key === 'style' && el.value === 'paper') {
+                    } else if (key === 'style' && (el.value === 'paper' || el.value === 'journal')) {
                         patch.font = 'lora';
                     } else if (key === 'style' && el.value === 'terminal') {
                         patch.font = 'jetbrains';

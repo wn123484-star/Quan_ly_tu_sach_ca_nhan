@@ -1251,7 +1251,7 @@ public class S13GeminiAiService : IS13GeminiAiService
         }
         ragBuilder.AppendLine("Bạn có thể tùy biến toàn diện giao diện BookShare bằng tool `set_ui_prefs`:");
         ragBuilder.AppendLine("- theme: light (sáng) | dark (tối)");
-        ragBuilder.AppendLine("- style (9 phong cách): standard, sketchy (Nét vẽ nghệch ngoặc), morph (Kính mờ), flatly (Phẳng), paper (Trang sách), neobrutal (Truyện tranh), pastel (Kẹo ngọt), cyborg (Đêm công nghệ), terminal (Lập trình viên)");
+        ragBuilder.AppendLine("- style (15 phong cách Bootstrap): standard, sketchy (Nét vẽ nghệch ngoặc), morph (Kính mờ), flatly (Phẳng), paper (Trang sách), neobrutal (Truyện tranh), pastel (Kẹo ngọt), lux (Sang trọng tối giản), zephyr (Hiện đại thoáng sạch), quartz (Pha lê trong suốt), journal (Tạp chí biên tập), minty (Bạc hà trẻ trung), vapor (Đêm neon), cyborg (Đêm công nghệ), terminal (Lập trình viên)");
         ragBuilder.AppendLine("- palette (12 bảng màu): blue, ocean, emerald, mint, gold (Vàng mộng mơ), rose (Hồng ấm áp), sakura, lavender, sepia, coral, royal, midnight");
         ragBuilder.AppendLine("- background (12 loại nền trang): solid, paper-grain (giấy sách), dot-grid (lưới chấm sổ tay), graph-grid (kẻ ô kỹ thuật), notebook-lines (vở kẻ ngang), soft-aurora (cực quang), sunset-glow (hoàng hôn), botanical (vườn xanh), starry-night (trời sao), warm-linen (vải bố), pastel-clouds (mây pastel), geometric-prism (hình học)");
         ragBuilder.AppendLine("- font (5 phông tiếng Việt): roboto, bevietnam, lora, patrick, jetbrains");
@@ -1268,14 +1268,14 @@ public class S13GeminiAiService : IS13GeminiAiService
             new
             {
                 name = "set_ui_prefs",
-                description = "Đổi toàn diện giao diện người dùng BookShare: chế độ sáng/tối (theme), 9 phong cách (style), 12 bảng màu (palette), 12 loại nền trang (background), 5 phông chữ (font), và 7 cỡ chữ (fontSize).",
+                description = "Đổi toàn diện giao diện người dùng BookShare: chế độ sáng/tối (theme), 15 phong cách Bootstrap (style), 12 bảng màu (palette), 12 loại nền trang (background), 5 phông chữ (font), và 7 cỡ chữ (fontSize).",
                 parameters = new
                 {
                     type = "OBJECT",
                     properties = new
                     {
                         theme = new { type = "STRING", description = "light hoặc dark" },
-                        style = new { type = "STRING", description = "standard | sketchy | morph | flatly | paper | neobrutal | pastel | cyborg | terminal" },
+                        style = new { type = "STRING", description = "standard | sketchy | morph | flatly | paper | neobrutal | pastel | lux | zephyr | quartz | journal | minty | vapor | cyborg | terminal" },
                         palette = new { type = "STRING", description = "blue | ocean | emerald | mint | gold | rose | sakura | lavender | sepia | coral | royal | midnight" },
                         background = new { type = "STRING", description = "solid | paper-grain | dot-grid | graph-grid | notebook-lines | soft-aurora | sunset-glow | botanical | starry-night | warm-linen | pastel-clouds | geometric-prism" },
                         font = new { type = "STRING", description = "roboto | bevietnam | lora | patrick | jetbrains" },
@@ -1430,7 +1430,8 @@ public class S13GeminiAiService : IS13GeminiAiService
                 {
                     var allowedStyles = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
                     {
-                        "standard", "sketchy", "morph", "flatly", "paper", "neobrutal", "pastel", "cyborg", "terminal"
+                        "standard", "sketchy", "morph", "flatly", "paper", "neobrutal", "pastel", "cyborg", "terminal",
+                        "lux", "zephyr", "vapor", "quartz", "journal", "minty"
                     };
                     var allowedPalettes = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
                     {
@@ -1661,6 +1662,30 @@ public class S13GeminiAiService : IS13GeminiAiService
         else if (q.Contains("terminal") || q.Contains("lập trình viên") || q.Contains("hacker") || q.Contains("matrix"))
         {
             AddUniqueCommand(cmds, "set_ui_prefs", "Bật phong cách Lập trình viên Terminal", new() { ["style"] = "terminal", ["font"] = "jetbrains", ["theme"] = "dark" });
+        }
+        else if (q.Contains("lux") || q.Contains("sang trọng") || q.Contains("tối giản cao cấp"))
+        {
+            AddUniqueCommand(cmds, "set_ui_prefs", "Bật phong cách Sang trọng Lux", new() { ["style"] = "lux" });
+        }
+        else if (q.Contains("zephyr") || q.Contains("thoáng sạch"))
+        {
+            AddUniqueCommand(cmds, "set_ui_prefs", "Bật phong cách Hiện đại Zephyr", new() { ["style"] = "zephyr" });
+        }
+        else if (q.Contains("vapor") || q.Contains("neon") || q.Contains("synthwave"))
+        {
+            AddUniqueCommand(cmds, "set_ui_prefs", "Bật phong cách Đêm Neon Vapor", new() { ["style"] = "vapor", ["theme"] = "dark" });
+        }
+        else if (q.Contains("quartz") || q.Contains("pha lê"))
+        {
+            AddUniqueCommand(cmds, "set_ui_prefs", "Bật phong cách Pha lê Quartz", new() { ["style"] = "quartz" });
+        }
+        else if (q.Contains("journal") || q.Contains("tạp chí") || q.Contains("biên tập"))
+        {
+            AddUniqueCommand(cmds, "set_ui_prefs", "Bật phong cách Tạp chí Journal", new() { ["style"] = "journal", ["font"] = "lora" });
+        }
+        else if (q.Contains("minty") || q.Contains("phong cách bạc hà"))
+        {
+            AddUniqueCommand(cmds, "set_ui_prefs", "Bật phong cách Bạc hà Minty", new() { ["style"] = "minty", ["palette"] = "mint" });
         }
         else if (q.Contains("cyborg") || q.Contains("công nghệ"))
         {

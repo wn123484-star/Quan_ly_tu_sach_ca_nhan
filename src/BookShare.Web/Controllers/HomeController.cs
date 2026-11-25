@@ -98,6 +98,7 @@ public class HomeController : Controller
     }
 
     [HttpGet("/api/ai-chat/history")]
+    [ResponseCache(Duration = 0, Location = ResponseCacheLocation.None, NoStore = true)]
     public async Task<IActionResult> GetQuickAiHistory()
     {
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
@@ -106,6 +107,7 @@ public class HomeController : Controller
             return Ok(new
             {
                 authenticated = false,
+                requiresLogin = true,
                 sessionId = 0,
                 roleName = "Guest",
                 userFullName = "Khách",
@@ -122,21 +124,18 @@ public class HomeController : Controller
 
     [HttpPost("/api/ai-chat/reset")]
     [ValidateAntiForgeryToken]
+    [ResponseCache(Duration = 0, Location = ResponseCacheLocation.None, NoStore = true)]
     public async Task<IActionResult> ResetQuickAiChat([FromBody] BookShare.Web.Models.ViewModels.ResetAiChatRequestDto? request)
     {
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
         if (string.IsNullOrWhiteSpace(userId) || User.Identity?.IsAuthenticated != true)
         {
-            return Ok(new
+            return Unauthorized(new
             {
-                title = "Đã làm mới khung chat",
-                message = "Đã đặt lại cuộc trò chuyện chế độ xem nhanh.",
-                sessionId = 0,
-                greeting = new
-                {
-                    sender = "Gemini",
-                    messageText = "Xin chào! Mình là Trợ lý AI BookShare. Bạn cần tìm sách mượn miễn phí 0đ hay đổi phong cách giao diện (Nét vẽ nghệch ngoặc, Vàng mộng mơ, Hồng ấm áp...)?"
-                }
+                success = false,
+                requiresLogin = true,
+                title = "Yêu cầu đăng nhập",
+                message = "Vui lòng đăng nhập tài khoản để quản lý và lưu lịch sử trò chuyện Trợ lý AI."
             });
         }
 
@@ -209,7 +208,7 @@ public class HomeController : Controller
         if (guestCommands.Count > 0)
         {
             var labels = string.Join(", ", guestCommands.Select(c => $"**{c.Label}**"));
-            guestReply = $"🤖 Mình đã áp dụng ngay tùy chỉnh giao diện cho bạn: {labels}. Bạn cũng có thể chọn thêm trong 12 loại nền trang, 7 cỡ chữ, 5 phông chữ hoặc 9 phong cách khác ngay tại đây!";
+            guestReply = $"🤖 Mình đã áp dụng xem trước tùy chỉnh giao diện: {labels}.\n\n🔒 *Bạn đang ở chế độ Khách — hãy **đăng nhập** để lưu cấu hình giao diện vĩnh viễn, mở khóa lịch sử trò chuyện riêng và sử dụng đầy đủ tính năng Trợ lý AI!*";
         }
         else
         {
@@ -218,8 +217,9 @@ public class HomeController : Controller
 
         return Ok(new
         {
-            title = "Trợ lý AI Thủ thư",
-            message = guestCommands.Count > 0 ? "Đã cập nhật giao diện theo yêu cầu của bạn." : "Đã tra cứu danh mục sách sẵn sàng cho mượn.",
+            title = "Trợ lý AI (Chế độ Khách)",
+            message = guestCommands.Count > 0 ? "Đã cập nhật giao diện xem trước." : "Đăng nhập để mở khóa đầy đủ tính năng Trợ lý AI.",
+            requiresLogin = true,
             reply = guestReply,
             clientCommands = guestCommands,
             actionCards = Array.Empty<object>()
