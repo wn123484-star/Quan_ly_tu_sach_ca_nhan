@@ -9,10 +9,12 @@ namespace BookShare.Web.Services.Implementations;
 public class S04BookNotesService : IS04BookNotesService
 {
     private readonly BookShareDbContext _db;
+    private readonly IAntiSpamRateLimiterService _rateLimiter;
 
-    public S04BookNotesService(BookShareDbContext db)
+    public S04BookNotesService(BookShareDbContext db, IAntiSpamRateLimiterService rateLimiter)
     {
         _db = db;
+        _rateLimiter = rateLimiter;
     }
 
     public async Task<S04BookNotesPageViewModel> GetBookNotesPageAsync(
@@ -106,6 +108,22 @@ public class S04BookNotesService : IS04BookNotesService
         if (string.IsNullOrWhiteSpace(request.NoteContent))
         {
             return (false, "Nội dung ghi chú / cảm nhận không được để trống.", null);
+        }
+
+        if (request.NoteContent.Trim().Length > 4000 || (request.QuoteText?.Trim().Length ?? 0) > 1000)
+        {
+            return (false, "Ghi chú tối đa 4.000 ký tự và trích dẫn tối đa 1.000 ký tự.", null);
+        }
+
+        var (allowed, retrySec, rlMsg) = _rateLimiter.TryConsume(
+            "s04-save-note",
+            currentUserId,
+            maxRequests: 25,
+            window: TimeSpan.FromMinutes(5),
+            customMessage: "Bạn đang lưu ghi chú quá nhanh (tối đa 25 lượt / 5 phút). Vui lòng đợi giây lát.");
+        if (!allowed)
+        {
+            throw new RateLimitExceededException(rlMsg, retrySec);
         }
 
         int pageNumber = Math.Max(1, request.PageNumber);

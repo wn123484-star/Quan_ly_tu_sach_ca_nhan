@@ -11,20 +11,44 @@ namespace BookShare.Web.Services.Implementations;
 
 public class S10ConditionReportService : IS10ConditionReportService
 {
+    private const long MaxConditionImageBytes = 5 * 1024 * 1024; // 5 MB
+
     private readonly BookShareDbContext _db;
     private readonly IWebHostEnvironment _env;
     private readonly IConfiguration _config;
+    private readonly IAntiSpamRateLimiterService _rateLimiter;
 
-    public S10ConditionReportService(BookShareDbContext db, IWebHostEnvironment env, IConfiguration config)
+    public S10ConditionReportService(
+        BookShareDbContext db,
+        IWebHostEnvironment env,
+        IConfiguration config,
+        IAntiSpamRateLimiterService rateLimiter)
     {
         _db = db;
         _env = env;
         _config = config;
+        _rateLimiter = rateLimiter;
     }
 
-    public async Task<S10ConditionReportPageViewModel> GetConditionReportsPageAsync(string currentUserId, int? selectedLoanId = null)
+    public async Task<S10ConditionReportPageViewModel> GetConditionReportsPageAsync(
+        string currentUserId,
+        int? selectedLoanId = null,
+        string currentUserRole = "User")
     {
-        var loans = await _db.Loans
+        if (string.IsNullOrWhiteSpace(currentUserId))
+        {
+            return new S10ConditionReportPageViewModel
+            {
+                CurrentUserId = string.Empty,
+                SelectedLoanId = null,
+                TotalReportsCount = 0,
+                DiscrepancyCount = 0,
+                LoanComparisons = new List<S10LoanComparisonDto>()
+            };
+        }
+
+        bool isPrivileged = currentUserRole is "Librarian" or "Curator" or "Admin";
+        var loansQuery = _db.Loans
             .AsNoTracking()
             .Include(l => l.LoanRequest)
                 .ThenInclude(lr => lr.BookCopy)
@@ -33,6 +57,16 @@ public class S10ConditionReportService : IS10ConditionReportService
                 .ThenInclude(lr => lr.Borrower)
             .Include(l => l.ConditionReports)
                 .ThenInclude(cr => cr.ReportedByUser)
+            .AsQueryable();
+
+        if (!isPrivileged)
+        {
+            loansQuery = loansQuery.Where(l =>
+                l.LoanRequest.BorrowerId == currentUserId ||
+                l.LoanRequest.BookCopy.OwnerUserId == currentUserId);
+        }
+
+        var loans = await loansQuery
             .OrderByDescending(l => l.Id)
             .ToListAsync();
 
@@ -123,15 +157,36 @@ public class S10ConditionReportService : IS10ConditionReportService
             throw new UnauthorizedAccessException("Bạn không có quyền lập biên bản tình trạng cho lượt mượn của người khác.");
         }
 
+        var (allowed, retrySec, rlMsg) = _rateLimiter.TryConsume(
+            "s10-upload-report",
+            currentUserId,
+            maxRequests: 12,
+            window: TimeSpan.FromMinutes(5),
+            customMessage: "Bạn đã gửi quá nhiều biên bản kiểm định trong 5 phút. Vui lòng đợi giây lát để chống spam.");
+        if (!allowed)
+        {
+            throw new RateLimitExceededException(rlMsg, retrySec);
+        }
+
         string cleanReportType = reportType == "Return" ? "Return" : "Handover";
         var allowedGrades = new[] { "New", "Good", "Fair", "Worn", "Damaged" };
         string cleanGrade = allowedGrades.Contains(conditionGrade) ? conditionGrade : "Good";
+        string? trimmedNote = string.IsNullOrWhiteSpace(note) ? null : note.Trim();
+        if (trimmedNote != null && trimmedNote.Length > 1000)
+        {
+            return (false, "Ghi chú tình trạng sách không được vượt quá 1.000 ký tự.", string.Empty);
+        }
 
         string resolvedImageUrl = string.Empty;
 
-        // 1. Nếu có upload file ảnh thật từ máy người dùng -> Lưu vào wwwroot/uploads/conditions/ (hoặc Cloudinary)
+        // 1. Nếu có upload file ảnh thật từ máy người dùng -> Kiểm tra dung lượng + chữ ký nhị phân (Magic Bytes) rồi lưu wwwroot/uploads/conditions/
         if (uploadedFile != null && uploadedFile.Length > 0)
         {
+            if (uploadedFile.Length > MaxConditionImageBytes)
+            {
+                return (false, "Dung lượng ảnh chụp tình trạng sách không được vượt quá 5MB.", string.Empty);
+            }
+
             var ext = Path.GetExtension(uploadedFile.FileName).ToLowerInvariant();
             var allowedExts = new[] { ".jpg", ".jpeg", ".png", ".webp" };
             if (!allowedExts.Contains(ext))
@@ -139,22 +194,39 @@ public class S10ConditionReportService : IS10ConditionReportService
                 return (false, "Chỉ chấp nhận tệp hình ảnh chụp tình trạng sách (.jpg, .png, .webp). Tuyệt đối không upload PDF/Ebook!", string.Empty);
             }
 
+            byte[] fileBytes;
+            await using (var ms = new MemoryStream())
+            {
+                await uploadedFile.CopyToAsync(ms);
+                fileBytes = ms.ToArray();
+            }
+
+            bool isValidMagic =
+                (fileBytes.Length >= 8 && fileBytes[0] == 0x89 && fileBytes[1] == 0x50 && fileBytes[2] == 0x4E && fileBytes[3] == 0x47) || // PNG
+                (fileBytes.Length >= 3 && fileBytes[0] == 0xFF && fileBytes[1] == 0xD8 && fileBytes[2] == 0xFF) || // JPEG
+                (fileBytes.Length >= 12 && fileBytes[0] == 0x52 && fileBytes[1] == 0x49 && fileBytes[2] == 0x46 && fileBytes[3] == 0x46 &&
+                 fileBytes[8] == 0x57 && fileBytes[9] == 0x45 && fileBytes[10] == 0x42 && fileBytes[11] == 0x50); // WEBP
+            if (!isValidMagic)
+            {
+                return (false, "Nội dung tệp tải lên không phải ảnh PNG/JPEG/WebP hợp lệ (bị chặn bởi lớp kiểm tra chữ ký tệp).", string.Empty);
+            }
+
             var uploadFolder = Path.Combine(_env.WebRootPath, "uploads", "conditions");
             Directory.CreateDirectory(uploadFolder);
 
-            var fileName = $"loan-{loanId}-{cleanReportType.ToLower()}-{DateTime.UtcNow:yyyyMMddHHmmss}{ext}";
+            var fileName = $"loan-{loanId}-{cleanReportType.ToLower()}-{DateTime.UtcNow:yyyyMMddHHmmss}-{Guid.NewGuid().ToString("N")[..6]}{ext}";
             var fullPath = Path.Combine(uploadFolder, fileName);
-
-            await using (var stream = new FileStream(fullPath, FileMode.Create))
-            {
-                await uploadedFile.CopyToAsync(stream);
-            }
+            await File.WriteAllBytesAsync(fullPath, fileBytes);
 
             resolvedImageUrl = $"/uploads/conditions/{fileName}";
         }
         else if (!string.IsNullOrWhiteSpace(fallbackImageUrl))
         {
-            resolvedImageUrl = fallbackImageUrl.Trim();
+            string cleanUrl = fallbackImageUrl.Trim();
+            bool safeUrl = cleanUrl.StartsWith("/", StringComparison.Ordinal) && !cleanUrl.StartsWith("//", StringComparison.Ordinal)
+                || cleanUrl.StartsWith("https://", StringComparison.OrdinalIgnoreCase)
+                || cleanUrl.StartsWith("http://", StringComparison.OrdinalIgnoreCase);
+            resolvedImageUrl = safeUrl ? cleanUrl : "/images/book-placeholder.svg";
         }
         else
         {

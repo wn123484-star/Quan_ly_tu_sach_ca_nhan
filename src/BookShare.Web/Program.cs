@@ -78,8 +78,12 @@ var authBuilder = builder.Services.AddAuthentication(options =>
             try
             {
                 var db = context.HttpContext.RequestServices.GetRequiredService<BookShareDbContext>();
-                bool exists = await db.AspNetUsers.AsNoTracking().AnyAsync(u => u.Id == userId);
-                if (!exists)
+                var userState = await db.AspNetUsers
+                    .AsNoTracking()
+                    .Where(u => u.Id == userId)
+                    .Select(u => new { u.Id, u.LockoutEnd })
+                    .FirstOrDefaultAsync();
+                if (userState == null || (userState.LockoutEnd.HasValue && userState.LockoutEnd.Value > DateTimeOffset.UtcNow))
                 {
                     context.RejectPrincipal();
                     await context.HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
@@ -165,6 +169,7 @@ builder.Services.AddAuthorization(options =>
 // 5. Đăng ký HttpClient, MemoryCache & Tầng Business Services (Controller không gọi thẳng DbContext)
 builder.Services.AddHttpClient();
 builder.Services.AddMemoryCache();
+builder.Services.AddSingleton<IAntiSpamRateLimiterService, AntiSpamRateLimiterService>();
 builder.Services.AddScoped<IDatabaseBootstrapService, DatabaseBootstrapService>();
 builder.Services.AddScoped<ISystemIconService, SystemIconService>();
 // [BOT-GUARD] Đăng ký dịch vụ xác thực Google reCAPTCHA v3 (đọc ReCaptcha:SiteKey & SecretKey từ .env)
@@ -264,6 +269,29 @@ app.Use(async (context, next) =>
     try
     {
         await next();
+    }
+    catch (RateLimitExceededException ex)
+    {
+        if (context.Response.HasStarted)
+        {
+            throw;
+        }
+
+        context.Response.Clear();
+        context.Response.StatusCode = StatusCodes.Status429TooManyRequests;
+        context.Response.Headers["Retry-After"] = ex.RetryAfterSeconds.ToString();
+        context.Response.ContentType = "application/json; charset=utf-8";
+        var payload = JsonSerializer.Serialize(new
+        {
+            success = false,
+            statusCode = StatusCodes.Status429TooManyRequests,
+            title = "Thao tác quá nhanh (Chống Spam)",
+            message = ex.Message,
+            retryAfterSeconds = ex.RetryAfterSeconds,
+            requestId = System.Diagnostics.Activity.Current?.Id ?? context.TraceIdentifier
+        });
+        await context.Response.WriteAsync(payload);
+        return;
     }
     catch (UnauthorizedAccessException ex)
     {

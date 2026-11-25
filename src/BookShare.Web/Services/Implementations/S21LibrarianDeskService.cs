@@ -448,8 +448,15 @@ public class S21LibrarianDeskService : IS21LibrarianDeskService
 
             if (loanReq.LoanType == "P2P" && copy.OwnerUser != null)
             {
-                copy.OwnerUser.LendQuotaBonus += 1;
-                copy.OwnerUser.TrustScore = Math.Clamp(copy.OwnerUser.TrustScore + 3, 0, 200);
+                bool farmedRecently = await _db.Loans.AnyAsync(l =>
+                    l.LoanRequest.BookCopyId == copy.Id &&
+                    l.LoanRequest.BorrowerId == loanReq.BorrowerId &&
+                    l.StartDate >= now.AddHours(-24));
+                if (!farmedRecently)
+                {
+                    copy.OwnerUser.LendQuotaBonus = Math.Min(copy.OwnerUser.LendQuotaBonus + 1, 10);
+                    copy.OwnerUser.TrustScore = Math.Clamp(copy.OwnerUser.TrustScore + 3, 0, 200);
+                }
             }
 
             await _db.SaveChangesAsync();

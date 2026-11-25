@@ -49,17 +49,20 @@ public class HomeController : Controller
     private readonly IPortalDiscoveryService _portalService;
     private readonly IS13GeminiAiService _geminiAiService;
     private readonly ISystemIconService _iconService;
+    private readonly IAntiSpamRateLimiterService _rateLimiter;
     private readonly ILogger<HomeController> _logger;
 
     public HomeController(
         IPortalDiscoveryService portalService,
         IS13GeminiAiService geminiAiService,
         ISystemIconService iconService,
+        IAntiSpamRateLimiterService rateLimiter,
         ILogger<HomeController> logger)
     {
         _portalService = portalService;
         _geminiAiService = geminiAiService;
         _iconService = iconService;
+        _rateLimiter = rateLimiter;
         _logger = logger;
     }
 
@@ -155,7 +158,26 @@ public class HomeController : Controller
     public async Task<IActionResult> QuickAiAsk([FromBody] QuickAiPromptDto dto)
     {
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-        var prompt = dto.Message ?? string.Empty;
+        var actorKey = !string.IsNullOrWhiteSpace(userId) && User.Identity?.IsAuthenticated == true
+            ? $"u:{userId}"
+            : $"ip:{HttpContext.Connection.RemoteIpAddress?.ToString() ?? "local"}";
+
+        var (allowed, retrySec, rlMsg) = _rateLimiter.TryConsume(
+            "ai-quick-ask",
+            actorKey,
+            maxRequests: 25,
+            window: TimeSpan.FromMinutes(1),
+            customMessage: "Bạn đang gửi câu hỏi AI quá nhanh (tối đa 25 lượt / phút). Vui lòng đợi giây lát rồi thử lại.");
+        if (!allowed)
+        {
+            throw new RateLimitExceededException(rlMsg, retrySec);
+        }
+
+        var prompt = (dto?.Message ?? string.Empty).Trim();
+        if (prompt.Length > 1000)
+        {
+            return BadRequest(new { message = "Câu hỏi gửi Trợ lý AI không được vượt quá 1.000 ký tự." });
+        }
 
         if (!string.IsNullOrWhiteSpace(userId) && User.Identity?.IsAuthenticated == true)
         {

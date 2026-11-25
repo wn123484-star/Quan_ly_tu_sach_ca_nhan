@@ -43,6 +43,7 @@ public class S12LoanRenewalFineService : IS12LoanRenewalFineService
                         .ThenInclude(b => b.Reservations)
             .Include(l => l.LoanRequest)
                 .ThenInclude(lr => lr.Borrower)
+                    .ThenInclude(b => b.Memberships)
             .AsQueryable();
 
         if (!isPrivileged)
@@ -69,6 +70,7 @@ public class S12LoanRenewalFineService : IS12LoanRenewalFineService
             bool hasWaitingQueue = l.LoanRequest.BookCopy.Book.Reservations
                 .Any(r => r.Status == "Waiting" || r.Status == "Notified");
 
+            var bPlan = MembershipTierCatalog.GetEffectivePolicy(l.LoanRequest.Borrower?.Memberships, now);
             return new S12LoanFineItemDto
             {
                 LoanId = l.Id,
@@ -76,13 +78,13 @@ public class S12LoanRenewalFineService : IS12LoanRenewalFineService
                 BookId = l.LoanRequest.BookCopy.BookId,
                 BookTitle = l.LoanRequest.BookCopy.Book.Title,
                 BorrowerId = l.LoanRequest.BorrowerId,
-                BorrowerName = l.LoanRequest.Borrower.FullName,
+                BorrowerName = l.LoanRequest.Borrower?.FullName ?? "Độc giả BookShare",
                 LoanType = l.LoanRequest.LoanType,
                 StartDate = l.StartDate,
                 DueDate = l.DueDate,
                 ReturnDate = l.ReturnDate,
                 RenewCount = l.RenewCount,
-                MaxRenewals = 2,
+                MaxRenewals = bPlan.MaxRenewals,
                 HasWaitingReservations = hasWaitingQueue,
                 OverdueDays = overdueDays,
                 CalculatedFine = Math.Max(l.FineAmount, calcFine),
@@ -154,6 +156,11 @@ public class S12LoanRenewalFineService : IS12LoanRenewalFineService
         if (loan.Status != "Active")
         {
             return (false, $"Chỉ có thể gia hạn lượt mượn đang ở trạng thái hoạt động (Hiện tại: {loan.Status}).", null, loan.RenewCount);
+        }
+
+        if (loan.DueDate < DateTime.UtcNow)
+        {
+            return (false, $"Hợp đồng mượn #{loan.Id} đã quá hạn trả ({loan.DueDate:dd/MM/yyyy}), không thể tự gia hạn. Vui lòng hoàn trả sách hoặc liên hệ Thủ thư.", null, loan.RenewCount);
         }
 
         var borrowerMemberships = await _db.Memberships

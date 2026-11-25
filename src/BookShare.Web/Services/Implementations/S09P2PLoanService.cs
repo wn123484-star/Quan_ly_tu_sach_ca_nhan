@@ -362,8 +362,15 @@ public class S09P2PLoanService : IS09P2PLoanService
 
             if (loanReq.BookCopy.OwnerUser != null)
             {
-                loanReq.BookCopy.OwnerUser.LendQuotaBonus += 1;
-                loanReq.BookCopy.OwnerUser.TrustScore = Math.Clamp(loanReq.BookCopy.OwnerUser.TrustScore + 3, 0, 200);
+                bool farmedRecently = await _db.Loans.AnyAsync(l =>
+                    l.LoanRequest.BookCopyId == loanReq.BookCopyId &&
+                    l.LoanRequest.BorrowerId == loanReq.BorrowerId &&
+                    l.StartDate >= now.AddHours(-24));
+                if (!farmedRecently)
+                {
+                    loanReq.BookCopy.OwnerUser.LendQuotaBonus = Math.Min(loanReq.BookCopy.OwnerUser.LendQuotaBonus + 1, 10);
+                    loanReq.BookCopy.OwnerUser.TrustScore = Math.Clamp(loanReq.BookCopy.OwnerUser.TrustScore + 3, 0, 200);
+                }
             }
 
             await _db.SaveChangesAsync();

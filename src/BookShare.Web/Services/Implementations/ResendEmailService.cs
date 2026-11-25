@@ -17,17 +17,20 @@ public class ResendEmailService : IResendEmailService
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly IConfiguration _config;
     private readonly ILogger<ResendEmailService> _logger;
+    private readonly IAntiSpamRateLimiterService _rateLimiter;
 
     public ResendEmailService(
         BookShareDbContext db,
         IHttpClientFactory httpClientFactory,
         IConfiguration config,
-        ILogger<ResendEmailService> logger)
+        ILogger<ResendEmailService> logger,
+        IAntiSpamRateLimiterService rateLimiter)
     {
         _db = db;
         _httpClientFactory = httpClientFactory;
         _config = config;
         _logger = logger;
+        _rateLimiter = rateLimiter;
     }
 
     public async Task<(bool Success, string Message, string? DevOtpCode)> GenerateAndSendOtpAsync(
@@ -42,6 +45,17 @@ public class ResendEmailService : IResendEmailService
             purpose = "VerifyNotificationEmail";
         }
 
+        var (allowed, retrySec, rlMsg) = _rateLimiter.TryConsume(
+            "otp-send",
+            normalizedEmail,
+            maxRequests: 5,
+            window: TimeSpan.FromMinutes(2),
+            customMessage: "Bạn đã yêu cầu gửi mã OTP quá nhiều lần (tối đa 5 lần / 2 phút). Vui lòng đợi giây lát rồi thử lại.");
+        if (!allowed)
+        {
+            throw new RateLimitExceededException(rlMsg, retrySec);
+        }
+
         var recentUnusedCount = await _db.OtpVerifications.CountAsync(o =>
             o.Email == normalizedEmail &&
             !o.IsUsed &&
@@ -49,7 +63,7 @@ public class ResendEmailService : IResendEmailService
 
         if (recentUnusedCount >= 5)
         {
-            return (false, "Bạn đã yêu cầu gửi mã xác thực quá nhiều lần. Vui lòng đợi 2 phút rồi thử lại.", null);
+            throw new RateLimitExceededException("Bạn đã yêu cầu gửi mã xác thực quá nhiều lần. Vui lòng đợi 2 phút rồi thử lại.", 120);
         }
 
         // Sinh mã OTP 6 chữ số an toàn mật mã học
@@ -184,6 +198,14 @@ public class ResendEmailService : IResendEmailService
     {
         var normalizedEmail = email.Trim().ToLowerInvariant();
         var cleanCode = otpCode.Trim();
+        var failScope = $"otp-verify:{purpose}";
+        if (_rateLimiter.IsLockedOut(failScope, normalizedEmail, maxFailures: 5, TimeSpan.FromMinutes(10), out int lockSec))
+        {
+            throw new RateLimitExceededException(
+                $"Bạn đã nhập sai mã OTP quá 5 lần liên tiếp. Vui lòng đợi {lockSec} giây hoặc gửi lại mã OTP mới.",
+                lockSec);
+        }
+
         var codeHash = ComputeSha256Hash(cleanCode);
 
         var record = await _db.OtpVerifications
@@ -203,9 +225,17 @@ public class ResendEmailService : IResendEmailService
 
         if (!string.Equals(record.OtpCodeHash, codeHash, StringComparison.OrdinalIgnoreCase))
         {
-            return (false, "Mã OTP 6 chữ số không chính xác. Vui lòng kiểm tra lại.");
+            var (fails, lockedOut, _) = _rateLimiter.RecordFailure(failScope, normalizedEmail, maxFailures: 5, TimeSpan.FromMinutes(10));
+            if (lockedOut)
+            {
+                record.IsUsed = true;
+                await _db.SaveChangesAsync();
+                return (false, "Bạn đã nhập sai mã OTP 5 lần liên tiếp. Mã OTP hiện tại đã bị vô hiệu hóa để bảo mật — vui lòng gửi mã mới.");
+            }
+            return (false, $"Mã OTP 6 chữ số không chính xác ({fails}/5 lần thử). Vui lòng kiểm tra lại.");
         }
 
+        _rateLimiter.ClearFailures(failScope, normalizedEmail);
         record.IsUsed = true;
         if (purpose is "VerifyNotificationEmail" or "Register")
         {

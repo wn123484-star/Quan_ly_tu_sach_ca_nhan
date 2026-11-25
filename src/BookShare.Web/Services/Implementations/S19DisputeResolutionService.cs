@@ -11,18 +11,36 @@ public class S19DisputeResolutionService : IS19DisputeResolutionService
 {
     private readonly BookShareDbContext _db;
     private readonly IS17SandboxPaymentService _paymentService;
+    private readonly IAntiSpamRateLimiterService _rateLimiter;
 
-    public S19DisputeResolutionService(BookShareDbContext db, IS17SandboxPaymentService paymentService)
+    public S19DisputeResolutionService(
+        BookShareDbContext db,
+        IS17SandboxPaymentService paymentService,
+        IAntiSpamRateLimiterService rateLimiter)
     {
         _db = db;
         _paymentService = paymentService;
+        _rateLimiter = rateLimiter;
     }
 
     public async Task<S19DisputeResolutionPageViewModel> GetDisputeResolutionPageAsync(
         string currentUserId,
         string currentUserRole)
     {
-        var loans = await _db.Loans
+        if (string.IsNullOrWhiteSpace(currentUserId))
+        {
+            return new S19DisputeResolutionPageViewModel
+            {
+                CurrentUserId = string.Empty,
+                CurrentUserRole = "Guest",
+                EligibleLoans = new List<S19LoanForDisputeDto>(),
+                Disputes = new List<S19DisputeDetailDto>()
+            };
+        }
+
+        bool isPrivileged = currentUserRole is "Librarian" or "Curator" or "Admin";
+
+        var loansQuery = _db.Loans
             .AsNoTracking()
             .Include(l => l.LoanRequest)
                 .ThenInclude(lr => lr.BookCopy)
@@ -30,6 +48,16 @@ public class S19DisputeResolutionService : IS19DisputeResolutionService
             .Include(l => l.LoanRequest)
                 .ThenInclude(lr => lr.Borrower)
             .Include(l => l.ConditionReports)
+            .AsQueryable();
+
+        if (!isPrivileged)
+        {
+            loansQuery = loansQuery.Where(l =>
+                l.LoanRequest.BorrowerId == currentUserId ||
+                l.LoanRequest.BookCopy.OwnerUserId == currentUserId);
+        }
+
+        var loans = await loansQuery
             .OrderByDescending(l => l.StartDate)
             .ToListAsync();
 
@@ -50,7 +78,7 @@ public class S19DisputeResolutionService : IS19DisputeResolutionService
             };
         }).ToList();
 
-        var disputes = await _db.Disputes
+        var disputesQuery = _db.Disputes
             .AsNoTracking()
             .Include(d => d.Loan)
                 .ThenInclude(l => l.LoanRequest)
@@ -63,6 +91,17 @@ public class S19DisputeResolutionService : IS19DisputeResolutionService
                 .ThenInclude(l => l.ConditionReports)
             .Include(d => d.RaisedByUser)
             .Include(d => d.ResolvedByAdmin)
+            .AsQueryable();
+
+        if (!isPrivileged)
+        {
+            disputesQuery = disputesQuery.Where(d =>
+                d.RaisedByUserId == currentUserId ||
+                d.Loan.LoanRequest.BorrowerId == currentUserId ||
+                d.Loan.LoanRequest.BookCopy.OwnerUserId == currentUserId);
+        }
+
+        var disputes = await disputesQuery
             .OrderByDescending(d => d.CreatedAt)
             .ToListAsync();
 
@@ -128,6 +167,22 @@ public class S19DisputeResolutionService : IS19DisputeResolutionService
             return (false, "Vui lòng nhập lý do khiếu nại tình trạng sách.", 0);
         }
 
+        if (request.Reason.Trim().Length > 2000)
+        {
+            return (false, "Lý do khiếu nại không được vượt quá 2.000 ký tự.", 0);
+        }
+
+        var (allowed, retrySec, rlMsg) = _rateLimiter.TryConsume(
+            "s19-create-dispute",
+            currentUserId,
+            maxRequests: 6,
+            window: TimeSpan.FromMinutes(10),
+            customMessage: "Bạn đã gửi quá nhiều hồ sơ khiếu nại trong 10 phút (tối đa 6 hồ sơ). Vui lòng đợi Quản trị viên xử lý.");
+        if (!allowed)
+        {
+            throw new RateLimitExceededException(rlMsg, retrySec);
+        }
+
         var loan = await _db.Loans
             .Include(l => l.LoanRequest)
                 .ThenInclude(lr => lr.BookCopy)
@@ -145,6 +200,16 @@ public class S19DisputeResolutionService : IS19DisputeResolutionService
         if (!isParticipant && !isPrivileged)
         {
             throw new UnauthorizedAccessException("Bạn không có quyền mở hồ sơ khiếu nại đối với lượt mượn không liên quan tới mình.");
+        }
+
+        if (!isPrivileged)
+        {
+            int userOpenDisputes = await _db.Disputes.CountAsync(d =>
+                d.RaisedByUserId == currentUserId && (d.Status == "Open" || d.Status == "UnderReview"));
+            if (userOpenDisputes >= 5)
+            {
+                return (false, "Bạn đang có 5 hồ sơ khiếu nại chưa xử lý xong. Vui lòng đợi Quản trị viên phân xử trước khi mở thêm.", 0);
+            }
         }
 
         bool hasOpenDispute = await _db.Disputes.AnyAsync(d =>

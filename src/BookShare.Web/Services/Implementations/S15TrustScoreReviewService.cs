@@ -9,10 +9,12 @@ namespace BookShare.Web.Services.Implementations;
 public class S15TrustScoreReviewService : IS15TrustScoreReviewService
 {
     private readonly BookShareDbContext _db;
+    private readonly IAntiSpamRateLimiterService _rateLimiter;
 
-    public S15TrustScoreReviewService(BookShareDbContext db)
+    public S15TrustScoreReviewService(BookShareDbContext db, IAntiSpamRateLimiterService rateLimiter)
     {
         _db = db;
+        _rateLimiter = rateLimiter;
     }
 
     public async Task<S15TrustScoreReviewPageViewModel> GetTrustScoreReviewPageAsync(string currentUserId)
@@ -128,6 +130,23 @@ public class S15TrustScoreReviewService : IS15TrustScoreReviewService
             return (false, "Vui lòng chọn đối tượng đánh giá và nhập nội dung nhận xét.", 0);
         }
 
+        string cleanComment = request.Comment.Trim();
+        if (cleanComment.Length > 1000)
+        {
+            return (false, "Nội dung đánh giá không được vượt quá 1.000 ký tự.", 0);
+        }
+
+        var (allowed, retrySec, rlMsg) = _rateLimiter.TryConsume(
+            "s15-submit-review",
+            reviewerUserId,
+            maxRequests: 12,
+            window: TimeSpan.FromMinutes(5),
+            customMessage: "Bạn đang gửi đánh giá quá nhanh (tối đa 12 lượt / 5 phút). Vui lòng đợi giây lát để chống spam điểm uy tín.");
+        if (!allowed)
+        {
+            throw new RateLimitExceededException(rlMsg, retrySec);
+        }
+
         string cleanTargetType = request.TargetType == "Book" ? "Book" : "User";
         string cleanTargetId = request.TargetId.Trim();
         int cleanRating = Math.Clamp(request.Rating, 1, 5);
@@ -139,10 +158,21 @@ public class S15TrustScoreReviewService : IS15TrustScoreReviewService
 
         if (request.LoanId.HasValue)
         {
-            bool loanExists = await _db.Loans.AnyAsync(l => l.Id == request.LoanId.Value);
-            if (!loanExists)
+            var loan = await _db.Loans
+                .AsNoTracking()
+                .Include(l => l.LoanRequest)
+                    .ThenInclude(lr => lr.BookCopy)
+                .FirstOrDefaultAsync(l => l.Id == request.LoanId.Value);
+            if (loan == null)
             {
                 return (false, "Không tìm thấy hợp đồng mượn sách hợp lệ.", 0);
+            }
+
+            bool isLoanParticipant = loan.LoanRequest.BorrowerId == reviewerUserId ||
+                                     loan.LoanRequest.BookCopy.OwnerUserId == reviewerUserId;
+            if (!isLoanParticipant)
+            {
+                throw new UnauthorizedAccessException("Bạn chỉ được đánh giá kèm hợp đồng mượn mà chính bạn đã tham gia.");
             }
 
             bool duplicateLoanReview = await _db.Reviews.AnyAsync(r =>
@@ -163,6 +193,19 @@ public class S15TrustScoreReviewService : IS15TrustScoreReviewService
             if (duplicateBookReview)
             {
                 return (false, "Bạn đã đánh giá đầu sách này trước đó. Bạn có thể chỉnh sửa đánh giá hiện có.", 0);
+            }
+        }
+        else
+        {
+            // Chống spam/phá hoại điểm uy tín: mỗi cặp Reviewer -> User chỉ được gửi tối đa 1 đánh giá độc lập (không kèm LoanId)
+            bool duplicateUserReview = await _db.Reviews.AnyAsync(r =>
+                r.ReviewerId == reviewerUserId &&
+                r.TargetType == "User" &&
+                r.TargetId == cleanTargetId &&
+                r.LoanId == null);
+            if (duplicateUserReview)
+            {
+                return (false, "Bạn đã đánh giá thành viên này trước đó. Hãy chỉnh sửa nhận xét hiện có thay vì gửi lặp lại!", 0);
             }
         }
 

@@ -201,7 +201,12 @@ public class S06SearchDiscoveryService : IS06SearchDiscoveryService
             return (false, "Bạn đã gửi yêu cầu mượn cho cuốn sách này và đang chờ duyệt.", 0);
         }
 
-        var days = Math.Clamp(request.DesiredDays, 3, 30);
+        var borrowerMemberships = await _db.Memberships
+            .AsNoTracking()
+            .Where(m => m.UserId == borrowerUserId && m.IsActive)
+            .ToListAsync();
+        var tierPlan = MembershipTierCatalog.GetEffectivePolicy(borrowerMemberships, DateTime.UtcNow);
+        var days = Math.Clamp(request.DesiredDays, 3, tierPlan.MaxBorrowDays);
         var loanType = copy.OwnerType == "System" ? "Library" : "P2P";
 
         int? resolvedHubId = request.PickupHubId;

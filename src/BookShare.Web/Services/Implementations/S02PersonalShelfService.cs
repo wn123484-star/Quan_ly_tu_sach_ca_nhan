@@ -9,10 +9,12 @@ namespace BookShare.Web.Services.Implementations;
 public class S02PersonalShelfService : IS02PersonalShelfService
 {
     private readonly BookShareDbContext _db;
+    private readonly IAntiSpamRateLimiterService _rateLimiter;
 
-    public S02PersonalShelfService(BookShareDbContext db)
+    public S02PersonalShelfService(BookShareDbContext db, IAntiSpamRateLimiterService rateLimiter)
     {
         _db = db;
+        _rateLimiter = rateLimiter;
     }
 
     public async Task<S02PersonalShelfPageViewModel> GetPersonalShelfAsync(string userId, int? shelfId = null)
@@ -161,11 +163,34 @@ public class S02PersonalShelfService : IS02PersonalShelfService
             return (false, "Tên kệ sách không được để trống.");
         }
 
-        int nextOrder = await _db.Shelves.CountAsync(s => s.UserId == currentUserId) + 1;
+        string cleanName = request.Name.Trim();
+        if (cleanName.Length > 120)
+        {
+            return (false, "Tên kệ sách không được vượt quá 120 ký tự.");
+        }
+
+        var (allowed, retrySec, rlMsg) = _rateLimiter.TryConsume(
+            "s02-create-shelf",
+            currentUserId,
+            maxRequests: 20,
+            window: TimeSpan.FromMinutes(5),
+            customMessage: "Bạn đang tạo kệ sách quá nhanh. Vui lòng đợi giây lát.");
+        if (!allowed)
+        {
+            throw new RateLimitExceededException(rlMsg, retrySec);
+        }
+
+        int existingCount = await _db.Shelves.CountAsync(s => s.UserId == currentUserId);
+        if (existingCount >= 25)
+        {
+            return (false, "Mỗi độc giả chỉ được tạo tối đa 25 kệ sách cá nhân để tối ưu hiệu năng hiển thị.");
+        }
+
+        int nextOrder = existingCount + 1;
         var shelf = new Shelf
         {
             UserId = currentUserId,
-            Name = request.Name.Trim(),
+            Name = cleanName,
             Description = request.Description?.Trim(),
             IsPublic = request.IsPublic,
             DisplayOrder = nextOrder

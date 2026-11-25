@@ -50,7 +50,7 @@ public interface IS09P2PLoanService
 
 public interface IS10ConditionReportService
 {
-    Task<S10ConditionReportPageViewModel> GetConditionReportsPageAsync(string currentUserId, int? selectedLoanId = null);
+    Task<S10ConditionReportPageViewModel> GetConditionReportsPageAsync(string currentUserId, int? selectedLoanId = null, string currentUserRole = "User");
 
     Task<(bool Success, string Message, string ImageUrl)> SaveConditionReportAsync(
         string currentUserId,

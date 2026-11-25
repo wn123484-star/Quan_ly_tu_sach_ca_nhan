@@ -127,6 +127,14 @@ public class LoanFlowCoordinatorService : ILoanFlowCoordinatorService
             return (false, $"Bạn đang mượn {currentOpenLoans}/{maxQuota} cuốn (đạt hạn mức tối đa của gói {effectivePlan.DisplayName}). Vui lòng hoàn trả sách hoặc nâng cấp hạng hội viên bằng tiền ảo miễn phí.");
         }
 
+        int maxPendingRequests = Math.Max(maxQuota * 2, 6);
+        int currentPendingRequests = await _db.LoanRequests.CountAsync(lr =>
+            lr.BorrowerId == borrowerUserId && lr.Status == "Pending");
+        if (currentPendingRequests >= maxPendingRequests)
+        {
+            return (false, $"Bạn hiện đang có {currentPendingRequests}/{maxPendingRequests} phiếu yêu cầu mượn chờ duyệt. Vui lòng chờ duyệt hoặc hủy bớt phiếu cũ trước khi gửi thêm để tránh spam hệ thống.");
+        }
+
         return (true, string.Empty);
     }
 

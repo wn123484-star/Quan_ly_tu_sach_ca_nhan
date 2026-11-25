@@ -20,13 +20,17 @@ public class S10ConditionReportController : Controller
     public async Task<IActionResult> Index(int? loanId = null)
     {
         var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? string.Empty;
-        var vm = await _conditionService.GetConditionReportsPageAsync(currentUserId, loanId);
+        var currentUserRole = User.Identity?.IsAuthenticated == true
+            ? (User.FindFirstValue(ClaimTypes.Role) ?? "User")
+            : "Guest";
+        var vm = await _conditionService.GetConditionReportsPageAsync(currentUserId, loanId, currentUserRole);
         return View("~/Views/Modules/S10_ConditionReport/Index.cshtml", vm);
     }
 
     [HttpPost]
     [Authorize]
     [ValidateAntiForgeryToken]
+    [RequestSizeLimit(6 * 1024 * 1024)]
     public async Task<IActionResult> UploadReport(
         [FromForm] int loanId,
         [FromForm] string reportType,

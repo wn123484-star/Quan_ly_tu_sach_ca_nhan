@@ -45,6 +45,7 @@ public class S13GeminiAiService : IS13GeminiAiService
     private readonly IS12LoanRenewalFineService _renewalService;
     private readonly IS18NotificationHubService _notificationService;
     private readonly IResendEmailService _resendEmailService;
+    private readonly IAntiSpamRateLimiterService _rateLimiter;
 
     public S13GeminiAiService(
         BookShareDbContext db,
@@ -53,7 +54,8 @@ public class S13GeminiAiService : IS13GeminiAiService
         IS03ReadingTrackerService readingService,
         IS12LoanRenewalFineService renewalService,
         IS18NotificationHubService notificationService,
-        IResendEmailService resendEmailService)
+        IResendEmailService resendEmailService,
+        IAntiSpamRateLimiterService rateLimiter)
     {
         _db = db;
         _httpClientFactory = httpClientFactory;
@@ -62,6 +64,7 @@ public class S13GeminiAiService : IS13GeminiAiService
         _renewalService = renewalService;
         _notificationService = notificationService;
         _resendEmailService = resendEmailService;
+        _rateLimiter = rateLimiter;
     }
 
     public async Task<S13GeminiAssistantPageViewModel> GetAssistantPageAsync(string currentUserId, int? sessionId = null)
@@ -199,9 +202,27 @@ public class S13GeminiAiService : IS13GeminiAiService
         string currentUserId,
         string title)
     {
+        var (allowed, retrySec, rlMsg) = _rateLimiter.TryConsume(
+            "s13-create-session",
+            currentUserId,
+            maxRequests: 12,
+            window: TimeSpan.FromMinutes(5),
+            customMessage: "Bạn đang tạo quá nhiều phiên hội thoại AI liên tục (tối đa 12 phiên / 5 phút). Vui lòng dùng lại phiên đang có.");
+        if (!allowed)
+        {
+            throw new RateLimitExceededException(rlMsg, retrySec);
+        }
+
+        int existingSessions = await _db.AiChatSessions.CountAsync(s => s.UserId == currentUserId);
+        if (existingSessions >= 30)
+        {
+            return (false, "Bạn đã đạt tối đa 30 phiên hội thoại AI. Vui lòng xóa bớt phiên cũ trước khi tạo mới.", 0);
+        }
+
         string cleanTitle = string.IsNullOrWhiteSpace(title)
             ? $"Phiên tư vấn AI ({DateTime.Now:dd/MM HH:mm})"
             : title.Trim();
+        if (cleanTitle.Length > 140) cleanTitle = cleanTitle[..140];
 
         string modelName = _config["Gemini:Model"] ?? "gemini-2.5-flash";
 
@@ -257,6 +278,26 @@ public class S13GeminiAiService : IS13GeminiAiService
         }
 
         string cleanMsg = userMessage.Trim();
+        if (cleanMsg.Length > 2000)
+        {
+            return new CopilotChatResultDto
+            {
+                Success = false,
+                ReplyText = "Nội dung câu hỏi gửi Trợ lý AI tối đa 2.000 ký tự.",
+                SourceMode = "Validation"
+            };
+        }
+
+        var (allowedMsg, retryMsgSec, rlMsgText) = _rateLimiter.TryConsume(
+            "s13-send-message",
+            currentUserId,
+            maxRequests: 25,
+            window: TimeSpan.FromMinutes(1),
+            customMessage: "Bạn đang gửi tin nhắn tới Trợ lý AI quá nhanh (tối đa 25 lượt / phút). Vui lòng đợi giây lát.");
+        if (!allowedMsg)
+        {
+            throw new RateLimitExceededException(rlMsgText, retryMsgSec);
+        }
         string modelName = AuthConfigHelper.SanitizeEnvValue(_config["Gemini:Model"]
             ?? Environment.GetEnvironmentVariable("GEMINI_MODEL"));
         if (string.IsNullOrWhiteSpace(modelName)) modelName = "gemini-2.5-flash";
@@ -473,6 +514,7 @@ public class S13GeminiAiService : IS13GeminiAiService
                 {
                     return (false, "Bạn chưa có địa chỉ Email hợp lệ. Vui lòng vào Cài Đặt Tài Khoản (/S01AuthOtpGoogle) để điền Email trước khi gửi thư!");
                 }
+                EnforceAiEmailQuota(currentUserId);
 
                 var myLoans = await _db.Loans
                     .AsNoTracking()
@@ -533,6 +575,7 @@ public class S13GeminiAiService : IS13GeminiAiService
                 {
                     return (false, "Bạn chưa có địa chỉ Email hợp lệ. Vui lòng vào Cài Đặt Tài Khoản (/S01AuthOtpGoogle) để điền Email trước khi gửi thư!");
                 }
+                EnforceAiEmailQuota(currentUserId);
 
                 var progresses = await _db.ReadingProgresses
                     .AsNoTracking()
@@ -597,6 +640,7 @@ public class S13GeminiAiService : IS13GeminiAiService
                 {
                     return (false, "Bạn chưa có địa chỉ Email hợp lệ. Vui lòng vào Cài Đặt Tài Khoản (/S01AuthOtpGoogle) để điền Email trước khi gửi thư!");
                 }
+                EnforceAiEmailQuota(currentUserId);
 
                 string topic = ExtractStringArg(parameters, "topic");
                 var copyQuery = _db.BookCopies
@@ -664,6 +708,7 @@ public class S13GeminiAiService : IS13GeminiAiService
                 {
                     return (false, "Bạn chưa có địa chỉ Email hợp lệ. Vui lòng vào Cài Đặt Tài Khoản (/S01AuthOtpGoogle) để điền Email trước khi gửi thư!");
                 }
+                EnforceAiEmailQuota(currentUserId);
 
                 var policy = MembershipTierCatalog.GetEffectivePolicy(user.Memberships, DateTime.UtcNow);
                 var activeMem = user.Memberships.Where(m => m.IsActive).OrderByDescending(m => m.StartDate).FirstOrDefault();
@@ -753,6 +798,7 @@ public class S13GeminiAiService : IS13GeminiAiService
                 {
                     return (false, "Bạn chưa phụ trách Câu lạc bộ / Điểm trạm nào để gửi thông báo.");
                 }
+                EnforceAiEmailQuota(currentUserId);
 
                 var sender = await _db.AspNetUsers.AsNoTracking().FirstOrDefaultAsync(u => u.Id == currentUserId);
                 string customTitle = ExtractStringArg(parameters, "title");
@@ -831,6 +877,7 @@ public class S13GeminiAiService : IS13GeminiAiService
                 {
                     return (false, "Tài khoản Quản trị viên chưa có địa chỉ Email hợp lệ. Vui lòng cập nhật tại Cài Đặt Tài Khoản.");
                 }
+                EnforceAiEmailQuota(currentUserId);
 
                 int totalUsers = await _db.AspNetUsers.CountAsync();
                 int totalBooks = await _db.Books.CountAsync();
@@ -877,6 +924,20 @@ public class S13GeminiAiService : IS13GeminiAiService
 
             default:
                 return (false, "Thao tác Copilot yêu cầu chưa được hỗ trợ.");
+        }
+    }
+
+    private void EnforceAiEmailQuota(string userId)
+    {
+        var (allowed, retrySec, rlMsg) = _rateLimiter.TryConsume(
+            "s13-ai-email",
+            userId,
+            maxRequests: 8,
+            window: TimeSpan.FromMinutes(5),
+            customMessage: "Bạn đã gửi quá nhiều Email qua Trợ lý AI trong 5 phút (tối đa 8 thư / 5 phút). Vui lòng đợi giây lát để chống spam hộp thư.");
+        if (!allowed)
+        {
+            throw new RateLimitExceededException(rlMsg, retrySec);
         }
     }
 
@@ -1077,6 +1138,8 @@ public class S13GeminiAiService : IS13GeminiAiService
                 "Tài khoản của bạn chưa có địa chỉ Email hợp lệ. Vui lòng vào Cài Đặt Tài Khoản để nhập Email trước khi gửi thư!",
                 true);
         }
+
+        EnforceAiEmailQuota(currentUserId);
 
         var session = sessionId.HasValue && sessionId.Value > 0
             ? await _db.AiChatSessions.AsNoTracking().FirstOrDefaultAsync(s => s.Id == sessionId.Value && s.UserId == currentUserId)

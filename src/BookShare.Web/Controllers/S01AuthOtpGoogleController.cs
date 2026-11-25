@@ -16,6 +16,7 @@ public class S01AuthOtpGoogleController : Controller
     private readonly IQrAuthService _qrAuthService;
     private readonly IResendEmailService _resendOtpService;
     private readonly IRecaptchaService _recaptchaService;
+    private readonly IAntiSpamRateLimiterService _rateLimiter;
     private readonly IConfiguration _config;
 
     public S01AuthOtpGoogleController(
@@ -23,12 +24,14 @@ public class S01AuthOtpGoogleController : Controller
         IQrAuthService qrAuthService,
         IResendEmailService resendOtpService,
         IRecaptchaService recaptchaService,
+        IAntiSpamRateLimiterService rateLimiter,
         IConfiguration config)
     {
         _authService = authService;
         _qrAuthService = qrAuthService;
         _resendOtpService = resendOtpService;
         _recaptchaService = recaptchaService;
+        _rateLimiter = rateLimiter;
         _config = config;
     }
 
@@ -61,14 +64,26 @@ public class S01AuthOtpGoogleController : Controller
             return RedirectToAction(nameof(Index), new { returnUrl = input.ReturnUrl });
         }
 
-        var result = await _authService.AuthenticateAsync(input.Email, input.Password);
+        string loginKey = $"{(input.Email ?? string.Empty).Trim().ToLowerInvariant()}|{remoteIp ?? "local"}";
+        if (_rateLimiter.IsLockedOut("login-fail", loginKey, maxFailures: 10, TimeSpan.FromMinutes(5), out int retrySec))
+        {
+            TempData["StatusCode"] = 429;
+            TempData["StatusTitle"] = "Tạm khóa đăng nhập do nhập sai nhiều lần";
+            TempData["StatusDetail"] = $"Bạn đã đăng nhập sai quá nhiều lần. Vui lòng thử lại sau {retrySec} giây hoặc dùng chức năng Quên mật khẩu.";
+            return RedirectToAction(nameof(Index), new { returnUrl = input.ReturnUrl });
+        }
+
+        var result = await _authService.AuthenticateAsync(input.Email ?? string.Empty, input.Password ?? string.Empty);
         if (!result.Success || result.UserClaims == null)
         {
+            _rateLimiter.RecordFailure("login-fail", loginKey, maxFailures: 10, TimeSpan.FromMinutes(5));
             TempData["StatusCode"] = 400;
             TempData["StatusTitle"] = "Đăng nhập không thành công";
             TempData["StatusDetail"] = result.Message;
             return RedirectToAction(nameof(Index), new { returnUrl = input.ReturnUrl });
         }
+
+        _rateLimiter.ClearFailures("login-fail", loginKey);
 
         await SignInCookieAsync(result.UserClaims, input.RememberMe);
 

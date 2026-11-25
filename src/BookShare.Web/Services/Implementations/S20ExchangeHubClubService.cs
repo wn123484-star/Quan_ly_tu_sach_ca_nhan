@@ -10,11 +10,16 @@ public class S20ExchangeHubClubService : IS20ExchangeHubClubService
 {
     private readonly BookShareDbContext _db;
     private readonly ILoanFlowCoordinatorService _loanCoordinator;
+    private readonly IAntiSpamRateLimiterService _rateLimiter;
 
-    public S20ExchangeHubClubService(BookShareDbContext db, ILoanFlowCoordinatorService loanCoordinator)
+    public S20ExchangeHubClubService(
+        BookShareDbContext db,
+        ILoanFlowCoordinatorService loanCoordinator,
+        IAntiSpamRateLimiterService rateLimiter)
     {
         _db = db;
         _loanCoordinator = loanCoordinator;
+        _rateLimiter = rateLimiter;
     }
 
     public async Task<S20ExchangeHubClubPageViewModel> GetExchangeHubPageAsync(
@@ -517,6 +522,17 @@ public class S20ExchangeHubClubService : IS20ExchangeHubClubService
         string currentUserId,
         S20JoinClubDto request)
     {
+        var (allowed, retrySec, rlMsg) = _rateLimiter.TryConsume(
+            "s20-join-club",
+            currentUserId,
+            maxRequests: 8,
+            window: TimeSpan.FromMinutes(5),
+            customMessage: "Bạn gửi yêu cầu tham gia CLB quá nhanh (tối đa 8 lần / 5 phút). Vui lòng đợi giây lát để chống spam thông báo tới Trưởng nhóm.");
+        if (!allowed)
+        {
+            throw new RateLimitExceededException(rlMsg, retrySec);
+        }
+
         var hub = await _db.Libraries.FirstOrDefaultAsync(l => l.Id == request.HubId && l.IsActive);
         if (hub == null) return (false, "Không tìm thấy Câu lạc bộ bạn muốn tham gia.");
 
@@ -709,12 +725,30 @@ public class S20ExchangeHubClubService : IS20ExchangeHubClubService
             return (false, "Tiêu đề và nội dung thông báo CLB không được để trống.");
         }
 
+        string cleanTitle = request.Title.Trim();
+        string cleanContent = request.Content.Trim();
+        if (cleanTitle.Length > 180 || cleanContent.Length > 4000)
+        {
+            return (false, "Tiêu đề tối đa 180 ký tự và nội dung thông báo CLB tối đa 4.000 ký tự.");
+        }
+
+        var (allowed, retrySec, rlMsg) = _rateLimiter.TryConsume(
+            "s20-club-post",
+            currentUserId,
+            maxRequests: 12,
+            window: TimeSpan.FromMinutes(5),
+            customMessage: "Bạn đã đăng quá nhiều thông báo lên bảng tin CLB trong 5 phút. Vui lòng đợi giây lát.");
+        if (!allowed)
+        {
+            throw new RateLimitExceededException(rlMsg, retrySec);
+        }
+
         _db.ClubPosts.Add(new ClubPost
         {
             HubId = hub.Id,
             AuthorUserId = currentUserId,
-            Title = request.Title.Trim(),
-            Content = request.Content.Trim(),
+            Title = cleanTitle,
+            Content = cleanContent,
             IsPinned = request.IsPinned,
             CreatedAt = DateTime.UtcNow
         });
@@ -949,8 +983,15 @@ public class S20ExchangeHubClubService : IS20ExchangeHubClubService
 
             if (copy.OwnerUser != null)
             {
-                copy.OwnerUser.LendQuotaBonus += 1;
-                copy.OwnerUser.TrustScore = Math.Clamp(copy.OwnerUser.TrustScore + 3, 0, 200);
+                bool farmedRecently = await _db.Loans.AnyAsync(l =>
+                    l.LoanRequest.BookCopyId == copy.Id &&
+                    l.LoanRequest.BorrowerId == req.BorrowerId &&
+                    l.StartDate >= now.AddHours(-24));
+                if (!farmedRecently)
+                {
+                    copy.OwnerUser.LendQuotaBonus = Math.Min(copy.OwnerUser.LendQuotaBonus + 1, 10);
+                    copy.OwnerUser.TrustScore = Math.Clamp(copy.OwnerUser.TrustScore + 3, 0, 200);
+                }
             }
 
             await _db.SaveChangesAsync();

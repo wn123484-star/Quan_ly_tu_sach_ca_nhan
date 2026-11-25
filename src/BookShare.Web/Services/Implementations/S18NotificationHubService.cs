@@ -10,11 +10,16 @@ public class S18NotificationHubService : IS18NotificationHubService
 {
     private readonly BookShareDbContext _db;
     private readonly IResendEmailService _resendEmailService;
+    private readonly IAntiSpamRateLimiterService _rateLimiter;
 
-    public S18NotificationHubService(BookShareDbContext db, IResendEmailService resendEmailService)
+    public S18NotificationHubService(
+        BookShareDbContext db,
+        IResendEmailService resendEmailService,
+        IAntiSpamRateLimiterService rateLimiter)
     {
         _db = db;
         _resendEmailService = resendEmailService;
+        _rateLimiter = rateLimiter;
     }
 
     public async Task<S18NotificationHubPageViewModel> GetNotificationHubPageAsync(
@@ -216,6 +221,17 @@ public class S18NotificationHubService : IS18NotificationHubService
         string currentUserId,
         S18TriggerResendCampaignDto request)
     {
+        var (allowed, retrySec, rlMsg) = _rateLimiter.TryConsume(
+            "s18-email-campaign",
+            currentUserId,
+            maxRequests: 8,
+            window: TimeSpan.FromMinutes(5),
+            customMessage: "Bạn đã kích hoạt quá nhiều chiến dịch gửi Email trong 5 phút (tối đa 8 lần). Vui lòng đợi giây lát để chống spam hộp thư độc giả.");
+        if (!allowed)
+        {
+            throw new RateLimitExceededException(rlMsg, retrySec);
+        }
+
         var now = DateTime.UtcNow;
         int sentCount = 0;
 

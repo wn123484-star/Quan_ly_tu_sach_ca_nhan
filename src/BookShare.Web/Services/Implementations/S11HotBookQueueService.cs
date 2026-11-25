@@ -10,24 +10,27 @@ public class S11HotBookQueueService : IS11HotBookQueueService
 {
     private readonly BookShareDbContext _db;
     private readonly IResendEmailService _resendEmailService;
+    private readonly IAntiSpamRateLimiterService _rateLimiter;
 
-    public S11HotBookQueueService(BookShareDbContext db, IResendEmailService resendEmailService)
+    public S11HotBookQueueService(
+        BookShareDbContext db,
+        IResendEmailService resendEmailService,
+        IAntiSpamRateLimiterService rateLimiter)
     {
         _db = db;
         _resendEmailService = resendEmailService;
+        _rateLimiter = rateLimiter;
     }
 
     public async Task<S11HotBookQueuePageViewModel> GetHotBookQueuePageAsync(string currentUserId)
     {
+        var nowUtc = DateTime.UtcNow;
         var user = await _db.AspNetUsers
             .Include(u => u.Memberships)
             .AsNoTracking()
             .FirstOrDefaultAsync(u => u.Id == currentUserId);
 
-        string currentTier = user?.Memberships
-            .Where(m => m.IsActive)
-            .OrderByDescending(m => m.MaxConcurrentLoans)
-            .FirstOrDefault()?.Tier ?? "Free";
+        string currentTier = MembershipTierCatalog.GetEffectivePolicy(user?.Memberships, nowUtc).Tier;
 
         var books = await _db.Books
             .AsNoTracking()
@@ -62,10 +65,7 @@ public class S11HotBookQueueService : IS11HotBookQueueService
 
         var queueDtos = reservations.Select(r =>
         {
-            string uTier = r.User.Memberships
-                .Where(m => m.IsActive)
-                .OrderByDescending(m => m.MaxConcurrentLoans)
-                .FirstOrDefault()?.Tier ?? "Free";
+            string uTier = MembershipTierCatalog.GetEffectivePolicy(r.User?.Memberships, nowUtc).Tier;
 
             return new S11QueueItemDto
             {
@@ -75,7 +75,7 @@ public class S11HotBookQueueService : IS11HotBookQueueService
                 BookAuthor = r.Book.Author,
                 CoverImageUrl = r.Book.CoverImageUrl,
                 UserId = r.UserId,
-                UserFullName = r.User.FullName,
+                UserFullName = r.User?.FullName ?? "Độc giả BookShare",
                 UserTier = uTier,
                 QueuePosition = r.QueuePosition,
                 Status = r.Status,
@@ -100,6 +100,17 @@ public class S11HotBookQueueService : IS11HotBookQueueService
         string currentUserId,
         int bookId)
     {
+        var (allowed, retrySec, rlMsg) = _rateLimiter.TryConsume(
+            "s11-enqueue",
+            currentUserId,
+            maxRequests: 12,
+            window: TimeSpan.FromMinutes(5),
+            customMessage: "Bạn đang gửi yêu cầu xếp hàng đặt trước quá nhanh. Vui lòng đợi giây lát rồi thử lại.");
+        if (!allowed)
+        {
+            throw new RateLimitExceededException(rlMsg, retrySec);
+        }
+
         var book = await _db.Books.FirstOrDefaultAsync(b => b.Id == bookId);
         if (book == null)
         {
@@ -118,8 +129,35 @@ public class S11HotBookQueueService : IS11HotBookQueueService
             .Include(u => u.Memberships)
             .FirstOrDefaultAsync(u => u.Id == currentUserId);
 
+        if (user != null && user.LockoutEnd.HasValue && user.LockoutEnd.Value > DateTimeOffset.UtcNow)
+        {
+            return (false, "Tài khoản của bạn đang bị khóa tạm thời nên không thể xếp hàng đặt trước.", 0);
+        }
+
+        bool alreadyBorrowingBook = await _db.Loans.AnyAsync(l =>
+            l.LoanRequest.BorrowerId == currentUserId &&
+            l.LoanRequest.BookCopy.BookId == bookId &&
+            (l.Status == "Active" || l.Status == "Overdue"));
+        if (alreadyBorrowingBook)
+        {
+            return (false, $"Bạn hiện đang mượn cuốn \"{book.Title}\" rồi, không cần xếp hàng đặt trước thêm.", 0);
+        }
+
         var nowUtc = DateTime.UtcNow;
         var userPlan = MembershipTierCatalog.GetEffectivePolicy(user?.Memberships, nowUtc);
+        int maxQueueSlots = userPlan.Tier switch
+        {
+            "Scholar" => 15,
+            "Premium" => 10,
+            "Standard" => 6,
+            _ => 4
+        };
+        int myActiveQueues = await _db.Reservations.CountAsync(r =>
+            r.UserId == currentUserId && (r.Status == "Waiting" || r.Status == "Notified"));
+        if (myActiveQueues >= maxQueueSlots)
+        {
+            return (false, $"Bạn đã đạt giới hạn tối đa {maxQueueSlots} lượt đặt trước Sách Hot đồng thời của gói {userPlan.DisplayName}. Vui lòng hủy bớt lượt cũ hoặc nâng cấp gói hội viên!", 0);
+        }
         bool isPriorityTier = userPlan.PriorityRank > 0;
 
         var waitingQueue = await _db.Reservations
@@ -241,6 +279,11 @@ public class S11HotBookQueueService : IS11HotBookQueueService
         if (res.UserId != currentUserId && !isPrivileged)
         {
             throw new UnauthorizedAccessException("Bạn không có quyền hủy lượt đặt trước của người dùng khác.");
+        }
+
+        if (res.Status != "Waiting" && res.Status != "Notified")
+        {
+            return (false, $"Phiếu đặt trước #{res.Id} đã ở trạng thái '{res.Status}', không thể hủy lặp lại.");
         }
 
         int oldPos = res.QueuePosition;

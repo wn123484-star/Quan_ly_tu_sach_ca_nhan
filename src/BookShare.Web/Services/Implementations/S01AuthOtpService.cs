@@ -18,6 +18,7 @@ public class S01AuthOtpService : IS01AuthOtpService
     private readonly IDatabaseBootstrapService _bootstrap;
     private readonly IResendEmailService _resendEmailService;
     private readonly IWebHostEnvironment _env;
+    private readonly IAntiSpamRateLimiterService _rateLimiter;
     private readonly PasswordHasher<AspNetUser> _passwordHasher = new();
 
     public S01AuthOtpService(
@@ -25,13 +26,15 @@ public class S01AuthOtpService : IS01AuthOtpService
         IConfiguration config,
         IDatabaseBootstrapService bootstrap,
         IResendEmailService resendEmailService,
-        IWebHostEnvironment env)
+        IWebHostEnvironment env,
+        IAntiSpamRateLimiterService rateLimiter)
     {
         _db = db;
         _config = config;
         _bootstrap = bootstrap;
         _resendEmailService = resendEmailService;
         _env = env;
+        _rateLimiter = rateLimiter;
     }
 
     private Task EnsureCoreAdminBootstrapAsync() => _bootstrap.EnsureInitializedAsync();
@@ -300,6 +303,13 @@ public class S01AuthOtpService : IS01AuthOtpService
         }
 
         string normalizedLower = email.Trim().ToLowerInvariant();
+        if (_rateLimiter.IsLockedOut("reset-otp-verify", normalizedLower, maxFailures: 5, TimeSpan.FromMinutes(10), out int retrySec))
+        {
+            throw new RateLimitExceededException(
+                $"Bạn đã nhập sai mã OTP khôi phục quá 5 lần liên tiếp. Vui lòng thử lại sau {retrySec} giây hoặc gửi mã OTP mới.",
+                retrySec);
+        }
+
         string cleanCode = otpCode.Trim();
         if (cleanCode.Length != 6 || !cleanCode.All(char.IsDigit))
         {
@@ -308,7 +318,6 @@ public class S01AuthOtpService : IS01AuthOtpService
 
         string codeHash = AuthConfigHelper.ComputeSha256Hex(cleanCode);
         var record = await _db.OtpVerifications
-            .AsNoTracking()
             .Where(o => o.Email == normalizedLower && o.Purpose == "ResetPassword" && !o.IsUsed)
             .OrderByDescending(o => o.CreatedAt)
             .FirstOrDefaultAsync();
@@ -325,9 +334,17 @@ public class S01AuthOtpService : IS01AuthOtpService
 
         if (!string.Equals(record.OtpCodeHash, codeHash, StringComparison.OrdinalIgnoreCase))
         {
-            return (false, "Mã OTP nhập chưa chính xác. Vui lòng kiểm tra lại hộp thư.");
+            var (fails, lockedOut, _) = _rateLimiter.RecordFailure("reset-otp-verify", normalizedLower, maxFailures: 5, TimeSpan.FromMinutes(10));
+            if (lockedOut)
+            {
+                record.IsUsed = true;
+                await _db.SaveChangesAsync();
+                return (false, "Bạn đã nhập sai mã OTP quá 5 lần liên tiếp. Mã OTP cũ đã bị hủy để bảo mật — vui lòng gửi mã mới.");
+            }
+            return (false, $"Mã OTP nhập chưa chính xác ({fails}/5 lần thử). Vui lòng kiểm tra lại hộp thư.");
         }
 
+        _rateLimiter.ClearFailures("reset-otp-verify", normalizedLower);
         return (true, "Xác thực OTP thành công! Mời bạn nhập mật khẩu mới bên dưới.");
     }
 
@@ -336,6 +353,14 @@ public class S01AuthOtpService : IS01AuthOtpService
         if (request == null || !AuthConfigHelper.IsValidEmailFormat(request.Email))
         {
             return (false, "Địa chỉ Email không hợp lệ.");
+        }
+
+        string normalizedLower = request.Email.Trim().ToLowerInvariant();
+        if (_rateLimiter.IsLockedOut("reset-otp-verify", normalizedLower, maxFailures: 5, TimeSpan.FromMinutes(10), out int retrySec))
+        {
+            throw new RateLimitExceededException(
+                $"Tài khoản đang tạm khóa xác thực OTP do nhập sai quá nhiều lần. Vui lòng thử lại sau {retrySec} giây.",
+                retrySec);
         }
 
         if (string.IsNullOrWhiteSpace(request.OtpCode) || request.OtpCode.Trim().Length != 6)
@@ -353,7 +378,6 @@ public class S01AuthOtpService : IS01AuthOtpService
             return (false, "Mật khẩu nhập lại không khớp với mật khẩu mới. Vui lòng kiểm tra lại.");
         }
 
-        string normalizedLower = request.Email.Trim().ToLowerInvariant();
         string normalizedUpper = normalizedLower.ToUpperInvariant();
         string codeHash = AuthConfigHelper.ComputeSha256Hex(request.OtpCode.Trim());
 
@@ -365,8 +389,16 @@ public class S01AuthOtpService : IS01AuthOtpService
         if (record == null || record.ExpiresAt < DateTime.UtcNow ||
             !string.Equals(record.OtpCodeHash, codeHash, StringComparison.OrdinalIgnoreCase))
         {
+            var (_, lockedOut, _) = _rateLimiter.RecordFailure("reset-otp-verify", normalizedLower, maxFailures: 5, TimeSpan.FromMinutes(10));
+            if (lockedOut && record != null)
+            {
+                record.IsUsed = true;
+                await _db.SaveChangesAsync();
+            }
             return (false, "Mã OTP chưa chính xác hoặc đã hết hạn. Vui lòng gửi lại mã mới.");
         }
+
+        _rateLimiter.ClearFailures("reset-otp-verify", normalizedLower);
 
         var user = !string.IsNullOrWhiteSpace(record.UserId)
             ? await _db.AspNetUsers.FirstOrDefaultAsync(u => u.Id == record.UserId)

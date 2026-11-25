@@ -1296,7 +1296,7 @@ class QARunner:
         rep_c, _, rep_raw = qr_web.post_json("/api/qr-login/claim", {"sessionId": sid, "token": tok})
         self.check("L6", "QR Login Dir1 replay claim rejected (400)", rep_c == 400, rep_raw)
 
-        # Locked account cannot approve Web QR session
+        # Locked account cannot approve Web QR session (OnValidatePrincipal revokes locked cookie -> 401 or service rejects -> 400)
         qr_web2 = SessionClient(self.base_url, "qr_web2")
         qr_web2.refresh_csrf("/S01AuthOtpGoogle")
         _, q2_j, _ = qr_web2.post_json("/api/qr-login/create", {})
@@ -1306,7 +1306,9 @@ class QARunner:
         u2.refresh_csrf("/S01AuthOtpGoogle")
         lk_ap_c, _, lk_ap_raw = u2.post_json("/api/qr-login/approve", {"sessionId": sid2, "approve": True})
         admin.post_json("/S22AdminAnalytics/ToggleUserLock", {"userId": "u-user-02", "lockAccount": False})
-        self.check("L6", "Locked account blocked from approving QR session (400)", lk_c == 200 and lk_ap_c == 400, lk_ap_raw)
+        # Re-authenticate u2 because locking immediately revoked u2's previous session cookie
+        u2.login("minhanh@cmc.edu.vn", "User@123")
+        self.check("L6", "Locked account blocked from approving QR session (401/400)", lk_c == 200 and lk_ap_c in (400, 401), lk_ap_raw)
 
         # 6.2 2-Way QR Login — Direction 2 (MobileLoginByWeb)
         ml_c, ml_j, ml_raw = u1.post_json("/api/qr-login/create-mobile-link", {})
@@ -2841,6 +2843,499 @@ class QARunner:
             f"prog={em_prog_c}, rec={em_rec_c}, wal={em_wal_c}, u1_rbac=({em_u1_club_c},{em_u1_adm_c}), cur={em_cur_club_c}({em_cur_r[:60]}), adm={em_adm_rep_c}({em_adm_r[:60]})",
         )
 
+    # =========================================================================
+    # LAYER 10: V5.2 COMPREHENSIVE BUTTON/FORM/API WIRING, FULL CRUD & ANTI-SPAM
+    # =========================================================================
+    def run_layer10_comprehensive_v52(self, actors: dict[str, SessionClient]) -> None:
+        print("\n=== LAYER 10: V5.2 — EXHAUSTIVE BUTTON/FORM/LINK/API AUDIT, FULL MODULE CRUD & ANTI-SPAM SUITE ===")
+        admin = actors["admin"]
+        lib = actors["librarian"]
+        cur = actors["curator"]
+        u1 = actors["u1"]
+        u2 = actors["u2"]
+        u3 = actors["u3"]
+
+        # ------------------------------------------------------------------
+        # 10.1 Exhaustive Static + Live Button, Form, Link, Route & JS Audit
+        # ------------------------------------------------------------------
+        js_files = [p for p in (WEB_DIR / "wwwroot").rglob("*.js") if "vendor" not in p.parts]
+        bad_js: list[str] = []
+        for jf in js_files:
+            r = subprocess.run(["node", "--check", str(jf)], capture_output=True, text=True)
+            if r.returncode != 0:
+                bad_js.append(f"{jf.name}: {r.stderr.strip()[:80]}")
+        self.check(
+            "L10",
+            f"All {len(js_files)} self-hosted JS files pass strict node --check syntax audit",
+            len(js_files) >= 35 and not bad_js,
+            f"count={len(js_files)}, bad={bad_js}",
+        )
+
+        # Build complete set of Controller routes & actions
+        routes: set[str] = {"/"}
+        ctrl_actions: set[tuple[str, str]] = set()
+        for cf in (WEB_DIR / "Controllers").glob("*.cs"):
+            txt = cf.read_text(encoding="utf-8", errors="ignore")
+            cname = cf.stem.replace("Controller", "")
+            cm = re.search(r'\[Route\("([^"]+)"\)\]', txt)
+            croute = cm.group(1) if cm else ""
+            for m in re.finditer(
+                r'\[Http(?:Get|Post|Put|Delete)(?:\("([^"]+)"\))?\][\s\S]{0,280}?public\s+(?:async\s+Task<)?IActionResult>?\s+(\w+)\s*\(',
+                txt,
+            ):
+                sub, act = m.group(1), m.group(2)
+                ctrl_actions.add((cname.lower(), act.lower()))
+                if sub:
+                    if sub.startswith("/"):
+                        routes.add(sub.lower())
+                    elif croute:
+                        routes.add(("/" + croute.strip("/") + "/" + sub.strip("/")).lower())
+                    else:
+                        routes.add(f"/{cname}/{sub}".lower())
+                routes.add(f"/{cname}/{act}".lower())
+                if act.lower() == "index":
+                    routes.add(f"/{cname}".lower())
+            for m in re.finditer(r'public\s+(?:async\s+Task<)?IActionResult>?\s+(\w+)\s*\(', txt):
+                ctrl_actions.add((cname.lower(), m.group(1).lower()))
+
+        dead_razor_links: list[str] = []
+        view_files = list((WEB_DIR / "Views").rglob("*.cshtml"))
+        all_view_text = ""
+        for vf in view_files:
+            vtxt = vf.read_text(encoding="utf-8", errors="ignore")
+            all_view_text += "\n" + vtxt
+            for m in re.finditer(r'asp-controller="([^"]+)"[^>]*asp-action="([^"]+)"', vtxt):
+                c_raw, a_raw = m.group(1), m.group(2)
+                if "@" in c_raw or "@" in a_raw:
+                    continue
+                if (c_raw.lower(), a_raw.lower()) not in ctrl_actions:
+                    dead_razor_links.append(f"{vf.name}: /{c_raw}/{a_raw}")
+        self.check(
+            "L10",
+            "Zero broken Razor asp-controller/asp-action links across all Views",
+            not dead_razor_links,
+            str(dead_razor_links[:10]),
+        )
+
+        dead_js_apis: list[str] = []
+        all_js_text = ""
+        for jf in js_files:
+            jtxt = jf.read_text(encoding="utf-8", errors="ignore")
+            all_js_text += "\n" + jtxt
+            for m in re.finditer(r'(?:apiRequest|fetch)\s*\(\s*[\'"`](/[A-Za-z0-9_\-/]+)', jtxt):
+                u = m.group(1).split("?")[0].rstrip("/").lower()
+                if u.startswith(("/assets/", "/uploads/", "/images/", "/vendor/", "/fonts/")):
+                    continue
+                ok = u in routes or any(
+                    re.fullmatch(re.sub(r"\{[^}]+\}", "[^/]+", r), u)
+                    or r.startswith(u + "/{")
+                    for r in routes
+                    if "{" in r
+                )
+                if not ok:
+                    dead_js_apis.append(f"{jf.name}: {u}")
+        self.check(
+            "L10",
+            "Zero dead JS apiRequest/fetch endpoint URLs across all 42 JS modules",
+            not dead_js_apis,
+            str(dead_js_apis[:10]),
+        )
+
+        js_classes = sorted(set(re.findall(r"\b(js-[a-z0-9\-]+)\b", all_view_text)))
+        unbound_js_cls = [c for c in js_classes if c not in all_js_text]
+
+        btn_ids = sorted(set(re.findall(r'<button[^>]+id="(btn[A-Za-z0-9_]+)"', all_view_text)))
+        unbound_btns: list[str] = []
+        for bid in btn_ids:
+            bm = re.search(rf'<button[^>]+id="{re.escape(bid)}"[^>]*>', all_view_text)
+            btag = bm.group(0) if bm else ""
+            if (
+                bid in all_js_text
+                or f"getElementById('{bid}')" in all_view_text
+                or f'getElementById("{bid}")' in all_view_text
+                or 'type="submit"' in btag
+                or "data-bs-toggle" in btag
+                or any(cls in btag for cls in js_classes)
+            ):
+                continue
+            unbound_btns.append(bid)
+
+        form_ids = sorted(set(re.findall(r'<form[^>]+id="([A-Za-z0-9_\-]+)"', all_view_text)))
+        unbound_forms: list[str] = []
+        for fid in form_ids:
+            fm = re.search(rf'<form[^>]+id="{re.escape(fid)}"[^>]*>', all_view_text)
+            ftag = fm.group(0).lower() if fm else ""
+            if 'method="get"' in ftag or "asp-action=" in ftag:
+                continue
+            if fid not in all_js_text:
+                unbound_forms.append(fid)
+
+        self.check(
+            "L10",
+            f"All {len(js_classes)} js-* buttons, {len(btn_ids)} btn* IDs & {len(form_ids)} AJAX forms have live handlers (0 dead controls)",
+            not unbound_js_cls and not unbound_btns and not unbound_forms,
+            f"unbound_js={unbound_js_cls}, unbound_btn={unbound_btns}, unbound_form={unbound_forms}",
+        )
+
+        # Live crawl all internal navigation hrefs rendered on Home (Guest & Admin)
+        guest_nav = SessionClient(self.base_url)
+        _, g_nav_html, _ = guest_nav.get("/")
+        _, a_nav_html, _ = admin.get("/")
+        nav_paths = sorted(
+            set(
+                re.findall(r'href="(/(?:S\d{2}[A-Za-z0-9]+(?:\?[^"]*)?)?)"', g_nav_html + a_nav_html)
+            )
+        )
+        broken_nav: list[str] = []
+        for p in nav_paths:
+            clean_p = html_lib.unescape(p)
+            sc, _, _ = admin.get(clean_p)
+            if sc != 200:
+                broken_nav.append(f"{clean_p}->{sc}")
+        self.check(
+            "L10",
+            f"All {len(nav_paths)} live navigation & card links crawled from Home return HTTP 200",
+            len(nav_paths) >= 20 and not broken_nav,
+            f"count={len(nav_paths)}, broken={broken_nav[:8]}",
+        )
+
+        # ------------------------------------------------------------------
+        # 10.2 Full Interactive Module CRUD & Button Coverage (S02 -> S21)
+        # ------------------------------------------------------------------
+        # S02 Personal Shelf full CRUD (CreateShelf -> UpdateShelf -> AddBookToShelf -> UpdateCopy -> DeleteCopy -> DeleteShelf)
+        u1.refresh_csrf("/S02PersonalShelf")
+        s02_shelf_name = f"Kệ QA L10 {int(time.time())}"
+        cs_c, _, _ = u1.post_json("/S02PersonalShelf/CreateShelf", {"name": s02_shelf_name, "description": "QA L10", "isPublic": True})
+        _, s02_h, _ = u1.get("/S02PersonalShelf")
+        sh_m = re.search(rf'data-shelf-id="(\d+)"[^>]*data-shelf-name="{re.escape(s02_shelf_name)}"', html_lib.unescape(s02_h))
+        if not sh_m:
+            all_sh = re.findall(r'data-shelf-id="(\d+)"', s02_h)
+            new_sh_id = int(all_sh[-1]) if all_sh else 0
+        else:
+            new_sh_id = int(sh_m.group(1))
+        us_c, _, _ = u1.post_json("/S02PersonalShelf/UpdateShelf", {"shelfId": new_sh_id, "name": s02_shelf_name + " Upd", "description": "Upd", "isPublic": False}) if new_sh_id else (0, {}, "")
+        ab_c, _, _ = u1.post_json("/S02PersonalShelf/AddBookToShelf", {"bookId": 1, "shelfId": new_sh_id, "condition": "New", "isLendable": True}) if new_sh_id else (0, {}, "")
+        _, s02_h2, _ = u1.get(f"/S02PersonalShelf?shelfId={new_sh_id}")
+        cp_m = re.search(r'data-copy-id="(\d+)"', s02_h2)
+        new_cp_id = int(cp_m.group(1)) if cp_m else 0
+        uc_c, _, _ = u1.post_json("/S02PersonalShelf/UpdateCopy", {"bookCopyId": new_cp_id, "condition": "Good", "shelfId": new_sh_id}) if new_cp_id else (0, {}, "")
+        dc_c, _, _ = u1.post_json("/S02PersonalShelf/DeleteCopy", {"bookCopyId": new_cp_id}) if new_cp_id else (0, {}, "")
+        ds_c, _, _ = u1.post_json("/S02PersonalShelf/DeleteShelf", {"shelfId": new_sh_id}) if new_sh_id else (0, {}, "")
+        self.check(
+            "L10",
+            "S02 Personal Shelf full CRUD (Create/Update/Delete Shelf + Add/Update/Delete Copy)",
+            cs_c == 200 and new_sh_id > 0 and us_c == 200 and ab_c == 200 and new_cp_id > 0 and uc_c == 200 and dc_c == 200 and ds_c == 200,
+            f"cs={cs_c}, sh={new_sh_id}, us={us_c}, ab={ab_c}, cp={new_cp_id}, uc={uc_c}, dc={dc_c}, ds={ds_c}",
+        )
+
+        # S03 Reading Tracker full CRUD + ChartData JSON
+        u2.refresh_csrf("/S03ReadingTracker")
+        add_tr_c, tr_html, _ = u2.post_form("/S03ReadingTracker/AddBookToTracker", {"BookId": "5", "Priority": "High"}, follow_redirects=True)
+        tr_ids = [int(x) for x in re.findall(r'data-progress-id="(\d+)"', tr_html)]
+        tr_id = max(tr_ids) if tr_ids else 0
+        u2.refresh_csrf("/S03ReadingTracker")
+        up_tr_c, _, _ = u2.post_json("/S03ReadingTracker/UpdateProgress", {"progressId": tr_id, "currentPage": 45, "priority": "High", "personalRating": 5}) if tr_id else (0, {}, "")
+        ch_tr_c, ch_tr_raw, _ = u2.get("/S03ReadingTracker/ChartData", accept_json=True)
+        del_tr_c, _, _ = u2.post_json("/S03ReadingTracker/DeleteProgress", {"progressId": tr_id}) if tr_id else (0, {}, "")
+        self.check(
+            "L10",
+            "S03 Reading Tracker full lifecycle (AddBook -> UpdateProgress -> ChartData JSON -> DeleteProgress)",
+            add_tr_c == 200 and tr_id > 0 and up_tr_c == 200 and ch_tr_c == 200 and "{" in ch_tr_raw and del_tr_c == 200,
+            f"add={add_tr_c}, id={tr_id}, up={up_tr_c}, ch={ch_tr_c}, del={del_tr_c}",
+        )
+
+        # S04 Book Notes & Quotes full CRUD + Community filter
+        u2.refresh_csrf("/S04BookNotesQuotes")
+        sn_c, sn_j, _ = u2.post_json("/S04BookNotesQuotes/SaveNote", {"bookId": 1, "pageNumber": 22, "quoteText": "Trích dẫn QA L10", "noteContent": "Cảm nhận QA L10", "isPublic": True})
+        note_id = int(((sn_j or {}).get("note") or {}).get("noteId") or 0)
+        en_c, _, _ = u2.post_json("/S04BookNotesQuotes/SaveNote", {"noteId": note_id, "bookId": 1, "pageNumber": 24, "quoteText": "Trích dẫn sửa", "noteContent": "Nội dung sửa", "isPublic": False}) if note_id else (0, {}, "")
+        tp_c, _, _ = u2.post_json("/S04BookNotesQuotes/TogglePublic", {"noteId": note_id, "isPublic": True}) if note_id else (0, {}, "")
+        cm_c, cm_html, _ = u1.get("/S04BookNotesQuotes?community=true")
+        dn_c, _, _ = u2.post_json("/S04BookNotesQuotes/DeleteNote", {"noteId": note_id}) if note_id else (0, {}, "")
+        self.check(
+            "L10",
+            "S04 Book Notes full lifecycle (Create -> Edit -> TogglePublic -> Community view -> Delete)",
+            sn_c == 200 and note_id > 0 and en_c == 200 and tp_c == 200 and cm_c == 200 and "Nội dung sửa" in html_lib.unescape(cm_html) and dn_c == 200,
+            f"sn={sn_c}, id={note_id}, en={en_c}, tp={tp_c}, cm={cm_c}, dn={dn_c}",
+        )
+
+        # S05 Catalog Update + S06 Suggest Autocomplete + S07 Shelf Update
+        lib.refresh_csrf("/S05IsbnAutoCatalog")
+        s05_up_c, _, _ = lib.post_json("/S05IsbnAutoCatalog/UpdateCatalogBook", {"bookId": 1, "title": "Clean Code - Mã Sạch", "author": "Robert C. Martin", "pageCount": 464, "categoryId": 1})
+        s06_sug_c, s06_sug_raw, _ = u1.get("/S06SearchDiscovery/Suggest?q=Clean", accept_json=True)
+        s06_flt_c, _, _ = u1.get("/S06SearchDiscovery?ownerType=System&statusFilter=Available&pageSize=12")
+        lib.refresh_csrf("/S07LibraryCatalog")
+        s07_up_c, _, _ = lib.post_json("/S07LibraryCatalog/UpdateShelfLocation", {"bookCopyId": 1, "shelfLocation": "Kệ CNTT-A1 (QA)"})
+        self.check(
+            "L10",
+            "S05 UpdateCatalogBook, S06 Suggest/Filter & S07 UpdateShelfLocation all succeed",
+            s05_up_c == 200 and s06_sug_c == 200 and "Clean" in s06_sug_raw and s06_flt_c == 200 and s07_up_c == 200,
+            f"s05={s05_up_c}, s06_sug={s06_sug_c}, s06_flt={s06_flt_c}, s07={s07_up_c}",
+        )
+
+        # S08 CancelRequest + Anti-IDOR
+        _, s08_u2_h, _ = u2.get("/S08LibraryLoanFlow")
+        s08_cp_m = re.search(r'<option\s+value="(\d+)">\[BS-', s08_u2_h)
+        s08_cp_id = int(s08_cp_m.group(1)) if s08_cp_m else 0
+        u2.refresh_csrf("/S08LibraryLoanFlow")
+        s08_cr_c, _, _ = u2.post_json("/S08LibraryLoanFlow/CreateRequest", {"bookCopyId": s08_cp_id, "desiredDays": 7, "requestNote": "QA L10 cancel test"}) if s08_cp_id else (0, {}, "")
+        _, s08_u2_h2, _ = u2.get("/S08LibraryLoanFlow")
+        s08_req_m = re.search(r'js-s08-cancel[\s\S]{0,120}?data-req-id="(\d+)"', s08_u2_h2)
+        s08_req_id = int(s08_req_m.group(1)) if s08_req_m else 0
+        u1.refresh_csrf("/S08LibraryLoanFlow")
+        s08_idor_c, _, _ = u1.post_json("/S08LibraryLoanFlow/CancelRequest", {"loanRequestId": s08_req_id}) if s08_req_id else (0, {}, "")
+        s08_can_c, _, _ = u2.post_json("/S08LibraryLoanFlow/CancelRequest", {"loanRequestId": s08_req_id}) if s08_req_id else (0, {}, "")
+        self.check(
+            "L10",
+            "S08 User CreateRequest + CancelRequest succeeds while unrelated User gets 403 Anti-IDOR",
+            s08_cr_c == 200 and s08_req_id > 0 and s08_idor_c == 403 and s08_can_c == 200,
+            f"cp={s08_cp_id}, cr={s08_cr_c}, req={s08_req_id}, idor={s08_idor_c}, can={s08_can_c}",
+        )
+
+        # S10 Condition Report PII isolation + Fake magic-byte upload rejection + Update/Delete Report + S19 Guest PII isolation
+        _, g_s10_h, _ = guest_nav.get("/S10ConditionReport")
+        _, g_s19_h, _ = guest_nav.get("/S19DisputeResolution")
+        s10_pii_clean = "BS-" not in g_s10_h
+        s19_pii_clean = "#DSP-" not in g_s19_h and "BS-" not in g_s19_h
+
+        _, lib_s10_h, _ = lib.get("/S10ConditionReport")
+        any_loan_m = re.search(r'<option\s+value="(\d+)"', lib_s10_h)
+        s10_loan_id = int(any_loan_m.group(1)) if any_loan_m else 1
+        lib.refresh_csrf("/S10ConditionReport")
+        fake_png_c, _, _ = lib.post_multipart(
+            "/S10ConditionReport/UploadReport",
+            {"loanId": str(s10_loan_id), "reportType": "Handover", "conditionGrade": "Good", "note": "Fake magic bytes"},
+            ("imageFile", "evil.png", b"MZ\x90\x00NOT_A_REAL_PNG_FILE", "image/png"),
+        )
+        valid_1px_png = bytes.fromhex(
+            "89504e470d0a1a0a0000000d49484452000000010000000108060000001f15c489"
+            "0000000a49444154789c63000100000500010d0a2db40000000049454e44ae426082"
+        )
+        ok_rep_c, _, _ = lib.post_multipart(
+            "/S10ConditionReport/UploadReport",
+            {"loanId": str(s10_loan_id), "reportType": "Handover", "conditionGrade": "Good", "note": "QA L10 valid report"},
+            ("imageFile", "valid_l10.png", valid_1px_png, "image/png"),
+        )
+        _, lib_s10_h2, _ = lib.get(f"/S10ConditionReport?loanId={s10_loan_id}")
+        rep_ids = [int(x) for x in re.findall(r'data-report-id="(\d+)"', lib_s10_h2)]
+        rep_id = max(rep_ids) if rep_ids else 0
+        u3.refresh_csrf("/S10ConditionReport")
+        rep_idor_c, _, _ = u3.post_json("/S10ConditionReport/UpdateReport", {"reportId": rep_id, "conditionGrade": "Worn", "note": "Hack"}) if rep_id else (0, {}, "")
+        rep_up_c, _, _ = lib.post_json("/S10ConditionReport/UpdateReport", {"reportId": rep_id, "conditionGrade": "Fair", "note": "QA L10 updated"}) if rep_id else (0, {}, "")
+        rep_del_c, _, _ = lib.post_json("/S10ConditionReport/DeleteReport", {"reportId": rep_id}) if rep_id else (0, {}, "")
+        self.check(
+            "L10",
+            "S10/S19 hide PII from Guest; S10 blocks fake magic-byte PNG (400) & supports Update/Delete with Anti-IDOR",
+            s10_pii_clean and s19_pii_clean and fake_png_c == 400 and ok_rep_c == 200 and rep_id > 0 and rep_idor_c == 403 and rep_up_c == 200 and rep_del_c == 200,
+            f"pii=({s10_pii_clean},{s19_pii_clean}), fake={fake_png_c}, ok={ok_rep_c}, rep={rep_id}, idor={rep_idor_c}, up={rep_up_c}, del={rep_del_c}",
+        )
+
+        # S11 Hot Book Queue double-enqueue guard + Anti-IDOR cancel + double-cancel corruption guard
+        u2.refresh_csrf("/S11HotBookQueue")
+        q1_c, _, _ = u2.post_json("/S11HotBookQueue/Enqueue", {"bookId": 8})
+        qdup_c, _, _ = u2.post_json("/S11HotBookQueue/Enqueue", {"bookId": 8})
+        _, s11_h, _ = u2.get("/S11HotBookQueue")
+        res_ids = [int(x) for x in re.findall(r'data-res-id="(\d+)"', s11_h)]
+        res_id = max(res_ids) if res_ids else 0
+        u1.refresh_csrf("/S11HotBookQueue")
+        q_idor_c, _, _ = u1.post_json("/S11HotBookQueue/Cancel", {"reservationId": res_id}) if res_id else (0, {}, "")
+        q_can1_c, _, _ = u2.post_json("/S11HotBookQueue/Cancel", {"reservationId": res_id}) if res_id else (0, {}, "")
+        q_can2_c, _, _ = u2.post_json("/S11HotBookQueue/Cancel", {"reservationId": res_id}) if res_id else (0, {}, "")
+        self.check(
+            "L10",
+            "S11 Queue blocks duplicate enqueue (400), blocks IDOR cancel (403) & blocks double-cancel queue corruption (400)",
+            q1_c == 200 and qdup_c == 400 and res_id > 0 and q_idor_c == 403 and q_can1_c == 200 and q_can2_c == 400,
+            f"q1={q1_c}, dup={qdup_c}, id={res_id}, idor={q_idor_c}, can1={q_can1_c}, can2={q_can2_c}",
+        )
+
+        # S14 AI Recommendation filters & QuickAddToTracker
+        s14_c, _, _ = u1.get("/S14AiRecommendation?mood=focus&major=cntt")
+        u1.refresh_csrf("/S14AiRecommendation")
+        s14_add_c, _, _ = u1.post_json("/S14AiRecommendation/QuickAddToTracker", {"bookId": 12, "priority": "Medium"})
+        self.check("L10", "S14 Recommendation filters & QuickAddToTracker work cleanly", s14_c == 200 and s14_add_c == 200, f"get={s14_c}, add={s14_add_c}")
+
+        # S15 TrustScore Sabotage Guard (blocks duplicate standalone User review!) + UpdateReview + Anti-IDOR + DeleteReview
+        u2.refresh_csrf("/S15TrustScoreReview")
+        rev1_c, _, _ = u2.post_json("/S15TrustScoreReview/SubmitReview", {"targetType": "User", "targetId": "u-user-03", "rating": 4, "comment": "QA L10 review u3"})
+        rev_sabotage_c, _, _ = u2.post_json("/S15TrustScoreReview/SubmitReview", {"targetType": "User", "targetId": "u-user-03", "rating": 1, "comment": "Spam tank trustscore"})
+        _, s15_h, _ = u2.get("/S15TrustScoreReview")
+        rev_ids = [int(x) for x in re.findall(r'data-review-id="(\d+)"', s15_h)]
+        rev_id = max(rev_ids) if rev_ids else 0
+        u1.refresh_csrf("/S15TrustScoreReview")
+        rev_idor_c, _, _ = u1.post_json("/S15TrustScoreReview/UpdateReview", {"reviewId": rev_id, "rating": 1, "comment": "Hacked"}) if rev_id else (0, {}, "")
+        rev_up_c, _, _ = u2.post_json("/S15TrustScoreReview/UpdateReview", {"reviewId": rev_id, "rating": 5, "comment": "Updated QA L10"}) if rev_id else (0, {}, "")
+        rev_del_c, _, _ = u2.post_json("/S15TrustScoreReview/DeleteReview", {"reviewId": rev_id}) if rev_id else (0, {}, "")
+        self.check(
+            "L10",
+            "S15 kills TrustScore sabotage exploit (duplicate standalone User review=400) & passes Update/Delete/Anti-IDOR",
+            rev1_c == 200 and rev_sabotage_c == 400 and rev_id > 0 and rev_idor_c == 403 and rev_up_c == 200 and rev_del_c == 200,
+            f"r1={rev1_c}, dup={rev_sabotage_c}, id={rev_id}, idor={rev_idor_c}, up={rev_up_c}, del={rev_del_c}",
+        )
+
+        # S18 Notification Hub full actions (MarkAllRead + Staff TriggerResendEmail)
+        u2.refresh_csrf("/S18NotificationHub")
+        s18_all_c, _, _ = u2.post_json("/S18NotificationHub/MarkAllRead", {})
+        lib.refresh_csrf("/S18NotificationHub")
+        s18_camp_c, _, _ = lib.post_json("/S18NotificationHub/TriggerResendEmail", {"campaignType": "QueueAvailable"})
+        self.check("L10", "S18 MarkAllRead & Staff TriggerResendEmail succeed", s18_all_c == 200 and s18_camp_c == 200, f"all={s18_all_c}, camp={s18_camp_c}")
+
+        # S21 BatchImport -> UpdateCopyState -> DeleteSystemCopy & Guard active Borrowed copy
+        lib.refresh_csrf("/S21LibrarianDesk")
+        bi_c, bi_j, _ = lib.post_json("/S21LibrarianDesk/BatchImportCopies", {"bookId": 1, "libraryId": 1, "quantity": 1, "shelfLocation": "Kệ QA-L10", "condition": "New"})
+        new_bc = ((bi_j or {}).get("barcodes") or [""])[0]
+        _, s21_bc_h, _ = lib.get(f"/S21LibrarianDesk?copyKeyword={urllib.parse.quote(new_bc)}") if new_bc else (0, "", {})
+        bc_id_m = re.search(r'js-change-state[^>]*data-id="(\d+)"', s21_bc_h)
+        bc_id = int(bc_id_m.group(1)) if bc_id_m else 0
+        uc_dmg_c, _, _ = lib.post_json("/S21LibrarianDesk/UpdateCopyState", {"bookCopyId": bc_id, "newStatus": "Damaged", "newCondition": "Worn"}) if bc_id else (0, {}, "")
+        uc_av_c, _, _ = lib.post_json("/S21LibrarianDesk/UpdateCopyState", {"bookCopyId": bc_id, "newStatus": "Available", "newCondition": "Good"}) if bc_id else (0, {}, "")
+        del_bc_c, _, _ = lib.post_json("/S21LibrarianDesk/DeleteSystemCopy", {"bookCopyId": bc_id}) if bc_id else (0, {}, "")
+        self.check(
+            "L10",
+            "S21 Inventory full CRUD (BatchImport -> UpdateCopyState Damaged/Available -> DeleteSystemCopy)",
+            bi_c == 200 and bool(new_bc) and bc_id > 0 and uc_dmg_c == 200 and uc_av_c == 200 and del_bc_c == 200,
+            f"bi={bi_c}, bc={new_bc}, id={bc_id}, dmg={uc_dmg_c}, av={uc_av_c}, del={del_bc_c}",
+        )
+
+        # ------------------------------------------------------------------
+        # 10.3 Anti-Spam, Anti-Brute-Force & Live Lockout Penetration Suite
+        # ------------------------------------------------------------------
+        ts_spam = int(time.time())
+
+        # A. Live Cookie Revocation on Admin Lock (OnValidatePrincipal rejects locked spammer immediately)
+        lock_user = SessionClient(self.base_url)
+        lock_email = f"lock.l10.{ts_spam}@cmc.edu.vn"
+        lock_user.refresh_csrf("/S01AuthOtpGoogle")
+        lock_user.post_form(
+            "/S01AuthOtpGoogle/Register",
+            {"FullName": "Kiem Thu Khoa Phien L10", "Email": lock_email, "Password": "User@123", "Address": "Ha Noi"},
+            follow_redirects=True,
+        )
+        _, ls_before_raw, _ = lock_user.get("/api/mobile/session", accept_json=True)
+        ls_before = json.loads(ls_before_raw).get("authenticated")
+        admin.refresh_csrf("/S22AdminAnalytics")
+        _, s22_lu_h, _ = admin.get(f"/S22AdminAnalytics?userKeyword={urllib.parse.quote(lock_email)}")
+        lu_m = re.search(r'js-role-select[^>]*data-user-id="([^"]+)"', s22_lu_h)
+        lu_uid = lu_m.group(1) if lu_m else ""
+        lk_c, _, _ = admin.post_json("/S22AdminAnalytics/ToggleUserLock", {"userId": lu_uid, "lockAccount": True}) if lu_uid else (0, {}, "")
+        _, ls_after_raw, _ = lock_user.get("/api/mobile/session", accept_json=True)
+        ls_after = json.loads(ls_after_raw).get("authenticated")
+        self.check(
+            "L10",
+            "Anti-Abuse: Admin locking an active spammer immediately revokes their live cookie (authenticated -> false)",
+            ls_before is True and lk_c == 200 and ls_after is False,
+            f"before={ls_before}, uid={lu_uid}, lk={lk_c}, after={ls_after}",
+        )
+
+        # B. OTP Send Flood Rate-Limit (5 OK -> 6th HTTP 429)
+        otp_spam_user = SessionClient(self.base_url)
+        otp_flood_email = f"otpflood.{ts_spam}@cmc.edu.vn"
+        otp_spam_user.refresh_csrf("/S01AuthOtpGoogle")
+        otp_spam_user.post_form(
+            "/S01AuthOtpGoogle/Register",
+            {"FullName": "Kiem Thu OTP Flood", "Email": otp_flood_email, "Password": "User@123", "Address": "Ha Noi"},
+            follow_redirects=True,
+        )
+        otp_spam_user.logout()
+        otp_spam_user.refresh_csrf("/S01AuthOtpGoogle")
+        otp_codes: list[int] = []
+        for _ in range(6):
+            oc, _, _ = otp_spam_user.post_json("/S01AuthOtpGoogle/SendPasswordResetOtp", {"email": otp_flood_email})
+            otp_codes.append(oc)
+        self.check(
+            "L10",
+            "Anti-Spam: OTP send flood blocked at 6th rapid request with HTTP 429",
+            otp_codes[:5] == [200, 200, 200, 200, 200] and otp_codes[5] == 429,
+            f"codes={otp_codes}",
+        )
+
+        # C. OTP Brute-Force Lockout (5 consecutive wrong guesses invalidate OTP & 6th returns HTTP 429)
+        otp_bf_user = SessionClient(self.base_url)
+        otp_bf_email = f"otpbf.{ts_spam}@cmc.edu.vn"
+        otp_bf_user.refresh_csrf("/S01AuthOtpGoogle")
+        otp_bf_user.post_form(
+            "/S01AuthOtpGoogle/Register",
+            {"FullName": "Kiem Thu OTP BruteForce", "Email": otp_bf_email, "Password": "User@123", "Address": "Ha Noi"},
+            follow_redirects=True,
+        )
+        otp_bf_user.logout()
+        otp_bf_user.refresh_csrf("/S01AuthOtpGoogle")
+        bf_send_c, _, _ = otp_bf_user.post_json("/S01AuthOtpGoogle/SendPasswordResetOtp", {"email": otp_bf_email})
+        bf_codes: list[int] = []
+        for i in range(6):
+            bc, _, _ = otp_bf_user.post_json("/S01AuthOtpGoogle/VerifyPasswordResetOtp", {"email": otp_bf_email, "otpCode": f"00000{i}"})
+            bf_codes.append(bc)
+        self.check(
+            "L10",
+            "Anti-BruteForce: 5 wrong OTP guesses invalidate code & 6th attempt returns HTTP 429",
+            bf_send_c == 200 and bf_codes[:5] == [400, 400, 400, 400, 400] and bf_codes[5] == 429,
+            f"send={bf_send_c}, verify_codes={bf_codes}",
+        )
+
+        # D. AI Email Spam Rate-Limit (8 OK -> 9th HTTP 429)
+        ai_spammer = SessionClient(self.base_url)
+        ai_spam_email = f"aispam.{ts_spam}@cmc.edu.vn"
+        ai_spammer.refresh_csrf("/S01AuthOtpGoogle")
+        ai_spammer.post_form(
+            "/S01AuthOtpGoogle/Register",
+            {"FullName": "Kiem Thu AI Email Spam", "Email": ai_spam_email, "Password": "User@123", "Address": "Ha Noi"},
+            follow_redirects=True,
+        )
+        ai_spammer.refresh_csrf("/S13GeminiAiAssistant")
+        ai_em_codes: list[int] = []
+        for _ in range(9):
+            ec, _, _ = ai_spammer.post_json("/S13GeminiAiAssistant/ExecuteCopilotAction", {"actionKey": "send_reading_progress_email", "parameters": {}})
+            ai_em_codes.append(ec)
+        self.check(
+            "L10",
+            "Anti-Spam: AI Email sending enforces sliding-window quota (8 OK -> 9th HTTP 429)",
+            ai_em_codes[:8] == [200] * 8 and ai_em_codes[8] == 429,
+            f"codes={ai_em_codes}",
+        )
+
+        # E. Pending Loan Request Flood Cap (Free tier max 6 concurrent pending -> 7th blocked 400)
+        loan_spammer = SessionClient(self.base_url)
+        loan_spam_email = f"loanspam.{ts_spam}@cmc.edu.vn"
+        loan_spammer.refresh_csrf("/S01AuthOtpGoogle")
+        loan_spammer.post_form(
+            "/S01AuthOtpGoogle/Register",
+            {"FullName": "Kiem Thu Spam Phieu Muon", "Email": loan_spam_email, "Password": "User@123", "Address": "Ha Noi"},
+            follow_redirects=True,
+        )
+        _, ls_s08_h, _ = loan_spammer.get("/S08LibraryLoanFlow")
+        avail_copy_ids = [int(x) for x in re.findall(r'<option\s+value="(\d+)">\[BS-', ls_s08_h)]
+        loan_spammer.refresh_csrf("/S08LibraryLoanFlow")
+        pend_codes: list[int] = []
+        for cid in avail_copy_ids[:7]:
+            pc, _, _ = loan_spammer.post_json("/S08LibraryLoanFlow/CreateRequest", {"bookCopyId": cid, "desiredDays": 7, "requestNote": "Flood test"})
+            pend_codes.append(pc)
+        self.check(
+            "L10",
+            "Anti-Spam: Pending loan request cap blocks 7th concurrent Pending request for Free member (HTTP 400)",
+            len(pend_codes) == 7 and pend_codes[:6] == [200] * 6 and pend_codes[6] == 400,
+            f"avail={len(avail_copy_ids)}, codes={pend_codes}",
+        )
+
+        # F. Club Join Spam Rate-Limit (8 rapid calls -> 9th HTTP 429)
+        club_spammer = SessionClient(self.base_url)
+        club_spam_email = f"clubspam.{ts_spam}@cmc.edu.vn"
+        club_spammer.refresh_csrf("/S01AuthOtpGoogle")
+        club_spammer.post_form(
+            "/S01AuthOtpGoogle/Register",
+            {"FullName": "Kiem Thu Spam CLB", "Email": club_spam_email, "Password": "User@123", "Address": "Ha Noi"},
+            follow_redirects=True,
+        )
+        club_spammer.refresh_csrf("/S20ExchangeHubClub")
+        club_join_codes: list[int] = []
+        for _ in range(9):
+            jc, _, _ = club_spammer.post_json("/S20ExchangeHubClub/JoinClub", {"hubId": 3})
+            club_join_codes.append(jc)
+        self.check(
+            "L10",
+            "Anti-Spam: Club Join notification flood blocked at 9th rapid call with HTTP 429",
+            club_join_codes[8] == 429,
+            f"codes={club_join_codes}",
+        )
+
 
 def wait_for_server(base_url: str, timeout_s: float = 40.0) -> bool:
     deadline = time.time() + timeout_s
@@ -2920,6 +3415,7 @@ def main() -> int:
         runner.run_layer6_sprint3(actors)
         runner.run_layer8_sprint4(actors)
         runner.run_layer9_sprint5(actors)
+        runner.run_layer10_comprehensive_v52(actors)
         runner.run_layer7_sprint35(actors)
         runner.run_layer5_cleanup_and_integrity(actors["admin"])
 
