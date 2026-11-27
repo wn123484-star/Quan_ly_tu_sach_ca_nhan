@@ -63,6 +63,15 @@ public class S12LoanRenewalFineService : IS12LoanRenewalFineService
             .ThenBy(l => l.DueDate)
             .ToListAsync();
 
+        var loanIds = loans.Select(l => l.Id).ToList();
+        var chargedByLoan = await _db.Transactions
+            .AsNoTracking()
+            .Where(t => t.LoanId != null && loanIds.Contains(t.LoanId.Value) && t.TransactionType == "Fine"
+                        && (t.PaymentStatus == "Completed" || t.PaymentStatus == "Pending"))
+            .GroupBy(t => t.LoanId!.Value)
+            .Select(g => new { LoanId = g.Key, Amount = g.Sum(t => t.Amount) })
+            .ToDictionaryAsync(x => x.LoanId, x => x.Amount);
+
         var loanItems = loans.Select(l =>
         {
             var effectiveEnd = l.ReturnDate ?? now;
@@ -70,7 +79,8 @@ public class S12LoanRenewalFineService : IS12LoanRenewalFineService
                 ? Math.Max(0, (int)Math.Ceiling((effectiveEnd - l.DueDate).TotalDays))
                 : 0;
 
-            decimal calcFine = overdueDays * DailyFineRateVnd;
+            decimal charged = chargedByLoan.GetValueOrDefault(l.Id);
+            decimal calcFine = Math.Max(0m, overdueDays * DailyFineRateVnd - charged);
             bool hasWaitingQueue = l.LoanRequest.BookCopy.Book.Reservations
                 .Any(r => r.Status == "Waiting" || r.Status == "Notified");
 
@@ -91,7 +101,8 @@ public class S12LoanRenewalFineService : IS12LoanRenewalFineService
                 MaxRenewals = bPlan.MaxRenewals,
                 HasWaitingReservations = hasWaitingQueue,
                 OverdueDays = overdueDays,
-                CalculatedFine = Math.Max(l.FineAmount, calcFine),
+                CalculatedFine = calcFine,
+                ChargedFineAmount = charged,
                 RecordedFineAmount = l.FineAmount,
                 Status = l.Status
             };
@@ -126,8 +137,8 @@ public class S12LoanRenewalFineService : IS12LoanRenewalFineService
         return new S12LoanRenewalFinePageViewModel
         {
             CurrentUserId = currentUserId,
-            ActiveLoansCount = loanItems.Count(x => x.Status == "Active"),
-            OverdueLoansCount = loanItems.Count(x => x.OverdueDays > 0 || x.Status == "Overdue"),
+            ActiveLoansCount = loanItems.Count(x => !x.IsReturned && x.Status is "Active" or "Overdue"),
+            OverdueLoansCount = loanItems.Count(x => !x.IsReturned && (x.OverdueDays > 0 || x.Status == "Overdue")),
             TotalOutstandingFines = loanItems.Sum(x => x.CalculatedFine),
             Loans = loanItems,
             FineTransactions = fineTxs
@@ -157,7 +168,7 @@ public class S12LoanRenewalFineService : IS12LoanRenewalFineService
             throw new UnauthorizedAccessException("Bạn không có quyền gia hạn lượt mượn sách của thành viên khác.");
         }
 
-        if (loan.Status != "Active")
+        if (loan.Status != "Active" || loan.ReturnDate.HasValue)
         {
             return (false, $"Chỉ có thể gia hạn lượt mượn đang ở trạng thái hoạt động (Hiện tại: {loan.Status}).", null, loan.RenewCount);
         }
@@ -212,20 +223,29 @@ public class S12LoanRenewalFineService : IS12LoanRenewalFineService
         }
 
         var now = DateTime.UtcNow;
-        int actualOverdueDays = now > loan.DueDate
-            ? (int)Math.Ceiling((now - loan.DueDate).TotalDays)
+
+        // Số ngày trễ tính đến lúc trả sách (nếu đã trả) hoặc đến hiện tại — tuyệt đối không sửa DueDate để "giả lập" quá hạn
+        var effectiveEnd = loan.ReturnDate ?? now;
+        int daysToCharge = effectiveEnd > loan.DueDate
+            ? (int)Math.Ceiling((effectiveEnd - loan.DueDate).TotalDays)
             : 0;
 
-        int daysToCharge = actualOverdueDays > 0
-            ? actualOverdueDays
-            : Math.Clamp(request.SimulatedOverdueDays, 1, 60);
-
-        if (actualOverdueDays <= 0)
+        if (daysToCharge <= 0)
         {
-            loan.DueDate = now.AddDays(-daysToCharge);
+            return (false, $"Hợp đồng mượn #{loan.Id} chưa quá hạn trả ({loan.DueDate:dd/MM/yyyy}) nên không phát sinh phí trễ hạn.", 0, 0);
         }
 
-        decimal fineAmount = daysToCharge * DailyFineRateVnd;
+        // Chỉ thu phần chênh lệch còn thiếu, tránh lập phiếu phạt trùng cho cùng một số ngày trễ
+        decimal alreadyCharged = await _db.Transactions
+            .Where(t => t.LoanId == loan.Id && t.TransactionType == "Fine"
+                        && (t.PaymentStatus == "Completed" || t.PaymentStatus == "Pending"))
+            .SumAsync(t => (decimal?)t.Amount) ?? 0m;
+
+        decimal fineAmount = daysToCharge * DailyFineRateVnd - alreadyCharged;
+        if (fineAmount <= 0)
+        {
+            return (false, $"Hợp đồng mượn #{loan.Id} đã được lập phiếu thu đủ phí trễ hạn {daysToCharge} ngày ({alreadyCharged:N0} VNĐ).", 0, 0);
+        }
 
         var tx = new Transaction
         {

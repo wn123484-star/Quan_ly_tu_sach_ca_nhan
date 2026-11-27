@@ -14,7 +14,7 @@
             <span class="badge bg-primary mb-1">QUẢN LÝ GIA HẠN HỢP ĐỒNG &amp; ĐỐI SOÁT PHÍ QUÁ HẠN</span>
             <h4 class="fw-bold mb-1">📅 Gia Hạn Thời Gian Mượn &amp; Đối Soát Phí Trễ Hạn</h4>
             <p class="text-muted small mb-0">
-                Cho phép gia hạn tối đa <strong>2 lần (+7 ngày/lần)</strong> nếu đầu sách chưa có người xếp hàng đặt trước. Tự động tính phí phạt trả trễ hạn (<strong>5.000đ/ngày</strong>) và phát hành phiếu thu phạt minh bạch.
+                Cho phép gia hạn theo <strong>hạn mức của gói hội viên</strong> (số lần &amp; số ngày mỗi lần) nếu hợp đồng chưa quá hạn và đầu sách chưa có người xếp hàng đặt trước. Tự động tính phí phạt trả trễ hạn (<strong>5.000đ/ngày</strong>) và phát hành phiếu thu phạt minh bạch.
             </p>
         </div>
 
@@ -73,6 +73,10 @@
                                 @loan.DueDate.ToString("dd/MM/yyyy")
                             </div>
                             <div class="small text-muted">Bắt đầu: @loan.StartDate.ToString("dd/MM/yyyy")</div>
+                            @if (loan.IsReturned)
+                            {
+                                <span class="badge bg-secondary mt-1">Đã trả @(loan.ReturnDate?.ToString("dd/MM/yyyy"))</span>
+                            }
                         </td>
                         <td>
                             <div class="d-flex align-items-center gap-2">
@@ -88,11 +92,15 @@
                             </div>
                         </td>
                         <td>
-                            @if (loan.OverdueDays > 0 || loan.RecordedFineAmount > 0)
+                            @if (loan.OverdueDays > 0)
                             {
-                                <div class="text-danger fw-bold">
-                                    <i class="bi bi-exclamation-triangle-fill me-1"></i>Trễ @loan.OverdueDays ngày — @loan.CalculatedFine.ToString("N0") đ
+                                <div class="@(loan.CalculatedFine > 0 ? "text-danger" : "text-muted") fw-bold">
+                                    <i class="bi bi-exclamation-triangle-fill me-1"></i>Trễ @loan.OverdueDays ngày — còn thu @loan.CalculatedFine.ToString("N0") đ
                                 </div>
+                                @if (loan.ChargedFineAmount > 0)
+                                {
+                                    <div class="small text-success">Đã lập phiếu thu: @loan.ChargedFineAmount.ToString("N0") đ</div>
+                                }
                             }
                             else
                             {
@@ -103,7 +111,8 @@
                             <div class="d-inline-flex gap-2">
                                 <button type="button"
                                         class="btn btn-sm @(loan.CanRenew ? "btn-primary" : "btn-outline-secondary") fw-bold js-s12-renew"
-                                        data-loan-id="@loan.LoanId">
+                                        data-loan-id="@loan.LoanId"
+                                        disabled="@(!loan.CanRenew)">
                                     <i class="bi bi-calendar-plus me-1"></i>Gia hạn (+7 ngày)
                                 </button>
                                 @if (User.IsInRole("Librarian") || User.IsInRole("Admin"))
@@ -111,6 +120,7 @@
                                     <button type="button"
                                             class="btn btn-sm btn-outline-danger fw-bold js-s12-assess-fine"
                                             data-loan-id="@loan.LoanId"
+                                            disabled="@(!loan.CanAssessFine)"
                                             title="Tính phí phạt quá hạn và lập phiếu thu">
                                         <i class="bi bi-receipt-cutoff me-1"></i>Tính Phạt &amp; Lập Phiếu Thu
                                     </button>

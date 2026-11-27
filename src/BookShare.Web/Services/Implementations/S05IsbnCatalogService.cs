@@ -237,6 +237,22 @@ public class S05IsbnCatalogService : IS05IsbnCatalogService
                     int pages = bookNode.TryGetProperty("number_of_pages", out var p) && p.TryGetInt32(out var pVal) ? pVal : 300;
                     string cover = $"https://covers.openlibrary.org/b/isbn/{cleanIsbn}-L.jpg";
 
+                    // Lấy NXB & năm xuất bản thật từ OpenLibrary; không có thì để trống cho Thủ thư tự nhập
+                    string publisher = string.Empty;
+                    if (bookNode.TryGetProperty("publishers", out var pubs) && pubs.ValueKind == JsonValueKind.Array && pubs.GetArrayLength() > 0)
+                    {
+                        publisher = pubs[0].TryGetProperty("name", out var pName) ? (pName.GetString() ?? string.Empty) : string.Empty;
+                    }
+                    int publishedYear = DateTime.UtcNow.Year;
+                    if (bookNode.TryGetProperty("publish_date", out var pDate))
+                    {
+                        var yearMatch = System.Text.RegularExpressions.Regex.Match(pDate.GetString() ?? string.Empty, @"\b(1[5-9]|20)\d{2}\b");
+                        if (yearMatch.Success)
+                        {
+                            publishedYear = int.Parse(yearMatch.Value);
+                        }
+                    }
+
                     return new IsbnLookupResultDto
                     {
                         Found = true,
@@ -244,8 +260,8 @@ public class S05IsbnCatalogService : IS05IsbnCatalogService
                         ISBN = cleanIsbn,
                         Title = title,
                         Author = author,
-                        Publisher = "OpenLibrary Publisher",
-                        PublishedYear = 2023,
+                        Publisher = publisher,
+                        PublishedYear = publishedYear,
                         PageCount = Math.Max(50, pages),
                         CategoryId = 1,
                         CoverImageUrl = cover,

@@ -304,9 +304,14 @@ public class S12LoanFineItemDto
     public int RenewCount { get; set; }
     public int MaxRenewals { get; set; } = 2;
     public bool HasWaitingReservations { get; set; }
-    public bool CanRenew => Status == "Active" && RenewCount < MaxRenewals && !HasWaitingReservations && OverdueDays == 0;
+    public bool IsReturned => ReturnDate.HasValue || Status == "Returned";
+    public bool CanRenew => Status == "Active" && !IsReturned && RenewCount < MaxRenewals && !HasWaitingReservations && OverdueDays == 0;
+    // Chỉ cho lập phiếu thu khi thực sự quá hạn và còn phí chưa thu
+    public bool CanAssessFine => OverdueDays > 0 && CalculatedFine > 0;
     public int OverdueDays { get; set; }
+    /// <summary>Phí trễ hạn còn phải thu (đã trừ các phiếu thu đã lập).</summary>
     public decimal CalculatedFine { get; set; }
+    public decimal ChargedFineAmount { get; set; }
     public decimal RecordedFineAmount { get; set; }
     public string Status { get; set; } = "Active";
 }
@@ -331,6 +336,5 @@ public class RenewLoanRequestDto
 public class AssessOverdueFineRequestDto
 {
     public int LoanId { get; set; }
-    public int SimulatedOverdueDays { get; set; } = 5;
     public bool MarkPaidImmediately { get; set; } = true;
 }

@@ -36,7 +36,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 method: 'POST',
                 body: {
                     loanId,
-                    simulatedOverdueDays: 5,
                     markPaidImmediately: true
                 }
             });

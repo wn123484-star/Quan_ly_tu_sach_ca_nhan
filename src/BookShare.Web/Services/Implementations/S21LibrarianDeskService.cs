@@ -721,44 +721,49 @@ public class S21LibrarianDeskService : IS21LibrarianDeskService
 
         if (isCheckin)
         {
-            if (activeLoan != null)
+            // Không có hợp đồng đang mượn thì không có gì để thu hồi — tránh nhả chỗ giữ (Reserved) hoặc mở cho mượn sách hỏng/mất
+            if (activeLoan == null)
             {
-                int overdueDays = now > activeLoan.DueDate
-                    ? (int)Math.Ceiling((now - activeLoan.DueDate).TotalDays)
-                    : 0;
-                decimal fine = overdueDays > 0 ? overdueDays * DailyFineRateVnd : 0m;
+                return (false,
+                    $"Bản sao [{cleanBarcode}] không có hợp đồng mượn đang hoạt động (Trạng thái hiện tại: {copy.Status}) nên không thể thu hồi.",
+                    string.Empty);
+            }
 
-                activeLoan.ReturnDate = now;
-                activeLoan.Status = "Returned";
-                activeLoan.FineAmount = Math.Max(activeLoan.FineAmount, fine);
+            int overdueDays = now > activeLoan.DueDate
+                ? (int)Math.Ceiling((now - activeLoan.DueDate).TotalDays)
+                : 0;
+            decimal fine = overdueDays > 0 ? overdueDays * DailyFineRateVnd : 0m;
 
-                _db.ConditionReports.Add(new ConditionReport
+            activeLoan.ReturnDate = now;
+            activeLoan.Status = "Returned";
+            activeLoan.FineAmount = Math.Max(activeLoan.FineAmount, fine);
+
+            _db.ConditionReports.Add(new ConditionReport
+            {
+                LoanId = activeLoan.Id,
+                ReportType = "Return",
+                ReportedByUserId = librarianUserId,
+                ConditionGrade = string.IsNullOrWhiteSpace(request.ReturnCondition) ? "Good" : request.ReturnCondition,
+                Note = $"Quét mã vạch [{cleanBarcode}] thu hồi nhanh tại Quầy Thủ thư.",
+                ImageUrl = "/images/book-placeholder.svg",
+                CreatedAt = now
+            });
+
+            var activeReq = copy.LoanRequests.FirstOrDefault(r => r.Loan?.Id == activeLoan.Id);
+            if (activeReq != null)
+            {
+                _db.Notifications.Add(new Notification
                 {
-                    LoanId = activeLoan.Id,
-                    ReportType = "Return",
-                    ReportedByUserId = librarianUserId,
-                    ConditionGrade = string.IsNullOrWhiteSpace(request.ReturnCondition) ? "Good" : request.ReturnCondition,
-                    Note = $"Quét mã vạch [{cleanBarcode}] thu hồi nhanh tại Quầy Thủ thư.",
-                    ImageUrl = "/images/book-placeholder.svg",
+                    UserId = activeReq.BorrowerId,
+                    Title = $"Đã thu hồi sách [{cleanBarcode}] tại Quầy Thủ thư",
+                    Content = fine > 0
+                        ? $"Sách \"{copy.Book.Title}\" đã được thu hồi (Phát sinh phí trễ hạn {fine:N0} VNĐ)."
+                        : $"Cảm ơn bạn đã hoàn trả cuốn \"{copy.Book.Title}\" thành công.",
+                    Type = "System",
+                    IsRead = false,
+                    EmailSentViaResend = false,
                     CreatedAt = now
                 });
-
-                var activeReq = copy.LoanRequests.FirstOrDefault(r => r.Loan?.Id == activeLoan.Id);
-                if (activeReq != null)
-                {
-                    _db.Notifications.Add(new Notification
-                    {
-                        UserId = activeReq.BorrowerId,
-                        Title = $"Đã thu hồi sách [{cleanBarcode}] tại Quầy Thủ thư",
-                        Content = fine > 0
-                            ? $"Sách \"{copy.Book.Title}\" đã được thu hồi (Phát sinh phí trễ hạn {fine:N0} VNĐ)."
-                            : $"Cảm ơn bạn đã hoàn trả cuốn \"{copy.Book.Title}\" thành công.",
-                        Type = "System",
-                        IsRead = false,
-                        EmailSentViaResend = false,
-                        CreatedAt = now
-                    });
-                }
             }
 
             if (string.Equals(request.ReturnCondition, "Damaged", StringComparison.OrdinalIgnoreCase))

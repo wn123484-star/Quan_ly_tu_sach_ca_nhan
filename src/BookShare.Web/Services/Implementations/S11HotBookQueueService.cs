@@ -52,7 +52,8 @@ public class S11HotBookQueueService : IS11HotBookQueueService
                 CoverImageUrl = b.CoverImageUrl,
                 TotalCopies = b.BookCopies.Count,
                 AvailableCopies = b.BookCopies.Count(bc => bc.Status == "Available"),
-                BorrowedOrReservedCopies = b.BookCopies.Count(bc => bc.Status != "Available"),
+                // Không tính bản sao hỏng/mất là "đang mượn"
+                BorrowedOrReservedCopies = b.BookCopies.Count(bc => bc.Status == "Borrowed" || bc.Status == "Reserved" || bc.Status == "InTransit"),
                 WaitingCount = b.Reservations.Count(r => r.Status == "Waiting" || r.Status == "Notified")
             })
             .ToListAsync();
@@ -145,6 +146,14 @@ public class S11HotBookQueueService : IS11HotBookQueueService
         if (alreadyBorrowingBook)
         {
             return (false, $"Bạn hiện đang mượn cuốn \"{book.Title}\" rồi, không cần xếp hàng đặt trước thêm.", 0);
+        }
+
+        // Hàng chờ chỉ dành cho đầu sách đã hết bản sao sẵn sàng — còn sách thì gửi phiếu mượn trực tiếp
+        bool hasAvailableCopy = await _db.BookCopies.AnyAsync(bc =>
+            bc.BookId == bookId && bc.Status == "Available" && bc.IsLendable);
+        if (hasAvailableCopy)
+        {
+            return (false, $"Đầu sách \"{book.Title}\" đang còn bản sao sẵn sàng cho mượn. Vui lòng gửi phiếu mượn trực tiếp thay vì xếp hàng đặt trước.", 0);
         }
 
         var nowUtc = DateTime.UtcNow;
