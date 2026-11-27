@@ -149,8 +149,22 @@ document.addEventListener('DOMContentLoaded', () => {
 
             if (res.ok) {
                 const card = document.getElementById(`noteCard-${noteId}`);
+                const wasPublic = !!card?.querySelector('.js-toggle-note-public:checked');
                 if (card) {
                     card.remove();
+                }
+
+                // Cập nhật 2 bộ đếm đầu trang ngay, không cần tải lại
+                const myCountEl = document.getElementById('s04MyNotesCount');
+                if (myCountEl) {
+                    const n = Math.max(0, parseInt(myCountEl.dataset.count || '0', 10) - 1);
+                    myCountEl.dataset.count = n;
+                    myCountEl.innerText = `${n} ghi chú`;
+                }
+                const pubCountEl = document.getElementById('s04PublicCount');
+                if (wasPublic && pubCountEl) {
+                    const n = Math.max(0, (parseInt(pubCountEl.innerText, 10) || 0) - 1);
+                    pubCountEl.innerText = `${n} trích dẫn`;
                 }
                 showSystemStatus(200, 'Đã xóa ghi chú (Mã 200)', res.data?.message || 'Đã xóa ghi chú khỏi sổ tay.');
             }

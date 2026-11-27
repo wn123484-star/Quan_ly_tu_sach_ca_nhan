@@ -20,7 +20,7 @@
         <div class="d-flex gap-3">
             <div class="p-3 rounded-4 bg-primary bg-opacity-10 text-center">
                 <div class="small text-muted">Tổng ghi chú cá nhân</div>
-                <div class="fs-4 fw-bold text-primary">@Model.TotalMyNotesCount ghi chú</div>
+                <div class="fs-4 fw-bold text-primary" id="s04MyNotesCount" data-count="@Model.TotalMyNotesCount">@Model.TotalMyNotesCount ghi chú</div>
             </div>
             <div class="p-3 rounded-4 bg-success bg-opacity-10 text-center">
                 <div class="small text-muted">Đang chia sẻ công khai</div>
@@ -174,7 +174,8 @@
                             {
                                 <div class="d-flex align-items-center gap-2">
                                     <div class="form-check form-switch mb-0" title="Bật/tắt chia sẻ công khai">
-                                        <input class="form-check-input js-toggle-note-public" type="checkbox"
+                                        <input class="form-check-input js-toggle-note-public" type="checkbox" role="switch"
+                                               aria-label="Chia sẻ công khai ghi chú"
                                                data-note-id="@note.NoteId" @(note.IsPublic ? "checked" : "") />
                                     </div>
                                     <button type="button" class="btn btn-sm btn-outline-primary js-edit-note"
@@ -184,13 +185,13 @@
                                             data-quote="@note.QuoteText"
                                             data-content="@note.NoteContent"
                                             data-public="@(note.IsPublic ? "true" : "false")"
-                                            title="Chỉnh sửa ghi chú">
-                                        <i class="bi bi-pencil-square"></i>
+                                            title="Chỉnh sửa ghi chú" aria-label="Chỉnh sửa ghi chú">
+                                        <i class="bi bi-pencil-square" aria-hidden="true"></i>
                                     </button>
                                     <button type="button" class="btn btn-sm btn-outline-danger js-delete-note"
                                             data-note-id="@note.NoteId"
-                                            title="Xóa ghi chú">
-                                        <i class="bi bi-trash3"></i>
+                                            title="Xóa ghi chú" aria-label="Xóa ghi chú">
+                                        <i class="bi bi-trash3" aria-hidden="true"></i>
                                     </button>
                                 </div>
                             }

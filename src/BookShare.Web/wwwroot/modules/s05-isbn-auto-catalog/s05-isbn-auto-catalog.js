@@ -227,7 +227,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
                         const ok = await confirmDialog({
                             title: `Xóa đầu sách "${title}"?`,
-                            text: 'Đầu sách và các bản sao chưa phát sinh hợp đồng mượn sẽ được xóa khỏi danh mục.',
+                            text: 'CẢNH BÁO: Thao tác này xóa vĩnh viễn đầu sách cùng TẤT CẢ bản sao (kể cả tủ sách cá nhân của độc giả khác), tiến độ đọc, ghi chú và lượt đặt trước liên quan. Không thể hoàn tác.',
                             confirmText: 'Xóa đầu sách'
                         });
                         if (!ok) return;

@@ -150,7 +150,18 @@ document.addEventListener('DOMContentLoaded', () => {
                         statusBadge.className = 'badge ' + (newStatus === 'Completed' ? 'bg-success'
                             : newStatus === 'Reading' ? 'bg-warning text-dark' : 'bg-secondary');
                     }
-                    refreshCharts(progId, currentPage, percent, newStatus);
+                    // Đồng bộ nhãn trang, % và thanh trượt theo giá trị server đã chuẩn hóa (kẹp 0..TotalPages)
+                    const slider = document.querySelector(`.js-page-slider[data-progress-id="${progId}"]`);
+                    const totalPages = parseInt(slider?.getAttribute('max') || '0', 10);
+                    const savedPage = Math.max(0, Math.min(currentPage, totalPages || currentPage));
+                    const curLabel = document.getElementById(`curPageLabel-${progId}`);
+                    const pctBadge = document.getElementById(`pctBadge-${progId}`);
+                    if (curLabel) curLabel.innerText = savedPage;
+                    if (pctBadge) pctBadge.innerText = `${percent}%`;
+                    if (slider) slider.value = savedPage;
+                    if (numInput) numInput.value = savedPage;
+
+                    refreshCharts(progId, savedPage, percent, newStatus);
                     showSystemStatus(200, 'Cập nhật tiến độ đọc thành công (Mã 200)', res.data.message);
                 }
             } finally {
